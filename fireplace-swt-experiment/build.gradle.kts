@@ -21,10 +21,31 @@ repositories {
 
 }
 
-dependencies {
-    implementation("org.eclipse.platform:org.eclipse.swt.cocoa.macosx.x86_64:3.120.0") {
-        exclude(group = "org.eclipse.platform", module = "org.eclipse.swt")
+val os: OperatingSystem = DefaultNativePlatform.getCurrentOperatingSystem()
+val arch: String = System.getProperty("os.arch")
+
+configurations.all {
+    resolutionStrategy {
+        dependencySubstitution {
+            val osId = when {
+                os.isWindows -> "win32.win32"
+                os.isLinux -> "gtk.linux"
+                os.isMacOsX -> "cocoa.macosx"
+                else -> throw GradleException("Unsupported OS: $os")
+            }
+
+            substitute(module("org.eclipse.platform:org.eclipse.swt.\${osgi.platform}"))
+                .using(module("org.eclipse.platform:org.eclipse.swt.$osId.$arch:3.120.0"))
+                .because("The maven property '\${osgi.platform}' that appear in the artifact coordinate is not handled by Gradle, it is required to replace the dependency")
+        }
     }
+}
+
+
+dependencies {
+    implementation("org.eclipse.platform:org.eclipse.swt:3.120.0")
+    implementation("org.eclipse.platform:org.eclipse.jface:3.26.0")
+    implementation("org.eclipse.platform:org.eclipse.ui.forms:3.11.300")
 
     implementation(projects.fireplaceSwing)
     implementation(libs.flightrecorder)
@@ -70,7 +91,7 @@ tasks.withType<JavaExec>().configureEach {
     // Need to set the toolchain https://github.com/gradle/gradle/issues/16791
     // javaLauncher.set(javaToolchains.launcherFor(java.toolchain))  // Project toolchain
 
-    val os: OperatingSystem = DefaultNativePlatform.getCurrentOperatingSystem()
+
     if (os.isMacOsX) {
         jvmArgs("-XstartOnFirstThread")
     }

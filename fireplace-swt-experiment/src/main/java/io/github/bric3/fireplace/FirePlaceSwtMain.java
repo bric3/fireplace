@@ -1,3 +1,12 @@
+/*
+ * Fireplace
+ *
+ * Copyright (c) 2021, Today - Brice Dutheil
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/.
+ */
 package io.github.bric3.fireplace;
 
 import io.github.bric3.fireplace.core.ui.Colors.Palette;
@@ -7,11 +16,11 @@ import io.github.bric3.fireplace.flamegraph.FrameBox;
 import io.github.bric3.fireplace.flamegraph.FrameColorProvider;
 import io.github.bric3.fireplace.flamegraph.FrameFontProvider;
 import io.github.bric3.fireplace.flamegraph.FrameTextsProvider;
+import org.eclipse.jface.window.DefaultToolTip;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.awt.SWT_AWT;
 import org.eclipse.swt.events.DisposeEvent;
 import org.eclipse.swt.events.DisposeListener;
-import org.eclipse.swt.graphics.Point;
 import org.eclipse.swt.layout.FillLayout;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
@@ -34,6 +43,7 @@ import org.openjdk.jmc.flightrecorder.stacktrace.tree.StacktraceTreeModel;
 
 import javax.swing.*;
 import java.awt.*;
+import java.awt.event.MouseEvent;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
@@ -41,6 +51,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
@@ -49,7 +60,6 @@ import static java.util.stream.Collectors.toUnmodifiableList;
 
 public class FirePlaceSwtMain {
 
-    private Shell shell;
     private FlamegraphView<Node> flamegraph;
 
     public static void main(String[] args) {
@@ -62,10 +72,6 @@ public class FirePlaceSwtMain {
         Display.setAppName("FirePlace SWT Experiment");
         Display.setAppVersion("0.0.0");
         var display = new Display();
-        // display.asyncExec(() -> {
-        //     // scheduled work on the SWT event thread
-        // });
-
 
         Shell shell = new FirePlaceSwtMain().launchApp(display, args);
         // shell.pack();
@@ -83,7 +89,7 @@ public class FirePlaceSwtMain {
     }
 
     private Shell launchApp(Display display, String[] args) {
-        shell = new Shell(display, SWT.BORDER | SWT.CLOSE | SWT.MIN | SWT.TITLE | SWT.RESIZE);
+        Shell shell = new Shell(display, SWT.BORDER | SWT.CLOSE | SWT.MIN | SWT.TITLE | SWT.RESIZE);
         shell.setText("FirePlace SWT Experiment");
         shell.addDisposeListener(new DisposeListener() {
             public void widgetDisposed(DisposeEvent event) {
@@ -100,14 +106,25 @@ public class FirePlaceSwtMain {
         label.setText(" ");
         label.pack();
 
-        var swingComposite = new Composite(parentComposite, SWT.EMBEDDED | SWT.NO_BACKGROUND);
-        swingComposite.setLayoutData(new GridData(GridData.FILL_BOTH));
+        var embeddingComposite = new Composite(parentComposite, SWT.EMBEDDED | SWT.NO_BACKGROUND);
+        // enbeddingComposite.setLayoutData(new GridData(GridData.FILL_BOTH));
+        embeddingComposite.setLayout(new GridLayout(1, false));
+        embeddingComposite.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
         // swingComposite.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
         // swingComposite.setLayout(new GridLayout(1, false));
 
-        var frame = SWT_AWT.new_Frame(swingComposite);
+        var tooltip = new StyledToolTip(embeddingComposite, org.eclipse.jface.window.ToolTip.NO_RECREATE, true);
+        tooltip.setPopupDelay(500);
+        tooltip.setShift(new org.eclipse.swt.graphics.Point(10, 5));
+
+        embeddingComposite.addListener(
+                SWT.MouseExit,
+                event -> Display.getDefault().timerExec(300, tooltip::hide)
+        );
+
+        var frame = SWT_AWT.new_Frame(embeddingComposite);
         // needed to properly terminate the app on close
-        swingComposite.addDisposeListener(e -> {
+        embeddingComposite.addDisposeListener(e -> {
             // SwingUtilities.invokeLater(() -> {
             try {
                 frame.removeNotify();
@@ -116,7 +133,7 @@ public class FirePlaceSwtMain {
         });
         SwingUtilities.invokeLater(() -> {
             JRootPane rootPane = new JRootPane();
-            flamegraph = createFlameGraph();
+            flamegraph = createFlameGraph(embeddingComposite, tooltip);
             rootPane.getContentPane().add(flamegraph.component);
 
             Panel panel = new Panel();
@@ -127,15 +144,79 @@ public class FirePlaceSwtMain {
             frame.setVisible(true);
         });
 
-        loadJfr(args, label, swingComposite);
+        loadJfr(args, label, embeddingComposite);
 
         return shell;
     }
 
-    private FlamegraphView<Node> createFlameGraph() {
+    private FlamegraphView<Node> createFlameGraph(Composite owner, DefaultToolTip tooltip) {
         var fg = new FlamegraphView<Node>();
         fg.putClientProperty(FlamegraphView.SHOW_STATS, true);
 
+
+        fg.setHoveringListener(new FlamegraphView.HoveringListener<Node>() {
+            public void onFrameHover(FrameBox<Node> frameBox, Rectangle frameRect, MouseEvent mouseEvent) {
+                // This code knows too much about Flamegraph but given tooltips
+                // will probably evolve it may be too early to refactor it
+                var scrollPane = (JScrollPane) mouseEvent.getComponent();
+                var canvas = scrollPane.getViewport().getView();
+
+                var pointOnCanvas = SwingUtilities.convertPoint(scrollPane, mouseEvent.getPoint(), canvas);
+                pointOnCanvas.y = frameRect.y + frameRect.height;
+                var componentPoint = SwingUtilities.convertPoint(canvas, pointOnCanvas, fg.component);
+
+                if (frameBox.isRoot()) {
+                    return;
+                }
+
+
+                var method = frameBox.actualNode.getFrame().getMethod();
+
+                StringBuilder sb = new StringBuilder();
+                sb.append("<form><p>");
+                sb.append("<b>");
+                sb.append(frameBox.actualNode.getFrame().getHumanReadableShortString());
+                sb.append("</b><br/>");
+
+                var packageName = method.getType().getPackage();
+                if (packageName != null) {
+                    sb.append(packageName);
+                    sb.append("<br/>");
+                }
+                sb.append("<hr/>Weight: ");
+                sb.append(frameBox.actualNode.getCumulativeWeight());
+                sb.append("<br/>");
+                sb.append("Type: ");
+                sb.append(frameBox.actualNode.getFrame().getType());
+                sb.append("<br/>");
+
+                Integer bci = frameBox.actualNode.getFrame().getBCI();
+                if (bci != null) {
+                    sb.append("BCI: ");
+                    sb.append(bci);
+                    sb.append("<br/>");
+                }
+                Integer frameLineNumber = frameBox.actualNode.getFrame().getFrameLineNumber();
+                if (frameLineNumber != null) {
+                    sb.append("Line number: ");
+                    sb.append(frameLineNumber);
+                    sb.append("<br/>");
+                }
+                sb.append("</p></form>");
+                var text = sb.toString();
+
+                Display.getDefault().asyncExec(() -> {
+                    var control = Display.getDefault().getCursorControl();
+
+                    if (Objects.equals(owner, control)) {
+                        tooltip.setText(text);
+
+                        tooltip.hide();
+                        tooltip.show(new org.eclipse.swt.graphics.Point(componentPoint.x, componentPoint.y));
+                    }
+                });
+            }
+        });
 
         return fg;
     }
@@ -207,7 +288,7 @@ public class FirePlaceSwtMain {
                                 frame -> ColorMapper.ofObjectHashUsing(Palette.DATADOG.colors()).apply(frame.actualNode.getFrame().getMethod().getType().getPackage())
                         ),
                         FrameFontProvider.defaultFontProvider(),
-                        frame -> ""
+                        frame -> /* Tooltips is handled by SWT / JFACE code */ ""
                 );
                 // flamegraph.component.invalidate();
                 // flamegraph.component.repaint();
