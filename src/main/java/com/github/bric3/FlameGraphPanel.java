@@ -9,20 +9,17 @@
  */
 package com.github.bric3;
 
+import org.openjdk.jmc.flightrecorder.stacktrace.tree.AggregatableFrame;
 import org.openjdk.jmc.flightrecorder.stacktrace.tree.Node;
 import org.openjdk.jmc.flightrecorder.stacktrace.tree.StacktraceTreeModel;
 
 import javax.swing.*;
 import java.awt.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-import java.awt.geom.AffineTransform;
 import java.awt.geom.Rectangle2D;
 import java.time.LocalTime;
 import java.util.function.Supplier;
 
 import static java.util.stream.Collectors.joining;
-import static java.util.stream.Collectors.toUnmodifiableList;
 
 public class FlameGraphPanel extends JPanel {
     private final Supplier<StacktraceTreeModel> stacktraceTreeModelSupplier;
@@ -31,17 +28,13 @@ public class FlameGraphPanel extends JPanel {
         super(new BorderLayout());
         this.stacktraceTreeModelSupplier = memoize(stacktraceTreeModelSupplier);
 
-        setDoubleBuffered(true);
-
         var wrapper = new JPanel(new BorderLayout());
 
-        var timer = new javax.swing.Timer(2_000, new ActionListener() {
-            public void actionPerformed(ActionEvent e) {
-                wrapper.removeAll();
-                wrapper.add(createInternalFlameGraphPanel());
-                wrapper.repaint(1_000);
-                wrapper.revalidate();
-            }
+        var timer = new javax.swing.Timer(2_000, e -> {
+            wrapper.removeAll();
+            wrapper.add(new JScrollPane(createInternalFlameGraphPanel()));
+            wrapper.repaint(1_000);
+            wrapper.revalidate();
         });
         timer.setRepeats(true);
 
@@ -58,7 +51,7 @@ public class FlameGraphPanel extends JPanel {
         add(refreshToggle, BorderLayout.NORTH);
         add(wrapper, BorderLayout.CENTER);
 
-        wrapper.add(createInternalFlameGraphPanel());
+        wrapper.add(new JScrollPane(createInternalFlameGraphPanel()));
     }
 
     private Component createInternalFlameGraphPanel() {
@@ -67,9 +60,11 @@ public class FlameGraphPanel extends JPanel {
 
     private static class FlameGraph extends JPanel {
         private final StacktraceTreeModel stacktraceTreeModel;
+        private int depth;
 
         public FlameGraph(Supplier<StacktraceTreeModel> stacktraceTreeModelSupplier) {
             this.stacktraceTreeModel = stacktraceTreeModelSupplier.get();
+//            this.setDoubleBuffered(true);
         }
 
         @Override
@@ -77,19 +72,13 @@ public class FlameGraphPanel extends JPanel {
             Graphics2D g2 = (Graphics2D) g;
             super.paintComponent(g2);     // paint parent's background
 
-            g2.setFont(new Font("Monospaced", Font.PLAIN, 12));
-
+//            g2.setFont(new Font("Monospaced", Font.PLAIN, 12));
 
             var currentWidth = getWidth();
             var currentHeight = getHeight();
             var fontHeight = g2.getFontMetrics().getAscent();
             var textBorder = 2;
             var frameBoxHeight = fontHeight + (textBorder * 2);
-
-            // timestamp
-            var s = LocalTime.now().toString();
-            g2.setColor(Color.yellow);
-            g2.drawString(s, currentWidth - g2.getFontMetrics().stringWidth(s) - textBorder, currentHeight - textBorder);
 
             // all root node
             var root = stacktraceTreeModel.getRoot();
@@ -106,62 +95,112 @@ public class FlameGraphPanel extends JPanel {
             g2.drawString("all (" + events + ")", textBorder, frameBoxHeight - textBorder);
 
 
-            int depth = 0;
+            depth = 0;
 
 
             var children = root.getChildren();
             var globalWeight = children.stream().mapToDouble(Node::getCumulativeWeight).sum();
             var scaleYRatio = currentWidth / globalWeight;
 
-
 //            var myTransform = AffineTransform.getScaleInstance(1.0, currentWidth / globalWeight);
 //            g2.transform(myTransform);
 
             // for hidpi ?
-            AffineTransform transform = g2.getTransform();
-            double scaleX = 1d / transform.getScaleX();
-            double scaleY = 1d / transform.getScaleY();
+//            AffineTransform transform = g2.getTransform();
+//            double scaleX = 1d / transform.getScaleX();
+//            double scaleY = 1d / transform.getScaleY();
 
             double prevChildBoxX = 1;
             double prevChildBoxY = frameBoxHeight + 1;
-            Rectangle innerRect = g.getClipBounds();
 
+            dfsPaint(g2, root.getChildren(), prevChildBoxX, prevChildBoxY, frameBoxHeight, textBorder, scaleYRatio);
 
-            var firstNode = root.getChildren().get(0);
+            // timestamp
+            var s = LocalTime.now().toString();
+            var nowWidth = g2.getFontMetrics().stringWidth(s);
+            g2.setColor(Color.darkGray);
+            g2.fillRect(currentWidth - nowWidth - textBorder * 2, currentHeight - frameBoxHeight, nowWidth + textBorder * 2, frameBoxHeight);
+            g2.setColor(Color.yellow);
+            g2.drawString(s, currentWidth - nowWidth - textBorder, currentHeight - textBorder);
+        }
 
-            for (var child : children.stream().collect(toUnmodifiableList())) {
+        private void dfsPaint(Graphics2D g2, java.util.List<Node> children, double prevChildBoxX, double prevChildBoxY, int frameBoxHeight, int textBorder, double scaleYRatio) {
+            for (var child : children) {
+                if (child.getParent().isRoot()) {
+                    depth = Math.max(depth, child.getFrame().getFrameLineNumber());
+                }
                 // FIXME: If the cumulative weight is too small the rectangle is not quite visible
 
-                if (child.getParent().isRoot()) {
-                    depth = Math.max(depth, firstNode.getFrame().getFrameLineNumber());
-                }
 
-                var rectWidth = child.getCumulativeWeight() * scaleYRatio;
-                var outerRect = new Rectangle2D.Double(prevChildBoxX, prevChildBoxY, rectWidth, frameBoxHeight);
-                var innerRectSurface = new Rectangle2D.Double(prevChildBoxX + 1, prevChildBoxY + 1, rectWidth - 1, frameBoxHeight - 1);
+                double rectWidth = paintFrameRectangle(
+                        g2,
+                        textBorder,
+                        frameBoxHeight,
+                        scaleYRatio,
+                        prevChildBoxX,
+                        prevChildBoxY,
+                        child
+                );
 
-
-                var humanReadableShortString = child.getFrame().getHumanReadableShortString();
-
-                g2.setColor(Color.gray);
-                g2.draw(outerRect);
-
-                g2.setColor(Color.orange);
-                g2.fill(innerRectSurface);
-
-
-                var frameTextWidth = g2.getFontMetrics().stringWidth(humanReadableShortString);
-                g2.setColor(Color.darkGray);
-                g2.drawString((frameTextWidth + textBorder * 2) <= rectWidth ? humanReadableShortString : "...",
-                              (float) (prevChildBoxX + textBorder),
-                              (float) (prevChildBoxY + frameBoxHeight - textBorder));
-
+                dfsPaint(g2, child.getChildren(),
+                         prevChildBoxX,
+                         prevChildBoxY + frameBoxHeight,
+                         frameBoxHeight,
+                         textBorder,
+                         scaleYRatio);
                 prevChildBoxX = prevChildBoxX + rectWidth;
-
-
             }
         }
+
+        private double paintFrameRectangle(Graphics2D g2, int textBorder, int frameRectHeight, double scaleYRatio, double prevFrameX, double prevFrameY, Node childFrame) {
+            var rectWidth = childFrame.getCumulativeWeight() * scaleYRatio;
+            var outerRect = new Rectangle2D.Double(prevFrameX, prevFrameY, rectWidth, frameRectHeight);
+            var innerRectSurface = new Rectangle2D.Double(prevFrameX + 1, prevFrameY + 1, rectWidth - 1, frameRectHeight - 1);
+
+            var humanReadableShortString = childFrame.getFrame().getHumanReadableShortString();
+
+            g2.setColor(Color.gray);
+            g2.draw(outerRect);
+
+            g2.setColor(Color.orange);
+            g2.fill(innerRectSurface);
+
+            g2.setColor(Color.darkGray);
+            g2.drawString(adaptFrameText(childFrame.getFrame(), g2, rectWidth),
+                          (float) (prevFrameX + textBorder),
+                          (float) (prevFrameY + frameRectHeight - textBorder));
+            return rectWidth;
+        }
     }
+
+    private static String adaptFrameText(AggregatableFrame frame, Graphics2D g2, double targetWidth) {
+        var metrics = g2.getFontMetrics();
+
+        var adaptedText = frame.getHumanReadableShortString();
+        var textBounds = metrics.getStringBounds(adaptedText, g2);
+
+        if (!(textBounds.getWidth() > targetWidth)) {
+            return adaptedText;
+        }
+        adaptedText = frame.getMethod().getMethodName();
+        textBounds = metrics.getStringBounds(adaptedText, g2);
+        if (!(textBounds.getWidth() > targetWidth)) {
+            return adaptedText;
+        }
+        return "...";
+
+
+//        String shortText = text;
+//        int activeIndex = text.length() - 1;
+//
+//        Rectangle2D textBounds = metrics.getStringBounds(shortText, g2);
+//        while (textBounds.getWidth() > targetWidth) {
+//            shortText = text.substring(0, activeIndex--);
+//            textBounds = metrics.getStringBounds(shortText + "...", g2);
+//        }
+//        return activeIndex != text.length() - 1 ? shortText + "..." : text;
+    }
+
 
     // non thread safe
     public static <T> Supplier<T> memoize(final Supplier<T> valueSupplier) {
