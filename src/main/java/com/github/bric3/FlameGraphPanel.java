@@ -59,6 +59,10 @@ public class FlameGraphPanel extends JPanel {
     }
 
     private static class FlameGraph extends JPanel {
+        public static final Color UNDEFINED_COLOR = new Color(108, 163, 189);
+        public static final Color JIT_COMPILED_COLOR = new Color(21, 110, 64);
+        public static final Color INLINED_COLOR = Color.pink;
+        public static final Color INTERPRETED_COLOR = Color.orange;
         private final StacktraceTreeModel stacktraceTreeModel;
         private int depth;
 
@@ -83,8 +87,8 @@ public class FlameGraphPanel extends JPanel {
             // all root node
             var root = stacktraceTreeModel.getRoot();
             var rootRect = new Rectangle2D.Double(1, 1, currentWidth - 1, frameBoxHeight);
-            g2.setPaint(Color.orange.brighter());
-            g2.setColor(Color.orange.darker());
+            g2.setPaint(INTERPRETED_COLOR.brighter());
+            g2.setColor(INTERPRETED_COLOR.darker());
             g2.fill(rootRect);
 
             g2.setColor(Color.darkGray);
@@ -157,12 +161,24 @@ public class FlameGraphPanel extends JPanel {
             var outerRect = new Rectangle2D.Double(prevFrameX, prevFrameY, rectWidth, frameRectHeight);
             var innerRectSurface = new Rectangle2D.Double(prevFrameX + 1, prevFrameY + 1, rectWidth - 1, frameRectHeight - 1);
 
-            var humanReadableShortString = childFrame.getFrame().getHumanReadableShortString();
-
             g2.setColor(Color.gray);
             g2.draw(outerRect);
 
-            g2.setColor(Color.orange);
+            switch (childFrame.getFrame().getType()) {
+                case INTERPRETED:
+                    g2.setColor(INTERPRETED_COLOR);
+                    break;
+                case INLINED:
+                    g2.setColor(INLINED_COLOR);
+                    break;
+                case JIT_COMPILED:
+                    g2.setColor(JIT_COMPILED_COLOR);
+                    break;
+                case UNKNOWN:
+                    g2.setColor(UNDEFINED_COLOR);
+                    break;
+            }
+
             g2.fill(innerRectSurface);
 
             g2.setColor(Color.darkGray);

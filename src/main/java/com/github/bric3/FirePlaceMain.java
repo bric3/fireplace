@@ -13,6 +13,7 @@ import com.formdev.flatlaf.FlatDarculaLaf;
 import com.formdev.flatlaf.util.SystemInfo;
 import org.openjdk.jmc.common.item.IItem;
 import org.openjdk.jmc.common.item.IItemCollection;
+import org.openjdk.jmc.common.item.IItemIterable;
 import org.openjdk.jmc.common.item.IType;
 import org.openjdk.jmc.common.item.ItemFilters;
 import org.openjdk.jmc.common.item.ItemToolkit;
@@ -42,8 +43,11 @@ public class FirePlaceMain {
     public static final String SYSTEM_PROPERTIES = "System properties";
     public static final String NATIVE_LIBRARIES = "Native libraries";
     public static final String ALLOCATIONS = "Allocations";
+    public static final String CPU = "CPU";
 
     public static void main(String[] args) throws CouldNotLoadRecordingException, IOException {
+        System.getProperties().forEach((k, v) -> System.out.println(k + " = " + v));
+
         if (args.length == 0) {
             System.err.println("Requires at least one JFR file:\n\nUsage: java -jar fireplace.jar <JFR file>");
             System.exit(1);
@@ -65,7 +69,7 @@ public class FirePlaceMain {
                             .map(Path::toFile)
                             .collect(toUnmodifiableList());
         var events = JfrLoaderToolkit.loadEvents(jfrFiles);
-//        events.stream().flatMap(IItemIterable::stream).map(IItem::getType).map(IType::getIdentifier).distinct().forEach(System.out::println);
+        events.stream().flatMap(IItemIterable::stream).map(IItem::getType).map(IType::getIdentifier).distinct().forEach(System.out::println);
 
 
         otherEvents(events);
@@ -90,7 +94,8 @@ public class FirePlaceMain {
         FlatDarculaLaf.setup();
 
 
-        var flameGraphPanel = new FlameGraphPanel(() -> stackTraceAllocationFun(events));
+        var allocationFlameGraphPanel = new FlameGraphPanel(() -> stackTraceAllocationFun(events));
+        var cpuFlameGraphPanel = new FlameGraphPanel(() -> stackTraceCPUFun(events));
         var nativeLibs = new JTextArea();
         nativeLibs.addPropertyChangeListener("text", evt -> SwingUtilities.invokeLater(() -> updateContent(nativeLibs, t -> t.setText(nativeLibraries(events)))));
         var sysProps = new JTextArea();
@@ -99,7 +104,8 @@ public class FirePlaceMain {
         var jTabbedPane = new JTabbedPane();
         jTabbedPane.addTab(SYSTEM_PROPERTIES, new JScrollPane(sysProps));
         jTabbedPane.addTab(NATIVE_LIBRARIES, new JScrollPane(nativeLibs));
-        jTabbedPane.addTab(ALLOCATIONS, new JScrollPane(flameGraphPanel));
+        jTabbedPane.addTab(ALLOCATIONS, new JScrollPane(allocationFlameGraphPanel));
+        jTabbedPane.addTab(CPU, new JScrollPane(cpuFlameGraphPanel));
         jTabbedPane.setTabPlacement(JTabbedPane.BOTTOM);
 //        jTabbedPane.setTabLayoutPolicy(JTabbedPane.SCROLL_TAB_LAYOUT);
 
@@ -160,6 +166,7 @@ public class FirePlaceMain {
                 break;
 
             case ALLOCATIONS:
+            case CPU:
             default:
         }
     }
@@ -178,7 +185,6 @@ public class FirePlaceMain {
                 "jdk.ObjectAllocationInNewTLAB",
                 "jdk.ObjectAllocationOutsideTLAB"
         )));
-
 
         return new StacktraceTreeModel(allocCollection,
                                        methodFrameSeparator,
@@ -199,6 +205,20 @@ public class FirePlaceMain {
 //
 //            });
 //        });
+    }
+
+    private static StacktraceTreeModel stackTraceCPUFun(IItemCollection events) {
+        var methodFrameSeparator = new FrameSeparator(FrameCategorization.METHOD, false);
+
+        var allocCollection = events.apply(ItemFilters.type(Set.of(
+                "jdk.ExecutionSample"
+        )));
+
+        return new StacktraceTreeModel(allocCollection,
+                                       methodFrameSeparator,
+                                       false
+//                                      , JdkAttributes.SAMPLE_WEIGHT
+        );
     }
 
     private static void otherEvents(IItemCollection events) {
