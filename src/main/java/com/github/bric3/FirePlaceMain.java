@@ -67,7 +67,7 @@ public class FirePlaceMain {
         otherEvents(events);
 
 
-        //        events.apply(ItemFilters.type(Set.of(
+//        events.apply(ItemFilters.type(Set.of(
 //                "jdk.ExecutionSample",
 //                "jdk.CPULoad"
 //        )));
@@ -127,6 +127,7 @@ public class FirePlaceMain {
 
         SwingUtilities.invokeLater(() -> {
             var frame = new JFrame("FirePlace");
+            setIcon(frame);
             frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
             frame.setSize(new Dimension(1000, 600));
             frame.getContentPane().add(jLayeredPane);
@@ -238,5 +239,16 @@ public class FirePlaceMain {
             eventsCollection.stream().forEach(event -> stringBuilder.append(nativeLibNameAccessor.getMember(event)).append("\n"));
         });
         return stringBuilder.toString();
+    }
+
+    private static void setIcon(JFrame jFrame) {
+        var resource = FirePlaceMain.class.getClassLoader().getResource("fire.png");
+        var image = Toolkit.getDefaultToolkit().getImage(resource);
+
+        try {
+            Taskbar.getTaskbar().setIconImage(image);
+        } catch (UnsupportedOperationException | SecurityException ignored) {
+        }
+        jFrame.setIconImage(image);
     }
 }
