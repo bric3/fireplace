@@ -30,6 +30,10 @@ import static java.util.stream.Collectors.toUnmodifiableList;
 
 public class FirePlaceMain {
 
+    public static final String SYSTEM_PROPERTIES = "System properties";
+    public static final String NATIVE_LIBRARIES = "Native libraries";
+    public static final String ALLOCATIONS = "Allocations";
+
     public static void main(String[] args) throws CouldNotLoadRecordingException, IOException {
         if (args.length == 0) {
             System.err.println("Requires at least one JFR file:\n\nUsage: java -jar fireplace.jar <JFR file>");
@@ -84,9 +88,9 @@ public class FirePlaceMain {
         sysProps.addPropertyChangeListener("text", evt -> SwingUtilities.invokeLater(() -> updateContent(sysProps, t -> t.setText(jvmSystemProperties(events)))));
 
         var jTabbedPane = new JTabbedPane();
-        jTabbedPane.addTab("System properties", new JScrollPane(sysProps));
-        jTabbedPane.addTab("Native libraries", new JScrollPane(nativeLibs));
-        jTabbedPane.addTab("FlameGraph", new JScrollPane(flameGraphPanel));
+        jTabbedPane.addTab(SYSTEM_PROPERTIES, new JScrollPane(sysProps));
+        jTabbedPane.addTab(NATIVE_LIBRARIES, new JScrollPane(nativeLibs));
+        jTabbedPane.addTab(ALLOCATIONS, new JScrollPane(flameGraphPanel));
         jTabbedPane.setTabPlacement(JTabbedPane.BOTTOM);
 //        jTabbedPane.setTabLayoutPolicy(JTabbedPane.SCROLL_TAB_LAYOUT);
 
@@ -138,15 +142,15 @@ public class FirePlaceMain {
 
     private static void updateTabContent(JTabbedPane jTabbedPane, JTextArea nativeLibs, JTextArea sysProps, IItemCollection events) {
         switch (jTabbedPane.getTitleAt(jTabbedPane.getSelectedIndex())) {
-            case "System properties":
+            case SYSTEM_PROPERTIES:
                 sysProps.firePropertyChange("text", -1, Clock.systemUTC().millis());
                 break;
 
-            case "Native libraries":
+            case NATIVE_LIBRARIES:
                 nativeLibs.firePropertyChange("text", -1, Clock.systemUTC().millis());
                 break;
 
-            case "FlameGraph":
+            case ALLOCATIONS:
             default:
         }
     }
