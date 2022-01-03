@@ -40,9 +40,12 @@ import static java.util.stream.Collectors.toUnmodifiableList;
 public class FirePlaceMain {
 
     public static void main(String[] args) throws CouldNotLoadRecordingException, IOException {
+        if (args.length == 0) {
+            System.err.println("Requires at least one JFR file:\n\nUsage: java -jar fireplace.jar <JFR file>");
+            System.exit(1);
+        }
 
         var paths = Arrays.stream(args).map(Path::of).collect(toUnmodifiableList());
-
         if (!paths.stream().allMatch(path -> {
             var exists = Files.exists(path);
             if (!exists) {
