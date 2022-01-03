@@ -10,7 +10,6 @@
 package com.github.bric3;
 
 import com.formdev.flatlaf.FlatDarculaLaf;
-import com.formdev.flatlaf.FlatLightLaf;
 import com.formdev.flatlaf.util.SystemInfo;
 import org.openjdk.jmc.common.item.IItem;
 import org.openjdk.jmc.common.item.IItemCollection;
@@ -26,8 +25,6 @@ import org.openjdk.jmc.flightrecorder.stacktrace.tree.StacktraceTreeModel;
 
 import javax.swing.*;
 import java.awt.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
 import java.io.IOException;
@@ -36,7 +33,6 @@ import java.nio.file.Path;
 import java.time.Clock;
 import java.util.Arrays;
 import java.util.Set;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 import static java.util.stream.Collectors.toUnmodifiableList;
@@ -57,7 +53,11 @@ public class FirePlaceMain {
             System.exit(1);
         }
 
-        var events = JfrLoaderToolkit.loadEvents(paths.stream().map(Path::toFile).collect(toUnmodifiableList()));
+        var jfrFiles = paths.stream()
+                            .peek(path -> System.out.println("Loading " + path))
+                            .map(Path::toFile)
+                            .collect(toUnmodifiableList());
+        var events = JfrLoaderToolkit.loadEvents(jfrFiles);
 //        events.stream().flatMap(IItemIterable::stream).map(IItem::getType).map(IType::getIdentifier).distinct().forEach(System.out::println);
 
 
@@ -107,7 +107,7 @@ public class FirePlaceMain {
         dimensionLabel.setBorder(BorderFactory.createLineBorder(Color.black));
         var jPanel = new JPanel(new BorderLayout());
         jPanel.add(dimensionLabel, BorderLayout.CENTER);
-        jPanel.setBackground(new Color(0, 0,0,0));
+        jPanel.setBackground(new Color(0, 0, 0, 0));
         jPanel.setOpaque(false);
         jPanel.setVisible(false);
         var textHeight = dimensionLabel.getFontMetrics(dimensionLabel.getFont()).getHeight();
@@ -174,7 +174,7 @@ public class FirePlaceMain {
 
         return new StacktraceTreeModel(allocCollection,
                                        methodFrameSeparator,
-                                       true
+                                       false
 //                                       , JdkAttributes.ALLOCATION_SIZE
         );
 
