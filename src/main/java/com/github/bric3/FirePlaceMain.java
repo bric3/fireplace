@@ -97,6 +97,7 @@ public class FirePlaceMain {
         jTabbedPane.addTab(NATIVE_LIBRARIES, new JScrollPane(nativeLibs));
         jTabbedPane.addTab(ALLOCATIONS, new JScrollPane(allocationFlameGraphPanel));
         jTabbedPane.addTab(CPU, new JScrollPane(cpuFlameGraphPanel));
+        jTabbedPane.addTab("CPU 2", new JScrollPane( new FlameGraphPanel2(() -> stackTraceCPUFun(events))));
         jTabbedPane.setTabPlacement(JTabbedPane.BOTTOM);
 //        jTabbedPane.setTabLayoutPolicy(JTabbedPane.SCROLL_TAB_LAYOUT);
 
