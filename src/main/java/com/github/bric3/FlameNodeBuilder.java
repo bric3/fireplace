@@ -9,10 +9,11 @@
  */
 package com.github.bric3;
 
-import java.util.ArrayList;
-import java.util.List;
 import org.openjdk.jmc.flightrecorder.stacktrace.tree.Node;
 import org.openjdk.jmc.flightrecorder.stacktrace.tree.StacktraceTreeModel;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Creates an array of FlameNodes that live in the [0.0, 1.0] world space on the X axis and the depth of the stack representing
@@ -25,6 +26,8 @@ public class FlameNodeBuilder {
         var nodes = new ArrayList<FlameNode<Node>>();
 
         iterate(nodes, model.getRoot(), 0.0d, 1.0d, 0);
+
+        assert nodes.get(0).jfrNode.isRoot() : "First node should be the root node";
 
         return nodes;
     }

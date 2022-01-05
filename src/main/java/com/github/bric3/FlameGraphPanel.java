@@ -9,6 +9,7 @@
  */
 package com.github.bric3;
 
+import org.openjdk.jmc.common.IMCFrame.Type;
 import org.openjdk.jmc.flightrecorder.stacktrace.tree.AggregatableFrame;
 import org.openjdk.jmc.flightrecorder.stacktrace.tree.Node;
 import org.openjdk.jmc.flightrecorder.stacktrace.tree.StacktraceTreeModel;
@@ -18,18 +19,20 @@ import java.awt.*;
 import java.awt.geom.Rectangle2D;
 import java.util.function.Supplier;
 
+import static java.util.stream.Collectors.joining;
+
 public class FlameGraphPanel extends JPanel {
     private final Supplier<StacktraceTreeModel> stacktraceTreeModelSupplier;
 
     public FlameGraphPanel(Supplier<StacktraceTreeModel> stacktraceTreeModelSupplier) {
         super(new BorderLayout());
-        this.stacktraceTreeModelSupplier = memoize(stacktraceTreeModelSupplier);
+        this.stacktraceTreeModelSupplier = Utils.memoize(stacktraceTreeModelSupplier);
 
         var wrapper = new JPanel(new BorderLayout());
 
         var timer = new Timer(2_000, e -> {
             wrapper.removeAll();
-            wrapper.add(new JScrollPane(createInternalFlameGraphPanel()));
+            wrapper.add(JScrollPaneWithButton.create(createInternalFlameGraphPanel()));
             wrapper.repaint(1_000);
             wrapper.revalidate();
         });
@@ -48,10 +51,10 @@ public class FlameGraphPanel extends JPanel {
         add(refreshToggle, BorderLayout.NORTH);
         add(wrapper, BorderLayout.CENTER);
 
-        wrapper.add(new JScrollPane(createInternalFlameGraphPanel()));
+        wrapper.add(JScrollPaneWithButton.create(createInternalFlameGraphPanel()));
     }
 
-    private Component createInternalFlameGraphPanel() {
+    private JComponent createInternalFlameGraphPanel() {
         return new FlameGraph(stacktraceTreeModelSupplier);
     }
 
@@ -62,34 +65,66 @@ public class FlameGraphPanel extends JPanel {
         public static final Color INTERPRETED_COLOR = Color.orange;
         private final StacktraceTreeModel stacktraceTreeModel;
         private final java.util.List<FlameNode<Node>> nodes;
+        private final int depth;
+        private final int textBorder = 2;
 
         public FlameGraph(Supplier<StacktraceTreeModel> stacktraceTreeModelSupplier) {
             this.stacktraceTreeModel = stacktraceTreeModelSupplier.get();
             this.nodes = FlameNodeBuilder.buildFlameNodes(this.stacktraceTreeModel);
+
+            this.depth = this.stacktraceTreeModel.getRoot().getChildren().stream().mapToInt(node -> node.getFrame().getFrameLineNumber()).max().orElse(0);
 //            this.setDoubleBuffered(true);
+        }
+
+        private int getFrameBoxHeight() {
+            return getGraphics().getFontMetrics().getAscent() + (textBorder * 2);
+        }
+
+        public Dimension getPreferredSize() {
+            Dimension d = super.getPreferredSize();
+            d = (d == null) ? new Dimension(400, 400) : d;
+            Insets insets = getInsets();
+
+
+            d.height = Math.max(d.height, depth * getFrameBoxHeight() + insets.top + insets.bottom);
+            return d;
         }
 
         @Override
         protected void paintComponent(Graphics g) {
             long start = System.currentTimeMillis();
             Graphics2D g2 = (Graphics2D) g;
-            super.paintComponent(g2);     // paint parent's background
-
-            GraphicsEnvironment ge = GraphicsEnvironment.getLocalGraphicsEnvironment();
-
+            super.paintComponent(g2);     // paint parent'drawTimeMs background
 
 //            g2.setFont(new Font("Monospaced", Font.PLAIN, 12));
 
             var currentWidth = getWidth();
             var currentHeight = getHeight();
-            var fontHeight = g2.getFontMetrics().getAscent();
-            var textBorder = 2;
-            var frameBoxHeight = fontHeight + (textBorder * 2);
+            var frameBoxHeight = getFrameBoxHeight();
             var visible = this.getVisibleRect();
 
             var rect = new Rectangle();
             //noinspection ForLoopReplaceableByForEach Faster to not use
-            for (int i = 0; i < nodes.size(); i++) {
+
+            {
+                var events = stacktraceTreeModel.getItems()
+                                                .stream()
+                                                .map(iItems -> iItems.getType().getIdentifier())
+                                                .collect(joining(", "));
+                var rootNode = nodes.get(0);
+                rect.x = (int) (currentWidth * rootNode.startX);
+                rect.width = ((int) (currentWidth * rootNode.endX)) - rect.x;
+
+                rect.y = frameBoxHeight * rootNode.stackDepth;
+                rect.height = frameBoxHeight;
+
+                if (visible.intersects(rect)) {
+                    paintRootFrameRectangle((Graphics2D) g.create(rect.x, rect.y, rect.width, rect.height),
+                                            "all (" + events + ")");
+                }
+            }
+
+            for (int i = 1; i < nodes.size(); i++) {
                 var node = nodes.get(i);
                 // TODO Can we do cheaper checks like depth is outside range etc
 
@@ -100,29 +135,41 @@ public class FlameGraphPanel extends JPanel {
                 rect.height = frameBoxHeight;
 
                 if (visible.intersects(rect)) {
-                    paintFrameRectangle((Graphics2D) g.create(rect.x, rect.y, rect.width, rect.height), node.jfrNode);
+                    paintNodeFrameRectangle((Graphics2D) g.create(rect.x, rect.y, rect.width, rect.height), node.jfrNode);
                 }
             }
 
-
             // timestamp
-            var s = Long.toString(System.currentTimeMillis() - start) + " ms";
-            var nowWidth = g2.getFontMetrics().stringWidth(s);
+            var drawTimeMs = "Draw time: " + (System.currentTimeMillis() - start) + " ms";
+            var nowWidth = g2.getFontMetrics().stringWidth(drawTimeMs);
             g2.setColor(Color.darkGray);
-            g2.fillRect(currentWidth - nowWidth - textBorder * 2, currentHeight - frameBoxHeight, nowWidth + textBorder * 2, frameBoxHeight);
+            var visibleRect = getVisibleRect();
+            g2.fillRect(currentWidth - nowWidth - textBorder * 2, visibleRect.y + visibleRect.height - frameBoxHeight, nowWidth + textBorder * 2, frameBoxHeight);
             g2.setColor(Color.yellow);
 
-            g2.drawString(s, currentWidth - nowWidth - textBorder, currentHeight - textBorder);
+            g2.drawString(drawTimeMs, currentWidth - nowWidth - textBorder, visibleRect.y + visibleRect.height - textBorder);
         }
 
-        private void paintFrameRectangle(Graphics2D g2, Node childFrame) {
+        private void paintNodeFrameRectangle(Graphics2D g2, Node childFrame) {
+            Rectangle2D.Double innerRectSurface = paintFrameRectangle2(g2, childFrame.getFrame().getType());
+            g2.drawString(adaptFrameText(childFrame.getFrame(), g2, innerRectSurface.width),
+                          2, (float) innerRectSurface.height - 2);
+        }
+
+        private void paintRootFrameRectangle(Graphics2D g2, String text) {
+            Rectangle2D.Double innerRectSurface = paintFrameRectangle2(g2, Type.UNKNOWN);
+            g2.drawString(adaptFrameText(text, g2, innerRectSurface.width),
+                          2, (float) innerRectSurface.height - 2);
+        }
+
+        private Rectangle2D.Double paintFrameRectangle2(Graphics2D g2, Type frameType) {
             var outerRect = g2.getClipBounds();
             var innerRectSurface = new Rectangle2D.Double(outerRect.x + 1, outerRect.y + 1, outerRect.width - 1, outerRect.height - 1);
 
             g2.setColor(Color.gray);
             g2.draw(outerRect);
 
-            switch (childFrame.getFrame().getType()) {
+            switch (frameType) {
                 case INTERPRETED:
                     g2.setColor(INTERPRETED_COLOR);
                     break;
@@ -140,8 +187,7 @@ public class FlameGraphPanel extends JPanel {
             g2.fill(innerRectSurface);
 
             g2.setColor(Color.darkGray);
-            g2.drawString(adaptFrameText(childFrame.getFrame(), g2, innerRectSurface.width), 2,
-                          (float) innerRectSurface.height - 2);
+            return innerRectSurface;
         }
     }
 
@@ -160,33 +206,17 @@ public class FlameGraphPanel extends JPanel {
             return adaptedText;
         }
         return "...";
-
-
-//        String shortText = text;
-//        int activeIndex = text.length() - 1;
-//
-//        Rectangle2D textBounds = metrics.getStringBounds(shortText, g2);
-//        while (textBounds.getWidth() > targetWidth) {
-//            shortText = text.substring(0, activeIndex--);
-//            textBounds = metrics.getStringBounds(shortText + "...", g2);
-//        }
-//        return activeIndex != text.length() - 1 ? shortText + "..." : text;
     }
 
+    private static String adaptFrameText(String text, Graphics2D g2, double targetWidth) {
+        var metrics = g2.getFontMetrics();
 
-    // non thread safe
-    public static <T> Supplier<T> memoize(final Supplier<T> valueSupplier) {
-        return new Supplier<T>() {
-            private T cachedValue;
-
-            @Override
-            public T get() {
-                if (cachedValue == null) {
-                    cachedValue = valueSupplier.get();
-                }
-                return cachedValue;
-            }
-        };
+        var textBounds = metrics.getStringBounds(text, g2);
+        if (!(textBounds.getWidth() > targetWidth)) {
+            return text;
+        }
+        return "...";
     }
+
 
 }

@@ -18,7 +18,7 @@ import java.awt.geom.Path2D;
 public abstract class JScrollPaneWithButton {
 
     public static JLayer<JScrollPane> create(JComponent content) {
-        return new JLayer<JScrollPane>(new JScrollPane(content), new ScrollBackToTopLayerUI());
+        return new JLayer<JScrollPane>(new JScrollPane(content), new ScrollBackToTopLayerUI(15, 15));
     }
 
     private static class ScrollBackToTopLayerUI extends LayerUI<JScrollPane> {
