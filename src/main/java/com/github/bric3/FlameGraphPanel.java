@@ -17,6 +17,7 @@ import org.openjdk.jmc.flightrecorder.stacktrace.tree.StacktraceTreeModel;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.geom.Rectangle2D;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 import static java.util.stream.Collectors.joining;
@@ -152,14 +153,12 @@ public class FlameGraphPanel extends JPanel {
 
         private void paintNodeFrameRectangle(Graphics2D g2, Node childFrame) {
             Rectangle2D.Double innerRectSurface = paintFrameRectangle2(g2, childFrame.getFrame().getType());
-            g2.drawString(adaptFrameText(childFrame.getFrame(), g2, innerRectSurface.width),
-                          2, (float) innerRectSurface.height - 2);
+            adaptFrameText(childFrame.getFrame(), g2, innerRectSurface.width, text -> g2.drawString(text, 2, (float) innerRectSurface.height - 2));
         }
 
         private void paintRootFrameRectangle(Graphics2D g2, String text) {
             Rectangle2D.Double innerRectSurface = paintFrameRectangle2(g2, Type.UNKNOWN);
-            g2.drawString(adaptFrameText(text, g2, innerRectSurface.width),
-                          2, (float) innerRectSurface.height - 2);
+            adaptFrameText(text, g2, innerRectSurface.width, t -> g2.drawString(t, 2, (float) innerRectSurface.height - 2));
         }
 
         private Rectangle2D.Double paintFrameRectangle2(Graphics2D g2, Type frameType) {
@@ -191,31 +190,41 @@ public class FlameGraphPanel extends JPanel {
         }
     }
 
-    private static String adaptFrameText(AggregatableFrame frame, Graphics2D g2, double targetWidth) {
+    private static void adaptFrameText(AggregatableFrame frame, Graphics2D g2, double targetWidth, Consumer<String> textConsumer) {
         var metrics = g2.getFontMetrics();
 
         var adaptedText = frame.getHumanReadableShortString();
         var textBounds = metrics.getStringBounds(adaptedText, g2);
 
         if (!(textBounds.getWidth() > targetWidth)) {
-            return adaptedText;
+            textConsumer.accept(adaptedText);
+            return;
         }
         adaptedText = frame.getMethod().getMethodName();
         textBounds = metrics.getStringBounds(adaptedText, g2);
         if (!(textBounds.getWidth() > targetWidth)) {
-            return adaptedText;
+            textConsumer.accept(adaptedText);
+            return;
         }
-        return "...";
+        textBounds = metrics.getStringBounds("...", g2);
+        if (!(textBounds.getWidth() > targetWidth)) {
+            textConsumer.accept("...");
+        }
+        // don't draw text
     }
 
-    private static String adaptFrameText(String text, Graphics2D g2, double targetWidth) {
+    private static void adaptFrameText(String text, Graphics2D g2, double targetWidth, Consumer<String> textConsumer) {
         var metrics = g2.getFontMetrics();
 
         var textBounds = metrics.getStringBounds(text, g2);
         if (!(textBounds.getWidth() > targetWidth)) {
-            return text;
+            textConsumer.accept(text);
         }
-        return "...";
+        textBounds = metrics.getStringBounds("...", g2);
+        if (!(textBounds.getWidth() > targetWidth)) {
+            textConsumer.accept("...");
+        }
+        // don't draw text
     }
 
 
