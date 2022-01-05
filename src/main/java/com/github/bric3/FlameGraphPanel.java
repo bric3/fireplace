@@ -16,7 +16,6 @@ import org.openjdk.jmc.flightrecorder.stacktrace.tree.StacktraceTreeModel;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.geom.Rectangle2D;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
 public class FlameGraphPanel extends JPanel {
@@ -72,9 +71,12 @@ public class FlameGraphPanel extends JPanel {
 
         @Override
         protected void paintComponent(Graphics g) {
-            long start = System.nanoTime();
+            long start = System.currentTimeMillis();
             Graphics2D g2 = (Graphics2D) g;
             super.paintComponent(g2);     // paint parent's background
+
+            GraphicsEnvironment ge = GraphicsEnvironment.getLocalGraphicsEnvironment();
+
 
 //            g2.setFont(new Font("Monospaced", Font.PLAIN, 12));
 
@@ -104,11 +106,12 @@ public class FlameGraphPanel extends JPanel {
 
 
             // timestamp
-            var s = Long.toString(TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start));
+            var s = Long.toString(System.currentTimeMillis() - start) + " ms";
             var nowWidth = g2.getFontMetrics().stringWidth(s);
             g2.setColor(Color.darkGray);
             g2.fillRect(currentWidth - nowWidth - textBorder * 2, currentHeight - frameBoxHeight, nowWidth + textBorder * 2, frameBoxHeight);
             g2.setColor(Color.yellow);
+
             g2.drawString(s, currentWidth - nowWidth - textBorder, currentHeight - textBorder);
         }
 

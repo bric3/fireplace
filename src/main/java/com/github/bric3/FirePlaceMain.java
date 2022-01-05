@@ -76,7 +76,6 @@ public class FirePlaceMain {
 
 
 //        events.apply(ItemFilters.type(Set.of(
-//                "jdk.ExecutionSample",
 //                "jdk.CPULoad"
 //        )));
 
@@ -102,8 +101,8 @@ public class FirePlaceMain {
         sysProps.addPropertyChangeListener("text", evt -> SwingUtilities.invokeLater(() -> updateContent(sysProps, t -> t.setText(jvmSystemProperties(events)))));
 
         var jTabbedPane = new JTabbedPane();
-        jTabbedPane.addTab(SYSTEM_PROPERTIES, new JScrollPane(sysProps));
-        jTabbedPane.addTab(NATIVE_LIBRARIES, new JScrollPane(nativeLibs));
+        jTabbedPane.addTab(SYSTEM_PROPERTIES, JScrollPaneWithButton.create(sysProps));
+        jTabbedPane.addTab(NATIVE_LIBRARIES, JScrollPaneWithButton.create(nativeLibs));
         jTabbedPane.addTab(ALLOCATIONS, allocationFlameGraphPanel);
         jTabbedPane.addTab(CPU, cpuFlameGraphPanel);
         jTabbedPane.setTabPlacement(JTabbedPane.BOTTOM);
@@ -152,6 +151,7 @@ public class FirePlaceMain {
                     panelHider.restart();
                 }
             });
+            frame.getGraphicsConfiguration(); // get active screen
         });
     }
 
