@@ -33,7 +33,8 @@ public class FlameGraphPanel extends JPanel {
 
         var timer = new Timer(2_000, e -> {
             wrapper.removeAll();
-            wrapper.add(JScrollPaneWithButton.create(createInternalFlameGraphPanel()));
+            wrapper.add(JScrollPaneWithButton.create(createInternalFlameGraphPanel(),
+                                                     sp -> sp.getVerticalScrollBar().setUnitIncrement(16)));
             wrapper.repaint(1_000);
             wrapper.revalidate();
         });
@@ -52,7 +53,8 @@ public class FlameGraphPanel extends JPanel {
         add(refreshToggle, BorderLayout.NORTH);
         add(wrapper, BorderLayout.CENTER);
 
-        wrapper.add(JScrollPaneWithButton.create(createInternalFlameGraphPanel()));
+        wrapper.add(JScrollPaneWithButton.create(createInternalFlameGraphPanel(),
+                                                 sp -> sp.getVerticalScrollBar().setUnitIncrement(16)));
     }
 
     private JComponent createInternalFlameGraphPanel() {
