@@ -19,6 +19,7 @@ import java.awt.*;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseMotionListener;
 import java.awt.geom.Rectangle2D;
+import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
@@ -59,6 +60,11 @@ public class FlameGraphPanel extends JPanel {
 
     static class ScrollPaneMouseListener implements java.awt.event.MouseListener, MouseMotionListener {
         private Point pressedPoint;
+        private FlameGraphPainter flameGraph;
+
+        public ScrollPaneMouseListener(FlameGraphPainter flameGraph) {
+            this.flameGraph = flameGraph;
+        }
 
         @Override
         public void mouseDragged(MouseEvent e) {
@@ -92,7 +98,22 @@ public class FlameGraphPanel extends JPanel {
 
         @Override
         public void mouseClicked(MouseEvent e) {
+            if (e.getButton() == MouseEvent.BUTTON1) {
+                if ((e.getSource() instanceof JScrollPane)) {
+                    var scrollPane = (JScrollPane) e.getComponent();
+                    var viewPort = scrollPane.getViewport();
 
+                    var point = SwingUtilities.convertPoint(e.getComponent(), e.getPoint(), viewPort.getView());
+
+                    flameGraph.toggleSelectedNodeAt(
+                            (Graphics2D) viewPort.getView().getGraphics(),
+                            point,
+                            viewPort.getVisibleRect()
+                    );
+
+                    scrollPane.repaint();
+                }
+            }
         }
 
         @Override
@@ -137,23 +158,32 @@ public class FlameGraphPanel extends JPanel {
             }
         };
 
-        return JScrollPaneWithButton.create(flameGraphCanvas,
-                                            sp -> {
-                                                sp.getVerticalScrollBar().setUnitIncrement(16);
-                                                sp.getViewport().setScrollMode(JViewport.SIMPLE_SCROLL_MODE);
-                                                new ScrollPaneMouseListener().install(sp);
-                                            });
+        var scrollPaneMouseListener = new ScrollPaneMouseListener(flameGraph);
+
+        return JScrollPaneWithButton.create(
+                flameGraphCanvas,
+                sp -> {
+                    sp.getVerticalScrollBar().setUnitIncrement(16);
+                    sp.getViewport().setScrollMode(JViewport.SIMPLE_SCROLL_MODE);
+                    scrollPaneMouseListener.install(sp);
+                }
+        );
     }
 
     private static class FlameGraphPainter {
-        public static final Color UNDEFINED_COLOR = new Color(108, 163, 189);
-        public static final Color JIT_COMPILED_COLOR = new Color(21, 110, 64);
-        public static final Color INLINED_COLOR = Color.pink;
-        public static final Color INTERPRETED_COLOR = Color.orange;
+        public Color undefinedColor = new Color(108, 163, 189);
+        public Color jitCompiledColor = new Color(21, 110, 64);
+        public Color inlinedColor = Color.pink;
+        public Color interpretedColor = Color.orange;
+        public Color selectionColor = Color.yellow;
+        public Color textColor = Color.darkGray;
+        public Color frameBorderColor = Color.gray;
         private final StacktraceTreeModel stacktraceTreeModel;
-        private final java.util.List<FlameNode<Node>> nodes;
+        private final java.util.List<FrameBox<Node>> nodes;
         private final int depth;
         private final int textBorder = 2;
+
+        private FrameBox<Node> selectedFrame;
 
         public FlameGraphPainter(Supplier<StacktraceTreeModel> stacktraceTreeModelSupplier) {
             this.stacktraceTreeModel = stacktraceTreeModelSupplier.get();
@@ -175,13 +205,11 @@ public class FlameGraphPanel extends JPanel {
             return depth * getFrameBoxHeight(g2);
         }
 
-        protected void paint(Graphics2D g2, int canvasWidth, int canvasHeight, Rectangle visibleRect) {
+        public void paint(Graphics2D g2, int canvasWidth, int canvasHeight, Rectangle visibleRect) {
             long start = System.currentTimeMillis();
 
 //            g2.setFont(new Font("Monospaced", Font.PLAIN, 12));
 
-            var currentWidth = canvasWidth;
-            var currentHeight = canvasHeight;
             var frameBoxHeight = getFrameBoxHeight(g2);
 
             var rect = new Rectangle();
@@ -193,15 +221,16 @@ public class FlameGraphPanel extends JPanel {
                                                 .map(iItems -> iItems.getType().getIdentifier())
                                                 .collect(joining(", "));
                 var rootNode = nodes.get(0);
-                rect.x = (int) (currentWidth * rootNode.startX);
-                rect.width = ((int) (currentWidth * rootNode.endX)) - rect.x;
+                rect.x = (int) (canvasWidth * rootNode.startX);
+                rect.width = ((int) (canvasWidth * rootNode.endX)) - rect.x;
 
                 rect.y = frameBoxHeight * rootNode.stackDepth;
                 rect.height = frameBoxHeight;
 
                 if (visibleRect.intersects(rect)) {
                     paintRootFrameRectangle((Graphics2D) g2.create(rect.x, rect.y, rect.width, rect.height),
-                                            "all (" + events + ")");
+                                            "all (" + events + ")",
+                                            selectedFrame == rootNode);
                 }
             }
 
@@ -209,14 +238,16 @@ public class FlameGraphPanel extends JPanel {
                 var node = nodes.get(i);
                 // TODO Can we do cheaper checks like depth is outside range etc
 
-                rect.x = (int) (currentWidth * node.startX);
-                rect.width = ((int) (currentWidth * node.endX)) - rect.x;
+                rect.x = (int) (canvasWidth * node.startX);
+                rect.width = ((int) (canvasWidth * node.endX)) - rect.x;
 
                 rect.y = frameBoxHeight * node.stackDepth;
                 rect.height = frameBoxHeight;
 
                 if (visibleRect.intersects(rect)) {
-                    paintNodeFrameRectangle((Graphics2D) g2.create(rect.x, rect.y, rect.width, rect.height), node.jfrNode);
+                    paintNodeFrameRectangle((Graphics2D) g2.create(rect.x, rect.y, rect.width, rect.height),
+                                            node.jfrNode,
+                                            selectedFrame == node);
                 }
             }
 
@@ -224,56 +255,82 @@ public class FlameGraphPanel extends JPanel {
             var drawTimeMs = "Draw time: " + (System.currentTimeMillis() - start) + " ms";
             var nowWidth = g2.getFontMetrics().stringWidth(drawTimeMs);
             g2.setColor(Color.darkGray);
-            g2.fillRect(currentWidth - nowWidth - textBorder * 2, visibleRect.y + visibleRect.height - frameBoxHeight, nowWidth + textBorder * 2, frameBoxHeight);
+            g2.fillRect(canvasWidth - nowWidth - textBorder * 2, visibleRect.y + visibleRect.height - frameBoxHeight, nowWidth + textBorder * 2, frameBoxHeight);
             g2.setColor(Color.yellow);
 
-            g2.drawString(drawTimeMs, currentWidth - nowWidth - textBorder, visibleRect.y + visibleRect.height - textBorder);
+            g2.drawString(drawTimeMs, canvasWidth - nowWidth - textBorder, visibleRect.y + visibleRect.height - textBorder);
         }
 
-        private void paintNodeFrameRectangle(Graphics2D g2, Node childFrame) {
-            var innerRectSurface = paintFrameRectangle2(g2, childFrame.getFrame().getType());
+        private void paintNodeFrameRectangle(Graphics2D g2, Node childFrame, boolean selected) {
+            var innerRectSurface = paintFrameRectangle(g2, childFrame.getFrame().getType(), selected);
             adaptFrameText(childFrame.getFrame(),
                            g2,
                            innerRectSurface.width,
-                           text -> g2.drawString(text, textBorder, (float) innerRectSurface.y + getFrameBoxHeight(g2) - textBorder));
+                           text -> {
+                               g2.setColor(textColor);
+                               g2.drawString(text, textBorder, (float) innerRectSurface.y + getFrameBoxHeight(g2) - textBorder);
+                           });
         }
 
-        private void paintRootFrameRectangle(Graphics2D g2, String str) {
-            var innerRectSurface = paintFrameRectangle2(g2, Type.UNKNOWN);
+        private void paintRootFrameRectangle(Graphics2D g2, String str, boolean selected) {
+            var innerRectSurface = paintFrameRectangle(g2, Type.UNKNOWN, selected);
             adaptFrameText(str,
                            g2,
                            innerRectSurface.width,
-                           text -> g2.drawString(text, textBorder, (float) innerRectSurface.y + getFrameBoxHeight(g2) - textBorder));
+                           text -> {
+                               g2.setColor(textColor);
+                               g2.drawString(text, textBorder, (float) innerRectSurface.y + getFrameBoxHeight(g2) - textBorder);
+                           });
         }
 
-        private Rectangle2D.Double paintFrameRectangle2(Graphics2D g2, Type frameType) {
+        private Rectangle2D.Double paintFrameRectangle(Graphics2D g2, Type frameType, boolean selected) {
             var outerRect = g2.getClipBounds();
             var innerRectSurface = new Rectangle2D.Double(outerRect.x + 1, outerRect.y + 1, outerRect.width - 1, outerRect.height - 1);
 
-            g2.setColor(Color.gray);
+            g2.setColor(frameBorderColor);
             g2.draw(outerRect);
 
             switch (frameType) {
                 case INTERPRETED:
-                    g2.setColor(INTERPRETED_COLOR);
+                    g2.setColor(interpretedColor);
                     break;
                 case INLINED:
-                    g2.setColor(INLINED_COLOR);
+                    g2.setColor(inlinedColor);
                     break;
                 case JIT_COMPILED:
-                    g2.setColor(JIT_COMPILED_COLOR);
+                    g2.setColor(jitCompiledColor);
                     break;
                 case UNKNOWN:
-                    g2.setColor(UNDEFINED_COLOR);
+                    g2.setColor(undefinedColor);
                     break;
             }
 
-            g2.fill(innerRectSurface);
+            if (selected) {
+                g2.setColor(selectionColor);
+            }
 
-            g2.setColor(Color.darkGray);
+            g2.fill(innerRectSurface);
             return innerRectSurface;
         }
-    }
+
+        public Optional<FrameBox<Node>> getFrameAt(Graphics2D g2, Point point, Rectangle visibleRect) {
+            int depth = point.y / getFrameBoxHeight(g2);
+            double xLocation = (point.x * 1.0d) / visibleRect.width;
+
+            return nodes.stream()
+                        .filter(node -> node.stackDepth == depth && node.startX <= xLocation && xLocation <= node.endX)
+                        .findFirst();
+        }
+
+        public void toggleSelectedNodeAt(Graphics2D g2, Point point, Rectangle visibleRect) {
+            getFrameAt(
+                    g2,
+                    point,
+                    visibleRect
+            ).ifPresent(frame -> {
+                selectedFrame = selectedFrame == frame ? null : frame;
+            });
+        }
 
         private static void adaptFrameText(AggregatableFrame frame, Graphics2D g2, double targetWidth, Consumer<String> textConsumer) {
             var metrics = g2.getFontMetrics();

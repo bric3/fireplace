@@ -9,13 +9,13 @@
  */
 package com.github.bric3;
 
-public class FlameNode<T> {
+public class FrameBox<T> {
     final T jfrNode;
     final double startX;
     final double endX;
     final int stackDepth;
 
-    public FlameNode(T jfrNode, double startX, double endX, int stackDepth) {
+    public FrameBox(T jfrNode, double startX, double endX, int stackDepth) {
         this.jfrNode = jfrNode;
         this.startX = startX;
         this.endX = endX;

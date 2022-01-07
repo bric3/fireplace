@@ -22,8 +22,8 @@ import java.util.List;
  * The root of the flame graph will always be full width.
  */
 public class FlameNodeBuilder {
-    static List<FlameNode<Node>> buildFlameNodes(StacktraceTreeModel model) {
-        var nodes = new ArrayList<FlameNode<Node>>();
+    static List<FrameBox<Node>> buildFlameNodes(StacktraceTreeModel model) {
+        var nodes = new ArrayList<FrameBox<Node>>();
 
         iterate(nodes, model.getRoot(), 0.0d, 1.0d, 0);
 
@@ -32,8 +32,8 @@ public class FlameNodeBuilder {
         return nodes;
     }
 
-    private static void iterate(List<FlameNode<Node>> nodes, Node currentNode, double startX, double endX, int depth) {
-        nodes.add(new FlameNode<>(currentNode, startX, endX, depth));
+    private static void iterate(List<FrameBox<Node>> nodes, Node currentNode, double startX, double endX, int depth) {
+        nodes.add(new FrameBox<>(currentNode, startX, endX, depth));
 
         depth++;
 
