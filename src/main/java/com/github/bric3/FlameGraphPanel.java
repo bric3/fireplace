@@ -275,42 +275,42 @@ public class FlameGraphPanel extends JPanel {
         }
     }
 
-    private static void adaptFrameText(AggregatableFrame frame, Graphics2D g2, double targetWidth, Consumer<String> textConsumer) {
-        var metrics = g2.getFontMetrics();
+        private static void adaptFrameText(AggregatableFrame frame, Graphics2D g2, double targetWidth, Consumer<String> textConsumer) {
+            var metrics = g2.getFontMetrics();
 
-        var adaptedText = frame.getHumanReadableShortString();
-        var textBounds = metrics.getStringBounds(adaptedText, g2);
+            var adaptedText = frame.getHumanReadableShortString();
+            var textBounds = metrics.getStringBounds(adaptedText, g2);
 
-        if (!(textBounds.getWidth() > targetWidth)) {
-            textConsumer.accept(adaptedText);
-            return;
+            if (!(textBounds.getWidth() > targetWidth)) {
+                textConsumer.accept(adaptedText);
+                return;
+            }
+            adaptedText = frame.getMethod().getMethodName();
+            textBounds = metrics.getStringBounds(adaptedText, g2);
+            if (!(textBounds.getWidth() > targetWidth)) {
+                textConsumer.accept(adaptedText);
+                return;
+            }
+            textBounds = metrics.getStringBounds("...", g2);
+            if (!(textBounds.getWidth() > targetWidth)) {
+                textConsumer.accept("...");
+            }
+            // don't draw text
         }
-        adaptedText = frame.getMethod().getMethodName();
-        textBounds = metrics.getStringBounds(adaptedText, g2);
-        if (!(textBounds.getWidth() > targetWidth)) {
-            textConsumer.accept(adaptedText);
-            return;
+
+        private static void adaptFrameText(String text, Graphics2D g2, double targetWidth, Consumer<String> textConsumer) {
+            var metrics = g2.getFontMetrics();
+
+            var textBounds = metrics.getStringBounds(text, g2);
+            if (!(textBounds.getWidth() > targetWidth)) {
+                textConsumer.accept(text);
+            }
+            textBounds = metrics.getStringBounds("...", g2);
+            if (!(textBounds.getWidth() > targetWidth)) {
+                textConsumer.accept("...");
+            }
+            // don't draw text
         }
-        textBounds = metrics.getStringBounds("...", g2);
-        if (!(textBounds.getWidth() > targetWidth)) {
-            textConsumer.accept("...");
-        }
-        // don't draw text
+
     }
-
-    private static void adaptFrameText(String text, Graphics2D g2, double targetWidth, Consumer<String> textConsumer) {
-        var metrics = g2.getFontMetrics();
-
-        var textBounds = metrics.getStringBounds(text, g2);
-        if (!(textBounds.getWidth() > targetWidth)) {
-            textConsumer.accept(text);
-        }
-        textBounds = metrics.getStringBounds("...", g2);
-        if (!(textBounds.getWidth() > targetWidth)) {
-            textConsumer.accept("...");
-        }
-        // don't draw text
-    }
-
-
 }
