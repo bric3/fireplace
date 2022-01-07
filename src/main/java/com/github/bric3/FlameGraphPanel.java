@@ -235,7 +235,7 @@ public class FlameGraphPanel extends JPanel {
             adaptFrameText(childFrame.getFrame(),
                            g2,
                            innerRectSurface.width,
-                           text -> g2.drawString(text, 2, (float) innerRectSurface.y + getFrameBoxHeight(g2) - textBorder));
+                           text -> g2.drawString(text, textBorder, (float) innerRectSurface.y + getFrameBoxHeight(g2) - textBorder));
         }
 
         private void paintRootFrameRectangle(Graphics2D g2, String str) {
@@ -243,7 +243,7 @@ public class FlameGraphPanel extends JPanel {
             adaptFrameText(str,
                            g2,
                            innerRectSurface.width,
-                           text -> g2.drawString(text, 2, (float) innerRectSurface.y + getFrameBoxHeight(g2) - textBorder));
+                           text -> g2.drawString(text, textBorder, (float) innerRectSurface.y + getFrameBoxHeight(g2) - textBorder));
         }
 
         private Rectangle2D.Double paintFrameRectangle2(Graphics2D g2, Type frameType) {
