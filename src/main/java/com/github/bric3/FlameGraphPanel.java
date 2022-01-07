@@ -75,40 +75,6 @@ public class FlameGraphPanel extends JPanel {
                 var viewPortViewPosition = viewPort.getViewPosition();
                 viewPort.setViewPosition(new Point(Math.max(0, viewPortViewPosition.x - dx),
                                                    Math.max(0, viewPortViewPosition.y - dy)));
-
-//                var view = viewPort.getView();
-//                int maxViewPosX = view.getWidth() - viewPort.getWidth();
-//                int maxViewPosY = view.getHeight() - viewPort.getHeight();
-//
-//                if (view.getWidth() > viewPort.getWidth()) {
-//                    viewPortViewPosition.x -= e.getX() - pressedPoint.x;
-//
-//                    if (viewPortViewPosition.x < 0) {
-//                        viewPortViewPosition.x = 0;
-//                        pressedPoint.x = e.getX();
-//                    }
-//
-//                    if (viewPortViewPosition.x > maxViewPosX) {
-//                        viewPortViewPosition.x = maxViewPosX;
-//                        pressedPoint.x = e.getX();
-//                    }
-//                }
-//
-//                if (view.getHeight() > viewPort.getHeight()) {
-//                    viewPortViewPosition.y -= e.getY() - pressedPoint.y;
-//
-//                    if (viewPortViewPosition.y < 0) {
-//                        viewPortViewPosition.y = 0;
-//                        pressedPoint.y = e.getY();
-//                    }
-//
-//                    if (viewPortViewPosition.y > maxViewPosY) {
-//                        viewPortViewPosition.y = maxViewPosY;
-//                        pressedPoint.y = e.getY();
-//                    }
-//                }
-//
-//                viewPort.setViewPosition(viewPortViewPosition);
             }
         }
 
@@ -151,8 +117,27 @@ public class FlameGraphPanel extends JPanel {
     }
 
     private JComponent createInternalFlameGraphPanel() {
-        var flameGraph = new FlameGraph(stacktraceTreeModelSupplier);
-        return JScrollPaneWithButton.create(flameGraph,
+        var flameGraph = new FlameGraphPainter(stacktraceTreeModelSupplier);
+
+        var flameGraphCanvas = new JPanel() {
+            @Override
+            public Dimension getPreferredSize() {
+                Dimension d = super.getPreferredSize();
+                d = (d == null) ? new Dimension(400, 400) : d;
+                Insets insets = getInsets();
+
+                d.height = Math.max(d.height, flameGraph.getFlameGraphHeight((Graphics2D) getGraphics()) + insets.top + insets.bottom);
+                return d;
+            }
+
+            @Override
+            protected void paintComponent(Graphics g) {
+                super.paintComponent(g);
+                flameGraph.paint((Graphics2D) g, getWidth(), getHeight(), getVisibleRect());
+            }
+        };
+
+        return JScrollPaneWithButton.create(flameGraphCanvas,
                                             sp -> {
                                                 sp.getVerticalScrollBar().setUnitIncrement(16);
                                                 sp.getViewport().setScrollMode(JViewport.SIMPLE_SCROLL_MODE);
@@ -160,7 +145,7 @@ public class FlameGraphPanel extends JPanel {
                                             });
     }
 
-    private static class FlameGraph extends JPanel {
+    private static class FlameGraphPainter {
         public static final Color UNDEFINED_COLOR = new Color(108, 163, 189);
         public static final Color JIT_COMPILED_COLOR = new Color(21, 110, 64);
         public static final Color INLINED_COLOR = Color.pink;
@@ -170,45 +155,39 @@ public class FlameGraphPanel extends JPanel {
         private final int depth;
         private final int textBorder = 2;
 
-        public FlameGraph(Supplier<StacktraceTreeModel> stacktraceTreeModelSupplier) {
+        public FlameGraphPainter(Supplier<StacktraceTreeModel> stacktraceTreeModelSupplier) {
             this.stacktraceTreeModel = stacktraceTreeModelSupplier.get();
             this.nodes = FlameNodeBuilder.buildFlameNodes(this.stacktraceTreeModel);
 
-            this.depth = this.stacktraceTreeModel.getRoot().getChildren().stream().mapToInt(node -> node.getFrame().getFrameLineNumber()).max().orElse(0);
-//            this.setDoubleBuffered(true);
+            this.depth = this.stacktraceTreeModel.getRoot()
+                                                 .getChildren()
+                                                 .stream()
+                                                 .mapToInt(node -> node.getFrame().getFrameLineNumber())
+                                                 .max()
+                                                 .orElse(0);
         }
 
-        private int getFrameBoxHeight() {
-            return getGraphics().getFontMetrics().getAscent() + (textBorder * 2);
+        private int getFrameBoxHeight(Graphics2D g2) {
+            return g2.getFontMetrics().getAscent() + (textBorder * 2);
         }
 
-        public Dimension getPreferredSize() {
-            Dimension d = super.getPreferredSize();
-            d = (d == null) ? new Dimension(400, 400) : d;
-            Insets insets = getInsets();
-
-
-            d.height = Math.max(d.height, depth * getFrameBoxHeight() + insets.top + insets.bottom);
-            return d;
+        public int getFlameGraphHeight(Graphics2D g2) {
+            return depth * getFrameBoxHeight(g2);
         }
 
-        @Override
-        protected void paintComponent(Graphics g) {
+        protected void paint(Graphics2D g2, int canvasWidth, int canvasHeight, Rectangle visibleRect) {
             long start = System.currentTimeMillis();
-            Graphics2D g2 = (Graphics2D) g;
-            super.paintComponent(g2);     // paint parent'drawTimeMs background
 
 //            g2.setFont(new Font("Monospaced", Font.PLAIN, 12));
 
-            var currentWidth = getWidth();
-            var currentHeight = getHeight();
-            var frameBoxHeight = getFrameBoxHeight();
-            var visible = this.getVisibleRect();
+            var currentWidth = canvasWidth;
+            var currentHeight = canvasHeight;
+            var frameBoxHeight = getFrameBoxHeight(g2);
 
             var rect = new Rectangle();
-            //noinspection ForLoopReplaceableByForEach Faster to not use
 
             {
+                // handle root node
                 var events = stacktraceTreeModel.getItems()
                                                 .stream()
                                                 .map(iItems -> iItems.getType().getIdentifier())
@@ -220,8 +199,8 @@ public class FlameGraphPanel extends JPanel {
                 rect.y = frameBoxHeight * rootNode.stackDepth;
                 rect.height = frameBoxHeight;
 
-                if (visible.intersects(rect)) {
-                    paintRootFrameRectangle((Graphics2D) g.create(rect.x, rect.y, rect.width, rect.height),
+                if (visibleRect.intersects(rect)) {
+                    paintRootFrameRectangle((Graphics2D) g2.create(rect.x, rect.y, rect.width, rect.height),
                                             "all (" + events + ")");
                 }
             }
@@ -236,8 +215,8 @@ public class FlameGraphPanel extends JPanel {
                 rect.y = frameBoxHeight * node.stackDepth;
                 rect.height = frameBoxHeight;
 
-                if (visible.intersects(rect)) {
-                    paintNodeFrameRectangle((Graphics2D) g.create(rect.x, rect.y, rect.width, rect.height), node.jfrNode);
+                if (visibleRect.intersects(rect)) {
+                    paintNodeFrameRectangle((Graphics2D) g2.create(rect.x, rect.y, rect.width, rect.height), node.jfrNode);
                 }
             }
 
@@ -245,7 +224,6 @@ public class FlameGraphPanel extends JPanel {
             var drawTimeMs = "Draw time: " + (System.currentTimeMillis() - start) + " ms";
             var nowWidth = g2.getFontMetrics().stringWidth(drawTimeMs);
             g2.setColor(Color.darkGray);
-            var visibleRect = getVisibleRect();
             g2.fillRect(currentWidth - nowWidth - textBorder * 2, visibleRect.y + visibleRect.height - frameBoxHeight, nowWidth + textBorder * 2, frameBoxHeight);
             g2.setColor(Color.yellow);
 
@@ -257,7 +235,7 @@ public class FlameGraphPanel extends JPanel {
             adaptFrameText(childFrame.getFrame(),
                            g2,
                            innerRectSurface.width,
-                           text -> g2.drawString(text, 2, (float) innerRectSurface.y + getFrameBoxHeight() - textBorder));
+                           text -> g2.drawString(text, 2, (float) innerRectSurface.y + getFrameBoxHeight(g2) - textBorder));
         }
 
         private void paintRootFrameRectangle(Graphics2D g2, String str) {
@@ -265,7 +243,7 @@ public class FlameGraphPanel extends JPanel {
             adaptFrameText(str,
                            g2,
                            innerRectSurface.width,
-                           text -> g2.drawString(text, 2, (float) innerRectSurface.y + getFrameBoxHeight() - textBorder));
+                           text -> g2.drawString(text, 2, (float) innerRectSurface.y + getFrameBoxHeight(g2) - textBorder));
         }
 
         private Rectangle2D.Double paintFrameRectangle2(Graphics2D g2, Type frameType) {
