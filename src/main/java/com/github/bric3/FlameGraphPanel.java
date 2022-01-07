@@ -16,6 +16,8 @@ import org.openjdk.jmc.flightrecorder.stacktrace.tree.StacktraceTreeModel;
 
 import javax.swing.*;
 import java.awt.*;
+import java.awt.event.MouseEvent;
+import java.awt.event.MouseMotionListener;
 import java.awt.geom.Rectangle2D;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -33,8 +35,7 @@ public class FlameGraphPanel extends JPanel {
 
         var timer = new Timer(2_000, e -> {
             wrapper.removeAll();
-            wrapper.add(JScrollPaneWithButton.create(createInternalFlameGraphPanel(),
-                                                     sp -> sp.getVerticalScrollBar().setUnitIncrement(16)));
+            wrapper.add(createInternalFlameGraphPanel());
             wrapper.repaint(1_000);
             wrapper.revalidate();
         });
@@ -53,12 +54,110 @@ public class FlameGraphPanel extends JPanel {
         add(refreshToggle, BorderLayout.NORTH);
         add(wrapper, BorderLayout.CENTER);
 
-        wrapper.add(JScrollPaneWithButton.create(createInternalFlameGraphPanel(),
-                                                 sp -> sp.getVerticalScrollBar().setUnitIncrement(16)));
+        wrapper.add(createInternalFlameGraphPanel());
+    }
+
+    static class ScrollPaneMouseListener implements java.awt.event.MouseListener, MouseMotionListener {
+        private Point pressedPoint;
+
+        @Override
+        public void mouseDragged(MouseEvent e) {
+            if ((e.getSource() instanceof JScrollPane) && pressedPoint != null) {
+
+                var scrollPane = (JScrollPane) e.getComponent();
+                var viewPort = scrollPane.getViewport();
+                if (viewPort == null) {
+                    return;
+                }
+
+                var dx = e.getX() - pressedPoint.x;
+                var dy = e.getY() - pressedPoint.y;
+                var viewPortViewPosition = viewPort.getViewPosition();
+                viewPort.setViewPosition(new Point(Math.max(0, viewPortViewPosition.x - dx),
+                                                   Math.max(0, viewPortViewPosition.y - dy)));
+
+//                var view = viewPort.getView();
+//                int maxViewPosX = view.getWidth() - viewPort.getWidth();
+//                int maxViewPosY = view.getHeight() - viewPort.getHeight();
+//
+//                if (view.getWidth() > viewPort.getWidth()) {
+//                    viewPortViewPosition.x -= e.getX() - pressedPoint.x;
+//
+//                    if (viewPortViewPosition.x < 0) {
+//                        viewPortViewPosition.x = 0;
+//                        pressedPoint.x = e.getX();
+//                    }
+//
+//                    if (viewPortViewPosition.x > maxViewPosX) {
+//                        viewPortViewPosition.x = maxViewPosX;
+//                        pressedPoint.x = e.getX();
+//                    }
+//                }
+//
+//                if (view.getHeight() > viewPort.getHeight()) {
+//                    viewPortViewPosition.y -= e.getY() - pressedPoint.y;
+//
+//                    if (viewPortViewPosition.y < 0) {
+//                        viewPortViewPosition.y = 0;
+//                        pressedPoint.y = e.getY();
+//                    }
+//
+//                    if (viewPortViewPosition.y > maxViewPosY) {
+//                        viewPortViewPosition.y = maxViewPosY;
+//                        pressedPoint.y = e.getY();
+//                    }
+//                }
+//
+//                viewPort.setViewPosition(viewPortViewPosition);
+            }
+        }
+
+        @Override
+        public void mousePressed(MouseEvent e) {
+            if (e.getButton() == MouseEvent.BUTTON1) {
+                this.pressedPoint = e.getPoint();
+            }
+        }
+
+        @Override
+        public void mouseReleased(MouseEvent e) {
+            pressedPoint = null;
+        }
+
+        @Override
+        public void mouseClicked(MouseEvent e) {
+
+        }
+
+        @Override
+        public void mouseEntered(MouseEvent e) {
+
+        }
+
+        @Override
+        public void mouseExited(MouseEvent e) {
+
+        }
+
+        @Override
+        public void mouseMoved(MouseEvent e) {
+
+        }
+
+        public void install(JScrollPane sp) {
+            sp.addMouseListener(this);
+            sp.addMouseMotionListener(this);
+        }
     }
 
     private JComponent createInternalFlameGraphPanel() {
-        return new FlameGraph(stacktraceTreeModelSupplier);
+        var flameGraph = new FlameGraph(stacktraceTreeModelSupplier);
+        return JScrollPaneWithButton.create(flameGraph,
+                                            sp -> {
+                                                sp.getVerticalScrollBar().setUnitIncrement(16);
+                                                sp.getViewport().setScrollMode(JViewport.SIMPLE_SCROLL_MODE);
+                                                new ScrollPaneMouseListener().install(sp);
+                                            });
     }
 
     private static class FlameGraph extends JPanel {
