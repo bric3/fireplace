@@ -69,7 +69,6 @@ public class FlameGraphPanel extends JPanel {
         @Override
         public void mouseDragged(MouseEvent e) {
             if ((e.getSource() instanceof JScrollPane) && pressedPoint != null) {
-
                 var scrollPane = (JScrollPane) e.getComponent();
                 var viewPort = scrollPane.getViewport();
                 if (viewPort == null) {
@@ -81,12 +80,13 @@ public class FlameGraphPanel extends JPanel {
                 var viewPortViewPosition = viewPort.getViewPosition();
                 viewPort.setViewPosition(new Point(Math.max(0, viewPortViewPosition.x - dx),
                                                    Math.max(0, viewPortViewPosition.y - dy)));
+                pressedPoint = e.getPoint();
             }
         }
 
         @Override
         public void mousePressed(MouseEvent e) {
-            if (e.getButton() == MouseEvent.BUTTON1) {
+            if (SwingUtilities.isLeftMouseButton(e)) {
                 this.pressedPoint = e.getPoint();
             }
         }
@@ -98,21 +98,23 @@ public class FlameGraphPanel extends JPanel {
 
         @Override
         public void mouseClicked(MouseEvent e) {
-            if (e.getButton() == MouseEvent.BUTTON1) {
-                if ((e.getSource() instanceof JScrollPane)) {
-                    var scrollPane = (JScrollPane) e.getComponent();
-                    var viewPort = scrollPane.getViewport();
+            if (!SwingUtilities.isLeftMouseButton(e)) {
+                return;
+            }
 
-                    var point = SwingUtilities.convertPoint(e.getComponent(), e.getPoint(), viewPort.getView());
+            if ((e.getSource() instanceof JScrollPane)) {
+                var scrollPane = (JScrollPane) e.getComponent();
+                var viewPort = scrollPane.getViewport();
 
-                    flameGraph.toggleSelectedFrameAt(
-                            (Graphics2D) viewPort.getView().getGraphics(),
-                            point,
-                            viewPort.getVisibleRect()
-                    );
+                var point = SwingUtilities.convertPoint(e.getComponent(), e.getPoint(), viewPort.getView());
 
-                    scrollPane.repaint();
-                }
+                flameGraph.toggleSelectedFrameAt(
+                        (Graphics2D) viewPort.getView().getGraphics(),
+                        point,
+                        viewPort.getVisibleRect()
+                );
+
+                scrollPane.repaint();
             }
         }
 
