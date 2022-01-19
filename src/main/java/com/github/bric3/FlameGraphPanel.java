@@ -9,7 +9,7 @@
  */
 package com.github.bric3;
 
-import org.openjdk.jmc.common.IMCFrame.Type;
+import com.github.bric3.flamegraph.ColorMode;
 import org.openjdk.jmc.flightrecorder.stacktrace.tree.AggregatableFrame;
 import org.openjdk.jmc.flightrecorder.stacktrace.tree.Node;
 import org.openjdk.jmc.flightrecorder.stacktrace.tree.StacktraceTreeModel;
@@ -27,12 +27,15 @@ import static java.util.stream.Collectors.joining;
 
 public class FlameGraphPanel extends JPanel {
     private final Supplier<StacktraceTreeModel> stacktraceTreeModelSupplier;
+    private FlameGraphPainter flameGraph;
+
 
     public FlameGraphPanel(Supplier<StacktraceTreeModel> stacktraceTreeModelSupplier) {
         super(new BorderLayout());
         this.stacktraceTreeModelSupplier = Utils.memoize(stacktraceTreeModelSupplier);
 
         var wrapper = new JPanel(new BorderLayout());
+        wrapper.add(createInternalFlameGraphPanel());
 
         var timer = new Timer(2_000, e -> {
             wrapper.removeAll();
@@ -47,16 +50,75 @@ public class FlameGraphPanel extends JPanel {
             if (timer.isRunning()) {
                 timer.stop();
             } else {
-
                 timer.start();
             }
         });
 
-        add(refreshToggle, BorderLayout.NORTH);
-        add(wrapper, BorderLayout.CENTER);
+        var colorPaletteJComboBox = new JComboBox<ColorPalette>(ColorPalette.values());
+        colorPaletteJComboBox.addActionListener(e -> {
+            flameGraph.colorPalette = (ColorPalette) colorPaletteJComboBox.getSelectedItem();
+            wrapper.repaint();
+        });
+        colorPaletteJComboBox.setSelectedItem(flameGraph.colorPalette);
 
-        wrapper.add(createInternalFlameGraphPanel());
+        var colorModeJComboBox = new JComboBox<ColorMode>(ColorMode.values());
+        colorModeJComboBox.addActionListener(e -> {
+            flameGraph.colorMode = (ColorMode) colorModeJComboBox.getSelectedItem();
+            wrapper.repaint();
+        });
+        colorModeJComboBox.setSelectedItem(flameGraph.colorMode);
+
+        var borderToggle = new JCheckBox("Border");
+        borderToggle.addActionListener(e -> {
+            flameGraph.paintFrameBorder = borderToggle.isSelected();
+            wrapper.repaint();
+        });
+        borderToggle.setSelected(flameGraph.paintFrameBorder);
+
+        var controlPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        controlPanel.add(colorPaletteJComboBox);
+        controlPanel.add(colorModeJComboBox);
+        controlPanel.add(borderToggle);
+        controlPanel.add(refreshToggle);
+
+
+        add(controlPanel, BorderLayout.NORTH);
+        add(wrapper, BorderLayout.CENTER);
     }
+
+    private JComponent createInternalFlameGraphPanel() {
+        flameGraph = new FlameGraphPainter(stacktraceTreeModelSupplier);
+
+        var flameGraphCanvas = new JPanel() {
+            @Override
+            public Dimension getPreferredSize() {
+                Dimension d = super.getPreferredSize();
+                d = (d == null) ? new Dimension(400, 400) : d;
+                Insets insets = getInsets();
+
+                d.height = Math.max(d.height, flameGraph.getFlameGraphHeight((Graphics2D) getGraphics()) + insets.top + insets.bottom);
+                return d;
+            }
+
+            @Override
+            protected void paintComponent(Graphics g) {
+                super.paintComponent(g);
+                flameGraph.paint((Graphics2D) g, getWidth(), getHeight(), getVisibleRect());
+            }
+        };
+
+        var scrollPaneMouseListener = new ScrollPaneMouseListener(flameGraph);
+
+        return JScrollPaneWithButton.create(
+                flameGraphCanvas,
+                sp -> {
+                    sp.getVerticalScrollBar().setUnitIncrement(16);
+                    sp.getViewport().setScrollMode(JViewport.SIMPLE_SCROLL_MODE);
+                    scrollPaneMouseListener.install(sp);
+                }
+        );
+    }
+
 
     static class ScrollPaneMouseListener implements java.awt.event.MouseListener, MouseMotionListener {
         private Point pressedPoint;
@@ -154,49 +216,15 @@ public class FlameGraphPanel extends JPanel {
             sp.addMouseListener(this);
             sp.addMouseMotionListener(this);
         }
-    }
 
-    private JComponent createInternalFlameGraphPanel() {
-        var flameGraph = new FlameGraphPainter(stacktraceTreeModelSupplier);
-
-        var flameGraphCanvas = new JPanel() {
-            @Override
-            public Dimension getPreferredSize() {
-                Dimension d = super.getPreferredSize();
-                d = (d == null) ? new Dimension(400, 400) : d;
-                Insets insets = getInsets();
-
-                d.height = Math.max(d.height, flameGraph.getFlameGraphHeight((Graphics2D) getGraphics()) + insets.top + insets.bottom);
-                return d;
-            }
-
-            @Override
-            protected void paintComponent(Graphics g) {
-                super.paintComponent(g);
-                flameGraph.paint((Graphics2D) g, getWidth(), getHeight(), getVisibleRect());
-            }
-        };
-
-        var scrollPaneMouseListener = new ScrollPaneMouseListener(flameGraph);
-
-        return JScrollPaneWithButton.create(
-                flameGraphCanvas,
-                sp -> {
-                    sp.getVerticalScrollBar().setUnitIncrement(16);
-                    sp.getViewport().setScrollMode(JViewport.SIMPLE_SCROLL_MODE);
-                    scrollPaneMouseListener.install(sp);
-                }
-        );
     }
 
     private static class FlameGraphPainter {
-        public Color undefinedColor = new Color(108, 163, 189);
-        public Color jitCompiledColor = new Color(21, 110, 64);
-        public Color inlinedColor = Color.pink;
-        public Color interpretedColor = Color.orange;
+        public ColorMode colorMode = ColorMode.BY_PACKAGE;
+        public ColorPalette colorPalette = ColorPalette.DARK_CUSTOM;
         public Color selectionColor = Color.yellow;
-        public Color textColor = Color.darkGray;
         public Color frameBorderColor = Color.gray;
+        public boolean paintFrameBorder = true;
         private final StacktraceTreeModel stacktraceTreeModel;
         private final java.util.List<FrameBox<Node>> nodes;
         private final int depth;
@@ -208,7 +236,6 @@ public class FlameGraphPanel extends JPanel {
         public FlameGraphPainter(Supplier<StacktraceTreeModel> stacktraceTreeModelSupplier) {
             this.stacktraceTreeModel = stacktraceTreeModelSupplier.get();
             this.nodes = FlameNodeBuilder.buildFlameNodes(this.stacktraceTreeModel);
-
             this.depth = this.stacktraceTreeModel.getRoot()
                                                  .getChildren()
                                                  .stream()
@@ -225,13 +252,13 @@ public class FlameGraphPanel extends JPanel {
             return depth * getFrameBoxHeight(g2);
         }
 
+        private float getFrameBoxTextOffset(Graphics2D g2) {
+            return getFrameBoxHeight(g2) - (g2.getFontMetrics().getDescent() / 2f) - textBorder;
+        }
+
         public void paint(Graphics2D g2, int canvasWidth, int canvasHeight, Rectangle visibleRect) {
             long start = System.currentTimeMillis();
-
-//            g2.setFont(new Font("Monospaced", Font.PLAIN, 12));
-
             var frameBoxHeight = getFrameBoxHeight(g2);
-
             var rect = new Rectangle();
 
             {
@@ -288,68 +315,61 @@ public class FlameGraphPanel extends JPanel {
                           visibleRect.y + visibleRect.height - textBorder);
         }
 
+        private Color handleFocus(Color bgColor, boolean highlighted, boolean selected) {
+            if (highlighted) {
+                return bgColor.darker();
+            }
+            if (selected) {
+                return selectionColor;
+            }
+            return bgColor;
+        }
+
         private void paintNodeFrameRectangle(Graphics2D g2, Node childFrame, boolean highlighted, boolean selected) {
-            var innerRectSurface = paintFrameRectangle(g2,
-                                                       childFrame.getFrame().getType(),
+            var bgColor = handleFocus(colorMode.getColor(colorPalette, childFrame.getFrame()), highlighted, selected);
+            var frameRectSurface = paintFrameRectangle(g2,
+                                                       bgColor,
                                                        highlighted,
                                                        selected);
-            adaptFrameText(childFrame.getFrame(),
+            paintFrameText(childFrame.getFrame(),
                            g2,
-                           innerRectSurface.width,
+                           frameRectSurface.width,
                            text -> {
-                               g2.setColor(textColor);
-                               g2.drawString(text, textBorder, (float) innerRectSurface.y + getFrameBoxHeight(g2) - textBorder);
+                               g2.setColor(ColorPalette.foregroundColor(bgColor));
+                               g2.drawString(text, textBorder, getFrameBoxTextOffset(g2));
                            });
         }
 
         private void paintRootFrameRectangle(Graphics2D g2, String str, boolean highlighted, boolean selected) {
-            var innerRectSurface = paintFrameRectangle(g2,
-                                                       Type.UNKNOWN,
+            var frameRectSurface = paintFrameRectangle(g2,
+                                                       handleFocus(ColorMode.rootNodeColor, highlighted, selected),
                                                        highlighted,
                                                        selected);
-            adaptFrameText(str,
+            paintFrameText(str,
                            g2,
-                           innerRectSurface.width,
+                           frameRectSurface.width,
                            text -> {
-                               g2.setColor(textColor);
-                               g2.drawString(text, textBorder, (float) innerRectSurface.y + getFrameBoxHeight(g2) - textBorder);
+                               g2.setColor(ColorPalette.foregroundColor(ColorMode.rootNodeColor));
+                               g2.drawString(text, textBorder, (float) frameRectSurface.y + getFrameBoxTextOffset(g2));
                            });
         }
 
-        private Rectangle2D.Double paintFrameRectangle(Graphics2D g2, Type frameType, boolean highlighted, boolean selected) {
+        private Rectangle2D.Double paintFrameRectangle(Graphics2D g2, Color bgColor, boolean highlighted, boolean selected) {
+            var borderWidth = paintFrameBorder ? 1 : 0;
             var outerRect = g2.getClipBounds();
-            var innerRectSurface = new Rectangle2D.Double(outerRect.x + 1,
-                                                          outerRect.y + 1,
-                                                          outerRect.width - 1,
-                                                          outerRect.height - 1);
 
-            g2.setColor(frameBorderColor);
-            g2.draw(outerRect);
-
-            switch (frameType) {
-                case INTERPRETED:
-                    g2.setColor(interpretedColor);
-                    break;
-                case INLINED:
-                    g2.setColor(inlinedColor);
-                    break;
-                case JIT_COMPILED:
-                    g2.setColor(jitCompiledColor);
-                    break;
-                case UNKNOWN:
-                    g2.setColor(undefinedColor);
-                    break;
+            if (paintFrameBorder) {
+                g2.setColor(frameBorderColor);
+                g2.draw(outerRect);
             }
 
-            if (highlighted) {
-                g2.setColor(g2.getColor().darker());
-            }
-            if (selected) {
-                g2.setColor(selectionColor);
-            }
-
-            g2.fill(innerRectSurface);
-            return innerRectSurface;
+            g2.setColor(bgColor);
+            var frameRectSurface = new Rectangle2D.Double(outerRect.x + borderWidth,
+                                                          outerRect.y + borderWidth,
+                                                          outerRect.width - borderWidth,
+                                                          outerRect.height - borderWidth);
+            g2.fill(frameRectSurface);
+            return frameRectSurface;
         }
 
         public Optional<FrameBox<Node>> getFrameAt(Graphics2D g2, Point point, Rectangle visibleRect) {
@@ -383,7 +403,7 @@ public class FlameGraphPanel extends JPanel {
         }
 
 
-        private static void adaptFrameText(AggregatableFrame frame, Graphics2D g2, double targetWidth, Consumer<String> textConsumer) {
+        private static void paintFrameText(AggregatableFrame frame, Graphics2D g2, double targetWidth, Consumer<String> textConsumer) {
             var metrics = g2.getFontMetrics();
 
             var adaptedText = frame.getHumanReadableShortString();
@@ -406,7 +426,7 @@ public class FlameGraphPanel extends JPanel {
             // don't draw text
         }
 
-        private static void adaptFrameText(String text, Graphics2D g2, double targetWidth, Consumer<String> textConsumer) {
+        private static void paintFrameText(String text, Graphics2D g2, double targetWidth, Consumer<String> textConsumer) {
             var metrics = g2.getFontMetrics();
 
             var textBounds = metrics.getStringBounds(text, g2);
