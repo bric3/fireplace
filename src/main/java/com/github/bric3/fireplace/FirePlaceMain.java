@@ -7,10 +7,11 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
-package com.github.bric3;
+package com.github.bric3.fireplace;
 
 import com.formdev.flatlaf.FlatDarculaLaf;
 import com.formdev.flatlaf.util.SystemInfo;
+import com.github.bric3.fireplace.ui.JScrollPaneWithButton;
 import org.openjdk.jmc.common.item.IItem;
 import org.openjdk.jmc.common.item.IItemCollection;
 import org.openjdk.jmc.common.item.IItemIterable;
@@ -92,6 +93,11 @@ public class FirePlaceMain {
         }
         FlatDarculaLaf.setup();
 
+        Utils.printLafProperties();
+
+        var openedFileLabel = new JTextField(jfrFiles.get(0).getAbsolutePath());
+        openedFileLabel.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
+        openedFileLabel.setEditable(false);
 
         var allocationFlameGraphPanel = new FlameGraphPanel(() -> stackTraceAllocationFun(events));
         var cpuFlameGraphPanel = new FlameGraphPanel(() -> stackTraceCPUFun(events));
@@ -111,28 +117,32 @@ public class FirePlaceMain {
         updateTabContent(jTabbedPane, nativeLibs, sysProps, events);
         jTabbedPane.addChangeListener(e -> updateTabContent(jTabbedPane, nativeLibs, sysProps, events));
 
+        var mainPanel = new JPanel(new BorderLayout());
+        mainPanel.add(openedFileLabel, BorderLayout.NORTH);
+        mainPanel.add(jTabbedPane, BorderLayout.CENTER);
+
 
         var dimensionLabel = new JLabel("hello");
         dimensionLabel.setVerticalAlignment(JLabel.CENTER);
         dimensionLabel.setHorizontalAlignment(JLabel.CENTER);
         dimensionLabel.setOpaque(true);
         dimensionLabel.setBorder(BorderFactory.createLineBorder(Color.black));
-        var jPanel = new JPanel(new BorderLayout());
-        jPanel.add(dimensionLabel, BorderLayout.CENTER);
-        jPanel.setBackground(new Color(0, 0, 0, 0));
-        jPanel.setOpaque(false);
-        jPanel.setVisible(false);
+        var dimensionOverlayPanel = new JPanel(new BorderLayout());
+        dimensionOverlayPanel.add(dimensionLabel, BorderLayout.CENTER);
+        dimensionOverlayPanel.setBackground(new Color(0, 0, 0, 0));
+        dimensionOverlayPanel.setOpaque(false);
+        dimensionOverlayPanel.setVisible(false);
         var textHeight = dimensionLabel.getFontMetrics(dimensionLabel.getFont()).getHeight();
-        jPanel.setMaximumSize(new Dimension(100, textHeight + 10));
-        var panelHider = new Timer(2_000, e -> jPanel.setVisible(false));
+        dimensionOverlayPanel.setMaximumSize(new Dimension(100, textHeight + 10));
+        var panelHider = new Timer(2_000, e -> dimensionOverlayPanel.setVisible(false));
         panelHider.setCoalesce(true);
 
         var jLayeredPane = new JLayeredPane();
         jLayeredPane.setLayout(new OverlayLayout(jLayeredPane));
         jLayeredPane.setOpaque(false);
         jLayeredPane.setVisible(true);
-        jLayeredPane.add(jTabbedPane, JLayeredPane.DEFAULT_LAYER);
-        jLayeredPane.add(jPanel, JLayeredPane.POPUP_LAYER);
+        jLayeredPane.add(mainPanel, JLayeredPane.DEFAULT_LAYER);
+        jLayeredPane.add(dimensionOverlayPanel, JLayeredPane.POPUP_LAYER);
 
         SwingUtilities.invokeLater(() -> {
             var frame = new JFrame("FirePlace");
@@ -147,7 +157,7 @@ public class FirePlaceMain {
                     int height = frame.getHeight();
                     int width = frame.getWidth();
                     dimensionLabel.setText(height + " x " + width);
-                    jPanel.setVisible(true);
+                    dimensionOverlayPanel.setVisible(true);
                     panelHider.restart();
                 }
             });

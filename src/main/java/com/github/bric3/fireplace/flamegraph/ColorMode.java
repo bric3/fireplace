@@ -7,9 +7,9 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
-package com.github.bric3.flamegraph;
+package com.github.bric3.fireplace.flamegraph;
 
-import com.github.bric3.ColorPalette;
+import com.github.bric3.fireplace.ui.Colors.Palette;
 import org.openjdk.jmc.common.IMCFrame.Type;
 import org.openjdk.jmc.flightrecorder.stacktrace.tree.AggregatableFrame;
 
@@ -18,7 +18,7 @@ import java.awt.*;
 public enum ColorMode {
     BY_PACKAGE {
         @Override
-        public Color getColor(ColorPalette colorPalette, AggregatableFrame frame) {
+        public Color getColor(Palette colorPalette, AggregatableFrame frame) {
             if (frame.getType() == Type.UNKNOWN) {
                 return undefinedColor;
             }
@@ -28,13 +28,13 @@ public enum ColorMode {
     },
     BY_MODULE {
         @Override
-        public Color getColor(ColorPalette colorPalette, AggregatableFrame frame) {
+        public Color getColor(Palette colorPalette, AggregatableFrame frame) {
             return colorPalette.mapToColor(frame.getMethod().getType().getPackage().getModule());
         }
     },
     BY_FRAME_TYPE {
         @Override
-        public Color getColor(ColorPalette colorPalette, AggregatableFrame frame) {
+        public Color getColor(Palette colorPalette, AggregatableFrame frame) {
             switch (frame.getType()) {
                 case INTERPRETED:
                     return interpretedColor;
@@ -55,5 +55,5 @@ public enum ColorMode {
     public static Color inlinedColor = Color.pink;
     public static Color interpretedColor = Color.orange;
 
-    abstract public Color getColor(ColorPalette colorPalette, AggregatableFrame frame);
+    abstract public Color getColor(Palette colorPalette, AggregatableFrame frame);
 }
