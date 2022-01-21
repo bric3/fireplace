@@ -16,7 +16,9 @@ import org.openjdk.jmc.flightrecorder.stacktrace.tree.Node;
 import org.openjdk.jmc.flightrecorder.stacktrace.tree.StacktraceTreeModel;
 
 import java.awt.*;
+import java.awt.geom.AffineTransform;
 import java.awt.geom.Rectangle2D;
+import java.awt.geom.Rectangle2D.Double;
 import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -34,11 +36,13 @@ public class FlameGraphPainter {
     private final int depth;
     private int visibleDepth;
     private final int textBorder = 2;
+    private final int frameWidthVisibilityThreshold = 4;
 
     private FrameBox<Node> highlightedFrame;
     private FrameBox<Node> selectedFrame;
     private int visibleWidth;
-    private int frameWidthVisibilityThreshold = 4;
+    private double scaleX;
+    private double scaleY;
 
     public FlameGraphPainter(Supplier<StacktraceTreeModel> stacktraceTreeModelSupplier) {
         this.stacktraceTreeModel = stacktraceTreeModelSupplier.get();
@@ -84,6 +88,8 @@ public class FlameGraphPainter {
         long start = System.currentTimeMillis();
         var frameBoxHeight = getFrameBoxHeight(g2);
         var rect = new Rectangle();
+
+        identifyDisplayScale(g2);
 
         {
             // handle root node
@@ -143,6 +149,17 @@ public class FlameGraphPainter {
                       visibleRect.y + visibleRect.height - textBorder);
     }
 
+    private void identifyDisplayScale(Graphics2D g2) {
+        var transform = g2.getTransform();
+        if ((transform.getType() & AffineTransform.TYPE_MASK_SCALE) == AffineTransform.TYPE_UNIFORM_SCALE) {
+            // if true we're on a HiDPI display
+            // https://github.com/libgdx/libgdx/commit/2bc16a08961dd303afe2d1c8df96a50d8cd639db
+            System.out.println("HiDPI");
+        }
+        System.out.println(scaleX = transform.getScaleX());
+        System.out.println(scaleY = transform.getScaleY());
+    }
+
     private Color handleFocus(Color bgColor, boolean highlighted, boolean selected) {
         if (highlighted) {
             return bgColor.darker();
@@ -161,7 +178,7 @@ public class FlameGraphPainter {
                                                    selected);
         paintFrameText(childFrame.getFrame(),
                        g2,
-                       frameRectSurface.width,
+                       frameRectSurface.width - textBorder * 2,
                        text -> {
                            g2.setColor(Colors.foregroundColor(bgColor));
                            g2.drawString(text, textBorder, getFrameBoxTextOffset(g2));
@@ -175,27 +192,29 @@ public class FlameGraphPainter {
                                                    selected);
         paintFrameText(str,
                        g2,
-                       frameRectSurface.width,
+                       frameRectSurface.width - textBorder * 2,
                        text -> {
                            g2.setColor(Colors.foregroundColor(ColorMode.rootNodeColor));
-                           g2.drawString(text, textBorder, (float) frameRectSurface.y + getFrameBoxTextOffset(g2));
+                           g2.drawString(text, textBorder, getFrameBoxTextOffset(g2));
                        });
     }
 
     private Rectangle2D.Double paintFrameRectangle(Graphics2D g2, Color bgColor, boolean highlighted, boolean selected) {
+        var clipBounds = g2.getClipBounds();
         var borderWidth = paintFrameBorder ? 1 : 0;
-        var outerRect = g2.getClipBounds();
 
         if (paintFrameBorder) {
             g2.setColor(frameBorderColor);
-            g2.draw(outerRect);
+            var growBoxSurface = new Double(clipBounds.x, clipBounds.y, clipBounds.width + borderWidth, clipBounds.height + borderWidth);
+            g2.setClip(growBoxSurface);
+            g2.fill(growBoxSurface);
         }
 
+        var frameRectSurface = new Rectangle2D.Double(clipBounds.x + borderWidth,
+                                                      clipBounds.y + borderWidth,
+                                                      clipBounds.width - borderWidth,
+                                                      clipBounds.height - borderWidth);
         g2.setColor(bgColor);
-        var frameRectSurface = new Rectangle2D.Double(outerRect.x + borderWidth,
-                                                      outerRect.y + borderWidth,
-                                                      outerRect.width - borderWidth,
-                                                      outerRect.height - borderWidth);
         g2.fill(frameRectSurface);
         return frameRectSurface;
     }
