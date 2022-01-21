@@ -50,14 +50,14 @@ public class FlameGraphPanel extends JPanel {
             }
         });
 
-        var colorPaletteJComboBox = new JComboBox<Palette>(Palette.values());
+        var colorPaletteJComboBox = new JComboBox<>(Palette.values());
         colorPaletteJComboBox.addActionListener(e -> {
             flameGraph.colorPalette = (Palette) colorPaletteJComboBox.getSelectedItem();
             wrapper.repaint();
         });
         colorPaletteJComboBox.setSelectedItem(flameGraph.colorPalette);
 
-        var colorModeJComboBox = new JComboBox<ColorMode>(ColorMode.values());
+        var colorModeJComboBox = new JComboBox<>(ColorMode.values());
         colorModeJComboBox.addActionListener(e -> {
             flameGraph.colorMode = (ColorMode) colorModeJComboBox.getSelectedItem();
             wrapper.repaint();
@@ -92,7 +92,7 @@ public class FlameGraphPanel extends JPanel {
                 d = (d == null) ? new Dimension(400, 400) : d;
                 Insets insets = getInsets();
 
-                d.height = Math.max(d.height, flameGraph.getFlameGraphHeight((Graphics2D) getGraphics()) + insets.top + insets.bottom);
+                d.height = Math.max(d.height, flameGraph.getFlameGraphHeight((Graphics2D) getGraphics(), getSize(), insets) + insets.top + insets.bottom);
                 return d;
             }
 
@@ -118,7 +118,7 @@ public class FlameGraphPanel extends JPanel {
 
     static class ScrollPaneMouseListener implements java.awt.event.MouseListener, MouseMotionListener {
         private Point pressedPoint;
-        private FlameGraphPainter flameGraph;
+        private final FlameGraphPainter flameGraph;
 
         public ScrollPaneMouseListener(FlameGraphPainter flameGraph) {
             this.flameGraph = flameGraph;
@@ -214,5 +214,4 @@ public class FlameGraphPanel extends JPanel {
         }
 
     }
-
 }

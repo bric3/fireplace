@@ -32,28 +32,48 @@ public class FlameGraphPainter {
     private final StacktraceTreeModel stacktraceTreeModel;
     private final java.util.List<FrameBox<Node>> nodes;
     private final int depth;
+    private int visibleDepth;
     private final int textBorder = 2;
 
     private FrameBox<Node> highlightedFrame;
     private FrameBox<Node> selectedFrame;
+    private int visibleWidth;
+    private int frameWidthVisibilityThreshold = 4;
 
     public FlameGraphPainter(Supplier<StacktraceTreeModel> stacktraceTreeModelSupplier) {
         this.stacktraceTreeModel = stacktraceTreeModelSupplier.get();
         this.nodes = FlameNodeBuilder.buildFlameNodes(this.stacktraceTreeModel);
-        this.depth = this.stacktraceTreeModel.getRoot()
-                                             .getChildren()
-                                             .stream()
-                                             .mapToInt(node -> node.getFrame().getFrameLineNumber())
-                                             .max()
-                                             .orElse(0);
+        this.depth = this.nodes.stream().mapToInt(fb -> fb.stackDepth).max().orElse(0);
+        visibleDepth = depth;
     }
 
     private int getFrameBoxHeight(Graphics2D g2) {
         return g2.getFontMetrics().getAscent() + (textBorder * 2);
     }
 
-    public int getFlameGraphHeight(Graphics2D g2) {
-        return depth * getFrameBoxHeight(g2);
+    public int getFlameGraphHeight(Graphics2D g2, Dimension dimension, Insets insets) {
+        // as this method is invoked during layout, the dimension can be 0
+        if (dimension.width == 0) {
+            return 0;
+        }
+
+        var preferredWidth = dimension.width - insets.left - insets.right;
+
+        if (this.visibleWidth != preferredWidth) {
+            var visibleDepth = 0;
+            for (var node : nodes) {
+                if ((int) (preferredWidth * (node.endX - node.startX)) < frameWidthVisibilityThreshold) {
+                    continue;
+                }
+
+                visibleDepth = Math.max(visibleDepth, node.stackDepth);
+            }
+
+            this.visibleWidth = preferredWidth;
+            this.visibleDepth = Math.min(visibleDepth, depth);
+        }
+
+        return this.visibleDepth * getFrameBoxHeight(g2);
     }
 
     private float getFrameBoxTextOffset(Graphics2D g2) {
@@ -92,6 +112,10 @@ public class FlameGraphPainter {
 
             rect.x = (int) (canvasWidth * node.startX);
             rect.width = ((int) (canvasWidth * node.endX)) - rect.x;
+
+            if ((rect.width < frameWidthVisibilityThreshold)) {
+                continue;
+            }
 
             rect.y = frameBoxHeight * node.stackDepth;
             rect.height = frameBoxHeight;
