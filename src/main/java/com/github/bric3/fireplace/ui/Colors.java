@@ -28,6 +28,23 @@ public class Colors {
         DARK_LIGHT("#E91E63", "#C2185B", "#9C27B0", "#5727B0", "#272AB0", "#2768B0", "#57ACDC", "#57DCBE", "#60C689"),
         DARK_CUSTOM("#54B03B,2D8684,C2AB47,66CCB9,A1DD98,9D5B34,A190DA,623BB0,CF776E,DDD598,F2E30D"),
 
+        DARK_BLUE_GREEN_ORANGE_RED(
+                /*blue*/ "#178FFF", "#45A5FF", "#73BCFF", "#A2D2FF",
+                /*green*/ "#15CB49", "#44D566D", "#73E092", "#73E092",
+                /*orange*/ "#FF9E2E", "#FFB157", "#FFC581", "#FFD9AB",
+                /*red*/ "#F74241", "#F96767", "#FA8D8D", "#FCB3B3",
+                /*yellow*/ "#FFE8B3", "#FFF2D9", "#FFF5E3", "#FFF8F6",
+                /*violet*/ "#8C2DFF", "#B14BFF", "#D069FF", "#E891FF"
+        ),
+        LIGHT_BLUE_GREEN_ORANGE_RED(
+                /*blue*/ "#003565", "#004F99", "#1272CB", "#0084FF",
+                /*green*/ "#014A15", "#00701F", "#009529", "#00BA34",
+                /*orange*/ "#643600", "#955000", "#C76B00", "#F98600",
+                /*red*/ "#5D1113", "#8C1A19", "#BA2323", "#E92C2B",
+                /*yellow*/ "#FFD966", "#FFE8A0", "#FFF0C6", "#FFF4E0",
+                /*violet*/ "#5D00A8", "#9E00C9", "#D300E9", "#FF00FF"
+        ),
+
 
         ;
 
