@@ -9,8 +9,6 @@
  */
 package com.github.bric3.fireplace;
 
-import javax.swing.*;
-import java.awt.*;
 import java.util.function.Supplier;
 
 public class Utils {
@@ -27,19 +25,5 @@ public class Utils {
                 return cachedValue;
             }
         };
-    }
-
-    public static void printLafProperties() {
-        UIManager.getLookAndFeelDefaults()
-                 .entrySet()
-                 .stream()
-                 .filter(e -> e.getValue() instanceof Color)
-                 .map(e -> e.getKey() + ": " + String.format("#%06X", (0xFFFFFF & ((Color) (e.getValue())).getRGB())))
-                 .sorted()
-                 .forEach(System.out::println);
-    }
-
-    public static void main(String[] args) {
-        printLafProperties();
     }
 }

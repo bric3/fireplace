@@ -9,12 +9,33 @@
  */
 package com.github.bric3.fireplace.ui;
 
+import javax.swing.*;
 import java.awt.*;
 import java.util.Arrays;
 import java.util.Objects;
 import java.util.regex.Pattern;
 
 public class Colors {
+    /**
+     * Perceived brightness threshold between dark and light.
+     * <p>
+     * Between 0 and 255
+     */
+    public static final int DARK_LIGHT_PERCEIVED_BRIGHTNESS_THRESHOLD = 128;
+    public static Color translucent_black_B0 = new Color(0xB0000000, true);
+    public static Color translucent_black_80 = new Color(0x80000000, true);
+    public static Color translucent_black_60 = new Color(0x60000000, true);
+    public static Color translucent_black_40 = new Color(0x40000000, true);
+    public static Color translucent_black_20 = new Color(0x20000000, true);
+
+    public static Color panelBackGround = UIManager.getColor("Panel.background");
+    public static Color panelForeGround = UIManager.getColor("Panel.foreground");
+
+/*
+Panel.background: #3C3F41
+Panel.foreground: #BBBBBB
+*/
+
     public enum Palette {
         // use https://color.hailpixel.com/
         // https://www.toptal.com/designers/colourcode/
@@ -76,7 +97,9 @@ public class Colors {
         // sRGB luminance(Y) values
         var brightness = brightness(backgroundColor);
 
-        return brightness < 128 ? Color.WHITE : Color.darkGray;
+        return brightness < DARK_LIGHT_PERCEIVED_BRIGHTNESS_THRESHOLD ?
+               Color.white :
+               Colors.panelBackGround;
     }
 
     /**
@@ -114,5 +137,28 @@ public class Colors {
         } else {
             return Math.pow((c + 0.055) / 1.055, 2.4);
         }
+    }
+
+    public static Color blend(Color c0, Color c1) {
+        double totalAlpha = c0.getAlpha() + c1.getAlpha();
+        double weight0 = c0.getAlpha() / totalAlpha;
+        double weight1 = c1.getAlpha() / totalAlpha;
+
+        double r = weight0 * c0.getRed() + weight1 * c1.getRed();
+        double g = weight0 * c0.getGreen() + weight1 * c1.getGreen();
+        double b = weight0 * c0.getBlue() + weight1 * c1.getBlue();
+        double a = Math.max(c0.getAlpha(), c1.getAlpha());
+
+        return new Color((int) r, (int) g, (int) b, (int) a);
+    }
+
+    public static void printLafColorProperties() {
+        UIManager.getLookAndFeelDefaults()
+                 .entrySet()
+                 .stream()
+                 .filter(e -> e.getValue() instanceof Color)
+                 .map(e -> e.getKey() + ": " + String.format("#%06X", (0xFFFFFF & ((Color) (e.getValue())).getRGB())))
+                 .sorted()
+                 .forEach(System.out::println);
     }
 }

@@ -9,8 +9,8 @@
  */
 package com.github.bric3.fireplace;
 
-import com.github.bric3.fireplace.flamegraph.ColorMode;
 import com.github.bric3.fireplace.flamegraph.FlameGraphPainter;
+import com.github.bric3.fireplace.flamegraph.FrameColorMode;
 import com.github.bric3.fireplace.ui.Colors.Palette;
 import com.github.bric3.fireplace.ui.JScrollPaneWithButton;
 import org.openjdk.jmc.flightrecorder.stacktrace.tree.StacktraceTreeModel;
@@ -54,17 +54,17 @@ public class FlameGraphPanel extends JPanel {
 
         var colorPaletteJComboBox = new JComboBox<>(Palette.values());
         colorPaletteJComboBox.addActionListener(e -> {
-            flameGraph.colorPalette = (Palette) colorPaletteJComboBox.getSelectedItem();
+            flameGraph.packageColorPalette = (Palette) colorPaletteJComboBox.getSelectedItem();
             wrapper.repaint();
         });
-        colorPaletteJComboBox.setSelectedItem(flameGraph.colorPalette);
+        colorPaletteJComboBox.setSelectedItem(flameGraph.packageColorPalette);
 
-        var colorModeJComboBox = new JComboBox<>(ColorMode.values());
+        var colorModeJComboBox = new JComboBox<>(FrameColorMode.values());
         colorModeJComboBox.addActionListener(e -> {
-            flameGraph.colorMode = (ColorMode) colorModeJComboBox.getSelectedItem();
+            flameGraph.frameColorMode = (FrameColorMode) colorModeJComboBox.getSelectedItem();
             wrapper.repaint();
         });
-        colorModeJComboBox.setSelectedItem(flameGraph.colorMode);
+        colorModeJComboBox.setSelectedItem(flameGraph.frameColorMode);
 
         var borderToggle = new JCheckBox("Border");
         borderToggle.addActionListener(e -> {
@@ -182,9 +182,7 @@ public class FlameGraphPanel extends JPanel {
 
                 flameGraph.zoomToFrameAt(
                         (Graphics2D) viewPort.getView().getGraphics(),
-                        point,
-                        viewPort.getVisibleRect(),
-                        viewPort.getViewRect()
+                        point
                 ).ifPresent(zoomPoint -> {
                     scrollPane.revalidate();
                     EventQueue.invokeLater(() -> viewPort.setViewPosition(zoomPoint));
@@ -218,7 +216,7 @@ public class FlameGraphPanel extends JPanel {
         public void mouseExited(MouseEvent e) {
             if ((e.getSource() instanceof JScrollPane)) {
                 var scrollPane = (JScrollPane) e.getComponent();
-                flameGraph.stopHighlight();
+                flameGraph.stopHover();
                 scrollPane.repaint();
             }
 
@@ -231,10 +229,9 @@ public class FlameGraphPanel extends JPanel {
                 var viewPort = scrollPane.getViewport();
 
                 var point = SwingUtilities.convertPoint(e.getComponent(), e.getPoint(), viewPort.getView());
-                flameGraph.highlightFrameAt(
+                flameGraph.hoverFrameAt(
                         (Graphics2D) viewPort.getView().getGraphics(),
-                        point,
-                        viewPort.getViewRect()
+                        point
                 );
 
                 scrollPane.repaint();

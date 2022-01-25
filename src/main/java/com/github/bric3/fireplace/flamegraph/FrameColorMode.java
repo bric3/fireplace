@@ -15,7 +15,7 @@ import org.openjdk.jmc.flightrecorder.stacktrace.tree.AggregatableFrame;
 
 import java.awt.*;
 
-public enum ColorMode {
+public enum FrameColorMode {
     BY_PACKAGE {
         @Override
         public Color getColor(Palette colorPalette, AggregatableFrame frame) {

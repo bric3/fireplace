@@ -25,25 +25,29 @@ import java.util.function.Supplier;
 import static java.util.stream.Collectors.joining;
 
 public class FlameGraphPainter {
-    public ColorMode colorMode = ColorMode.BY_PACKAGE;
-    public Palette colorPalette = Palette.DARK_CUSTOM;
-    public Color selectionColor = Color.yellow;
-    public Color frameBorderColor = Color.gray;
+    public FrameColorMode frameColorMode = FrameColorMode.BY_PACKAGE;
+    public Palette packageColorPalette = Palette.DARK_CUSTOM;
+    public Color highlightedColor = Color.yellow;
+    public Color frameBorderColor = Colors.panelBackGround;
     public boolean paintFrameBorder = true;
+    public boolean paintHoveredFrameBorder = true;
+    private int frameBorderWidth = 2;
     private final StacktraceTreeModel stacktraceTreeModel;
-    private final java.util.List<FrameBox<Node>> nodes;
+
     private final int depth;
     private int visibleDepth;
     private final int textBorder = 2;
     private final int frameWidthVisibilityThreshold = 4;
 
-    private FrameBox<Node> highlightedFrame;
+    private FrameBox<Node> hoveredFrame;
     private FrameBox<Node> selectedFrame;
     private int visibleWidth;
     private double scaleX;
     private double scaleY;
     private double zoomFactor = 1d;
     private int flameGraphWidth;
+
+    private final java.util.List<FrameBox<Node>> nodes;
 
     public FlameGraphPainter(Supplier<StacktraceTreeModel> stacktraceTreeModelSupplier) {
         this.stacktraceTreeModel = stacktraceTreeModelSupplier.get();
@@ -53,7 +57,7 @@ public class FlameGraphPainter {
     }
 
     private int getFrameBoxHeight(Graphics2D g2) {
-        return g2.getFontMetrics().getAscent() + (textBorder * 2);
+        return g2.getFontMetrics().getAscent() + (textBorder * 2) + frameBorderWidth * 2;
     }
 
     public Dimension getFlameGraphDimension(Graphics2D g2, Dimension dimension, Rectangle visibleRect, Insets insets) {
@@ -81,18 +85,17 @@ public class FlameGraphPainter {
             this.flameGraphWidth = preferredFlameGraphWidth;
             this.visibleWidth = visibleWidth;
             this.visibleDepth = Math.min(visibleDepth, depth);
-            System.out.println("getFlameGraphDimension, fgWidth=" + flameGraphWidth +
-                               " new fgWidth=" + preferredFlameGraphWidth + " visibleWidth=" + visibleWidth + " visibleDepth=" + visibleDepth + " zoom=" + zoomFactor);
+//            System.out.println("getFlameGraphDimension, fgWidth=" + flameGraphWidth +
+//                               " new fgWidth=" + preferredFlameGraphWidth + " visibleWidth=" + visibleWidth + " visibleDepth=" + visibleDepth + " zoom=" + zoomFactor);
         }
 
-        System.out.println("getFlameGraphDimension, fgWidth=" + flameGraphWidth + " visibleWidth=" + visibleWidth + " visibleDepth=" + visibleDepth + " zoom=" + zoomFactor);
-
+//        System.out.println("getFlameGraphDimension, fgWidth=" + flameGraphWidth + " visibleWidth=" + visibleWidth + " visibleDepth=" + visibleDepth + " zoom=" + zoomFactor);
 
         return new Dimension(flameGraphWidth, this.visibleDepth * getFrameBoxHeight(g2));
     }
 
     private float getFrameBoxTextOffset(Graphics2D g2) {
-        return getFrameBoxHeight(g2) - (g2.getFontMetrics().getDescent() / 2f) - textBorder;
+        return getFrameBoxHeight(g2) - (g2.getFontMetrics().getDescent() / 2f) - textBorder - frameBorderWidth;
     }
 
     public void paint(Graphics2D g2, int canvasWidth, int canvasHeight, Rectangle visibleRect) {
@@ -102,7 +105,7 @@ public class FlameGraphPainter {
 
         long start = System.currentTimeMillis();
         var frameBoxHeight = getFrameBoxHeight(g2);
-        var rect = new Rectangle();
+        var rect = new Rectangle(); // reusable rectangle
 
         identifyDisplayScale(g2);
 
@@ -122,11 +125,14 @@ public class FlameGraphPainter {
             if (visibleRect.intersects(rect)) {
                 paintRootFrameRectangle((Graphics2D) g2.create(rect.x, rect.y, rect.width, rect.height),
                                         "all (" + events + ")",
-                                        highlightedFrame == rootNode,
-                                        selectedFrame == rootNode);
+                                        handleFocus(FrameColorMode.rootNodeColor,
+                                                    hoveredFrame == rootNode,
+                                                    false,
+                                                    selectedFrame != null && rootNode.stackDepth < selectedFrame.stackDepth));
             }
         }
 
+        // draw real flames
         for (int i = 1; i < nodes.size(); i++) {
             var node = nodes.get(i);
             // TODO Can we do cheaper checks like depth is outside range etc
@@ -144,8 +150,14 @@ public class FlameGraphPainter {
             if (visibleRect.intersects(rect)) {
                 paintNodeFrameRectangle((Graphics2D) g2.create(rect.x, rect.y, rect.width, rect.height),
                                         node.jfrNode,
-                                        highlightedFrame == node,
-                                        selectedFrame == node);
+                                        handleFocus(frameColorMode.getColor(packageColorPalette, node.jfrNode.getFrame()),
+                                                    hoveredFrame == node,
+                                                    false,
+                                                    selectedFrame != null && (
+                                                            node.stackDepth < selectedFrame.stackDepth
+                                                            || node.endX < selectedFrame.startX
+                                                            || node.startX > selectedFrame.endX)),
+                                        frameBorderColor);
             }
         }
 
@@ -176,48 +188,44 @@ public class FlameGraphPainter {
 //                          scaleY = transform.getScaleY());
     }
 
-    private Color handleFocus(Color bgColor, boolean highlighted, boolean selected) {
-        if (highlighted) {
-            return bgColor.darker();
+    private Color handleFocus(Color bgColor, boolean hovered, boolean highlighted, boolean dimmed) {
+        if (dimmed) {
+            return Colors.blend(bgColor, Colors.translucent_black_B0);
         }
-        if (selected) {
-            return selectionColor;
+        if (hovered) {
+            return Colors.blend(bgColor, Colors.translucent_black_40);
+        }
+        if (highlighted) {
+            return highlightedColor;
         }
         return bgColor;
     }
 
-    private void paintNodeFrameRectangle(Graphics2D g2, Node childFrame, boolean highlighted, boolean selected) {
-        var bgColor = handleFocus(colorMode.getColor(colorPalette, childFrame.getFrame()), highlighted, selected);
-        var frameRectSurface = paintFrameRectangle(g2,
-                                                   bgColor,
-                                                   highlighted,
-                                                   selected);
+    private void paintNodeFrameRectangle(Graphics2D g2, Node childFrame, Color bgColor, Color frameBorderColor) {
+        var frameRectSurface = paintFrameRectangle(g2, bgColor, frameBorderColor);
         paintFrameText(childFrame.getFrame(),
                        g2,
-                       frameRectSurface.width - textBorder * 2,
+                       frameRectSurface.width - textBorder * 2 - frameBorderWidth * 2,
                        text -> {
                            g2.setColor(Colors.foregroundColor(bgColor));
-                           g2.drawString(text, textBorder, getFrameBoxTextOffset(g2));
+                           g2.drawString(text, textBorder + frameBorderWidth, getFrameBoxTextOffset(g2));
                        });
     }
 
-    private void paintRootFrameRectangle(Graphics2D g2, String str, boolean highlighted, boolean selected) {
-        var frameRectSurface = paintFrameRectangle(g2,
-                                                   handleFocus(ColorMode.rootNodeColor, highlighted, selected),
-                                                   highlighted,
-                                                   selected);
+    private void paintRootFrameRectangle(Graphics2D g2, String str, Color bgColor) {
+        var frameRectSurface = paintFrameRectangle(g2, bgColor, frameBorderColor);
         paintFrameText(str,
                        g2,
-                       frameRectSurface.width - textBorder * 2,
+                       frameRectSurface.width - textBorder * 2 - frameBorderWidth * 2,
                        text -> {
-                           g2.setColor(Colors.foregroundColor(ColorMode.rootNodeColor));
-                           g2.drawString(text, textBorder, getFrameBoxTextOffset(g2));
+                           g2.setColor(Colors.foregroundColor(bgColor));
+                           g2.drawString(text, textBorder + frameBorderWidth, getFrameBoxTextOffset(g2));
                        });
     }
 
-    private Rectangle2D.Double paintFrameRectangle(Graphics2D g2, Color bgColor, boolean highlighted, boolean selected) {
+    private Rectangle2D.Double paintFrameRectangle(Graphics2D g2, Color bgColor, Color frameBorderColor) {
         var clipBounds = g2.getClipBounds();
-        var borderWidth = paintFrameBorder ? 1 : 0;
+        var borderWidth = paintFrameBorder ? frameBorderWidth : 0;
 
         if (paintFrameBorder) {
             g2.setColor(frameBorderColor);
@@ -235,7 +243,7 @@ public class FlameGraphPainter {
         return frameRectSurface;
     }
 
-    public Optional<FrameBox<Node>> getFrameAt(Graphics2D g2, Point point, Rectangle viewRect) {
+    public Optional<FrameBox<Node>> getFrameAt(Graphics2D g2, Point point) {
         int depth = point.y / getFrameBoxHeight(g2);
         double xLocation = ((double) point.x) / flameGraphWidth;
 
@@ -247,29 +255,26 @@ public class FlameGraphPainter {
     public void toggleSelectedFrameAt(Graphics2D g2, Point point, Rectangle viewRect) {
         getFrameAt(
                 g2,
-                point,
-                viewRect
+                point
         ).ifPresent(frame -> selectedFrame = selectedFrame == frame ? null : frame);
     }
 
-    public void highlightFrameAt(Graphics2D g2, Point point, Rectangle viewRect) {
+    public void hoverFrameAt(Graphics2D g2, Point point) {
         getFrameAt(
                 g2,
-                point,
-                viewRect
-        ).ifPresentOrElse(frame -> highlightedFrame = frame,
-                          this::stopHighlight);
+                point
+        ).ifPresentOrElse(frame -> hoveredFrame = frame, this::stopHover);
     }
 
-    public Optional<Point> zoomToFrameAt(Graphics2D g2, Point point, Rectangle viewRect) {
+    public Optional<Point> zoomToFrameAt(Graphics2D g2, Point point) {
         return getFrameAt(
                 g2,
-                point,
-                viewRect
+                point
         ).map(frame -> {
+            this.selectedFrame = frame;
+
             var frameWidthX = frame.endX - frame.startX;
-            flameGraphWidth = (int) Math.max(visibleWidth / Math.min(1, frameWidthX),
-                                             visibleWidth);
+            flameGraphWidth = (int) Math.max(visibleWidth / Math.min(1, frameWidthX), visibleWidth);
             zoomFactor = (double) flameGraphWidth / visibleWidth;
 
             var frameBoxHeight = getFrameBoxHeight(g2);
@@ -283,8 +288,8 @@ public class FlameGraphPainter {
         });
     }
 
-    public void stopHighlight() {
-        highlightedFrame = null;
+    public void stopHover() {
+        hoveredFrame = null;
     }
 
 
