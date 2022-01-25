@@ -161,6 +161,8 @@ public class FlameGraphPainter {
             }
         }
 
+        paintHoveredFrameBorder(g2, visibleRect, frameBoxHeight, rect);
+
         // timestamp
         var drawTimeMs = "FrameGraph width " + flameGraphWidth + " Zoom Factor " + zoomFactor + " Coordinate (" + visibleRect.x + ", " + visibleRect.y + ") size (" +
                          visibleRect.width + ", " + visibleRect.height +
@@ -176,6 +178,28 @@ public class FlameGraphPainter {
         g2.drawString(drawTimeMs,
                       visibleRect.x + visibleRect.width - nowWidth - textBorder,
                       visibleRect.y + visibleRect.height - textBorder);
+    }
+
+    private void paintHoveredFrameBorder(Graphics2D g2, Rectangle visibleRect, int frameBoxHeight, Rectangle rect) {
+        if (hoveredFrame == null || !paintHoveredFrameBorder) {
+            return;
+        }
+
+        rect.x = (int) (flameGraphWidth * hoveredFrame.startX);
+        rect.width = ((int) (flameGraphWidth * hoveredFrame.endX)) - rect.x;
+
+        if ((rect.width < frameWidthVisibilityThreshold)) {
+            return;
+        }
+
+        rect.y = frameBoxHeight * hoveredFrame.stackDepth;
+        rect.height = frameBoxHeight;
+
+        if (visibleRect.intersects(rect)) {
+            g2.setColor(Color.white);
+            g2.setStroke(new BasicStroke(frameBorderWidth));
+            g2.drawRect(rect.x + 1, rect.y + 1, rect.width, rect.height);
+        }
     }
 
     private void identifyDisplayScale(Graphics2D g2) {
