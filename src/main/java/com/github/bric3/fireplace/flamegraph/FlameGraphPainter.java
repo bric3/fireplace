@@ -16,7 +16,6 @@ import org.openjdk.jmc.flightrecorder.stacktrace.tree.Node;
 import org.openjdk.jmc.flightrecorder.stacktrace.tree.StacktraceTreeModel;
 
 import java.awt.*;
-import java.awt.geom.AffineTransform;
 import java.awt.geom.Rectangle2D;
 import java.awt.geom.Rectangle2D.Double;
 import java.util.Optional;
@@ -43,6 +42,8 @@ public class FlameGraphPainter {
     private int visibleWidth;
     private double scaleX;
     private double scaleY;
+    private double zoomFactor = 1d;
+    private int flameGraphWidth;
 
     public FlameGraphPainter(Supplier<StacktraceTreeModel> stacktraceTreeModelSupplier) {
         this.stacktraceTreeModel = stacktraceTreeModelSupplier.get();
@@ -55,29 +56,39 @@ public class FlameGraphPainter {
         return g2.getFontMetrics().getAscent() + (textBorder * 2);
     }
 
-    public int getFlameGraphHeight(Graphics2D g2, Dimension dimension, Insets insets) {
+    public Dimension getFlameGraphDimension(Graphics2D g2, Dimension dimension, Rectangle visibleRect, Insets insets) {
         // as this method is invoked during layout, the dimension can be 0
-        if (dimension.width == 0) {
-            return 0;
+        if (visibleRect.width == 0) {
+            return new Dimension();
         }
 
-        var preferredWidth = dimension.width - insets.left - insets.right;
 
-        if (this.visibleWidth != preferredWidth) {
+        var visibleWidth = visibleRect.width - insets.left - insets.right;
+
+        // compute the canvas height for the flamegraph width
+        if (this.visibleWidth != visibleWidth) {
+            var preferredFlameGraphWidth = ((int) (zoomFactor * visibleWidth)) - insets.left - insets.right;
+
             var visibleDepth = 0;
             for (var node : nodes) {
-                if ((int) (preferredWidth * (node.endX - node.startX)) < frameWidthVisibilityThreshold) {
+                if ((int) (preferredFlameGraphWidth * (node.endX - node.startX)) < frameWidthVisibilityThreshold) {
                     continue;
                 }
 
                 visibleDepth = Math.max(visibleDepth, node.stackDepth);
             }
 
-            this.visibleWidth = preferredWidth;
+            this.flameGraphWidth = preferredFlameGraphWidth;
+            this.visibleWidth = visibleWidth;
             this.visibleDepth = Math.min(visibleDepth, depth);
+            System.out.println("getFlameGraphDimension, fgWidth=" + flameGraphWidth +
+                               " new fgWidth=" + preferredFlameGraphWidth + " visibleWidth=" + visibleWidth + " visibleDepth=" + visibleDepth + " zoom=" + zoomFactor);
         }
 
-        return this.visibleDepth * getFrameBoxHeight(g2);
+        System.out.println("getFlameGraphDimension, fgWidth=" + flameGraphWidth + " visibleWidth=" + visibleWidth + " visibleDepth=" + visibleDepth + " zoom=" + zoomFactor);
+
+
+        return new Dimension(flameGraphWidth, this.visibleDepth * getFrameBoxHeight(g2));
     }
 
     private float getFrameBoxTextOffset(Graphics2D g2) {
@@ -85,6 +96,10 @@ public class FlameGraphPainter {
     }
 
     public void paint(Graphics2D g2, int canvasWidth, int canvasHeight, Rectangle visibleRect) {
+        assert flameGraphWidth > 0 : "canvas sizing not done yet";
+//        System.out.println("paint: visibleRect: " + visibleRect);
+//        System.out.println("paint: canvasWidth: " + canvasWidth + ", canvasHeight: " + canvasHeight + ", flameGraphWidth: " + flameGraphWidth);
+
         long start = System.currentTimeMillis();
         var frameBoxHeight = getFrameBoxHeight(g2);
         var rect = new Rectangle();
@@ -98,8 +113,8 @@ public class FlameGraphPainter {
                                             .map(iItems -> iItems.getType().getIdentifier())
                                             .collect(joining(", "));
             var rootNode = nodes.get(0);
-            rect.x = (int) (canvasWidth * rootNode.startX);
-            rect.width = ((int) (canvasWidth * rootNode.endX)) - rect.x;
+            rect.x = (int) (flameGraphWidth * rootNode.startX);
+            rect.width = ((int) (flameGraphWidth * rootNode.endX)) - rect.x;
 
             rect.y = frameBoxHeight * rootNode.stackDepth;
             rect.height = frameBoxHeight;
@@ -116,8 +131,8 @@ public class FlameGraphPainter {
             var node = nodes.get(i);
             // TODO Can we do cheaper checks like depth is outside range etc
 
-            rect.x = (int) (canvasWidth * node.startX);
-            rect.width = ((int) (canvasWidth * node.endX)) - rect.x;
+            rect.x = (int) (flameGraphWidth * node.startX);
+            rect.width = ((int) (flameGraphWidth * node.endX)) - rect.x;
 
             if ((rect.width < frameWidthVisibilityThreshold)) {
                 continue;
@@ -135,29 +150,30 @@ public class FlameGraphPainter {
         }
 
         // timestamp
-        var drawTimeMs = "Draw time: " + (System.currentTimeMillis() - start) + " ms";
+        var drawTimeMs = "FrameGraph width " + flameGraphWidth + " Zoom Factor " + zoomFactor + " Coordinate (" + visibleRect.x + ", " + visibleRect.y + ") size (" +
+                         visibleRect.width + ", " + visibleRect.height +
+                         ") , Draw time: " + (System.currentTimeMillis() - start) + " ms";
         var nowWidth = g2.getFontMetrics().stringWidth(drawTimeMs);
         g2.setColor(Color.darkGray);
-        g2.fillRect(canvasWidth - nowWidth - textBorder * 2,
+        g2.fillRect(visibleRect.x + visibleRect.width - nowWidth - textBorder * 2,
                     visibleRect.y + visibleRect.height - frameBoxHeight,
                     nowWidth + textBorder * 2,
                     frameBoxHeight);
         g2.setColor(Color.yellow);
 
         g2.drawString(drawTimeMs,
-                      canvasWidth - nowWidth - textBorder,
+                      visibleRect.x + visibleRect.width - nowWidth - textBorder,
                       visibleRect.y + visibleRect.height - textBorder);
     }
 
     private void identifyDisplayScale(Graphics2D g2) {
+        // if true we're on a HiDPI display
+        // https://github.com/libgdx/libgdx/commit/2bc16a08961dd303afe2d1c8df96a50d8cd639db
         var transform = g2.getTransform();
-        if ((transform.getType() & AffineTransform.TYPE_MASK_SCALE) == AffineTransform.TYPE_UNIFORM_SCALE) {
-            // if true we're on a HiDPI display
-            // https://github.com/libgdx/libgdx/commit/2bc16a08961dd303afe2d1c8df96a50d8cd639db
-            System.out.println("HiDPI");
-        }
-        System.out.println(scaleX = transform.getScaleX());
-        System.out.println(scaleY = transform.getScaleY());
+//        System.out.printf("%sscale factor, x=%s y=%s%n",
+//                          (transform.getType() & AffineTransform.TYPE_MASK_SCALE) == AffineTransform.TYPE_UNIFORM_SCALE ? "HiDPI " : "",
+//                          scaleX = transform.getScaleX(),
+//                          scaleY = transform.getScaleY());
     }
 
     private Color handleFocus(Color bgColor, boolean highlighted, boolean selected) {
@@ -219,30 +235,52 @@ public class FlameGraphPainter {
         return frameRectSurface;
     }
 
-    public Optional<FrameBox<Node>> getFrameAt(Graphics2D g2, Point point, Rectangle visibleRect) {
+    public Optional<FrameBox<Node>> getFrameAt(Graphics2D g2, Point point, Rectangle viewRect) {
         int depth = point.y / getFrameBoxHeight(g2);
-        double xLocation = (point.x * 1.0d) / visibleRect.width;
+        double xLocation = ((double) point.x) / flameGraphWidth;
 
         return nodes.stream()
                     .filter(node -> node.stackDepth == depth && node.startX <= xLocation && xLocation <= node.endX)
                     .findFirst();
     }
 
-    public void toggleSelectedFrameAt(Graphics2D g2, Point point, Rectangle visibleRect) {
+    public void toggleSelectedFrameAt(Graphics2D g2, Point point, Rectangle viewRect) {
         getFrameAt(
                 g2,
                 point,
-                visibleRect
+                viewRect
         ).ifPresent(frame -> selectedFrame = selectedFrame == frame ? null : frame);
     }
 
-    public void highlightFrameAt(Graphics2D g2, Point point, Rectangle visibleRect) {
+    public void highlightFrameAt(Graphics2D g2, Point point, Rectangle viewRect) {
         getFrameAt(
                 g2,
                 point,
-                visibleRect
+                viewRect
         ).ifPresentOrElse(frame -> highlightedFrame = frame,
                           this::stopHighlight);
+    }
+
+    public Optional<Point> zoomToFrameAt(Graphics2D g2, Point point, Rectangle viewRect) {
+        return getFrameAt(
+                g2,
+                point,
+                viewRect
+        ).map(frame -> {
+            var frameWidthX = frame.endX - frame.startX;
+            flameGraphWidth = (int) Math.max(visibleWidth / Math.min(1, frameWidthX),
+                                             visibleWidth);
+            zoomFactor = (double) flameGraphWidth / visibleWidth;
+
+            var frameBoxHeight = getFrameBoxHeight(g2);
+            int y = frameBoxHeight * frame.stackDepth;
+
+            // Change offset to center the flame from this frame
+            return new Point(
+                    (int) (frame.startX * flameGraphWidth),
+                    Math.max(0, y)
+            );
+        });
     }
 
     public void stopHighlight() {

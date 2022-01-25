@@ -18,6 +18,7 @@ import org.openjdk.jmc.flightrecorder.stacktrace.tree.StacktraceTreeModel;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.MouseEvent;
+import java.awt.event.MouseListener;
 import java.awt.event.MouseMotionListener;
 import java.util.function.Supplier;
 
@@ -39,6 +40,7 @@ public class FlameGraphPanel extends JPanel {
             wrapper.repaint(1_000);
             wrapper.revalidate();
         });
+        timer.setInitialDelay(0);
         timer.setRepeats(true);
 
         var refreshToggle = new JToggleButton("Refresh");
@@ -90,9 +92,21 @@ public class FlameGraphPanel extends JPanel {
             public Dimension getPreferredSize() {
                 Dimension d = super.getPreferredSize();
                 d = (d == null) ? new Dimension(400, 400) : d;
-                Insets insets = getInsets();
 
-                d.height = Math.max(d.height, flameGraph.getFlameGraphHeight((Graphics2D) getGraphics(), getSize(), insets) + insets.top + insets.bottom);
+                Insets insets = getInsets();
+                var flameGraphDimension = flameGraph.getFlameGraphDimension((Graphics2D) getGraphics(),
+                                                                            getSize(),
+                                                                            getVisibleRect(),
+                                                                            insets
+                );
+                d.width = Math.max(d.width, flameGraphDimension.width + insets.left + insets.right);
+                d.height = Math.max(d.height, flameGraphDimension.height + insets.top + insets.bottom);
+
+                // When the preferred size is discovered, also set the actual
+                // canvas size, as it is needed during `viewPort.setViewPosition`
+                // if it is not then the viewport will not be able to scroll to the
+                // when the flamegraph is zoomed (ie it's diemnsions change)
+                setSize(d);
                 return d;
             }
 
@@ -116,7 +130,7 @@ public class FlameGraphPanel extends JPanel {
     }
 
 
-    static class ScrollPaneMouseListener implements java.awt.event.MouseListener, MouseMotionListener {
+    static class ScrollPaneMouseListener implements MouseListener, MouseMotionListener {
         private Point pressedPoint;
         private final FlameGraphPainter flameGraph;
 
@@ -160,6 +174,25 @@ public class FlameGraphPanel extends JPanel {
                 return;
             }
 
+            if (e.getClickCount() == 2) {
+                var scrollPane = (JScrollPane) e.getComponent();
+                var viewPort = scrollPane.getViewport();
+
+                var point = SwingUtilities.convertPoint(e.getComponent(), e.getPoint(), viewPort.getView());
+
+                flameGraph.zoomToFrameAt(
+                        (Graphics2D) viewPort.getView().getGraphics(),
+                        point,
+                        viewPort.getVisibleRect(),
+                        viewPort.getViewRect()
+                ).ifPresent(zoomPoint -> {
+                    scrollPane.revalidate();
+                    EventQueue.invokeLater(() -> viewPort.setViewPosition(zoomPoint));
+                });
+
+                return;
+            }
+
             if ((e.getSource() instanceof JScrollPane)) {
                 var scrollPane = (JScrollPane) e.getComponent();
                 var viewPort = scrollPane.getViewport();
@@ -169,7 +202,7 @@ public class FlameGraphPanel extends JPanel {
                 flameGraph.toggleSelectedFrameAt(
                         (Graphics2D) viewPort.getView().getGraphics(),
                         point,
-                        viewPort.getVisibleRect()
+                        viewPort.getViewRect()
                 );
 
                 scrollPane.repaint();
@@ -201,7 +234,7 @@ public class FlameGraphPanel extends JPanel {
                 flameGraph.highlightFrameAt(
                         (Graphics2D) viewPort.getView().getGraphics(),
                         point,
-                        viewPort.getVisibleRect()
+                        viewPort.getViewRect()
                 );
 
                 scrollPane.repaint();

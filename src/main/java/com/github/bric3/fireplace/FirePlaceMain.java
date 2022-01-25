@@ -93,7 +93,6 @@ public class FirePlaceMain {
         }
         FlatDarculaLaf.setup();
 
-        Utils.printLafProperties();
 
         var openedFileLabel = new JTextField(jfrFiles.get(0).getAbsolutePath());
         openedFileLabel.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
