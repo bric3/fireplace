@@ -1,0 +1,24 @@
+[versions]
+flatlaf = "2.0.1"
+darklaf = "2.7.2"
+graalvm = "22.0.0.2"
+junit-jupiter = "5.8.2"
+jmc-flightrecorder = "8.1.0"
+
+[libraries]
+flatlaf = { module = "com.formdev:flatlaf", version.ref = "flatlaf" }
+darklaf = { module = "com.github.weisj:darklaf-core", version.ref = "darklaf" }
+flightrecorder = { module = "org.openjdk.jmc:flightrecorder", version.ref = "jmc-flightrecorder" }
+
+graal-sdk = { module = "org.graalvm.sdk:graal-sdk", version.ref = "graalvm" }
+graal-js = { module = "org.graalvm.js:js", version.ref = "graalvm" }
+graal-js-scriptengine = { module = "org.graalvm.js:js-scriptengine", version.ref = "graalvm" }
+
+junit-jupiter-api = { module = "org.junit.jupiter:junit-jupiter-api", version.ref = "junit-jupiter" }
+junit-jupiter-engine = { module = "org.junit.jupiter:junit-jupiter-engine", version.ref = "junit-jupiter" }
+
+
+[bundles]
+junit-jupiter = ["junit-jupiter-api", "junit-jupiter-engine"]
+graal-js = ["graal-js", "graal-js-scriptengine"]
+

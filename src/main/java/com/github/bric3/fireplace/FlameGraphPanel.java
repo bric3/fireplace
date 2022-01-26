@@ -12,6 +12,7 @@ package com.github.bric3.fireplace;
 import com.github.bric3.fireplace.flamegraph.FlameGraphPainter;
 import com.github.bric3.fireplace.flamegraph.FrameBox;
 import com.github.bric3.fireplace.flamegraph.FrameColorMode;
+import com.github.bric3.fireplace.ui.BalloonToolTip;
 import com.github.bric3.fireplace.ui.Colors.Palette;
 import com.github.bric3.fireplace.ui.JScrollPaneWithButton;
 import com.github.bric3.fireplace.ui.MouseInputListenerWorkaroundForToolTipEnabledComponent;
@@ -106,6 +107,9 @@ public class FlameGraphPanel extends JPanel {
         flameGraph = new FlameGraphPainter(stacktraceTreeModelSupplier);
 
         var flameGraphCanvas = new JPanel() {
+
+            private BalloonToolTip toolTip;
+
             @Override
             public Dimension getPreferredSize() {
                 Dimension d = super.getPreferredSize();
@@ -139,11 +143,16 @@ public class FlameGraphPanel extends JPanel {
                 return super.getToolTipText(e);
             }
 
-//            @Override
-//            public JToolTip createToolTip() {
+            @Override
+            public JToolTip createToolTip() {
 //                var toolTip = super.createToolTip();
-//                return toolTip;
-//            }
+                if (toolTip == null) {
+                    toolTip = new BalloonToolTip();
+                    toolTip.setComponent(this);
+                }
+
+                return toolTip;
+            }
         };
         ToolTipManager.sharedInstance().registerComponent(flameGraphCanvas);
 

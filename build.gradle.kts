@@ -11,6 +11,9 @@ plugins {
     id("java")
     id("pl.allegro.tech.build.axion-release") version "1.13.6"
 
+    // Playing with graal compiler
+    id("org.graalvm.plugin.compiler") version "0.1.0-alpha2"
+
     //    id("org.scm-manager.license") version "0.7.1"
     id("com.github.hierynomus.license") version "0.16.1"
 }
@@ -23,11 +26,14 @@ repositories {
 }
 
 dependencies {
-    implementation("com.formdev:flatlaf:2.0-rc1")
-    implementation("org.openjdk.jmc:flightrecorder:8.1.0")
+    implementation(libs.flatlaf)
+    implementation(libs.flightrecorder)
 
-    testImplementation ("org.junit.jupiter:junit-jupiter-api:5.8.2")
-    testRuntimeOnly ("org.junit.jupiter:junit-jupiter-engine:5.8.2")
+//    implementation(libs.graal.sdk)
+    implementation(libs.bundles.graal.js)
+
+    testImplementation(libs.junit.jupiter.api)
+    testRuntimeOnly(libs.junit.jupiter.engine)
 }
 
 java {
@@ -50,6 +56,11 @@ tasks.withType<JavaExec>().configureEach {
     // Need to set the toolchain https://github.com/gradle/gradle/issues/16791
     javaLauncher.set(javaToolchains.launcherFor(java.toolchain))
 }
+
+graal {
+    version = libs.versions.graalvm.get()
+}
+
 
 license {
     ext["year"] = "2021, Today"

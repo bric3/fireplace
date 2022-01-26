@@ -9,3 +9,4 @@
  */
 rootProject.name = "fireplace"
 
+enableFeaturePreview("VERSION_CATALOGS")
