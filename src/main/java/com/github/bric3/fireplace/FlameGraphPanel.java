@@ -10,22 +10,40 @@
 package com.github.bric3.fireplace;
 
 import com.github.bric3.fireplace.flamegraph.FlameGraphPainter;
+import com.github.bric3.fireplace.flamegraph.FrameBox;
 import com.github.bric3.fireplace.flamegraph.FrameColorMode;
 import com.github.bric3.fireplace.ui.Colors.Palette;
 import com.github.bric3.fireplace.ui.JScrollPaneWithButton;
+import com.github.bric3.fireplace.ui.MouseInputListenerWorkaroundForToolTipEnabledComponent;
+import org.openjdk.jmc.common.util.FormatToolkit;
+import org.openjdk.jmc.flightrecorder.stacktrace.tree.Node;
 import org.openjdk.jmc.flightrecorder.stacktrace.tree.StacktraceTreeModel;
 
 import javax.swing.*;
+import javax.swing.event.MouseInputListener;
 import java.awt.*;
 import java.awt.event.MouseEvent;
-import java.awt.event.MouseListener;
-import java.awt.event.MouseMotionListener;
+import java.util.function.Function;
 import java.util.function.Supplier;
 
 public class FlameGraphPanel extends JPanel {
     private final Supplier<StacktraceTreeModel> stacktraceTreeModelSupplier;
     private FlameGraphPainter flameGraph;
+    private static Function<FrameBox<Node>, String> extractToolTip = frame -> {
+        if (frame.stackDepth == 0) {
+            return "";
+        }
 
+        var method = frame.jfrNode.getFrame().getMethod();
+        var desc = FormatToolkit.getHumanReadable(method, false, false, true, true, true, false, false);
+
+        return "<html>"
+               + "<b>" + frame.jfrNode.getFrame().getHumanReadableShortString() + "</b><br>"
+               + desc + "<br><hr>"
+               + frame.jfrNode.getCumulativeWeight() + " " + frame.jfrNode.getWeight() + "<br>"
+               + "BCI: " + frame.jfrNode.getFrame().getBCI() + " Line number: " + frame.jfrNode.getFrame().getFrameLineNumber() + "<br>"
+               + "</html>";
+    };
 
     public FlameGraphPanel(Supplier<StacktraceTreeModel> stacktraceTreeModelSupplier) {
         super(new BorderLayout());
@@ -115,22 +133,33 @@ public class FlameGraphPanel extends JPanel {
                 super.paintComponent(g);
                 flameGraph.paint((Graphics2D) g, getWidth(), getHeight(), getVisibleRect());
             }
-        };
 
-        var scrollPaneMouseListener = new ScrollPaneMouseListener(flameGraph);
+            @Override
+            public String getToolTipText(MouseEvent e) {
+                return super.getToolTipText(e);
+            }
+
+//            @Override
+//            public JToolTip createToolTip() {
+//                var toolTip = super.createToolTip();
+//                return toolTip;
+//            }
+        };
+        ToolTipManager.sharedInstance().registerComponent(flameGraphCanvas);
 
         return JScrollPaneWithButton.create(
                 flameGraphCanvas,
-                sp -> {
-                    sp.getVerticalScrollBar().setUnitIncrement(16);
-                    sp.getViewport().setScrollMode(JViewport.SIMPLE_SCROLL_MODE);
-                    scrollPaneMouseListener.install(sp);
+                scrollPane -> {
+                    scrollPane.getVerticalScrollBar().setUnitIncrement(16);
+                    scrollPane.getHorizontalScrollBar().setUnitIncrement(16);
+                    new ScrollPaneMouseListener(flameGraph).install(scrollPane);
+                    new MouseInputListenerWorkaroundForToolTipEnabledComponent(scrollPane).install(flameGraphCanvas);
                 }
         );
     }
 
 
-    static class ScrollPaneMouseListener implements MouseListener, MouseMotionListener {
+    static class ScrollPaneMouseListener implements MouseInputListener {
         private Point pressedPoint;
         private final FlameGraphPainter flameGraph;
 
@@ -208,9 +237,7 @@ public class FlameGraphPanel extends JPanel {
         }
 
         @Override
-        public void mouseEntered(MouseEvent e) {
-
-        }
+        public void mouseEntered(MouseEvent e) {}
 
         @Override
         public void mouseExited(MouseEvent e) {
@@ -228,10 +255,13 @@ public class FlameGraphPanel extends JPanel {
                 var scrollPane = (JScrollPane) e.getComponent();
                 var viewPort = scrollPane.getViewport();
 
-                var point = SwingUtilities.convertPoint(e.getComponent(), e.getPoint(), viewPort.getView());
+                var view = (JComponent) viewPort.getView();
+                var point = SwingUtilities.convertPoint(e.getComponent(), e.getPoint(), view);
+
                 flameGraph.hoverFrameAt(
-                        (Graphics2D) viewPort.getView().getGraphics(),
-                        point
+                        (Graphics2D) view.getGraphics(),
+                        point,
+                        frame -> view.setToolTipText(extractToolTip.apply(frame))
                 );
 
                 scrollPane.repaint();

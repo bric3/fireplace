@@ -283,11 +283,17 @@ public class FlameGraphPainter {
         ).ifPresent(frame -> selectedFrame = selectedFrame == frame ? null : frame);
     }
 
-    public void hoverFrameAt(Graphics2D g2, Point point) {
+    public void hoverFrameAt(Graphics2D g2, Point point, Consumer<FrameBox<Node>> hoverConsumer) {
         getFrameAt(
                 g2,
                 point
-        ).ifPresentOrElse(frame -> hoveredFrame = frame, this::stopHover);
+        ).ifPresentOrElse(frame -> {
+                              hoveredFrame = frame;
+                              if (hoverConsumer != null) {
+                                  hoverConsumer.accept(frame);
+                              }
+                          },
+                          this::stopHover);
     }
 
     public Optional<Point> zoomToFrameAt(Graphics2D g2, Point point) {
