@@ -8,8 +8,9 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 plugins {
-    id("java")
+    id("application")
     id("pl.allegro.tech.build.axion-release") version "1.13.6"
+    id("com.github.johnrengelman.shadow") version "7.1.2"
 
     // Playing with graal compiler
     id("org.graalvm.plugin.compiler") version "0.1.0-alpha2"
@@ -42,10 +43,12 @@ java {
     }
 }
 
-tasks {
-    test {
-        useJUnitPlatform()
-    }
+application {
+    mainClass.set("com.github.bric3.fireplace.FirePlaceMain")
+}
+
+tasks.test {
+    useJUnitPlatform()
 }
 
 // Due to https://github.com/gradle/gradle/issues/18426, tasks are not declared in the TaskContainerScope
