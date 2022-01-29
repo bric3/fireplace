@@ -21,8 +21,8 @@ import java.util.List;
  * A child node will be proportional to its parent's X space according to its proportion of time it took of its parent's time.
  * The root of the flame graph will always be full width.
  */
-public class FlameNodeBuilder {
-    static List<FrameBox<Node>> buildFlameNodes(StacktraceTreeModel model) {
+public class FrameNodeConverter {
+    public static List<FrameBox<Node>> convert(StacktraceTreeModel model) {
         var nodes = new ArrayList<FrameBox<Node>>();
 
         iterate(nodes, model.getRoot(), 0.0d, 1.0d, 0);

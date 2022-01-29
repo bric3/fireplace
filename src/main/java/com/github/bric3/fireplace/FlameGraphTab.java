@@ -10,8 +10,7 @@
 package com.github.bric3.fireplace;
 
 import com.github.bric3.fireplace.flamegraph.FlameGraph;
-import com.github.bric3.fireplace.flamegraph.FrameBox;
-import com.github.bric3.fireplace.flamegraph.FrameColorMode;
+import com.github.bric3.fireplace.flamegraph.FrameNodeConverter;
 import com.github.bric3.fireplace.ui.Colors.Palette;
 import org.openjdk.jmc.common.util.FormatToolkit;
 import org.openjdk.jmc.flightrecorder.stacktrace.tree.Node;
@@ -19,40 +18,27 @@ import org.openjdk.jmc.flightrecorder.stacktrace.tree.StacktraceTreeModel;
 
 import javax.swing.*;
 import java.awt.*;
-import java.util.function.Function;
+import java.util.List;
 import java.util.function.Supplier;
+
+import static java.util.stream.Collectors.joining;
 
 public class FlameGraphTab extends JPanel {
     private final Supplier<StacktraceTreeModel> stacktraceTreeModelSupplier;
-    private FlameGraph flameGraph;
-    private static final Function<FrameBox<Node>, String> extractToolTip = frame -> {
-        if (frame.stackDepth == 0) {
-            return "";
-        }
-
-        var method = frame.jfrNode.getFrame().getMethod();
-        var desc = FormatToolkit.getHumanReadable(method, false, false, true, true, true, false, false);
-
-        return "<html>"
-               + "<b>" + frame.jfrNode.getFrame().getHumanReadableShortString() + "</b><br>"
-               + desc + "<br><hr>"
-               + frame.jfrNode.getCumulativeWeight() + " " + frame.jfrNode.getWeight() + "<br>"
-               + "BCI: " + frame.jfrNode.getFrame().getBCI() + " Line number: " + frame.jfrNode.getFrame().getFrameLineNumber() + "<br>"
-               + "</html>";
-    };
+    private FlameGraph<Node> jfrFlameGraph;
 
     public FlameGraphTab(Supplier<StacktraceTreeModel> stacktraceTreeModelSupplier) {
         super(new BorderLayout());
         this.stacktraceTreeModelSupplier = Utils.memoize(stacktraceTreeModelSupplier);
 
-        flameGraph = createFlameGraph();
+        jfrFlameGraph = createFlameGraph();
         var wrapper = new JPanel(new BorderLayout());
-        wrapper.add(flameGraph.component);
+        wrapper.add(jfrFlameGraph.component);
 
         var timer = new Timer(2_000, e -> {
             createFlameGraph();
             wrapper.removeAll();
-            wrapper.add(flameGraph.component);
+            wrapper.add(jfrFlameGraph.component);
             wrapper.repaint(1_000);
             wrapper.revalidate();
         });
@@ -70,24 +56,24 @@ public class FlameGraphTab extends JPanel {
 
         var colorPaletteJComboBox = new JComboBox<>(Palette.values());
         colorPaletteJComboBox.addActionListener(e -> {
-            flameGraph.flameGraphPainter.packageColorPalette = (Palette) colorPaletteJComboBox.getSelectedItem();
+            jfrFlameGraph.flameGraphPainter.packageColorPalette = (Palette) colorPaletteJComboBox.getSelectedItem();
             wrapper.repaint();
         });
-        colorPaletteJComboBox.setSelectedItem(flameGraph.flameGraphPainter.packageColorPalette);
+        colorPaletteJComboBox.setSelectedItem(jfrFlameGraph.flameGraphPainter.packageColorPalette);
 
-        var colorModeJComboBox = new JComboBox<>(FrameColorMode.values());
+        var colorModeJComboBox = new JComboBox<>(JfrFrameColorMode.values());
         colorModeJComboBox.addActionListener(e -> {
-            flameGraph.flameGraphPainter.frameColorMode = (FrameColorMode) colorModeJComboBox.getSelectedItem();
+            jfrFlameGraph.flameGraphPainter.frameColorMode = (JfrFrameColorMode) colorModeJComboBox.getSelectedItem();
             wrapper.repaint();
         });
-        colorModeJComboBox.setSelectedItem(flameGraph.flameGraphPainter.frameColorMode);
+        colorModeJComboBox.setSelectedItem(jfrFlameGraph.flameGraphPainter.frameColorMode);
 
         var borderToggle = new JCheckBox("Border");
         borderToggle.addActionListener(e -> {
-            flameGraph.flameGraphPainter.paintFrameBorder = borderToggle.isSelected();
+            jfrFlameGraph.flameGraphPainter.paintFrameBorder = borderToggle.isSelected();
             wrapper.repaint();
         });
-        borderToggle.setSelected(flameGraph.flameGraphPainter.paintFrameBorder);
+        borderToggle.setSelected(jfrFlameGraph.flameGraphPainter.paintFrameBorder);
 
         var controlPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         controlPanel.add(colorPaletteJComboBox);
@@ -100,9 +86,43 @@ public class FlameGraphTab extends JPanel {
         add(wrapper, BorderLayout.CENTER);
     }
 
-    private FlameGraph createFlameGraph() {
-        flameGraph = new FlameGraph(this.stacktraceTreeModelSupplier, extractToolTip);
-        return flameGraph;
+    private FlameGraph<Node> createFlameGraph() {
+        jfrFlameGraph = new FlameGraph<>(
+                FrameNodeConverter.convert(this.stacktraceTreeModelSupplier.get()),
+                List.of(
+                        node -> node.getFrame().getHumanReadableShortString(),
+                        node -> node.getFrame().getMethod().getMethodName()
+                ),
+                node -> {
+                    var events = this.stacktraceTreeModelSupplier.get().getItems()
+                                                                 .stream()
+                                                                 .map(iItems -> iItems.getType().getIdentifier())
+                                                                 .collect(joining(", "));
+                    var str = "all (" + events + ")";
+                    return str;
+                },
+                node -> jfrFlameGraph.flameGraphPainter.frameColorMode.getColor(
+                        jfrFlameGraph.flameGraphPainter.packageColorPalette,
+                        node
+                ),
+                frame -> {
+                    if (frame.stackDepth == 0) {
+                        return "";
+                    }
+
+                    var method = frame.jfrNode.getFrame().getMethod();
+                    var desc = FormatToolkit.getHumanReadable(method, false, false, true, true, true, false, false);
+
+                    return "<html>"
+                           + "<b>" + frame.jfrNode.getFrame().getHumanReadableShortString() + "</b><br>"
+                           + desc + "<br><hr>"
+                           + frame.jfrNode.getCumulativeWeight() + " " + frame.jfrNode.getWeight() + "<br>"
+                           + "BCI: " + frame.jfrNode.getFrame().getBCI() + " Line number: " + frame.jfrNode.getFrame().getFrameLineNumber() + "<br>"
+                           + "</html>";
+                },
+                JfrFrameColorMode.BY_PACKAGE
+        );
+        return jfrFlameGraph;
     }
 
 }

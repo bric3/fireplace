@@ -12,24 +12,34 @@ package com.github.bric3.fireplace.flamegraph;
 import com.github.bric3.fireplace.ui.BalloonToolTip;
 import com.github.bric3.fireplace.ui.JScrollPaneWithButton;
 import com.github.bric3.fireplace.ui.MouseInputListenerWorkaroundForToolTipEnabledComponent;
-import org.openjdk.jmc.flightrecorder.stacktrace.tree.Node;
-import org.openjdk.jmc.flightrecorder.stacktrace.tree.StacktraceTreeModel;
 
 import javax.swing.*;
 import javax.swing.event.MouseInputListener;
 import java.awt.*;
 import java.awt.event.MouseEvent;
+import java.util.List;
 import java.util.function.Function;
-import java.util.function.Supplier;
 
-public class FlameGraph {
-    public final FlameGraphPainter flameGraphPainter;
-    private final FlameGraphCanvas canvas;
+public class FlameGraph<T> {
+    public final FlameGraphPainter<T> flameGraphPainter;
+    private final FlameGraphCanvas<T> canvas;
     public final JLayer<JScrollPane> component;
 
-    public FlameGraph(Supplier<StacktraceTreeModel> stacktraceTreeModelSupplier, Function<FrameBox<Node>, String> extractToolTip) {
-        flameGraphPainter = new FlameGraphPainter(stacktraceTreeModelSupplier);
-        canvas = new FlameGraphCanvas(flameGraphPainter);
+    public FlameGraph(List<FrameBox<T>> framesSupplier,
+                      List<Function<T, String>> frameToStringCandidates,
+                      Function<T, String> rootFrameToString,
+                      Function<T, Color> frameColorFunction,
+                      Function<FrameBox<T>, String> extractToolTip,
+                      FrameColorMode<T> frameColorMode
+    ) {
+        flameGraphPainter = new FlameGraphPainter<T>(
+                framesSupplier,
+                frameToStringCandidates,
+                rootFrameToString,
+                frameColorFunction,
+                frameColorMode
+        );
+        canvas = new FlameGraphCanvas<>(flameGraphPainter);
         ToolTipManager.sharedInstance().registerComponent(canvas);
 
         component = JScrollPaneWithButton.create(
@@ -37,18 +47,18 @@ public class FlameGraph {
                 scrollPane -> {
                     scrollPane.getVerticalScrollBar().setUnitIncrement(16);
                     scrollPane.getHorizontalScrollBar().setUnitIncrement(16);
-                    new ScrollPaneMouseListener(flameGraphPainter, extractToolTip).install(scrollPane);
+                    new ScrollPaneMouseListener<>(flameGraphPainter, extractToolTip).install(scrollPane);
                     new MouseInputListenerWorkaroundForToolTipEnabledComponent(scrollPane).install(canvas);
                 }
         );
     }
 
-    static class ScrollPaneMouseListener implements MouseInputListener {
+    static class ScrollPaneMouseListener<T> implements MouseInputListener {
         private Point pressedPoint;
-        private final FlameGraphPainter flameGraph;
-        private Function<FrameBox<Node>, String> extractToolTip;
+        private final FlameGraphPainter<T> flameGraph;
+        private final Function<FrameBox<T>, String> extractToolTip;
 
-        public ScrollPaneMouseListener(FlameGraphPainter flameGraph, Function<FrameBox<Node>, String> extractToolTip) {
+        public ScrollPaneMouseListener(FlameGraphPainter<T> flameGraph, Function<FrameBox<T>, String> extractToolTip) {
             this.flameGraph = flameGraph;
             this.extractToolTip = extractToolTip;
         }
@@ -161,11 +171,11 @@ public class FlameGraph {
 
     }
 
-    private static class FlameGraphCanvas extends JPanel {
+    private static class FlameGraphCanvas<T> extends JPanel {
         private BalloonToolTip toolTip;
-        private final FlameGraphPainter flameGraphPainter;
+        private final FlameGraphPainter<T> flameGraphPainter;
 
-        public FlameGraphCanvas(FlameGraphPainter flameGraphPainter) {
+        public FlameGraphCanvas(FlameGraphPainter<T> flameGraphPainter) {
             this.flameGraphPainter = flameGraphPainter;
         }
 

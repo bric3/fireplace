@@ -11,49 +11,55 @@ package com.github.bric3.fireplace.flamegraph;
 
 import com.github.bric3.fireplace.ui.Colors;
 import com.github.bric3.fireplace.ui.Colors.Palette;
-import org.openjdk.jmc.flightrecorder.stacktrace.tree.AggregatableFrame;
-import org.openjdk.jmc.flightrecorder.stacktrace.tree.Node;
-import org.openjdk.jmc.flightrecorder.stacktrace.tree.StacktraceTreeModel;
 
 import java.awt.*;
 import java.awt.geom.Rectangle2D;
 import java.awt.geom.Rectangle2D.Double;
+import java.util.List;
 import java.util.Optional;
 import java.util.function.Consumer;
-import java.util.function.Supplier;
+import java.util.function.Function;
 
-import static java.util.stream.Collectors.joining;
-
-public class FlameGraphPainter {
-    public FrameColorMode frameColorMode = FrameColorMode.BY_PACKAGE;
+public class FlameGraphPainter<T> {
+    public FrameColorMode<T> frameColorMode;
     public Palette packageColorPalette = Palette.DARK_CUSTOM;
     public Color highlightedColor = Color.yellow;
     public Color frameBorderColor = Colors.panelBackGround;
     public boolean paintFrameBorder = true;
     public boolean paintHoveredFrameBorder = true;
-    private int frameBorderWidth = 2;
-    private final StacktraceTreeModel stacktraceTreeModel;
+    public int frameBorderWidth = 2;
 
     private final int depth;
     private int visibleDepth;
     private final int textBorder = 2;
     private final int frameWidthVisibilityThreshold = 4;
 
-    private FrameBox<Node> hoveredFrame;
-    private FrameBox<Node> selectedFrame;
+    private FrameBox<T> hoveredFrame;
+    private FrameBox<T> selectedFrame;
     private int visibleWidth;
     private double scaleX;
     private double scaleY;
     private double zoomFactor = 1d;
     private int flameGraphWidth;
 
-    private final java.util.List<FrameBox<Node>> nodes;
+    private final List<FrameBox<T>> frames;
+    private final List<Function<T, String>> nodeToTextCandidates;
+    // handle root node
+    private final Function<T, String> rootFrameToText;
+    private final Function<T, Color> frameColorFunction;
 
-    public FlameGraphPainter(Supplier<StacktraceTreeModel> stacktraceTreeModelSupplier) {
-        this.stacktraceTreeModel = stacktraceTreeModelSupplier.get();
-        this.nodes = FlameNodeBuilder.buildFlameNodes(this.stacktraceTreeModel);
-        this.depth = this.nodes.stream().mapToInt(fb -> fb.stackDepth).max().orElse(0);
+    public FlameGraphPainter(List<FrameBox<T>> frames,
+                             List<Function<T, String>> nodeToTextCandidates,
+                             Function<T, String> rootFrameToText,
+                             Function<T, Color> frameColorFunction,
+                             FrameColorMode<T> frameColorMode) {
+        this.frames = frames;
+        this.depth = this.frames.stream().mapToInt(fb -> fb.stackDepth).max().orElse(0);
         visibleDepth = depth;
+        this.nodeToTextCandidates = nodeToTextCandidates;
+        this.rootFrameToText = rootFrameToText;
+        this.frameColorFunction = frameColorFunction;
+        this.frameColorMode = frameColorMode;
     }
 
     private int getFrameBoxHeight(Graphics2D g2) {
@@ -74,12 +80,12 @@ public class FlameGraphPainter {
             var preferredFlameGraphWidth = ((int) (zoomFactor * visibleWidth)) - insets.left - insets.right;
 
             var visibleDepth = 0;
-            for (var node : nodes) {
-                if ((int) (preferredFlameGraphWidth * (node.endX - node.startX)) < frameWidthVisibilityThreshold) {
+            for (var frame : frames) {
+                if ((int) (preferredFlameGraphWidth * (frame.endX - frame.startX)) < frameWidthVisibilityThreshold) {
                     continue;
                 }
 
-                visibleDepth = Math.max(visibleDepth, node.stackDepth);
+                visibleDepth = Math.max(visibleDepth, frame.stackDepth);
             }
 
             this.flameGraphWidth = preferredFlameGraphWidth;
@@ -110,53 +116,48 @@ public class FlameGraphPainter {
         identifyDisplayScale(g2);
 
         {
-            // handle root node
-            var events = stacktraceTreeModel.getItems()
-                                            .stream()
-                                            .map(iItems -> iItems.getType().getIdentifier())
-                                            .collect(joining(", "));
-            var rootNode = nodes.get(0);
-            rect.x = (int) (flameGraphWidth * rootNode.startX);
-            rect.width = ((int) (flameGraphWidth * rootNode.endX)) - rect.x;
+            var rootFrame = frames.get(0);
+            rect.x = (int) (flameGraphWidth * rootFrame.startX);
+            rect.width = ((int) (flameGraphWidth * rootFrame.endX)) - rect.x;
 
-            rect.y = frameBoxHeight * rootNode.stackDepth;
+            rect.y = frameBoxHeight * rootFrame.stackDepth;
             rect.height = frameBoxHeight;
 
             if (visibleRect.intersects(rect)) {
                 paintRootFrameRectangle((Graphics2D) g2.create(rect.x, rect.y, rect.width, rect.height),
-                                        "all (" + events + ")",
-                                        handleFocus(FrameColorMode.rootNodeColor,
-                                                    hoveredFrame == rootNode,
+                                        rootFrameToText.apply(rootFrame.jfrNode),
+                                        handleFocus(frameColorFunction.apply(rootFrame.jfrNode),
+                                                    hoveredFrame == rootFrame,
                                                     false,
-                                                    selectedFrame != null && rootNode.stackDepth < selectedFrame.stackDepth));
+                                                    selectedFrame != null && rootFrame.stackDepth < selectedFrame.stackDepth));
             }
         }
 
         // draw real flames
-        for (int i = 1; i < nodes.size(); i++) {
-            var node = nodes.get(i);
+        for (int i = 1; i < frames.size(); i++) {
+            var frame = frames.get(i);
             // TODO Can we do cheaper checks like depth is outside range etc
 
-            rect.x = (int) (flameGraphWidth * node.startX);
-            rect.width = ((int) (flameGraphWidth * node.endX)) - rect.x;
+            rect.x = (int) (flameGraphWidth * frame.startX);
+            rect.width = ((int) (flameGraphWidth * frame.endX)) - rect.x;
 
             if ((rect.width < frameWidthVisibilityThreshold)) {
                 continue;
             }
 
-            rect.y = frameBoxHeight * node.stackDepth;
+            rect.y = frameBoxHeight * frame.stackDepth;
             rect.height = frameBoxHeight;
 
             if (visibleRect.intersects(rect)) {
                 paintNodeFrameRectangle((Graphics2D) g2.create(rect.x, rect.y, rect.width, rect.height),
-                                        node.jfrNode,
-                                        handleFocus(frameColorMode.getColor(packageColorPalette, node.jfrNode.getFrame()),
-                                                    hoveredFrame == node,
+                                        frame.jfrNode,
+                                        handleFocus(frameColorFunction.apply(frame.jfrNode),
+                                                    hoveredFrame == frame,
                                                     false,
                                                     selectedFrame != null && (
-                                                            node.stackDepth < selectedFrame.stackDepth
-                                                            || node.endX < selectedFrame.startX
-                                                            || node.startX > selectedFrame.endX)),
+                                                            frame.stackDepth < selectedFrame.stackDepth
+                                                            || frame.endX < selectedFrame.startX
+                                                            || frame.startX > selectedFrame.endX)),
                                         frameBorderColor);
             }
         }
@@ -225,9 +226,9 @@ public class FlameGraphPainter {
         return bgColor;
     }
 
-    private void paintNodeFrameRectangle(Graphics2D g2, Node childFrame, Color bgColor, Color frameBorderColor) {
+    private void paintNodeFrameRectangle(Graphics2D g2, T node, Color bgColor, Color frameBorderColor) {
         var frameRectSurface = paintFrameRectangle(g2, bgColor, frameBorderColor);
-        paintFrameText(childFrame.getFrame(),
+        paintFrameText(node,
                        g2,
                        frameRectSurface.width - textBorder * 2 - frameBorderWidth * 2,
                        text -> {
@@ -267,13 +268,13 @@ public class FlameGraphPainter {
         return frameRectSurface;
     }
 
-    public Optional<FrameBox<Node>> getFrameAt(Graphics2D g2, Point point) {
+    public Optional<FrameBox<T>> getFrameAt(Graphics2D g2, Point point) {
         int depth = point.y / getFrameBoxHeight(g2);
         double xLocation = ((double) point.x) / flameGraphWidth;
 
-        return nodes.stream()
-                    .filter(node -> node.stackDepth == depth && node.startX <= xLocation && xLocation <= node.endX)
-                    .findFirst();
+        return frames.stream()
+                     .filter(node -> node.stackDepth == depth && node.startX <= xLocation && xLocation <= node.endX)
+                     .findFirst();
     }
 
     public void toggleSelectedFrameAt(Graphics2D g2, Point point, Rectangle viewRect) {
@@ -283,7 +284,7 @@ public class FlameGraphPainter {
         ).ifPresent(frame -> selectedFrame = selectedFrame == frame ? null : frame);
     }
 
-    public void hoverFrameAt(Graphics2D g2, Point point, Consumer<FrameBox<Node>> hoverConsumer) {
+    public void hoverFrameAt(Graphics2D g2, Point point, Consumer<FrameBox<T>> hoverConsumer) {
         getFrameAt(
                 g2,
                 point
@@ -322,28 +323,25 @@ public class FlameGraphPainter {
         hoveredFrame = null;
     }
 
-
-    private static void paintFrameText(AggregatableFrame frame, Graphics2D g2, double targetWidth, Consumer<String> textConsumer) {
+    private void paintFrameText(T node, Graphics2D g2, double targetWidth, Consumer<String> textConsumer) {
         var metrics = g2.getFontMetrics();
 
-        var adaptedText = frame.getHumanReadableShortString();
-        var textBounds = metrics.getStringBounds(adaptedText, g2);
-
-        if (!(textBounds.getWidth() > targetWidth)) {
-            textConsumer.accept(adaptedText);
-            return;
-        }
-        adaptedText = frame.getMethod().getMethodName();
-        textBounds = metrics.getStringBounds(adaptedText, g2);
-        if (!(textBounds.getWidth() > targetWidth)) {
-            textConsumer.accept(adaptedText);
-            return;
-        }
-        textBounds = metrics.getStringBounds("...", g2);
-        if (!(textBounds.getWidth() > targetWidth)) {
-            textConsumer.accept("...");
-        }
-        // don't draw text
+        nodeToTextCandidates.stream()
+                            .map(f -> f.apply(node))
+                            .filter(text -> {
+                                var textBounds = metrics.getStringBounds(text, g2);
+                                return !(textBounds.getWidth() > targetWidth);
+                            })
+                            .findFirst()
+                            .ifPresentOrElse(
+                                    text -> textConsumer.accept(text),
+                                    () -> {
+                                        var textBounds = metrics.getStringBounds("...", g2);
+                                        if (!(textBounds.getWidth() > targetWidth)) {
+                                            textConsumer.accept("...");
+                                        }
+                                    }
+                            );
     }
 
     private static void paintFrameText(String text, Graphics2D g2, double targetWidth, Consumer<String> textConsumer) {
