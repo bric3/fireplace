@@ -98,6 +98,12 @@ public class FirePlaceMain {
 //                "jdk.CPULoad"
 //        )));
 
+        if (SystemInfo.isLinux) {
+            // most linux distros have ugly font rendering, but these here can fix that:
+            System.setProperty("awt.useSystemAAFontSettings", "on");
+            System.setProperty("swing.aatext", "true");
+            System.setProperty("sun.java2d.xrender", "true");
+        }
 
         if (SystemInfo.isMacOS) {
             System.setProperty("apple.laf.useScreenMenuBar", "true"); // moves menu bar from JFrame window to top of screen
