@@ -15,9 +15,12 @@ import org.openjdk.jmc.common.IMCFrame.Type;
 import org.openjdk.jmc.flightrecorder.stacktrace.tree.Node;
 
 import java.awt.*;
+import java.util.regex.Pattern;
 
 public enum JfrFrameColorMode implements FrameColorMode<Node> {
     BY_PACKAGE {
+        Pattern runtimePrefixes = Pattern.compile("(java\\.|javax\\.|sun\\.|com\\.sun\\.|com\\.oracle\\.|com\\.ibm\\.)");
+
         @Override
         public Color getColor(Palette colorPalette, Node frameNode) {
             if (frameNode.isRoot()) {
@@ -28,7 +31,11 @@ public enum JfrFrameColorMode implements FrameColorMode<Node> {
                 return undefinedColor;
             }
 
-            return colorPalette.mapToColor(frame.getMethod().getType().getPackage().getName());
+            var name = frame.getMethod().getType().getPackage().getName();
+            if (runtimePrefixes.matcher(name).lookingAt()) {
+                return runtimeColor;
+            }
+            return colorPalette.mapToColor(name);
         }
     },
     BY_MODULE {
@@ -61,6 +68,7 @@ public enum JfrFrameColorMode implements FrameColorMode<Node> {
     };
 
     public static Color rootNodeColor = new Color(198, 198, 198);
+    public static Color runtimeColor = new Color(34, 107, 232);
     public static Color undefinedColor = new Color(108, 163, 189);
     public static Color jitCompiledColor = new Color(21, 110, 64);
     public static Color inlinedColor = Color.pink;
