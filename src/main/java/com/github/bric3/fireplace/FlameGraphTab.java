@@ -88,6 +88,7 @@ public class FlameGraphTab extends JPanel {
 
     private FlameGraph<Node> createFlameGraph() {
         jfrFlameGraph = new FlameGraph<>(
+                // TODO make this configurable, to lazily (re)configure the flaemgraph
                 FrameNodeConverter.convert(this.stacktraceTreeModelSupplier.get()),
                 List.of(
                         node -> node.getFrame().getHumanReadableShortString(),

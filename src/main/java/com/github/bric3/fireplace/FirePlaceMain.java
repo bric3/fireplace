@@ -30,11 +30,13 @@ import java.awt.*;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Clock;
 import java.util.Arrays;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 
 import static java.util.stream.Collectors.toUnmodifiableList;
@@ -46,7 +48,7 @@ public class FirePlaceMain {
     public static final String ALLOCATIONS = "Allocations";
     public static final String CPU = "CPU";
 
-    public static void main(String[] args) throws CouldNotLoadRecordingException, IOException {
+    public static void main(String[] args) {
         System.getProperties().forEach((k, v) -> System.out.println(k + " = " + v));
 
         if (args.length == 0) {
@@ -65,15 +67,31 @@ public class FirePlaceMain {
             System.exit(1);
         }
 
+
         var jfrFiles = paths.stream()
                             .peek(path -> System.out.println("Loading " + path))
                             .map(Path::toFile)
                             .collect(toUnmodifiableList());
-        var events = JfrLoaderToolkit.loadEvents(jfrFiles);
-        events.stream().flatMap(IItemIterable::stream).map(IItem::getType).map(IType::getIdentifier).distinct().forEach(System.out::println);
+        var eventSupplier = Utils.memoize(() -> CompletableFuture.supplyAsync(() -> {
+            IItemCollection events = null;
+            try {
+                events = JfrLoaderToolkit.loadEvents(jfrFiles);
+            } catch (IOException e1) {
+                throw new UncheckedIOException(e1);
+            } catch (CouldNotLoadRecordingException e1) {
+                throw new RuntimeException(e1);
+            }
+            events.stream()
+                  .flatMap(IItemIterable::stream)
+                  .map(IItem::getType)
+                  .map(IType::getIdentifier)
+                  .distinct()
+                  .forEach(System.out::println);
 
+            return events;
+        }).join());
 
-        otherEvents(events);
+//        otherEvents(events);
 
 
 //        events.apply(ItemFilters.type(Set.of(
@@ -98,12 +116,12 @@ public class FirePlaceMain {
         openedFileLabel.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
         openedFileLabel.setEditable(false);
 
-        var allocationFlameGraphPanel = new FlameGraphPanel(() -> stackTraceAllocationFun(events));
-        var cpuFlameGraphPanel = new FlameGraphPanel(() -> stackTraceCPUFun(events));
+        var allocationFlameGraphPanel = new FlameGraphTab(() -> stackTraceAllocationFun(eventSupplier.get()));
+        var cpuFlameGraphPanel = new FlameGraphTab(() -> stackTraceCPUFun(eventSupplier.get()));
         var nativeLibs = new JTextArea();
-        nativeLibs.addPropertyChangeListener("text", evt -> SwingUtilities.invokeLater(() -> updateContent(nativeLibs, t -> t.setText(nativeLibraries(events)))));
+        nativeLibs.addPropertyChangeListener("text", evt -> CompletableFuture.runAsync(() -> updateContent(nativeLibs, t -> t.setText(nativeLibraries(eventSupplier.get())))));
         var sysProps = new JTextArea();
-        sysProps.addPropertyChangeListener("text", evt -> SwingUtilities.invokeLater(() -> updateContent(sysProps, t -> t.setText(jvmSystemProperties(events)))));
+        sysProps.addPropertyChangeListener("text", evt -> CompletableFuture.runAsync(() -> updateContent(sysProps, t -> t.setText(jvmSystemProperties(eventSupplier.get())))));
 
         var jTabbedPane = new JTabbedPane();
         jTabbedPane.addTab(SYSTEM_PROPERTIES, JScrollPaneWithButton.create(sysProps));
@@ -113,8 +131,7 @@ public class FirePlaceMain {
         jTabbedPane.setTabPlacement(JTabbedPane.BOTTOM);
 //        jTabbedPane.setTabLayoutPolicy(JTabbedPane.SCROLL_TAB_LAYOUT);
 
-        updateTabContent(jTabbedPane, nativeLibs, sysProps, events);
-        jTabbedPane.addChangeListener(e -> updateTabContent(jTabbedPane, nativeLibs, sysProps, events));
+        jTabbedPane.addChangeListener(e -> updateTabContent(jTabbedPane, nativeLibs, sysProps, eventSupplier.get()));
 
         var mainPanel = new JPanel(new BorderLayout());
         mainPanel.add(openedFileLabel, BorderLayout.NORTH);
@@ -161,6 +178,7 @@ public class FirePlaceMain {
                 }
             });
             frame.getGraphicsConfiguration(); // get active screen
+            SwingUtilities.invokeLater(() -> updateTabContent(jTabbedPane, nativeLibs, sysProps, eventSupplier.get()));
         });
     }
 
