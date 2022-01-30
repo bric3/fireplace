@@ -277,7 +277,7 @@ public class FlameGraphPainter<T> {
                      .findFirst();
     }
 
-    public void toggleSelectedFrameAt(Graphics2D g2, Point point, Rectangle viewRect) {
+    public void toggleSelectedFrameAt(Graphics2D g2, Point point) {
         getFrameAt(
                 g2,
                 point

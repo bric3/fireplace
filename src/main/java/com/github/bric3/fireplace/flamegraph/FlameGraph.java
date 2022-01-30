@@ -124,8 +124,7 @@ public class FlameGraph<T> {
 
                 flameGraph.toggleSelectedFrameAt(
                         (Graphics2D) viewPort.getView().getGraphics(),
-                        point,
-                        viewPort.getViewRect()
+                        point
                 );
 
                 scrollPane.repaint();
@@ -197,7 +196,8 @@ public class FlameGraph<T> {
             // When the preferred size is discovered, also set the actual
             // canvas size, as it is needed during `viewPort.setViewPosition`
             // if it is not then the viewport will not be able to scroll to the
-            // when the flamegraph is zoomed (ie it's diemnsions change)
+            // right frame when the flamegraph is zoomed (ie its dimensions
+            // change)
             setSize(d);
             return d;
         }
@@ -215,7 +215,6 @@ public class FlameGraph<T> {
 
         @Override
         public JToolTip createToolTip() {
-            //                var toolTip = super.createToolTip();
             if (toolTip == null) {
                 toolTip = new BalloonToolTip();
                 toolTip.setComponent(this);
