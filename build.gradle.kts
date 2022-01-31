@@ -18,7 +18,6 @@ plugins {
     // Playing with graal compiler
     id("org.graalvm.plugin.compiler") version "0.1.0-alpha2"
 
-    //    id("org.scm-manager.license") version "0.7.1"
     id("com.github.hierynomus.license") version "0.16.1"
 }
 
@@ -98,27 +97,29 @@ license {
     mapping(
         mapOf(
             "java" to "SLASHSTAR_STYLE",
-            "java.template" to "SLASHSTAR_STYLE",
             "kt" to "SLASHSTAR_STYLE",
             "kts" to "SLASHSTAR_STYLE",
             "yaml" to "SCRIPT_STYLE",
             "yml" to "SCRIPT_STYLE",
             "svg" to "XML_STYLE",
-            "md" to "XML_STYLE"
+            "md" to "XML_STYLE",
+            "toml" to "SCRIPT_STYLE"
         )
     )
 }
-tasks.register("licenseCheckForKotlin", com.hierynomus.gradle.license.tasks.LicenseCheck::class) {
+tasks.register("licenseCheckForProjectFiles", com.hierynomus.gradle.license.tasks.LicenseCheck::class) {
     source = fileTree(project.projectDir) {
         include("**/*.kt", "**/*.kts")
+        include("**/*.toml")
         exclude("**/buildSrc/build/generated-sources/**")
     }
 }
-tasks["license"].dependsOn("licenseCheckForKotlin")
-tasks.register("licenseFormatForKotlin", com.hierynomus.gradle.license.tasks.LicenseFormat::class) {
+tasks["license"].dependsOn("licenseCheckForProjectFiles")
+tasks.register("licenseFormatForProjectFiles", com.hierynomus.gradle.license.tasks.LicenseFormat::class) {
     source = fileTree(project.projectDir) {
         include("**/*.kt", "**/*.kts")
+        include("**/*.toml")
         exclude("**/buildSrc/build/generated-sources/**")
     }
 }
-tasks["licenseFormat"].dependsOn("licenseFormatForKotlin")
+tasks["licenseFormat"].dependsOn("licenseFormatForProjectFiles")
