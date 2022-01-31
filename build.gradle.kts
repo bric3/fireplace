@@ -7,6 +7,9 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
+
+fun properties(key: String) = project.findProperty(key).toString()
+
 plugins {
     id("application")
     id("pl.allegro.tech.build.axion-release") version "1.13.6"
@@ -58,7 +61,19 @@ tasks.withType<JavaExec>().configureEach {
     classpath(sourceSets.main.get().runtimeClasspath)
 
     // Need to set the toolchain https://github.com/gradle/gradle/issues/16791
-    javaLauncher.set(javaToolchains.launcherFor(java.toolchain))
+    // javaLauncher.set(javaToolchains.launcherFor(java.toolchain))  // Project toolchain
+
+    projectDir.resolve(properties("hotswap-agent-location")).let {
+        if (it.exists() && properties("dcevm-enabled").toBoolean()) {
+            // DCEVM
+            jvmArgs(
+                "-XX:+IgnoreUnrecognizedVMOptions",
+                "-XX:+AllowEnhancedClassRedefinition",
+                "-XX:HotswapAgent=external",
+                "-javaagent:$it"
+            )
+        }
+    }
 }
 
 graal {
