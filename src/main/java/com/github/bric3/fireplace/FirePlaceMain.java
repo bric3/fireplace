@@ -10,8 +10,13 @@
 package com.github.bric3.fireplace;
 
 import com.formdev.flatlaf.FlatDarculaLaf;
+import com.formdev.flatlaf.FlatIntelliJLaf;
+import com.formdev.flatlaf.FlatLaf;
+import com.formdev.flatlaf.extras.FlatAnimatedLafChange;
 import com.formdev.flatlaf.util.SystemInfo;
 import com.github.bric3.fireplace.ui.JScrollPaneWithButton;
+import com.github.weisj.darklaf.LafManager;
+import com.github.weisj.darklaf.platform.ThemePreferencesHandler;
 import org.openjdk.jmc.common.item.IItem;
 import org.openjdk.jmc.common.item.IItemCollection;
 import org.openjdk.jmc.common.item.IItemIterable;
@@ -56,7 +61,7 @@ public class FirePlaceMain {
             System.exit(1);
         }
 
-        var paths = Arrays.stream(args).map(Path::of).collect(toUnmodifiableList());
+        var paths = Arrays.stream(args).filter(arg -> !arg.matches("-NSRequiresAquaSystemAppearance|[Ff]alse|[Nn][Oo]|0")).map(Path::of).collect(toUnmodifiableList());
         if (!paths.stream().allMatch(path -> {
             var exists = Files.exists(path);
             if (!exists) {
@@ -98,25 +103,7 @@ public class FirePlaceMain {
 //                "jdk.CPULoad"
 //        )));
 
-        if (SystemInfo.isLinux) {
-            // most linux distros have ugly font rendering, but these here can fix that:
-            System.setProperty("awt.useSystemAAFontSettings", "on");
-            System.setProperty("swing.aatext", "true");
-            System.setProperty("sun.java2d.xrender", "true");
-        }
-
-        if (SystemInfo.isMacOS) {
-            System.setProperty("apple.laf.useScreenMenuBar", "true"); // moves menu bar from JFrame window to top of screen
-            System.setProperty("apple.awt.application.name", "FirePlace"); // application name used in screen menu bar
-            // appearance of window title bars
-            // possible values:
-            //   - "system": use current macOS appearance (light or dark)
-            //   - "NSAppearanceNameAqua": use light appearance
-            //   - "NSAppearanceNameDarkAqua": use dark appearance
-            System.setProperty("apple.awt.application.appearance", "NSAppearanceNameDarkAqua");
-        }
-        FlatDarculaLaf.setup();
-
+        setupLaF();
 
         var openedFileLabel = new JTextField(jfrFiles.get(0).getAbsolutePath());
         openedFileLabel.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
@@ -186,6 +173,50 @@ public class FirePlaceMain {
             frame.getGraphicsConfiguration(); // get active screen
             SwingUtilities.invokeLater(() -> updateTabContent(jTabbedPane, nativeLibs, sysProps, eventSupplier.get()));
         });
+    }
+
+    private static void setupLaF() {
+        if (SystemInfo.isLinux) {
+            // most linux distros have ugly font rendering, but these here can fix that:
+            System.setProperty("awt.useSystemAAFontSettings", "on");
+            System.setProperty("swing.aatext", "true");
+            System.setProperty("sun.java2d.xrender", "true");
+        }
+
+        if (SystemInfo.isMacOS) {
+            System.setProperty("apple.laf.useScreenMenuBar", "true"); // moves menu bar from JFrame window to top of screen
+            System.setProperty("apple.awt.application.name", "FirePlace"); // application name used in screen menu bar
+            // appearance of window title bars
+            // possible values:
+            //   - "system": use current macOS appearance (light or dark)
+            //   - "NSAppearanceNameAqua": use light appearance
+            //   - "NSAppearanceNameDarkAqua": use dark appearance
+//            System.setProperty("apple.awt.application.appearance", "NSAppearanceNameDarkAqua");
+            System.setProperty("apple.awt.application.appearance", "system");
+        }
+        ThemePreferencesHandler.getSharedInstance().enablePreferenceChangeReporting(true);
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> ThemePreferencesHandler.getSharedInstance().enablePreferenceChangeReporting(false)));
+        switch (LafManager.getPreferredThemeStyle().getColorToneRule()) {
+            case DARK:
+                FlatDarculaLaf.setup();
+                break;
+            case LIGHT:
+                FlatIntelliJLaf.setup();
+                break;
+        }
+        ThemePreferencesHandler.getSharedInstance().addThemePreferenceChangeListener(e -> SwingUtilities.invokeLater(() -> {
+            System.out.println(">>>> theme preference changed = " + LafManager.getPreferredThemeStyle());
+            switch (LafManager.getPreferredThemeStyle().getColorToneRule()) {
+                case DARK:
+                    FlatDarculaLaf.setup();
+                    break;
+                case LIGHT:
+                    FlatIntelliJLaf.setup();
+                    break;
+            }
+            FlatLaf.updateUI();
+            FlatAnimatedLafChange.hideSnapshotWithAnimation();
+        }));
     }
 
     private static void updateTabContent(JTabbedPane jTabbedPane, JTextArea nativeLibs, JTextArea sysProps, IItemCollection events) {

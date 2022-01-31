@@ -7,6 +7,7 @@ jmc-flightrecorder = "8.1.0"
 
 [libraries]
 flatlaf = { module = "com.formdev:flatlaf", version.ref = "flatlaf" }
+flatlaf-extras = { module = "com.formdev:flatlaf-extras", version.ref = "flatlaf" }
 darklaf = { module = "com.github.weisj:darklaf-core", version.ref = "darklaf" }
 flightrecorder = { module = "org.openjdk.jmc:flightrecorder", version.ref = "jmc-flightrecorder" }
 
@@ -21,4 +22,4 @@ junit-jupiter-engine = { module = "org.junit.jupiter:junit-jupiter-engine", vers
 [bundles]
 junit-jupiter = ["junit-jupiter-api", "junit-jupiter-engine"]
 graal-js = ["graal-js", "graal-js-scriptengine"]
-
+flatlaf = ["flatlaf", "flatlaf-extras"]

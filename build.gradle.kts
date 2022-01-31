@@ -27,7 +27,8 @@ repositories {
 }
 
 dependencies {
-    implementation(libs.flatlaf)
+    implementation(libs.bundles.flatlaf)
+    implementation(libs.darklaf)
     implementation(libs.flightrecorder)
 
 //    implementation(libs.graal.sdk)
