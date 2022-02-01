@@ -21,12 +21,20 @@ public class Colors {
      * <p>
      * Between 0 and 255
      */
-    public static final int DARK_LIGHT_PERCEIVED_BRIGHTNESS_THRESHOLD = 128;
+    public static final int DARK_PERCEIVED_BRIGHTNESS_THRESHOLD = 128;
+    public static Color translucent_black_D0 = new Color(0xD0000000, true);
     public static Color translucent_black_B0 = new Color(0xB0000000, true);
     public static Color translucent_black_80 = new Color(0x80000000, true);
     public static Color translucent_black_60 = new Color(0x60000000, true);
     public static Color translucent_black_40 = new Color(0x40000000, true);
     public static Color translucent_black_20 = new Color(0x20000000, true);
+    public static Color translucent_white_D0 = new Color(0xD0FFFFFF, true);
+    public static Color translucent_white_B0 = new Color(0xB0FFFFFF, true);
+    public static Color translucent_white_80 = new Color(0x80FFFFFF, true);
+    public static Color translucent_white_60 = new Color(0x60FFFFFF, true);
+    public static Color translucent_white_40 = new Color(0x40FFFFFF, true);
+    public static Color translucent_white_20 = new Color(0x20FFFFFF, true);
+
 
     public static Color panelBackGround = UIManager.getColor("Panel.background");
     public static Color panelForeGround = UIManager.getColor("Panel.foreground");
@@ -97,7 +105,7 @@ Panel.foreground: #BBBBBB
         // sRGB luminance(Y) values
         var brightness = brightness(backgroundColor);
 
-        return brightness < DARK_LIGHT_PERCEIVED_BRIGHTNESS_THRESHOLD ?
+        return brightness < DARK_PERCEIVED_BRIGHTNESS_THRESHOLD ?
                Color.white :
                Colors.panelBackGround;
     }

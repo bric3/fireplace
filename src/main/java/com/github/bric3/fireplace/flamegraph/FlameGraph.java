@@ -10,6 +10,7 @@
 package com.github.bric3.fireplace.flamegraph;
 
 import com.github.bric3.fireplace.ui.BalloonToolTip;
+import com.github.bric3.fireplace.ui.Colors;
 import com.github.bric3.fireplace.ui.JScrollPaneWithButton;
 import com.github.bric3.fireplace.ui.MouseInputListenerWorkaroundForToolTipEnabledComponent;
 
@@ -17,6 +18,7 @@ import javax.swing.*;
 import javax.swing.event.MouseInputListener;
 import java.awt.*;
 import java.awt.event.MouseEvent;
+import java.awt.geom.Area;
 import java.awt.image.BufferedImage;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -243,6 +245,27 @@ public class FlameGraph<T> {
                 g2.setColor(getForeground());
                 g2.setStroke(new BasicStroke(2));
                 g2.drawRoundRect(1, 1, minimapWidth + 2 * minimapInset - 2, minimapHeight + 2 * minimapInset - 2, minimapRadius, minimapRadius);
+
+                {
+                    // Zoom zone
+                    double zoomZoneScaleX = (double) minimapWidth / flameGraphDimension.width;
+                    double zoomZoneScaleY = (double) minimapHeight / flameGraphDimension.height;
+
+                    int x = (int) (visibleRect.x * zoomZoneScaleX);
+                    int y = (int) (visibleRect.y * zoomZoneScaleY);
+                    int w = (int) (visibleRect.width * zoomZoneScaleX);
+                    int h = (int) (visibleRect.height * zoomZoneScaleY);
+
+                    var zoomZone = new Area(new Rectangle(minimapInset, minimapInset, minimapWidth, minimapHeight));
+                    zoomZone.subtract(new Area(new Rectangle(x + minimapInset, y + minimapInset, w, h)));
+
+                    g2.setColor(Colors.translucent_white_80);
+                    g2.fill(zoomZone);
+
+                    g2.setColor(getForeground());
+                    g2.setStroke(new BasicStroke(1));
+                    g2.drawRect(x + minimapInset, y + minimapInset, w, h);
+                }
             }
         }
 
@@ -283,6 +306,8 @@ public class FlameGraph<T> {
                 Graphics2D minimapGraphics = minimapImage.createGraphics();
                 minimapGraphics.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
                 minimapGraphics.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+                minimapGraphics.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+
 
                 flameGraphPainter.paintMinimap(minimapGraphics, new Rectangle(minimapWidth, height));
                 minimapGraphics.dispose();
