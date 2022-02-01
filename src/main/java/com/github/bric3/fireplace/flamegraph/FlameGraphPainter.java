@@ -33,6 +33,7 @@ public class FlameGraphPainter<T> {
     private int visibleDepth;
     private final int textBorder = 2;
     private final int frameWidthVisibilityThreshold = 4;
+    private int minimapFrameBoxHeight = 1;
 
     private FrameBox<T> hoveredFrame;
     private FrameBox<T> selectedFrame;
@@ -47,6 +48,7 @@ public class FlameGraphPainter<T> {
     // handle root node
     private final Function<T, String> rootFrameToText;
     private final Function<T, Color> frameColorFunction;
+
 
     public FlameGraphPainter(List<FrameBox<T>> frames,
                              List<Function<T, String>> nodeToTextCandidates,
@@ -66,7 +68,23 @@ public class FlameGraphPainter<T> {
         return g2.getFontMetrics().getAscent() + (textBorder * 2) + frameBorderWidth * 2;
     }
 
-    public Dimension getFlameGraphDimension(Graphics2D g2, Dimension dimension, Rectangle visibleRect, Insets insets) {
+    public int computeFlameGraphThumbnailHeight(int thumbnailWidth) {
+        assert thumbnailWidth > 0 : "minimap width must be superior to 0";
+
+        //        var visibleDepth = 0;
+        //        for (var frame : frames) {
+        //            if (thumbnailWidth * (frame.endX - frame.startX) < 0.1 /* thumbnail visibility threshold */) {
+        //                continue;
+        //            }
+        //
+        //            visibleDepth = Math.max(visibleDepth, frame.stackDepth);
+        //        }
+        //        visibleDepth = Math.min(visibleDepth, depth);
+
+        return visibleDepth * minimapFrameBoxHeight;
+    }
+
+    public Dimension computeFlameGraphDimension(Graphics2D g2, Rectangle visibleRect, Insets insets) {
         // as this method is invoked during layout, the dimension can be 0
         if (visibleRect.width == 0) {
             return new Dimension();
@@ -104,13 +122,20 @@ public class FlameGraphPainter<T> {
         return getFrameBoxHeight(g2) - (g2.getFontMetrics().getDescent() / 2f) - textBorder - frameBorderWidth;
     }
 
-    public void paint(Graphics2D g2, int canvasWidth, int canvasHeight, Rectangle visibleRect) {
+    public void paint(Graphics2D g2, Rectangle visibleRect) {
         assert flameGraphWidth > 0 : "canvas sizing not done yet";
-//        System.out.println("paint: visibleRect: " + visibleRect);
-//        System.out.println("paint: canvasWidth: " + canvasWidth + ", canvasHeight: " + canvasHeight + ", flameGraphWidth: " + flameGraphWidth);
+        paint(g2, visibleRect, false);
+    }
 
+    public void paintMinimap(Graphics2D g2, Rectangle visibleRect) {
+        assert flameGraphWidth > 0 : "canvas sizing not done yet";
+        paint(g2, visibleRect, true);
+    }
+
+    private void paint(Graphics2D g2, Rectangle visibleRect, boolean minimapMode) {
         long start = System.currentTimeMillis();
-        var frameBoxHeight = getFrameBoxHeight(g2);
+        var frameBoxHeight = minimapMode ? minimapFrameBoxHeight : getFrameBoxHeight(g2);
+        var flameGraphWidth = minimapMode ? visibleRect.width : this.flameGraphWidth;
         var rect = new Rectangle(); // reusable rectangle
 
         identifyDisplayScale(g2);
@@ -129,7 +154,8 @@ public class FlameGraphPainter<T> {
                                         handleFocus(frameColorFunction.apply(rootFrame.jfrNode),
                                                     hoveredFrame == rootFrame,
                                                     false,
-                                                    selectedFrame != null && rootFrame.stackDepth < selectedFrame.stackDepth));
+                                                    selectedFrame != null && rootFrame.stackDepth < selectedFrame.stackDepth),
+                                        minimapMode);
             }
         }
 
@@ -141,7 +167,7 @@ public class FlameGraphPainter<T> {
             rect.x = (int) (flameGraphWidth * frame.startX);
             rect.width = ((int) (flameGraphWidth * frame.endX)) - rect.x;
 
-            if ((rect.width < frameWidthVisibilityThreshold)) {
+            if ((rect.width < frameWidthVisibilityThreshold) && !minimapMode) {
                 continue;
             }
 
@@ -158,8 +184,14 @@ public class FlameGraphPainter<T> {
                                                             frame.stackDepth < selectedFrame.stackDepth
                                                             || frame.endX < selectedFrame.startX
                                                             || frame.startX > selectedFrame.endX)),
-                                        frameBorderColor);
+                                        frameBorderColor,
+                                        minimapMode);
             }
+        }
+
+        if (minimapMode) {
+            // System.out.println("paint, minimapMode, draw time: " + (System.currentTimeMillis() - start) + "ms");
+            return;
         }
 
         paintHoveredFrameBorder(g2, visibleRect, frameBoxHeight, rect);
@@ -179,6 +211,8 @@ public class FlameGraphPainter<T> {
         g2.drawString(drawTimeMs,
                       visibleRect.x + visibleRect.width - nowWidth - textBorder,
                       visibleRect.y + visibleRect.height - textBorder);
+
+        //        g2.clip(visibleRect);
     }
 
     private void paintHoveredFrameBorder(Graphics2D g2, Rectangle visibleRect, int frameBoxHeight, Rectangle rect) {
@@ -226,8 +260,11 @@ public class FlameGraphPainter<T> {
         return bgColor;
     }
 
-    private void paintNodeFrameRectangle(Graphics2D g2, T node, Color bgColor, Color frameBorderColor) {
-        var frameRectSurface = paintFrameRectangle(g2, bgColor, frameBorderColor);
+    private void paintNodeFrameRectangle(Graphics2D g2, T node, Color bgColor, Color frameBorderColor, boolean minimapMode) {
+        var frameRectSurface = paintFrameRectangle(g2, bgColor, frameBorderColor, minimapMode);
+        if (minimapMode) {
+            return;
+        }
         paintFrameText(node,
                        g2,
                        frameRectSurface.width - textBorder * 2 - frameBorderWidth * 2,
@@ -237,8 +274,11 @@ public class FlameGraphPainter<T> {
                        });
     }
 
-    private void paintRootFrameRectangle(Graphics2D g2, String str, Color bgColor) {
-        var frameRectSurface = paintFrameRectangle(g2, bgColor, frameBorderColor);
+    private void paintRootFrameRectangle(Graphics2D g2, String str, Color bgColor, boolean minimapMode) {
+        var frameRectSurface = paintFrameRectangle(g2, bgColor, frameBorderColor, minimapMode);
+        if (minimapMode) {
+            return;
+        }
         paintFrameText(str,
                        g2,
                        frameRectSurface.width - textBorder * 2 - frameBorderWidth * 2,
@@ -248,11 +288,13 @@ public class FlameGraphPainter<T> {
                        });
     }
 
-    private Rectangle2D.Double paintFrameRectangle(Graphics2D g2, Color bgColor, Color frameBorderColor) {
+    private Rectangle2D.Double paintFrameRectangle(Graphics2D g2, Color bgColor, Color frameBorderColor, boolean minimapMode) {
         var clipBounds = g2.getClipBounds();
-        var borderWidth = paintFrameBorder ? frameBorderWidth : 0;
+        var borderWidth = minimapMode ?
+                          0 :
+                          paintFrameBorder ? frameBorderWidth : 0;
 
-        if (paintFrameBorder) {
+        if (paintFrameBorder && !minimapMode) {
             g2.setColor(frameBorderColor);
             var growBoxSurface = new Double(clipBounds.x, clipBounds.y, clipBounds.width + borderWidth, clipBounds.height + borderWidth);
             g2.setClip(growBoxSurface);
@@ -265,6 +307,7 @@ public class FlameGraphPainter<T> {
                                                       clipBounds.height - borderWidth);
         g2.setColor(bgColor);
         g2.fill(frameRectSurface);
+        g2.clip(clipBounds);
         return frameRectSurface;
     }
 
@@ -334,7 +377,7 @@ public class FlameGraphPainter<T> {
                             })
                             .findFirst()
                             .ifPresentOrElse(
-                                    text -> textConsumer.accept(text),
+                                    textConsumer,
                                     () -> {
                                         var textBounds = metrics.getStringBounds("...", g2);
                                         if (!(textBounds.getWidth() > targetWidth)) {
