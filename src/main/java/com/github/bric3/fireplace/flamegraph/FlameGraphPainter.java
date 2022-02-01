@@ -23,8 +23,8 @@ import java.util.function.Function;
 public class FlameGraphPainter<T> {
     public FrameColorMode<T> frameColorMode;
     public Palette packageColorPalette = Palette.DARK_CUSTOM;
-    public Color highlightedColor = Color.yellow;
-    public Color frameBorderColor = Colors.panelBackGround;
+    public Color highlightedColor;
+    public Color frameBorderColor;
     public boolean paintFrameBorder = true;
     public boolean paintHoveredFrameBorder = true;
     public int frameBorderWidth = 2;
@@ -62,6 +62,15 @@ public class FlameGraphPainter<T> {
         this.rootFrameToText = rootFrameToText;
         this.frameColorFunction = frameColorFunction;
         this.frameColorMode = frameColorMode;
+        updateUI();
+    }
+
+    /**
+     * This method is used to resync colors when the LaF changes
+     */
+    public void updateUI() {
+        frameBorderColor = Colors.panelBackGround;
+        highlightedColor = Color.yellow;
     }
 
     private int getFrameBoxHeight(Graphics2D g2) {

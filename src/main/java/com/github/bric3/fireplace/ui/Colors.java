@@ -16,6 +16,8 @@ import java.util.Objects;
 import java.util.regex.Pattern;
 
 public class Colors {
+    public static volatile boolean darkMode = false;
+
     /**
      * Perceived brightness threshold between dark and light.
      * <p>
@@ -38,6 +40,19 @@ public class Colors {
 
     public static Color panelBackGround = UIManager.getColor("Panel.background");
     public static Color panelForeGround = UIManager.getColor("Panel.foreground");
+
+    /**
+     * Refresh the colors when the LaF changes
+     */
+    public static void refreshColors() {
+        panelBackGround = UIManager.getColor("Panel.background");
+        panelForeGround = UIManager.getColor("Panel.foreground");
+    }
+
+    public static void setDarkMode(boolean darkMode) {
+        Colors.darkMode = darkMode;
+        refreshColors();
+    }
 
 /*
 Panel.background: #3C3F41
@@ -107,7 +122,7 @@ Panel.foreground: #BBBBBB
 
         return brightness < DARK_PERCEIVED_BRIGHTNESS_THRESHOLD ?
                Color.white :
-               Colors.panelBackGround;
+               darkMode ? Colors.panelBackGround : Colors.panelForeGround;
     }
 
     /**

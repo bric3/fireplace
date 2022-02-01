@@ -193,6 +193,16 @@ public class FlameGraph<T> {
             this.flameGraphPainter = flameGraphPainter;
         }
 
+        /**
+         * Override this method to listen to LaF changes.
+         */
+        @Override
+        public void updateUI() {
+            super.updateUI();
+            if (flameGraphPainter != null) {
+                flameGraphPainter.updateUI();
+            }
+        }
 
         @Override
         public Dimension getPreferredSize() {

@@ -14,6 +14,7 @@ import com.formdev.flatlaf.FlatIntelliJLaf;
 import com.formdev.flatlaf.FlatLaf;
 import com.formdev.flatlaf.extras.FlatAnimatedLafChange;
 import com.formdev.flatlaf.util.SystemInfo;
+import com.github.bric3.fireplace.ui.Colors;
 import com.github.bric3.fireplace.ui.JScrollPaneWithButton;
 import com.github.weisj.darklaf.LafManager;
 import com.github.weisj.darklaf.platform.ThemePreferencesHandler;
@@ -199,9 +200,11 @@ public class FirePlaceMain {
         switch (LafManager.getPreferredThemeStyle().getColorToneRule()) {
             case DARK:
                 FlatDarculaLaf.setup();
+                Colors.setDarkMode(true);
                 break;
             case LIGHT:
                 FlatIntelliJLaf.setup();
+                Colors.setDarkMode(false);
                 break;
         }
         ThemePreferencesHandler.getSharedInstance().addThemePreferenceChangeListener(e -> SwingUtilities.invokeLater(() -> {
@@ -209,9 +212,11 @@ public class FirePlaceMain {
             switch (LafManager.getPreferredThemeStyle().getColorToneRule()) {
                 case DARK:
                     FlatDarculaLaf.setup();
+                    Colors.setDarkMode(true);
                     break;
                 case LIGHT:
                     FlatIntelliJLaf.setup();
+                    Colors.setDarkMode(false);
                     break;
             }
             FlatLaf.updateUI();
