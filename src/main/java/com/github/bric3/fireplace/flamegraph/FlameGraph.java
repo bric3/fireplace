@@ -17,6 +17,7 @@ import com.github.bric3.fireplace.ui.MouseInputListenerWorkaroundForToolTipEnabl
 import javax.swing.*;
 import javax.swing.event.MouseInputListener;
 import java.awt.*;
+import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.geom.Area;
 import java.awt.image.BufferedImage;
@@ -51,8 +52,9 @@ public class FlameGraph<T> {
                 scrollPane -> {
                     scrollPane.getVerticalScrollBar().setUnitIncrement(16);
                     scrollPane.getHorizontalScrollBar().setUnitIncrement(16);
-                    new ScrollPaneMouseListener<>(flameGraphPainter, extractToolTip).install(scrollPane);
+                    new ScrollPaneMouseListener<>(canvas, flameGraphPainter, extractToolTip).install(scrollPane);
                     new MouseInputListenerWorkaroundForToolTipEnabledComponent(scrollPane).install(canvas);
+                    canvas.linkListenerTo(scrollPane);
                 }
         );
     }
@@ -60,10 +62,12 @@ public class FlameGraph<T> {
 
     static class ScrollPaneMouseListener<T> implements MouseInputListener {
         private Point pressedPoint;
+        private FlameGraphCanvas<T> canvas;
         private final FlameGraphPainter<T> flameGraph;
         private final Function<FrameBox<T>, String> extractToolTip;
 
-        public ScrollPaneMouseListener(FlameGraphPainter<T> flameGraph, Function<FrameBox<T>, String> extractToolTip) {
+        public ScrollPaneMouseListener(FlameGraphCanvas<T> canvas, FlameGraphPainter<T> flameGraph, Function<FrameBox<T>, String> extractToolTip) {
+            this.canvas = canvas;
             this.flameGraph = flameGraph;
             this.extractToolTip = extractToolTip;
         }
@@ -103,13 +107,15 @@ public class FlameGraph<T> {
             if (!SwingUtilities.isLeftMouseButton(e)) {
                 return;
             }
+            var scrollPane = (JScrollPane) e.getComponent();
+            var viewPort = scrollPane.getViewport();
+            var point = SwingUtilities.convertPoint(e.getComponent(), e.getPoint(), viewPort.getView());
+            if (canvas.isInsideMinimap(point)) {
+                // bail out
+                return;
+            }
 
             if (e.getClickCount() == 2) {
-                var scrollPane = (JScrollPane) e.getComponent();
-                var viewPort = scrollPane.getViewport();
-
-                var point = SwingUtilities.convertPoint(e.getComponent(), e.getPoint(), viewPort.getView());
-
                 flameGraph.zoomToFrameAt(
                         (Graphics2D) viewPort.getView().getGraphics(),
                         point
@@ -122,11 +128,6 @@ public class FlameGraph<T> {
             }
 
             if ((e.getSource() instanceof JScrollPane)) {
-                var scrollPane = (JScrollPane) e.getComponent();
-                var viewPort = scrollPane.getViewport();
-
-                var point = SwingUtilities.convertPoint(e.getComponent(), e.getPoint(), viewPort.getView());
-
                 flameGraph.toggleSelectedFrameAt(
                         (Graphics2D) viewPort.getView().getGraphics(),
                         point
@@ -151,21 +152,23 @@ public class FlameGraph<T> {
 
         @Override
         public void mouseMoved(MouseEvent e) {
-            if ((e.getSource() instanceof JScrollPane)) {
-                var scrollPane = (JScrollPane) e.getComponent();
-                var viewPort = scrollPane.getViewport();
+            var scrollPane = (JScrollPane) e.getComponent();
+            var viewPort = scrollPane.getViewport();
+            var view = (JComponent) viewPort.getView();
+            var point = SwingUtilities.convertPoint(e.getComponent(), e.getPoint(), view);
 
-                var view = (JComponent) viewPort.getView();
-                var point = SwingUtilities.convertPoint(e.getComponent(), e.getPoint(), view);
-
-                flameGraph.hoverFrameAt(
-                        (Graphics2D) view.getGraphics(),
-                        point,
-                        frame -> view.setToolTipText(extractToolTip.apply(frame))
-                );
-
-                scrollPane.repaint();
+            if (canvas.isInsideMinimap(point)) {
+                // bail out
+                return;
             }
+
+            flameGraph.hoverFrameAt(
+                    (Graphics2D) view.getGraphics(),
+                    point,
+                    frame -> view.setToolTipText(extractToolTip.apply(frame))
+            );
+
+            scrollPane.repaint();
         }
 
         public void install(JScrollPane sp) {
@@ -271,6 +274,14 @@ public class FlameGraph<T> {
 
         @Override
         public String getToolTipText(MouseEvent e) {
+            if (isInsideMinimap(e.getPoint())) {
+                return "";
+            }
+
+            return super.getToolTipText(e);
+        }
+
+        public boolean isInsideMinimap(Point point) {
             var visibleRect = getVisibleRect();
             var rectangle = new Rectangle(visibleRect.x + minimapLocation.y,
                                           visibleRect.y + visibleRect.height - minimapHeight - minimapLocation.y,
@@ -278,11 +289,7 @@ public class FlameGraph<T> {
                                           minimapHeight + 2 * minimapInset
             );
 
-            if (rectangle.contains(e.getPoint())) {
-                return "";
-            }
-
-            return super.getToolTipText(e);
+            return rectangle.contains(point);
         }
 
         @Override
@@ -322,6 +329,50 @@ public class FlameGraph<T> {
         public void setImage(BufferedImage i) {
             this.minimap = i.getScaledInstance(minimapWidth, minimapHeight, Image.SCALE_SMOOTH);
             repaint();
+        }
+
+        public void linkListenerTo(JScrollPane scrollPane) {
+            var mouseAdapter = new MouseAdapter() {
+                @Override
+                public void mousePressed(MouseEvent e) {
+                    processMinimapMouseEvent(e);
+                }
+
+                @Override
+                public void mouseDragged(MouseEvent e) {
+                    processMinimapMouseEvent(e);
+                }
+
+                private void processMinimapMouseEvent(MouseEvent e) {
+                    var pt = e.getPoint();
+                    if (!(e.getComponent() instanceof FlameGraph.FlameGraphCanvas)) {
+                        return;
+                    }
+
+                    var visibleRect = ((FlameGraphCanvas<?>) e.getComponent()).getVisibleRect();
+
+                    double zoomZoneScaleX = (double) minimapWidth / flameGraphDimension.width;
+                    double zoomZoneScaleY = (double) minimapHeight / flameGraphDimension.height;
+
+                    var h = (pt.x - (visibleRect.x + minimapLocation.x)) / zoomZoneScaleX;
+                    var horizontalBarModel = scrollPane.getHorizontalScrollBar().getModel();
+                    horizontalBarModel.setValue((int) h - horizontalBarModel.getExtent());
+
+
+                    var v = (pt.y - (visibleRect.y + visibleRect.height - minimapHeight - minimapLocation.y)) / zoomZoneScaleY;
+                    var verticalBarModel = scrollPane.getVerticalScrollBar().getModel();
+                    verticalBarModel.setValue((int) v - verticalBarModel.getExtent());
+                }
+
+                @Override
+                public void mouseMoved(MouseEvent e) {
+                    setCursor(isInsideMinimap(e.getPoint()) ?
+                              Cursor.getPredefinedCursor(System.getProperty("os.name").startsWith("Mac") ? Cursor.HAND_CURSOR : Cursor.MOVE_CURSOR) :
+                              Cursor.getDefaultCursor());
+                }
+            };
+            this.addMouseListener(mouseAdapter);
+            this.addMouseMotionListener(mouseAdapter);
         }
     }
 }
