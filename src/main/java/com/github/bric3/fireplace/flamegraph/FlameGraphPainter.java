@@ -154,7 +154,7 @@ public class FlameGraphPainter<T> {
                                         handleFocus(frameColorFunction.apply(rootFrame.jfrNode),
                                                     hoveredFrame == rootFrame,
                                                     false,
-                                                    selectedFrame != null && rootFrame.stackDepth < selectedFrame.stackDepth),
+                                                    selectedFrame != null && rootFrame.stackDepth < selectedFrame.stackDepth, minimapMode),
                                         minimapMode);
             }
         }
@@ -183,7 +183,8 @@ public class FlameGraphPainter<T> {
                                                     selectedFrame != null && (
                                                             frame.stackDepth < selectedFrame.stackDepth
                                                             || frame.endX < selectedFrame.startX
-                                                            || frame.startX > selectedFrame.endX)),
+                                                            || frame.startX > selectedFrame.endX),
+                                                    minimapMode),
                                         frameBorderColor,
                                         minimapMode);
             }
@@ -241,13 +242,16 @@ public class FlameGraphPainter<T> {
         // if true we're on a HiDPI display
         // https://github.com/libgdx/libgdx/commit/2bc16a08961dd303afe2d1c8df96a50d8cd639db
         var transform = g2.getTransform();
-//        System.out.printf("%sscale factor, x=%s y=%s%n",
-//                          (transform.getType() & AffineTransform.TYPE_MASK_SCALE) == AffineTransform.TYPE_UNIFORM_SCALE ? "HiDPI " : "",
-//                          scaleX = transform.getScaleX(),
-//                          scaleY = transform.getScaleY());
+        //        System.out.printf("%sscale factor, x=%s y=%s%n",
+        //                          (transform.getType() & AffineTransform.TYPE_MASK_SCALE) == AffineTransform.TYPE_UNIFORM_SCALE ? "HiDPI " : "",
+        //                          scaleX = transform.getScaleX(),
+        //                          scaleY = transform.getScaleY());
     }
 
-    private Color handleFocus(Color bgColor, boolean hovered, boolean highlighted, boolean dimmed) {
+    private Color handleFocus(Color bgColor, boolean hovered, boolean highlighted, boolean dimmed, boolean minimapMode) {
+        if (minimapMode) {
+            return bgColor;
+        }
         if (dimmed) {
             return Colors.blend(bgColor, Colors.translucent_black_B0);
         }

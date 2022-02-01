@@ -49,7 +49,7 @@ public abstract class JScrollPaneWithButton {
 
             @Override
             protected void paintComponent(Graphics g) {
-                Graphics2D g2 = (Graphics2D) g;
+                var g2 = (Graphics2D) g;
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
                 if (getModel().isArmed()) {
@@ -141,7 +141,7 @@ public abstract class JScrollPaneWithButton {
                 if (componentCursor == null) {
                     componentCursor = e.getComponent().getCursor();
                 }
-                e.getComponent().setCursor(Cursor.getPredefinedCursor(Cursor.DEFAULT_CURSOR));
+                e.getComponent().setCursor(Cursor.getDefaultCursor());
             } else {
                 if (componentCursor != null) {
                     e.getComponent().setCursor(componentCursor);
@@ -170,9 +170,9 @@ public abstract class JScrollPaneWithButton {
     }
 
     private static class UpArrowIcon implements Icon {
-        private Color arrowColor;
-        private Color rolloverColor;
-        private int size;
+        private final Color arrowColor;
+        private final Color rolloverColor;
+        private final int size;
 
         public UpArrowIcon(Color arrowColor, Color rolloverColor) {
             this.arrowColor = arrowColor;
