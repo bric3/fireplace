@@ -89,8 +89,28 @@ Panel.foreground: #BBBBBB
                 /*violet*/ "#5D00A8", "#9E00C9", "#D300E9", "#FF00FF"
         ),
 
-
-        ;
+        DATADOG(
+                "#3399CC",
+                "#927FB9",
+                "#FFCC00",
+                "#57B79A",
+                "#BE53BB",
+                "#DD8451",
+                "#3969B3",
+                "#BED017",
+                "#8934A4",
+                "#3BCBCB",
+                "#6E69CC",
+                "#50931F",
+                "#C86B74",
+                "#FCAF2B",
+                "#2EB0DE",
+                "#C68CCD",
+                "#457557",
+                "#CC3C71",
+                "#985083",
+                "#A7B342"
+        );
 
         private final Color[] palette;
 

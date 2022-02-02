@@ -22,7 +22,7 @@ import java.util.function.Function;
 
 public class FlameGraphPainter<T> {
     public FrameColorMode<T> frameColorMode;
-    public Palette packageColorPalette = Palette.DARK_CUSTOM;
+    public Palette packageColorPalette = Palette.DATADOG;
     public Color highlightedColor;
     public Color frameBorderColor;
     public boolean paintFrameBorder = true;
