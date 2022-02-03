@@ -54,11 +54,6 @@ public class Colors {
         refreshColors();
     }
 
-/*
-Panel.background: #3C3F41
-Panel.foreground: #BBBBBB
-*/
-
     public enum Palette {
         // use https://color.hailpixel.com/
         // https://www.toptal.com/designers/colourcode/
@@ -90,26 +85,54 @@ Panel.foreground: #BBBBBB
         ),
 
         DATADOG(
-                "#3399CC",
-                "#927FB9",
-                "#FFCC00",
-                "#57B79A",
-                "#BE53BB",
-                "#DD8451",
-                "#3969B3",
-                "#BED017",
-                "#8934A4",
-                "#3BCBCB",
-                "#6E69CC",
-                "#50931F",
-                "#C86B74",
-                "#FCAF2B",
-                "#2EB0DE",
-                "#C68CCD",
-                "#457557",
-                "#CC3C71",
-                "#985083",
-                "#A7B342"
+                new Color(0x3399CC),
+                new Color(0x927FB9),
+                new Color(0xFFCC00),
+                new Color(0x57B79A),
+                new Color(0xBE53BB),
+                new Color(0xDD8451),
+                new Color(0x3969B3),
+                new Color(0xBED017),
+                new Color(0x8934A4),
+                new Color(0x3BCBCB),
+                new Color(0x6E69CC),
+                new Color(0x50931F),
+                new Color(0xC86B74),
+                new Color(0xFCAF2B),
+                new Color(0x2EB0DE),
+                new Color(0xC68CCD),
+                new Color(0x457557),
+                new Color(0xCC3C71),
+                new Color(0x985083),
+                new Color(0xA7B342)
+        ),
+
+        PYROSCOPE(
+                new Color(0xDF8B53),
+                new Color(0xE0AD6C),
+                new Color(0x68B7CF),
+                new Color(0x59C0A3),
+                new Color(0x6897CA),
+                new Color(0x8982C9),
+                new Color(0xEBA8E6),
+                new Color(0xFFE175),
+
+                new Color(0xb7dbab),
+                new Color(0xf4d598),
+                new Color(0x70dbed),
+                new Color(0xf9ba8f),
+                new Color(0xf29191),
+                new Color(0x82b5d8),
+                new Color(0xe5a8e2),
+                new Color(0xaea2e0),
+                new Color(0x9ac48a),
+                new Color(0xf2c96d),
+                new Color(0x65c5db),
+                new Color(0xf9934e),
+                new Color(0xea6460),
+                new Color(0x5195ce),
+                new Color(0xd683ce),
+                new Color(0x806eb7)
         );
 
         private final Color[] palette;
@@ -121,12 +144,12 @@ Panel.foreground: #BBBBBB
                             .map(Color::decode)
                             .toArray(Color[]::new);
             if (palette.length == 0) {
-                throw new IllegalArgumentException("Invalid color palette: " + hexacodes);
+                throw new IllegalArgumentException("Invalid color palette: " + Arrays.toString(hexacodes));
             }
+        }
 
-            var fgColorPalette = Arrays.stream(palette)
-                                       .map(Colors::foregroundColor)
-                                       .toArray(Color[]::new);
+        Palette(Color... palette) {
+            this.palette = palette;
         }
 
         public Color mapToColor(Object value) {
