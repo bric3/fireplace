@@ -47,6 +47,7 @@ public class FlameGraphPainter<T> {
     // handle root node
     private final Function<T, String> rootFrameToText;
     private final Function<T, Color> frameColorFunction;
+    private int internalPadding = 2;
     private boolean paintDetails = true;
 
 
@@ -152,8 +153,8 @@ public class FlameGraphPainter<T> {
 
         {
             var rootFrame = frames.get(0);
-            rectOnCanvas.x = (int) (flameGraphWidth * rootFrame.startX);
-            rectOnCanvas.width = ((int) (flameGraphWidth * rootFrame.endX)) - rectOnCanvas.x;
+            rectOnCanvas.x = (int) (flameGraphWidth * rootFrame.startX) + internalPadding;
+            rectOnCanvas.width = ((int) (flameGraphWidth * rootFrame.endX)) - rectOnCanvas.x - internalPadding;
 
             rectOnCanvas.y = frameBoxHeight * rootFrame.stackDepth;
             rectOnCanvas.height = frameBoxHeight;
@@ -178,8 +179,8 @@ public class FlameGraphPainter<T> {
             var frame = frames.get(i);
             // TODO Can we do cheaper checks like depth is outside range etc
 
-            rectOnCanvas.x = (int) (flameGraphWidth * frame.startX);
-            rectOnCanvas.width = ((int) (flameGraphWidth * frame.endX)) - rectOnCanvas.x;
+            rectOnCanvas.x = (int) (flameGraphWidth * frame.startX) + internalPadding;
+            rectOnCanvas.width = ((int) (flameGraphWidth * frame.endX)) - rectOnCanvas.x - internalPadding;
 
             if ((rectOnCanvas.width < frameWidthVisibilityThreshold) && !minimapMode) {
                 continue;
@@ -238,8 +239,8 @@ public class FlameGraphPainter<T> {
             return;
         }
 
-        rect.x = (int) (flameGraphWidth * hoveredFrame.startX);
-        rect.width = ((int) (flameGraphWidth * hoveredFrame.endX)) - rect.x;
+        rect.x = (int) (flameGraphWidth * hoveredFrame.startX) + internalPadding;
+        rect.width = ((int) (flameGraphWidth * hoveredFrame.endX)) - rect.x - internalPadding;
 
         if ((rect.width < frameWidthVisibilityThreshold)) {
             return;
