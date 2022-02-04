@@ -26,7 +26,7 @@ public class FlameGraphPainter<T> {
     public Color frameBorderColor;
     public boolean paintFrameBorder = true;
     public boolean paintHoveredFrameBorder = true;
-    public int frameBorderWidth = 2;
+    public int frameBorderWidth = 1;
 
     private final int depth;
     private int visibleDepth;
@@ -251,7 +251,7 @@ public class FlameGraphPainter<T> {
         if (visibleRect.intersects(rect)) {
             g2.setColor(Color.white);
             g2.setStroke(new BasicStroke(frameBorderWidth));
-            g2.drawRect(rect.x + 1, rect.y + 1, rect.width, rect.height);
+            g2.drawRect(rect.x + 1, rect.y + 1, rect.width - 1, rect.height - 1);
         }
     }
 
