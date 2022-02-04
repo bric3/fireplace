@@ -60,6 +60,23 @@ public class FlameGraph<T> {
         );
     }
 
+    public void setColorPalette(Palette colorPalette) {
+        flameGraphPainter.packageColorPalette = colorPalette;
+    }
+
+    public void setFrameColorMode(FrameColorMode<T> colorMode) {
+        flameGraphPainter.frameColorMode = colorMode;
+    }
+
+    public void setPaintFrameBorder(boolean paintFrameBorder) {
+        flameGraphPainter.paintFrameBorder = paintFrameBorder;
+    }
+
+    public void requestRepaint() {
+        canvas.repaint();
+        canvas.triggerMinimapGeneration();
+    }
+
 
     static class ScrollPaneMouseListener<T> implements MouseInputListener {
         private Point pressedPoint;

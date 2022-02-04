@@ -56,22 +56,22 @@ public class FlameGraphTab extends JPanel {
 
         var colorPaletteJComboBox = new JComboBox<>(Palette.values());
         colorPaletteJComboBox.addActionListener(e -> {
-            jfrFlameGraph.flameGraphPainter.packageColorPalette = (Palette) colorPaletteJComboBox.getSelectedItem();
-            wrapper.repaint();
+            jfrFlameGraph.setColorPalette((Palette) colorPaletteJComboBox.getSelectedItem());
+            jfrFlameGraph.requestRepaint();
         });
         colorPaletteJComboBox.setSelectedItem(jfrFlameGraph.flameGraphPainter.packageColorPalette);
 
         var colorModeJComboBox = new JComboBox<>(JfrFrameColorMode.values());
         colorModeJComboBox.addActionListener(e -> {
-            jfrFlameGraph.flameGraphPainter.frameColorMode = (JfrFrameColorMode) colorModeJComboBox.getSelectedItem();
-            wrapper.repaint();
+            jfrFlameGraph.setFrameColorMode((JfrFrameColorMode) colorModeJComboBox.getSelectedItem());
+            jfrFlameGraph.requestRepaint();
         });
         colorModeJComboBox.setSelectedItem(jfrFlameGraph.flameGraphPainter.frameColorMode);
 
         var borderToggle = new JCheckBox("Border");
         borderToggle.addActionListener(e -> {
-            jfrFlameGraph.flameGraphPainter.paintFrameBorder = borderToggle.isSelected();
-            wrapper.repaint();
+            jfrFlameGraph.setPaintFrameBorder(borderToggle.isSelected());
+            jfrFlameGraph.requestRepaint();
         });
         borderToggle.setSelected(jfrFlameGraph.flameGraphPainter.paintFrameBorder);
 

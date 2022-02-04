@@ -25,8 +25,7 @@ public abstract class JScrollPaneWithButton {
     }
 
     public static JLayer<JScrollPane> create(JComponent content) {
-        return create(content, sp -> {
-        });
+        return create(content, sp -> {});
     }
 
     private static class ScrollBackToTopLayerUI extends LayerUI<JScrollPane> {
