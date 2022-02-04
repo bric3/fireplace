@@ -11,6 +11,7 @@ package com.github.bric3.fireplace.flamegraph;
 
 import com.github.bric3.fireplace.ui.BalloonToolTip;
 import com.github.bric3.fireplace.ui.Colors;
+import com.github.bric3.fireplace.ui.Colors.Palette;
 import com.github.bric3.fireplace.ui.JScrollPaneWithButton;
 import com.github.bric3.fireplace.ui.MouseInputListenerWorkaroundForToolTipEnabledComponent;
 
@@ -28,7 +29,7 @@ import java.util.function.Function;
 public class FlameGraph<T> {
     public final FlameGraphPainter<T> flameGraphPainter;
     private final FlameGraphCanvas<T> canvas;
-    public final JLayer<JScrollPane> component;
+    public final JComponent component;
 
     public FlameGraph(List<FrameBox<T>> framesSupplier,
                       List<Function<T, String>> frameToStringCandidates,
@@ -272,13 +273,14 @@ public class FlameGraph<T> {
                     var zoomZone = new Area(new Rectangle(minimapInset, minimapInset, minimapWidth, minimapHeight));
                     zoomZone.subtract(new Area(new Rectangle(x + minimapInset, y + minimapInset, w, h)));
 
-                    g2.setColor(Colors.translucent_white_80);
+                    g2.setColor(Colors.darkMode ? Colors.translucent_black_40 : Colors.translucent_white_80);
                     g2.fill(zoomZone);
 
                     g2.setColor(getForeground());
                     g2.setStroke(new BasicStroke(1));
                     g2.drawRect(x + minimapInset, y + minimapInset, w, h);
                 }
+                g2.dispose();
             }
         }
 
@@ -315,7 +317,10 @@ public class FlameGraph<T> {
 
         private void triggerMinimapGeneration() {
             CompletableFuture.runAsync(() -> {
-                var height = flameGraphPainter.computeFlameGraphThumbnailHeight(minimapWidth);
+                var height = flameGraphPainter.computeFlameGraphMinimapHeight(minimapWidth);
+                if (height == 0) {
+                    return;
+                }
 
                 GraphicsEnvironment e = GraphicsEnvironment.getLocalGraphicsEnvironment();
                 GraphicsConfiguration c = e.getDefaultScreenDevice().getDefaultConfiguration();
@@ -331,14 +336,21 @@ public class FlameGraph<T> {
 
                 SwingUtilities.invokeLater(() -> this.setImage(minimapImage));
             }).handle((__, t) -> {
-                t.printStackTrace(); // no thumbnail
+                if (t != null) {
+                    t.printStackTrace(); // no thumbnail
+                }
                 return null;
             });
         }
 
         public void setImage(BufferedImage i) {
             this.minimap = i.getScaledInstance(minimapWidth, minimapHeight, Image.SCALE_SMOOTH);
-            repaint();
+            var visibleRect = getVisibleRect();
+
+            repaint(visibleRect.x + minimapLocation.x,
+                    visibleRect.y + visibleRect.height - minimapHeight - minimapLocation.y,
+                    minimapWidth + minimapInset * 2,
+                    minimapHeight + minimapInset * 2);
         }
 
         public void linkListenerTo(JScrollPane scrollPane) {

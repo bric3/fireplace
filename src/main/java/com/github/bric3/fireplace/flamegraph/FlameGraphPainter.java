@@ -76,7 +76,7 @@ public class FlameGraphPainter<T> {
         return g2.getFontMetrics().getAscent() + (textBorder * 2) + frameBorderWidth * 2;
     }
 
-    public int computeFlameGraphThumbnailHeight(int thumbnailWidth) {
+    public int computeFlameGraphMinimapHeight(int thumbnailWidth) {
         assert thumbnailWidth > 0 : "minimap width must be superior to 0";
 
         //        var visibleDepth = 0;
