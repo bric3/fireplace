@@ -14,7 +14,6 @@ import com.github.bric3.fireplace.ui.Colors.Palette;
 
 import java.awt.*;
 import java.awt.geom.Rectangle2D;
-import java.awt.geom.Rectangle2D.Double;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Consumer;
@@ -145,20 +144,25 @@ public class FlameGraphPainter<T> {
         long start = System.currentTimeMillis();
         var frameBoxHeight = minimapMode ? minimapFrameBoxHeight : getFrameBoxHeight(g2);
         var flameGraphWidth = minimapMode ? visibleRect.width : this.flameGraphWidth;
-        var rect = new Rectangle(); // reusable rectangle
+        var rectOnCanvas = new Rectangle(); // reusable rectangle
+        var frameRect = new Rectangle(); // reusable rectangle
 
         identifyDisplayScale(g2);
 
         {
             var rootFrame = frames.get(0);
-            rect.x = (int) (flameGraphWidth * rootFrame.startX);
-            rect.width = ((int) (flameGraphWidth * rootFrame.endX)) - rect.x;
+            rectOnCanvas.x = (int) (flameGraphWidth * rootFrame.startX);
+            rectOnCanvas.width = ((int) (flameGraphWidth * rootFrame.endX)) - rectOnCanvas.x;
 
-            rect.y = frameBoxHeight * rootFrame.stackDepth;
-            rect.height = frameBoxHeight;
+            rectOnCanvas.y = frameBoxHeight * rootFrame.stackDepth;
+            rectOnCanvas.height = frameBoxHeight;
 
-            if (visibleRect.intersects(rect)) {
-                paintRootFrameRectangle((Graphics2D) g2.create(rect.x, rect.y, rect.width, rect.height),
+            frameRect.width = rectOnCanvas.width;
+            frameRect.height = rectOnCanvas.height;
+
+            if (visibleRect.intersects(rectOnCanvas)) {
+                paintRootFrameRectangle((Graphics2D) g2.create(rectOnCanvas.x, rectOnCanvas.y, rectOnCanvas.width, rectOnCanvas.height),
+                                        frameRect,
                                         rootFrameToText.apply(rootFrame.jfrNode),
                                         handleFocus(frameColorFunction.apply(rootFrame.jfrNode),
                                                     hoveredFrame == rootFrame,
@@ -173,18 +177,22 @@ public class FlameGraphPainter<T> {
             var frame = frames.get(i);
             // TODO Can we do cheaper checks like depth is outside range etc
 
-            rect.x = (int) (flameGraphWidth * frame.startX);
-            rect.width = ((int) (flameGraphWidth * frame.endX)) - rect.x;
+            rectOnCanvas.x = (int) (flameGraphWidth * frame.startX);
+            rectOnCanvas.width = ((int) (flameGraphWidth * frame.endX)) - rectOnCanvas.x;
 
-            if ((rect.width < frameWidthVisibilityThreshold) && !minimapMode) {
+            if ((rectOnCanvas.width < frameWidthVisibilityThreshold) && !minimapMode) {
                 continue;
             }
 
-            rect.y = frameBoxHeight * frame.stackDepth;
-            rect.height = frameBoxHeight;
+            rectOnCanvas.y = frameBoxHeight * frame.stackDepth;
+            rectOnCanvas.height = frameBoxHeight;
 
-            if (visibleRect.intersects(rect)) {
-                paintNodeFrameRectangle((Graphics2D) g2.create(rect.x, rect.y, rect.width, rect.height),
+            frameRect.width = rectOnCanvas.width;
+            frameRect.height = rectOnCanvas.height;
+
+            if (visibleRect.intersects(rectOnCanvas)) {
+                paintNodeFrameRectangle((Graphics2D) g2.create(rectOnCanvas.x, rectOnCanvas.y, rectOnCanvas.width, rectOnCanvas.height),
+                                        frameRect,
                                         frame.jfrNode,
                                         handleFocus(frameColorFunction.apply(frame.jfrNode),
                                                     hoveredFrame == frame,
@@ -204,7 +212,7 @@ public class FlameGraphPainter<T> {
             return;
         }
 
-        paintHoveredFrameBorder(g2, visibleRect, frameBoxHeight, rect);
+        paintHoveredFrameBorder(g2, visibleRect, frameBoxHeight, rectOnCanvas);
 
         // timestamp
         var drawTimeMs = "FrameGraph width " + flameGraphWidth + " Zoom Factor " + zoomFactor + " Coordinate (" + visibleRect.x + ", " + visibleRect.y + ") size (" +
@@ -222,7 +230,7 @@ public class FlameGraphPainter<T> {
                       visibleRect.x + visibleRect.width - nowWidth - textBorder,
                       visibleRect.y + visibleRect.height - textBorder);
 
-        //        g2.clip(visibleRect);
+        g2.clip(visibleRect);
     }
 
     private void paintHoveredFrameBorder(Graphics2D g2, Rectangle visibleRect, int frameBoxHeight, Rectangle rect) {
@@ -273,8 +281,8 @@ public class FlameGraphPainter<T> {
         return bgColor;
     }
 
-    private void paintNodeFrameRectangle(Graphics2D g2, T node, Color bgColor, Color frameBorderColor, boolean minimapMode) {
-        var frameRectSurface = paintFrameRectangle(g2, bgColor, frameBorderColor, minimapMode);
+    private void paintNodeFrameRectangle(Graphics2D g2, Rectangle frameRect, T node, Color bgColor, Color frameBorderColor, boolean minimapMode) {
+        var frameRectSurface = paintFrameRectangle(g2, frameRect, bgColor, frameBorderColor, minimapMode);
         if (minimapMode) {
             return;
         }
@@ -285,10 +293,11 @@ public class FlameGraphPainter<T> {
                            g2.setColor(Colors.foregroundColor(bgColor));
                            g2.drawString(text, textBorder + frameBorderWidth, getFrameBoxTextOffset(g2));
                        });
+        g2.dispose();
     }
 
-    private void paintRootFrameRectangle(Graphics2D g2, String str, Color bgColor, boolean minimapMode) {
-        var frameRectSurface = paintFrameRectangle(g2, bgColor, frameBorderColor, minimapMode);
+    private void paintRootFrameRectangle(Graphics2D g2, Rectangle rect, String str, Color bgColor, boolean minimapMode) {
+        var frameRectSurface = paintFrameRectangle(g2, rect, bgColor, frameBorderColor, minimapMode);
         if (minimapMode) {
             return;
         }
@@ -299,28 +308,29 @@ public class FlameGraphPainter<T> {
                            g2.setColor(Colors.foregroundColor(bgColor));
                            g2.drawString(text, textBorder + frameBorderWidth, getFrameBoxTextOffset(g2));
                        });
+        g2.dispose();
     }
 
-    private Rectangle2D.Double paintFrameRectangle(Graphics2D g2, Color bgColor, Color frameBorderColor, boolean minimapMode) {
-        var clipBounds = g2.getClipBounds();
+    private Rectangle2D.Double paintFrameRectangle(Graphics2D g2, Rectangle frameRect, Color bgColor, Color frameBorderColor, boolean minimapMode) {
         var borderWidth = minimapMode ?
                           0 :
                           paintFrameBorder ? frameBorderWidth : 0;
 
         if (paintFrameBorder && !minimapMode) {
+            var growBoxSurface = new Rectangle.Double(frameRect.x,
+                                                      frameRect.y,
+                                                      frameRect.width + borderWidth,
+                                                      frameRect.height + borderWidth);
             g2.setColor(frameBorderColor);
-            var growBoxSurface = new Double(clipBounds.x, clipBounds.y, clipBounds.width + borderWidth, clipBounds.height + borderWidth);
-            g2.setClip(growBoxSurface);
             g2.fill(growBoxSurface);
         }
 
-        var frameRectSurface = new Rectangle2D.Double(clipBounds.x + borderWidth,
-                                                      clipBounds.y + borderWidth,
-                                                      clipBounds.width - borderWidth,
-                                                      clipBounds.height - borderWidth);
+        var frameRectSurface = new Rectangle2D.Double(frameRect.x + borderWidth,
+                                                      frameRect.y + borderWidth,
+                                                      frameRect.width - borderWidth,
+                                                      frameRect.height - borderWidth);
         g2.setColor(bgColor);
         g2.fill(frameRectSurface);
-        g2.clip(clipBounds);
         return frameRectSurface;
     }
 
