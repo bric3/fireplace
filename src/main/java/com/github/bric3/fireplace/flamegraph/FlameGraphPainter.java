@@ -47,6 +47,7 @@ public class FlameGraphPainter<T> {
     // handle root node
     private final Function<T, String> rootFrameToText;
     private final Function<T, Color> frameColorFunction;
+    private boolean paintDetails = true;
 
 
     public FlameGraphPainter(List<FrameBox<T>> frames,
@@ -207,28 +208,27 @@ public class FlameGraphPainter<T> {
             }
         }
 
-        if (minimapMode) {
-            // System.out.println("paint, minimapMode, draw time: " + (System.currentTimeMillis() - start) + "ms");
-            return;
+        if (!minimapMode) {
+            paintHoveredFrameBorder(g2, visibleRect, frameBoxHeight, rectOnCanvas);
         }
 
-        paintHoveredFrameBorder(g2, visibleRect, frameBoxHeight, rectOnCanvas);
+        if (!minimapMode && paintDetails) {
+            // timestamp
+            var drawTimeMs = "FrameGraph width " + flameGraphWidth + " Zoom Factor " + zoomFactor + " Coordinate (" + visibleRect.x + ", " + visibleRect.y + ") size (" +
+                             visibleRect.width + ", " + visibleRect.height +
+                             ") , Draw time: " + (System.currentTimeMillis() - start) + " ms";
+            var nowWidth = g2.getFontMetrics().stringWidth(drawTimeMs);
+            g2.setColor(Color.darkGray);
+            g2.fillRect(visibleRect.x + visibleRect.width - nowWidth - textBorder * 2,
+                        visibleRect.y + visibleRect.height - frameBoxHeight,
+                        nowWidth + textBorder * 2,
+                        frameBoxHeight);
 
-        // timestamp
-        var drawTimeMs = "FrameGraph width " + flameGraphWidth + " Zoom Factor " + zoomFactor + " Coordinate (" + visibleRect.x + ", " + visibleRect.y + ") size (" +
-                         visibleRect.width + ", " + visibleRect.height +
-                         ") , Draw time: " + (System.currentTimeMillis() - start) + " ms";
-        var nowWidth = g2.getFontMetrics().stringWidth(drawTimeMs);
-        g2.setColor(Color.darkGray);
-        g2.fillRect(visibleRect.x + visibleRect.width - nowWidth - textBorder * 2,
-                    visibleRect.y + visibleRect.height - frameBoxHeight,
-                    nowWidth + textBorder * 2,
-                    frameBoxHeight);
-        g2.setColor(Color.yellow);
-
-        g2.drawString(drawTimeMs,
-                      visibleRect.x + visibleRect.width - nowWidth - textBorder,
-                      visibleRect.y + visibleRect.height - textBorder);
+            g2.setColor(Color.yellow);
+            g2.drawString(drawTimeMs,
+                          visibleRect.x + visibleRect.width - nowWidth - textBorder,
+                          visibleRect.y + visibleRect.height - textBorder);
+        }
 
         g2.clip(visibleRect);
     }
