@@ -14,7 +14,7 @@ import com.formdev.flatlaf.FlatIntelliJLaf;
 import com.formdev.flatlaf.FlatLaf;
 import com.formdev.flatlaf.extras.FlatAnimatedLafChange;
 import com.formdev.flatlaf.util.SystemInfo;
-import com.github.weisj.darklaf.platform.ThemePreferencesHandler;
+import com.github.weisj.darklaf.platform.preferences.SystemPreferencesManager;
 import io.github.bric3.fireplace.core.ui.Colors;
 import io.github.bric3.fireplace.core.ui.JScrollPaneWithButton;
 import io.github.bric3.fireplace.icons.darkMode_moon;
@@ -228,34 +228,41 @@ public class FirePlaceMain {
         public static final String TO_APPEARANCE = "CURRENT_MODE";
         public static final String TO_LIGHT_LAF = "LIGHT";
         public static final String TO_DARK_LAF = "DARK";
-        public static final Runnable SYNC_THEME_CHANGER = () -> {
-            // System.out.println(">>>> theme preference changed = " + ThemePreferencesHandler.getSharedInstance().getPreferredThemeStyle());
-            switch (ThemePreferencesHandler.getSharedInstance().getPreferredThemeStyle().getColorToneRule()) {
-                case DARK:
-                    FlatDarculaLaf.setup();
-                    Colors.setDarkMode(true);
-                    break;
-                case LIGHT:
-                    FlatIntelliJLaf.setup();
-                    Colors.setDarkMode(false);
-                    break;
-            }
-            FlatLaf.updateUI();
-            FlatAnimatedLafChange.hideSnapshotWithAnimation();
-        };
+        public final Runnable SYNC_THEME_CHANGER;
+        private final SystemPreferencesManager manager;
+
+        public AppearanceControl() {
+            manager = new SystemPreferencesManager();
+
+            SYNC_THEME_CHANGER = () -> {
+                // System.out.println(">>>> theme preference changed = " + ThemePreferencesHandler.getSharedInstance().getPreferredThemeStyle());
+                switch (manager.getPreferredThemeStyle().getColorToneRule()) {
+                    case DARK:
+                        FlatDarculaLaf.setup();
+                        Colors.setDarkMode(true);
+                        break;
+                    case LIGHT:
+                        FlatIntelliJLaf.setup();
+                        Colors.setDarkMode(false);
+                        break;
+                }
+                FlatLaf.updateUI();
+                FlatAnimatedLafChange.hideSnapshotWithAnimation();
+            };
+            manager.addListener(style -> SYNC_THEME_CHANGER.run());
+        }
 
         void install() {
-            ThemePreferencesHandler.getSharedInstance().enablePreferenceChangeReporting(true);
-            Runtime.getRuntime().addShutdownHook(new Thread(() -> ThemePreferencesHandler.getSharedInstance().enablePreferenceChangeReporting(false)));
-
+            manager.enableReporting(true);
             SYNC_THEME_CHANGER.run();
-            ThemePreferencesHandler.getSharedInstance().addThemePreferenceChangeListener(
-                    e -> SYNC_THEME_CHANGER.run()
-            );
         }
 
         void toggleSync(boolean sync) {
-            ThemePreferencesHandler.getSharedInstance().enablePreferenceChangeReporting(sync);
+            try {
+                manager.enableReporting(sync);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
         }
 
         JComponent getComponent() {
@@ -265,7 +272,7 @@ public class FirePlaceMain {
                 var toLightMode = darkMode_sun.of(iconSize, iconSize);
                 var toDarkMode = darkMode_moon.of(iconSize, iconSize);
                 Runnable syncIconUpdater = () -> {
-                    switch (ThemePreferencesHandler.getSharedInstance().getPreferredThemeStyle().getColorToneRule()) {
+                    switch (manager.getPreferredThemeStyle().getColorToneRule()) {
                         case DARK:
                             appearanceModeButton.putClientProperty(TO_APPEARANCE, TO_LIGHT_LAF);
                             appearanceModeButton.setIcon(toLightMode);
@@ -276,7 +283,7 @@ public class FirePlaceMain {
                             break;
                     }
                 };
-                ThemePreferencesHandler.getSharedInstance().addThemePreferenceChangeListener(e -> syncIconUpdater.run());
+                manager.addListener(e -> syncIconUpdater.run());
                 appearanceModeButton.addPropertyChangeListener("enabled", e -> syncIconUpdater.run());
                 syncIconUpdater.run();
 
