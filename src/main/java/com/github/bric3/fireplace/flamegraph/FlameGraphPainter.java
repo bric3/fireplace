@@ -103,6 +103,9 @@ public class FlameGraphPainter<T> {
 
         var visibleWidth = visibleRect.width - insets.left - insets.right;
 
+        int widthZoomAdjustment = zoomFactor > 1d ? (int) (10 * 2 * zoomFactor) : 0;
+
+
         // compute the canvas height for the flamegraph width
         if (this.visibleWidth != visibleWidth) {
             var preferredFlameGraphWidth = ((int) (zoomFactor * visibleWidth)) - insets.left - insets.right;
@@ -150,6 +153,9 @@ public class FlameGraphPainter<T> {
         var frameRect = new Rectangle(); // reusable rectangle
 
         identifyDisplayScale(g2);
+
+        int widthZoomAdjustment = zoomFactor > 1d ? 10 * 2 : 0;
+
 
         {
             var rootFrame = frames.get(0);
@@ -372,15 +378,18 @@ public class FlameGraphPainter<T> {
             this.selectedFrame = frame;
 
             var frameWidthX = frame.endX - frame.startX;
-            flameGraphWidth = (int) Math.max(visibleWidth / Math.min(1, frameWidthX), visibleWidth);
+
+            var flameGraphWidth = (int) Math.max(visibleWidth / Math.min(1, frameWidthX), visibleWidth);
             zoomFactor = (double) flameGraphWidth / visibleWidth;
+            int widthZoomAdjustment = zoomFactor > 1d ? (int) (10 * 2 * zoomFactor) : 0;
+            this.flameGraphWidth = flameGraphWidth - widthZoomAdjustment;
 
             var frameBoxHeight = getFrameBoxHeight(g2);
             int y = frameBoxHeight * frame.stackDepth;
 
             // Change offset to center the flame from this frame
             return new Point(
-                    (int) (frame.startX * flameGraphWidth),
+                    (int) (frame.startX * this.flameGraphWidth) - (zoomFactor > 1d ? 10 : 0),
                     Math.max(0, y)
             );
         });
