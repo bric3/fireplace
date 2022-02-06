@@ -16,6 +16,9 @@ import com.formdev.flatlaf.extras.FlatAnimatedLafChange;
 import com.formdev.flatlaf.util.SystemInfo;
 import com.github.bric3.fireplace.ui.Colors;
 import com.github.bric3.fireplace.ui.JScrollPaneWithButton;
+import com.github.bric3.fireplace.ui.debug.AssertiveRepaintManager;
+import com.github.bric3.fireplace.ui.debug.CheckThreadViolationRepaintManager;
+import com.github.bric3.fireplace.ui.debug.EventDispatchThreadHangMonitor;
 import com.github.weisj.darklaf.LafManager;
 import com.github.weisj.darklaf.platform.ThemePreferencesHandler;
 import org.openjdk.jmc.common.item.IItem;
@@ -41,6 +44,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Clock;
 import java.util.Arrays;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
@@ -105,6 +109,14 @@ public class FirePlaceMain {
 //        )));
 
         setupLaF();
+        if (Boolean.getBoolean("fireplace.swing.debug")) {
+            if (Objects.equals(System.getProperty("fireplace.swing.debug.thread.violation.checker"), "IJ")) {
+                AssertiveRepaintManager.install();
+            } else {
+                CheckThreadViolationRepaintManager.install();
+            }
+            EventDispatchThreadHangMonitor.initMonitoring();
+        }
 
         var openedFileLabel = new JTextField(jfrFiles.get(0).getAbsolutePath());
         openedFileLabel.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
