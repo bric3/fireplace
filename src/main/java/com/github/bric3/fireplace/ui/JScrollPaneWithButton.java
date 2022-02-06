@@ -14,18 +14,13 @@ import javax.swing.plaf.LayerUI;
 import java.awt.*;
 import java.awt.event.MouseEvent;
 import java.awt.geom.Path2D;
-import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 public abstract class JScrollPaneWithButton {
 
-    public static JLayer<JScrollPane> create(JComponent content, Consumer<JScrollPane> scrollPaneModifier) {
-        var jScrollPane = new JScrollPane(content);
-        scrollPaneModifier.accept(jScrollPane);
-        return new JLayer<>(jScrollPane, new ScrollBackToTopLayerUI(15, 15));
-    }
-
-    public static JLayer<JScrollPane> create(JComponent content) {
-        return create(content, sp -> {});
+    public static JLayer<JScrollPane> create(Supplier<JScrollPane> scrollPaneSupplier) {
+        return new JLayer<>(scrollPaneSupplier.get(),
+                            new ScrollBackToTopLayerUI(15, 15));
     }
 
     private static class ScrollBackToTopLayerUI extends LayerUI<JScrollPane> {

@@ -130,8 +130,8 @@ public class FirePlaceMain {
         sysProps.addPropertyChangeListener("text", evt -> CompletableFuture.runAsync(() -> updateContent(sysProps, t -> t.setText(jvmSystemProperties(eventSupplier.get())))));
 
         var jTabbedPane = new JTabbedPane();
-        jTabbedPane.addTab(SYSTEM_PROPERTIES, JScrollPaneWithButton.create(sysProps));
-        jTabbedPane.addTab(NATIVE_LIBRARIES, JScrollPaneWithButton.create(nativeLibs));
+        jTabbedPane.addTab(SYSTEM_PROPERTIES, JScrollPaneWithButton.create(() -> new JScrollPane(sysProps)));
+        jTabbedPane.addTab(NATIVE_LIBRARIES, JScrollPaneWithButton.create(() -> new JScrollPane(nativeLibs)));
         jTabbedPane.addTab(ALLOCATIONS, allocationFlameGraphPanel);
         jTabbedPane.addTab(CPU, cpuFlameGraphPanel);
         jTabbedPane.setTabPlacement(JTabbedPane.BOTTOM);

@@ -49,13 +49,15 @@ public class FlameGraph<T> {
         ToolTipManager.sharedInstance().registerComponent(canvas);
 
         component = JScrollPaneWithButton.create(
-                canvas,
-                scrollPane -> {
+                () -> {
+                    var scrollPane = new JScrollPane(canvas);
                     scrollPane.getVerticalScrollBar().setUnitIncrement(16);
                     scrollPane.getHorizontalScrollBar().setUnitIncrement(16);
-                    new ScrollPaneMouseListener<>(canvas, flameGraphPainter, extractToolTip).install(scrollPane);
+                    new FGMouseInputListener<>(canvas, flameGraphPainter, extractToolTip).install(scrollPane);
                     new MouseInputListenerWorkaroundForToolTipEnabledComponent(scrollPane).install(canvas);
                     canvas.linkListenerTo(scrollPane);
+
+                    return scrollPane;
                 }
         );
     }
@@ -77,14 +79,13 @@ public class FlameGraph<T> {
         canvas.triggerMinimapGeneration();
     }
 
-
-    static class ScrollPaneMouseListener<T> implements MouseInputListener {
+    static class FGMouseInputListener<T> implements MouseInputListener {
         private Point pressedPoint;
-        private FlameGraphCanvas<T> canvas;
+        private final FlameGraphCanvas<T> canvas;
         private final FlameGraphPainter<T> flameGraph;
         private final Function<FrameBox<T>, String> extractToolTip;
 
-        public ScrollPaneMouseListener(FlameGraphCanvas<T> canvas, FlameGraphPainter<T> flameGraph, Function<FrameBox<T>, String> extractToolTip) {
+        public FGMouseInputListener(FlameGraphCanvas<T> canvas, FlameGraphPainter<T> flameGraph, Function<FrameBox<T>, String> extractToolTip) {
             this.canvas = canvas;
             this.flameGraph = flameGraph;
             this.extractToolTip = extractToolTip;
@@ -156,7 +157,12 @@ public class FlameGraph<T> {
         }
 
         @Override
-        public void mouseEntered(MouseEvent e) {}
+        public void mouseEntered(MouseEvent e) {
+            // this seems to enable key navigation
+            if ((e.getComponent() instanceof JScrollPane)) {
+                e.getComponent().requestFocus();
+            }
+        }
 
         @Override
         public void mouseExited(MouseEvent e) {
@@ -165,7 +171,6 @@ public class FlameGraph<T> {
                 flameGraph.stopHover();
                 scrollPane.repaint();
             }
-
         }
 
         @Override
