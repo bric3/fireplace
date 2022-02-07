@@ -30,7 +30,7 @@ dependencies {
     implementation(projects.fireplaceSwingAnimation)
     implementation(libs.bundles.flatlaf)
     // implementation(libs.bundles.darklaf)
-    implementation("com.github.weisj:darklaf-platform-preferences:latest.integration")
+    implementation("com.github.weisj:darklaf-platform-preferences-jnf:latest.integration")
     implementation(libs.flightrecorder)
 
 //    implementation(libs.graal.sdk)
