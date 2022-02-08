@@ -21,6 +21,7 @@ import com.github.bric3.fireplace.ui.debug.CheckThreadViolationRepaintManager;
 import com.github.bric3.fireplace.ui.debug.EventDispatchThreadHangMonitor;
 import com.github.weisj.darklaf.LafManager;
 import com.github.weisj.darklaf.platform.ThemePreferencesHandler;
+import com.github.weisj.darklaf.theme.info.PreferredThemeStyle;
 import org.openjdk.jmc.common.item.IItem;
 import org.openjdk.jmc.common.item.IItemCollection;
 import org.openjdk.jmc.common.item.IItemIterable;
@@ -204,24 +205,14 @@ public class FirePlaceMain {
             //   - "system": use current macOS appearance (light or dark)
             //   - "NSAppearanceNameAqua": use light appearance
             //   - "NSAppearanceNameDarkAqua": use dark appearance
-//            System.setProperty("apple.awt.application.appearance", "NSAppearanceNameDarkAqua");
+            //            System.setProperty("apple.awt.application.appearance", "NSAppearanceNameDarkAqua");
             System.setProperty("apple.awt.application.appearance", "system");
         }
         ThemePreferencesHandler.getSharedInstance().enablePreferenceChangeReporting(true);
         Runtime.getRuntime().addShutdownHook(new Thread(() -> ThemePreferencesHandler.getSharedInstance().enablePreferenceChangeReporting(false)));
-        switch (LafManager.getPreferredThemeStyle().getColorToneRule()) {
-            case DARK:
-                FlatDarculaLaf.setup();
-                Colors.setDarkMode(true);
-                break;
-            case LIGHT:
-                FlatIntelliJLaf.setup();
-                Colors.setDarkMode(false);
-                break;
-        }
-        ThemePreferencesHandler.getSharedInstance().addThemePreferenceChangeListener(e -> SwingUtilities.invokeLater(() -> {
-            System.out.println(">>>> theme preference changed = " + LafManager.getPreferredThemeStyle());
-            switch (LafManager.getPreferredThemeStyle().getColorToneRule()) {
+        Consumer<PreferredThemeStyle> themeChanger = style -> {
+            System.out.println(">>>> theme preference changed = " + style);
+            switch (style.getColorToneRule()) {
                 case DARK:
                     FlatDarculaLaf.setup();
                     Colors.setDarkMode(true);
@@ -233,7 +224,11 @@ public class FirePlaceMain {
             }
             FlatLaf.updateUI();
             FlatAnimatedLafChange.hideSnapshotWithAnimation();
-        }));
+        };
+        themeChanger.accept(LafManager.getPreferredThemeStyle());
+        ThemePreferencesHandler.getSharedInstance().addThemePreferenceChangeListener(
+                e -> themeChanger.accept(e.getPreferredThemeStyle())
+        );
     }
 
     private static void updateTabContent(JTabbedPane jTabbedPane, JTextArea nativeLibs, JTextArea sysProps, IItemCollection events) {
