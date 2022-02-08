@@ -19,9 +19,7 @@ import com.github.bric3.fireplace.ui.JScrollPaneWithButton;
 import com.github.bric3.fireplace.ui.debug.AssertiveRepaintManager;
 import com.github.bric3.fireplace.ui.debug.CheckThreadViolationRepaintManager;
 import com.github.bric3.fireplace.ui.debug.EventDispatchThreadHangMonitor;
-import com.github.weisj.darklaf.LafManager;
 import com.github.weisj.darklaf.platform.ThemePreferencesHandler;
-import com.github.weisj.darklaf.theme.info.PreferredThemeStyle;
 import org.openjdk.jmc.common.item.IItem;
 import org.openjdk.jmc.common.item.IItemCollection;
 import org.openjdk.jmc.common.item.IItemIterable;
@@ -210,9 +208,10 @@ public class FirePlaceMain {
         }
         ThemePreferencesHandler.getSharedInstance().enablePreferenceChangeReporting(true);
         Runtime.getRuntime().addShutdownHook(new Thread(() -> ThemePreferencesHandler.getSharedInstance().enablePreferenceChangeReporting(false)));
-        Consumer<PreferredThemeStyle> themeChanger = style -> {
-            System.out.println(">>>> theme preference changed = " + style);
-            switch (style.getColorToneRule()) {
+
+        Runnable themeChanger = () -> {
+            System.out.println(">>>> theme preference changed = " + ThemePreferencesHandler.getSharedInstance().getPreferredThemeStyle());
+            switch (ThemePreferencesHandler.getSharedInstance().getPreferredThemeStyle().getColorToneRule()) {
                 case DARK:
                     FlatDarculaLaf.setup();
                     Colors.setDarkMode(true);
@@ -225,9 +224,9 @@ public class FirePlaceMain {
             FlatLaf.updateUI();
             FlatAnimatedLafChange.hideSnapshotWithAnimation();
         };
-        themeChanger.accept(LafManager.getPreferredThemeStyle());
+        themeChanger.run();
         ThemePreferencesHandler.getSharedInstance().addThemePreferenceChangeListener(
-                e -> themeChanger.accept(e.getPreferredThemeStyle())
+                e -> themeChanger.run()
         );
     }
 
