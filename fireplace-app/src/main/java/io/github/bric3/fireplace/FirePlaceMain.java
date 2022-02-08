@@ -253,8 +253,8 @@ public class FirePlaceMain {
         }
 
         void install() {
-            manager.enableReporting(true);
             SYNC_THEME_CHANGER.run();
+            manager.enableReporting(true);
         }
 
         void toggleSync(boolean sync) {
