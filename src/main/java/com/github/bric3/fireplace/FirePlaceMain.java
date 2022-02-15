@@ -117,55 +117,56 @@ public class FirePlaceMain {
             EventDispatchThreadHangMonitor.initMonitoring();
         }
 
-        var openedFileLabel = new JTextField(jfrFiles.get(0).getAbsolutePath());
-        openedFileLabel.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
-        openedFileLabel.setEditable(false);
-
-        var allocationFlameGraphPanel = new FlameGraphTab(() -> stackTraceAllocationFun(eventSupplier.get()));
-        var cpuFlameGraphPanel = new FlameGraphTab(() -> stackTraceCPUFun(eventSupplier.get()));
-        var nativeLibs = new JTextArea();
-        nativeLibs.addPropertyChangeListener("text", evt -> CompletableFuture.runAsync(() -> updateContent(nativeLibs, t -> t.setText(nativeLibraries(eventSupplier.get())))));
-        var sysProps = new JTextArea();
-        sysProps.addPropertyChangeListener("text", evt -> CompletableFuture.runAsync(() -> updateContent(sysProps, t -> t.setText(jvmSystemProperties(eventSupplier.get())))));
-
-        var jTabbedPane = new JTabbedPane();
-        jTabbedPane.addTab(SYSTEM_PROPERTIES, JScrollPaneWithButton.create(() -> new JScrollPane(sysProps)));
-        jTabbedPane.addTab(NATIVE_LIBRARIES, JScrollPaneWithButton.create(() -> new JScrollPane(nativeLibs)));
-        jTabbedPane.addTab(ALLOCATIONS, allocationFlameGraphPanel);
-        jTabbedPane.addTab(CPU, cpuFlameGraphPanel);
-        jTabbedPane.setTabPlacement(JTabbedPane.BOTTOM);
-//        jTabbedPane.setTabLayoutPolicy(JTabbedPane.SCROLL_TAB_LAYOUT);
-
-        jTabbedPane.addChangeListener(e -> updateTabContent(jTabbedPane, nativeLibs, sysProps, eventSupplier.get()));
-
-        var mainPanel = new JPanel(new BorderLayout());
-        mainPanel.add(openedFileLabel, BorderLayout.NORTH);
-        mainPanel.add(jTabbedPane, BorderLayout.CENTER);
-
-
-        var dimensionLabel = new JLabel("hello");
-        dimensionLabel.setVerticalAlignment(JLabel.CENTER);
-        dimensionLabel.setHorizontalAlignment(JLabel.CENTER);
-        dimensionLabel.setOpaque(true);
-        dimensionLabel.setBorder(BorderFactory.createLineBorder(Color.black));
-        var dimensionOverlayPanel = new JPanel(new BorderLayout());
-        dimensionOverlayPanel.add(dimensionLabel, BorderLayout.CENTER);
-        dimensionOverlayPanel.setBackground(new Color(0, 0, 0, 0));
-        dimensionOverlayPanel.setOpaque(false);
-        dimensionOverlayPanel.setVisible(false);
-        var textHeight = dimensionLabel.getFontMetrics(dimensionLabel.getFont()).getHeight();
-        dimensionOverlayPanel.setMaximumSize(new Dimension(100, textHeight + 10));
-        var panelHider = new Timer(2_000, e -> dimensionOverlayPanel.setVisible(false));
-        panelHider.setCoalesce(true);
-
-        var jLayeredPane = new JLayeredPane();
-        jLayeredPane.setLayout(new OverlayLayout(jLayeredPane));
-        jLayeredPane.setOpaque(false);
-        jLayeredPane.setVisible(true);
-        jLayeredPane.add(mainPanel, JLayeredPane.DEFAULT_LAYER);
-        jLayeredPane.add(dimensionOverlayPanel, JLayeredPane.POPUP_LAYER);
 
         SwingUtilities.invokeLater(() -> {
+            var openedFileLabel = new JTextField(jfrFiles.get(0).getAbsolutePath());
+            openedFileLabel.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
+            openedFileLabel.setEditable(false);
+
+            var allocationFlameGraphPanel = new FlameGraphTab(() -> stackTraceAllocationFun(eventSupplier.get()));
+            var cpuFlameGraphPanel = new FlameGraphTab(() -> stackTraceCPUFun(eventSupplier.get()));
+            var nativeLibs = new JTextArea();
+            nativeLibs.addPropertyChangeListener("text", evt -> CompletableFuture.runAsync(() -> updateContent(nativeLibs, t -> t.setText(nativeLibraries(eventSupplier.get())))));
+            var sysProps = new JTextArea();
+            sysProps.addPropertyChangeListener("text", evt -> CompletableFuture.runAsync(() -> updateContent(sysProps, t -> t.setText(jvmSystemProperties(eventSupplier.get())))));
+
+            var jTabbedPane = new JTabbedPane();
+            jTabbedPane.addTab(SYSTEM_PROPERTIES, JScrollPaneWithButton.create(() -> new JScrollPane(sysProps)));
+            jTabbedPane.addTab(NATIVE_LIBRARIES, JScrollPaneWithButton.create(() -> new JScrollPane(nativeLibs)));
+            jTabbedPane.addTab(ALLOCATIONS, allocationFlameGraphPanel);
+            jTabbedPane.addTab(CPU, cpuFlameGraphPanel);
+            jTabbedPane.setTabPlacement(JTabbedPane.BOTTOM);
+            //        jTabbedPane.setTabLayoutPolicy(JTabbedPane.SCROLL_TAB_LAYOUT);
+
+            jTabbedPane.addChangeListener(e -> updateTabContent(jTabbedPane, nativeLibs, sysProps, eventSupplier.get()));
+
+            var mainPanel = new JPanel(new BorderLayout());
+            mainPanel.add(openedFileLabel, BorderLayout.NORTH);
+            mainPanel.add(jTabbedPane, BorderLayout.CENTER);
+
+
+            var dimensionLabel = new JLabel("hello");
+            dimensionLabel.setVerticalAlignment(JLabel.CENTER);
+            dimensionLabel.setHorizontalAlignment(JLabel.CENTER);
+            dimensionLabel.setOpaque(true);
+            dimensionLabel.setBorder(BorderFactory.createLineBorder(Color.black));
+            var dimensionOverlayPanel = new JPanel(new BorderLayout());
+            dimensionOverlayPanel.add(dimensionLabel, BorderLayout.CENTER);
+            dimensionOverlayPanel.setBackground(new Color(0, 0, 0, 0));
+            dimensionOverlayPanel.setOpaque(false);
+            dimensionOverlayPanel.setVisible(false);
+            var textHeight = dimensionLabel.getFontMetrics(dimensionLabel.getFont()).getHeight();
+            dimensionOverlayPanel.setMaximumSize(new Dimension(100, textHeight + 10));
+            var panelHider = new Timer(2_000, e -> dimensionOverlayPanel.setVisible(false));
+            panelHider.setCoalesce(true);
+
+            var jLayeredPane = new JLayeredPane();
+            jLayeredPane.setLayout(new OverlayLayout(jLayeredPane));
+            jLayeredPane.setOpaque(false);
+            jLayeredPane.setVisible(true);
+            jLayeredPane.add(mainPanel, JLayeredPane.DEFAULT_LAYER);
+            jLayeredPane.add(dimensionOverlayPanel, JLayeredPane.POPUP_LAYER);
+
             var frame = new JFrame("FirePlace");
             setIcon(frame);
             frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -289,9 +290,10 @@ public class FirePlaceMain {
                 "jdk.ExecutionSample"
         )));
 
+        var invertedStacks = false;
         return new StacktraceTreeModel(allocCollection,
                                        methodFrameSeparator,
-                                       false
+                                       invertedStacks
 //                                      , JdkAttributes.SAMPLE_WEIGHT
         );
     }
