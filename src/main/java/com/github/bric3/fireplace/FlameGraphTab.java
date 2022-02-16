@@ -10,7 +10,9 @@
 package com.github.bric3.fireplace;
 
 import com.github.bric3.fireplace.flamegraph.FlameGraph;
+import com.github.bric3.fireplace.flamegraph.FrameColorMode;
 import com.github.bric3.fireplace.flamegraph.FrameNodeConverter;
+import com.github.bric3.fireplace.ui.Colors;
 import com.github.bric3.fireplace.ui.Colors.Palette;
 import org.openjdk.jmc.common.util.FormatToolkit;
 import org.openjdk.jmc.flightrecorder.stacktrace.tree.Node;
@@ -18,25 +20,27 @@ import org.openjdk.jmc.flightrecorder.stacktrace.tree.StacktraceTreeModel;
 
 import javax.swing.*;
 import java.awt.*;
+import java.awt.event.ActionListener;
 import java.util.List;
-import java.util.function.Supplier;
+import java.util.function.Function;
 
 import static java.util.stream.Collectors.joining;
 
 public class FlameGraphTab extends JPanel {
-    private final Supplier<StacktraceTreeModel> stacktraceTreeModelSupplier;
+    private static Palette defaultColorPalette = Palette.DATADOG;
+    private static JfrFrameColorMode defaultFrameColorMode = JfrFrameColorMode.BY_PACKAGE;
+    private static final boolean defaultPaintFrameBorder = true;
     private FlameGraph<Node> jfrFlameGraph;
 
-    public FlameGraphTab(Supplier<StacktraceTreeModel> stacktraceTreeModelSupplier) {
+    public FlameGraphTab() {
         super(new BorderLayout());
-        this.stacktraceTreeModelSupplier = Utils.memoize(stacktraceTreeModelSupplier);
 
-        jfrFlameGraph = createFlameGraph();
+        jfrFlameGraph = new FlameGraph<>();
         var wrapper = new JPanel(new BorderLayout());
         wrapper.add(jfrFlameGraph.component);
 
         var timer = new Timer(2_000, e -> {
-            createFlameGraph();
+            jfrFlameGraph = new FlameGraph<>();
             wrapper.removeAll();
             wrapper.add(jfrFlameGraph.component);
             wrapper.repaint(1_000);
@@ -55,25 +59,26 @@ public class FlameGraphTab extends JPanel {
         });
 
         var colorPaletteJComboBox = new JComboBox<>(Palette.values());
-        colorPaletteJComboBox.addActionListener(e -> {
-            jfrFlameGraph.setColorPalette((Palette) colorPaletteJComboBox.getSelectedItem());
-            jfrFlameGraph.requestRepaint();
-        });
-        colorPaletteJComboBox.setSelectedItem(jfrFlameGraph.flameGraphPainter.packageColorPalette);
-
+        colorPaletteJComboBox.setSelectedItem(defaultColorPalette);
         var colorModeJComboBox = new JComboBox<>(JfrFrameColorMode.values());
-        colorModeJComboBox.addActionListener(e -> {
-            jfrFlameGraph.setFrameColorMode((JfrFrameColorMode) colorModeJComboBox.getSelectedItem());
+        colorModeJComboBox.setSelectedItem(defaultFrameColorMode);
+
+        ActionListener actionListener = e -> {
+            jfrFlameGraph.setColorFunction(
+                    new JfrFrameColorer((Colors.Palette) colorPaletteJComboBox.getSelectedItem(),
+                                        (JfrFrameColorMode) colorModeJComboBox.getSelectedItem())
+            );
             jfrFlameGraph.requestRepaint();
-        });
-        colorModeJComboBox.setSelectedItem(jfrFlameGraph.flameGraphPainter.frameColorMode);
+        };
+        colorPaletteJComboBox.addActionListener(actionListener);
+        colorModeJComboBox.addActionListener(actionListener);
 
         var borderToggle = new JCheckBox("Border");
         borderToggle.addActionListener(e -> {
             jfrFlameGraph.setPaintFrameBorder(borderToggle.isSelected());
             jfrFlameGraph.requestRepaint();
         });
-        borderToggle.setSelected(jfrFlameGraph.flameGraphPainter.paintFrameBorder);
+        borderToggle.setSelected(defaultPaintFrameBorder);
 
         var controlPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         controlPanel.add(colorPaletteJComboBox);
@@ -86,33 +91,55 @@ public class FlameGraphTab extends JPanel {
         add(wrapper, BorderLayout.CENTER);
     }
 
-    private FlameGraph<Node> createFlameGraph() {
-        jfrFlameGraph = new FlameGraph<>(
-                // TODO make this configurable, to lazily (re)configure the flaemgraph
-                FrameNodeConverter.convert(this.stacktraceTreeModelSupplier.get()),
+    public FlameGraphTab(Supplier<StacktraceTreeModel> stacktraceTreeModelSupplier) {
+        this();
+        setStacktraceTreeModel(stacktraceTreeModel.get());
+    }
+
+    static class JfrFrameColorer implements Function<Node, Color> {
+        private final FrameColorMode<Node> frameColorMode;
+        private final Colors.Palette colorPalette;
+
+        public JfrFrameColorer(Colors.Palette colorPalette, JfrFrameColorMode frameColorMode) {
+            this.colorPalette = colorPalette;
+            this.frameColorMode = frameColorMode;
+        }
+
+        @Override
+        public Color apply(Node node) {
+            return this.frameColorMode.getColor(this.colorPalette, node);
+        }
+    }
+
+    public void setStacktraceTreeModel(StacktraceTreeModel stackTraceTreeModel) {
+        jfrFlameGraph.setStacktraceTree(
+                FrameNodeConverter.convert(stackTraceTreeModel),
                 List.of(
                         node -> node.getFrame().getHumanReadableShortString(),
                         node -> node.getFrame().getMethod().getMethodName()
                 ),
                 node -> {
-                    var events = this.stacktraceTreeModelSupplier.get().getItems()
-                                                                 .stream()
-                                                                 .map(iItems -> iItems.getType().getIdentifier())
-                                                                 .collect(joining(", "));
-                    var str = "all (" + events + ")";
-                    return str;
+                    var events = stackTraceTreeModel.getItems()
+                                                    .stream()
+                                                    .map(iItems -> iItems.getType().getIdentifier())
+                                                    .collect(joining(", "));
+                    return "all (" + events + ")";
                 },
-                node -> jfrFlameGraph.flameGraphPainter.frameColorMode.getColor(
-                        jfrFlameGraph.flameGraphPainter.packageColorPalette,
-                        node
-                ),
+                new JfrFrameColorer(defaultColorPalette, defaultFrameColorMode),
                 frame -> {
                     if (frame.stackDepth == 0) {
                         return "";
                     }
 
                     var method = frame.jfrNode.getFrame().getMethod();
-                    var desc = FormatToolkit.getHumanReadable(method, false, false, true, true, true, false, false);
+                    var desc = FormatToolkit.getHumanReadable(method,
+                                                              false,
+                                                              false,
+                                                              true,
+                                                              true,
+                                                              true,
+                                                              false,
+                                                              false);
 
                     return "<html>"
                            + "<b>" + frame.jfrNode.getFrame().getHumanReadableShortString() + "</b><br>"
@@ -120,10 +147,7 @@ public class FlameGraphTab extends JPanel {
                            + frame.jfrNode.getCumulativeWeight() + " " + frame.jfrNode.getWeight() + "<br>"
                            + "BCI: " + frame.jfrNode.getFrame().getBCI() + " Line number: " + frame.jfrNode.getFrame().getFrameLineNumber() + "<br>"
                            + "</html>";
-                },
-                JfrFrameColorMode.BY_PACKAGE
+                }
         );
-        return jfrFlameGraph;
     }
-
 }

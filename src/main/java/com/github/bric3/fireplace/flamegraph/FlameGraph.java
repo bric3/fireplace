@@ -11,7 +11,6 @@ package com.github.bric3.fireplace.flamegraph;
 
 import com.github.bric3.fireplace.ui.BalloonToolTip;
 import com.github.bric3.fireplace.ui.Colors;
-import com.github.bric3.fireplace.ui.Colors.Palette;
 import com.github.bric3.fireplace.ui.JScrollPaneWithButton;
 import com.github.bric3.fireplace.ui.MouseInputListenerWorkaroundForToolTipEnabledComponent;
 
@@ -23,37 +22,31 @@ import java.awt.event.MouseEvent;
 import java.awt.geom.Area;
 import java.awt.image.BufferedImage;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 
 public class FlameGraph<T> {
-    public final FlameGraphPainter<T> flameGraphPainter;
     private final FlameGraphCanvas<T> canvas;
     public final JComponent component;
 
-    public FlameGraph(List<FrameBox<T>> framesSupplier,
-                      List<Function<T, String>> frameToStringCandidates,
-                      Function<T, String> rootFrameToString,
-                      Function<T, Color> frameColorFunction,
-                      Function<FrameBox<T>, String> extractToolTip,
-                      FrameColorMode<T> frameColorMode
-    ) {
-        flameGraphPainter = new FlameGraphPainter<T>(
-                framesSupplier,
-                frameToStringCandidates,
-                rootFrameToString,
-                frameColorFunction,
-                frameColorMode
-        );
-        canvas = new FlameGraphCanvas<>(flameGraphPainter);
+    public FlameGraph() {
+        canvas = new FlameGraphCanvas<>();
         ToolTipManager.sharedInstance().registerComponent(canvas);
 
         component = JScrollPaneWithButton.create(
                 () -> {
                     var scrollPane = new JScrollPane(canvas);
+                    // Code to tweak the actions
+                    // https://stackoverflow.com/a/71009104/48136
+                    // see javax.swing.plaf.basic.BasicScrollPaneUI.Actions
+                    //                    var actionMap = scrollPane.getActionMap();
+                    //                    var inputMap = scrollPane.getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT);
+                    // var inputMap = scrollPane.getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT);
+
                     scrollPane.getVerticalScrollBar().setUnitIncrement(16);
                     scrollPane.getHorizontalScrollBar().setUnitIncrement(16);
-                    new FGMouseInputListener<>(canvas, flameGraphPainter, extractToolTip).install(scrollPane);
+                    new FGMouseInputListener<>(canvas).install(scrollPane);
                     new MouseInputListenerWorkaroundForToolTipEnabledComponent(scrollPane).install(canvas);
                     canvas.linkListenerTo(scrollPane);
 
@@ -62,16 +55,31 @@ public class FlameGraph<T> {
         );
     }
 
-    public void setColorPalette(Palette colorPalette) {
-        flameGraphPainter.packageColorPalette = colorPalette;
-    }
-
-    public void setFrameColorMode(FrameColorMode<T> colorMode) {
-        flameGraphPainter.frameColorMode = colorMode;
+    public void setColorFunction(Function<T, Color> frameColorFunction) {
+        this.canvas.getFlameGraphPainter()
+                   .ifPresent(fgp -> fgp.frameColorFunction = frameColorFunction);
     }
 
     public void setPaintFrameBorder(boolean paintFrameBorder) {
-        flameGraphPainter.paintFrameBorder = paintFrameBorder;
+        canvas.getFlameGraphPainter()
+              .ifPresent(fgp -> fgp.paintFrameBorder = paintFrameBorder);
+    }
+
+    public void setStacktraceTree(List<FrameBox<T>> frames,
+                                  List<Function<T, String>> frameToStringCandidates,
+                                  Function<T, String> rootFrameToString,
+                                  Function<T, Color> frameColorFunction,
+                                  Function<FrameBox<T>, String> tooltipTextFunction) {
+        var flameGraphPainter = new FlameGraphPainter<>(
+                frames,
+                frameToStringCandidates,
+                rootFrameToString,
+                frameColorFunction
+        );
+
+        canvas.setFlameGraphPainter(flameGraphPainter);
+        canvas.setToolTipTextFunction(tooltipTextFunction);
+        canvas.invalidate();
     }
 
     public void requestRepaint() {
@@ -82,13 +90,9 @@ public class FlameGraph<T> {
     static class FGMouseInputListener<T> implements MouseInputListener {
         private Point pressedPoint;
         private final FlameGraphCanvas<T> canvas;
-        private final FlameGraphPainter<T> flameGraph;
-        private final Function<FrameBox<T>, String> extractToolTip;
 
-        public FGMouseInputListener(FlameGraphCanvas<T> canvas, FlameGraphPainter<T> flameGraph, Function<FrameBox<T>, String> extractToolTip) {
+        public FGMouseInputListener(FlameGraphCanvas<T> canvas) {
             this.canvas = canvas;
-            this.flameGraph = flameGraph;
-            this.extractToolTip = extractToolTip;
         }
 
         @Override
@@ -135,22 +139,26 @@ public class FlameGraph<T> {
             }
 
             if (e.getClickCount() == 2) {
-                flameGraph.zoomToFrameAt(
-                        (Graphics2D) viewPort.getView().getGraphics(),
-                        point
-                ).ifPresent(zoomPoint -> {
-                    scrollPane.revalidate();
-                    EventQueue.invokeLater(() -> viewPort.setViewPosition(zoomPoint));
-                });
+                canvas.getFlameGraphPainter()
+                      .ifPresent(fgp -> {
+                          fgp.zoomToFrameAt(
+                                  (Graphics2D) viewPort.getView().getGraphics(),
+                                  point
+                          ).ifPresent(zoomPoint -> {
+                              scrollPane.revalidate();
+                              EventQueue.invokeLater(() -> viewPort.setViewPosition(zoomPoint));
+                          });
+                      });
 
                 return;
             }
 
             if ((e.getSource() instanceof JScrollPane)) {
-                flameGraph.toggleSelectedFrameAt(
-                        (Graphics2D) viewPort.getView().getGraphics(),
-                        point
-                );
+                canvas.getFlameGraphPainter()
+                      .ifPresent(fgp -> fgp.toggleSelectedFrameAt(
+                              (Graphics2D) viewPort.getView().getGraphics(),
+                              point
+                      ));
 
                 scrollPane.repaint();
             }
@@ -168,7 +176,8 @@ public class FlameGraph<T> {
         public void mouseExited(MouseEvent e) {
             if ((e.getSource() instanceof JScrollPane)) {
                 var scrollPane = (JScrollPane) e.getComponent();
-                flameGraph.stopHover();
+                canvas.getFlameGraphPainter()
+                      .ifPresent(FlameGraphPainter::stopHover);
                 scrollPane.repaint();
             }
         }
@@ -185,11 +194,12 @@ public class FlameGraph<T> {
                 return;
             }
 
-            flameGraph.hoverFrameAt(
-                    (Graphics2D) view.getGraphics(),
-                    point,
-                    frame -> view.setToolTipText(extractToolTip.apply(frame))
-            );
+            canvas.getFlameGraphPainter()
+                  .ifPresent(fgp -> fgp.hoverFrameAt(
+                          (Graphics2D) view.getGraphics(),
+                          point,
+                          canvas::setToolTipText
+                  ));
 
             scrollPane.repaint();
         }
@@ -198,19 +208,22 @@ public class FlameGraph<T> {
             sp.addMouseListener(this);
             sp.addMouseMotionListener(this);
         }
-
     }
 
     private static class FlameGraphCanvas<T> extends JPanel {
         private Image minimap;
         private BalloonToolTip toolTip;
-        private final FlameGraphPainter<T> flameGraphPainter;
+        private FlameGraphPainter<T> flameGraphPainter;
+        private Function<FrameBox<T>, String> tooltipTextFunction;
         private Dimension flameGraphDimension;
         private int minimapWidth = 200;
         private int minimapHeight = 100;
         private int minimapInset = 10;
         private int minimapRadius = 10;
         private Point minimapLocation = new Point(50, 50);
+
+        public FlameGraphCanvas() {
+        }
 
         public FlameGraphCanvas(FlameGraphPainter<T> flameGraphPainter) {
             this.flameGraphPainter = flameGraphPainter;
@@ -229,38 +242,46 @@ public class FlameGraph<T> {
 
         @Override
         public Dimension getPreferredSize() {
-            Dimension d = super.getPreferredSize();
-            d = (d == null) ? new Dimension(400, 400) : d;
+            Dimension defaultDimension = super.getPreferredSize();
+            defaultDimension = (defaultDimension == null) ? new Dimension(100, 50) : defaultDimension;
+
+            if (flameGraphPainter == null) {
+                return defaultDimension;
+            }
 
             Insets insets = getInsets();
             var flameGraphDimension = flameGraphPainter.computeFlameGraphDimension((Graphics2D) getGraphics(),
                                                                                    getVisibleRect(),
                                                                                    insets
             );
-            d.width = Math.max(d.width, flameGraphDimension.width + insets.left + insets.right);
-            d.height = Math.max(d.height, flameGraphDimension.height + insets.top + insets.bottom);
+            defaultDimension.width = Math.max(defaultDimension.width, flameGraphDimension.width + insets.left + insets.right);
+            defaultDimension.height = Math.max(defaultDimension.height, flameGraphDimension.height + insets.top + insets.bottom);
 
             // When the preferred size is discovered, also set the actual
             // canvas size, as it is needed during `viewPort.setViewPosition`
             // if it is not then the viewport will not be able to scroll to the
             // right frame when the flamegraph is zoomed (ie its dimensions
             // change)
-            setSize(d);
+            setSize(defaultDimension);
 
             // trigger minimap generation
             if (!flameGraphDimension.equals(this.flameGraphDimension)) {
                 triggerMinimapGeneration();
             }
             this.flameGraphDimension = flameGraphDimension;
-            return d;
+            return defaultDimension;
         }
 
         @Override
         protected void paintComponent(Graphics g) {
             super.paintComponent(g);
+            if (flameGraphPainter == null) {
+                new JLabel("No data to display").paint(g);
+                return;
+            }
+
             var visibleRect = getVisibleRect();
             flameGraphPainter.paint((Graphics2D) g, visibleRect);
-
             paintMinimap(g, visibleRect);
         }
 
@@ -326,6 +347,13 @@ public class FlameGraph<T> {
             return rectangle.contains(point);
         }
 
+        public void setToolTipText(FrameBox<T> frame) {
+            if (tooltipTextFunction == null) {
+                return;
+            }
+            setToolTipText(tooltipTextFunction.apply(frame));
+        }
+
         @Override
         public JToolTip createToolTip() {
             if (toolTip == null) {
@@ -338,6 +366,10 @@ public class FlameGraph<T> {
 
 
         private void triggerMinimapGeneration() {
+            if (flameGraphPainter == null) {
+                return;
+            }
+
             CompletableFuture.runAsync(() -> {
                 var height = flameGraphPainter.computeFlameGraphMinimapHeight(minimapWidth);
                 if (height == 0) {
@@ -365,7 +397,7 @@ public class FlameGraph<T> {
             });
         }
 
-        public void setImage(BufferedImage i) {
+        private void setImage(BufferedImage i) {
             this.minimap = i.getScaledInstance(minimapWidth, minimapHeight, Image.SCALE_SMOOTH);
             var visibleRect = getVisibleRect();
 
@@ -388,6 +420,10 @@ public class FlameGraph<T> {
                 }
 
                 private void processMinimapMouseEvent(MouseEvent e) {
+                    if (flameGraphDimension == null) {
+                        return;
+                    }
+
                     var pt = e.getPoint();
                     if (!(e.getComponent() instanceof FlameGraph.FlameGraphCanvas)) {
                         return;
@@ -417,6 +453,18 @@ public class FlameGraph<T> {
             };
             this.addMouseListener(mouseAdapter);
             this.addMouseMotionListener(mouseAdapter);
+        }
+
+        public void setFlameGraphPainter(FlameGraphPainter<T> flameGraphPainter) {
+            this.flameGraphPainter = flameGraphPainter;
+        }
+
+        public Optional<FlameGraphPainter<T>> getFlameGraphPainter() {
+            return Optional.ofNullable(flameGraphPainter);
+        }
+
+        public void setToolTipTextFunction(Function<FrameBox<T>, String> tooltipTextFunction) {
+            this.tooltipTextFunction = tooltipTextFunction;
         }
     }
 }

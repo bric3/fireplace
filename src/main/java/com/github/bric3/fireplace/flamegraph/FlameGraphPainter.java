@@ -10,7 +10,6 @@
 package com.github.bric3.fireplace.flamegraph;
 
 import com.github.bric3.fireplace.ui.Colors;
-import com.github.bric3.fireplace.ui.Colors.Palette;
 
 import java.awt.*;
 import java.awt.geom.Rectangle2D;
@@ -20,8 +19,6 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 
 public class FlameGraphPainter<T> {
-    public FrameColorMode<T> frameColorMode;
-    public Palette packageColorPalette = Palette.DATADOG;
     public Color highlightedColor;
     public Color frameBorderColor;
     public boolean paintFrameBorder = true;
@@ -32,7 +29,7 @@ public class FlameGraphPainter<T> {
     private int visibleDepth;
     private final int textBorder = 2;
     private final int frameWidthVisibilityThreshold = 4;
-    private int minimapFrameBoxHeight = 1;
+    private final int minimapFrameBoxHeight = 1;
 
     private FrameBox<T> hoveredFrame;
     private FrameBox<T> selectedFrame;
@@ -46,7 +43,7 @@ public class FlameGraphPainter<T> {
     private final List<Function<T, String>> nodeToTextCandidates;
     // handle root node
     private final Function<T, String> rootFrameToText;
-    private final Function<T, Color> frameColorFunction;
+    Function<T, Color> frameColorFunction;
     private int internalPadding = 2;
     private boolean paintDetails = true;
 
@@ -54,15 +51,13 @@ public class FlameGraphPainter<T> {
     public FlameGraphPainter(List<FrameBox<T>> frames,
                              List<Function<T, String>> nodeToTextCandidates,
                              Function<T, String> rootFrameToText,
-                             Function<T, Color> frameColorFunction,
-                             FrameColorMode<T> frameColorMode) {
+                             Function<T, Color> frameColorFunction) {
         this.frames = frames;
         this.depth = this.frames.stream().mapToInt(fb -> fb.stackDepth).max().orElse(0);
         visibleDepth = depth;
         this.nodeToTextCandidates = nodeToTextCandidates;
         this.rootFrameToText = rootFrameToText;
         this.frameColorFunction = frameColorFunction;
-        this.frameColorMode = frameColorMode;
         updateUI();
     }
 
