@@ -20,15 +20,6 @@ import com.github.bric3.fireplace.ui.debug.AssertiveRepaintManager;
 import com.github.bric3.fireplace.ui.debug.CheckThreadViolationRepaintManager;
 import com.github.bric3.fireplace.ui.debug.EventDispatchThreadHangMonitor;
 import com.github.weisj.darklaf.platform.ThemePreferencesHandler;
-import org.openjdk.jmc.common.item.IItem;
-import org.openjdk.jmc.common.item.IItemCollection;
-import org.openjdk.jmc.common.item.IType;
-import org.openjdk.jmc.common.item.ItemFilters;
-import org.openjdk.jmc.common.item.ItemToolkit;
-import org.openjdk.jmc.flightrecorder.jdk.JdkAttributes;
-import org.openjdk.jmc.flightrecorder.stacktrace.FrameSeparator;
-import org.openjdk.jmc.flightrecorder.stacktrace.FrameSeparator.FrameCategorization;
-import org.openjdk.jmc.flightrecorder.stacktrace.tree.StacktraceTreeModel;
 
 import javax.swing.*;
 import java.awt.*;
@@ -38,11 +29,9 @@ import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.time.Clock;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Objects;
-import java.util.Set;
-import java.util.function.Consumer;
 
 import static java.util.stream.Collectors.toUnmodifiableList;
 
@@ -73,34 +62,12 @@ public class FirePlaceMain {
             System.exit(1);
         }
 
-
-        //        var jfrFiles = paths.stream()
-        //                            .peek(path -> System.out.println("Loading " + path))
-        //                            .map(Path::toFile)
-        //                            .collect(toUnmodifiableList());
-        //        var eventSupplier = Utils.memoize(() -> CompletableFuture.supplyAsync(() -> {
-        //            IItemCollection events = null;
-        //            try {
-        //                events = JfrLoaderToolkit.loadEvents(jfrFiles);
-        //            } catch (IOException e1) {
-        //                throw new UncheckedIOException(e1);
-        //            } catch (CouldNotLoadRecordingException e1) {
-        //                throw new RuntimeException(e1);
-        //            }
-        //            events.stream()
-        //                  .flatMap(IItemIterable::stream)
-        //                  .map(IItem::getType)
-        //                  .map(IType::getIdentifier)
-        //                  .distinct()
-        //                  .forEach(System.out::println);
-        //
-        //            return events;
-        //        }).join());
-
-        //        otherEvents(events);
-
         var jfrBinder = new JFRBinder();
 
+        initUI(paths, jfrBinder);
+    }
+
+    private static void initUI(List<Path> paths, JFRBinder jfrBinder) {
         setupLaF();
         if (Boolean.getBoolean("fireplace.swing.debug")) {
             if (Objects.equals(System.getProperty("fireplace.swing.debug.thread.violation.checker"), "IJ")) {
@@ -120,19 +87,19 @@ public class FirePlaceMain {
 
             var allocationFlameGraphPanel = new FlameGraphTab();
             {
-                jfrBinder.bindEvents(FirePlaceMain::stackTraceAllocationFun, allocationFlameGraphPanel::setStacktraceTreeModel);
+                jfrBinder.bindEvents(JfrAnalyzer::stackTraceAllocationFun, allocationFlameGraphPanel::setStacktraceTreeModel);
             }
             var cpuFlameGraphPanel = new FlameGraphTab();
             {
-                jfrBinder.bindEvents(FirePlaceMain::stackTraceCPUFun, cpuFlameGraphPanel::setStacktraceTreeModel);
+                jfrBinder.bindEvents(JfrAnalyzer::stackTraceCPUFun, cpuFlameGraphPanel::setStacktraceTreeModel);
             }
             var nativeLibs = new JTextArea();
             {
-                jfrBinder.bindEvents(FirePlaceMain::nativeLibraries, nativeLibs::setText);
+                jfrBinder.bindEvents(JfrAnalyzer::nativeLibraries, nativeLibs::setText);
             }
             var sysProps = new JTextArea();
             {
-                jfrBinder.bindEvents(FirePlaceMain::jvmSystemProperties, sysProps::setText);
+                jfrBinder.bindEvents(JfrAnalyzer::jvmSystemProperties, sysProps::setText);
             }
             var jTabbedPane = new JTabbedPane();
             {
@@ -141,10 +108,6 @@ public class FirePlaceMain {
                 jTabbedPane.addTab(ALLOCATIONS, allocationFlameGraphPanel);
                 jTabbedPane.addTab(CPU, cpuFlameGraphPanel);
                 jTabbedPane.setTabPlacement(JTabbedPane.BOTTOM);
-                // jTabbedPane.setTabLayoutPolicy(JTabbedPane.SCROLL_TAB_LAYOUT);
-
-                // TODO call binder
-                // jTabbedPane.addChangeListener(e -> updateTabContent(jTabbedPane, nativeLibs, sysProps, eventSupplier.get()));
             }
 
             var mainPanel = new JPanel(new BorderLayout());
@@ -200,7 +163,6 @@ public class FirePlaceMain {
 
 
             frame.getGraphicsConfiguration(); // get active screen
-            //            SwingUtilities.invokeLater(() -> updateTabContent(jTabbedPane, nativeLibs, sysProps, eventSupplier.get()));
         });
     }
 
@@ -245,117 +207,6 @@ public class FirePlaceMain {
         ThemePreferencesHandler.getSharedInstance().addThemePreferenceChangeListener(
                 e -> themeChanger.run()
         );
-    }
-
-    private static void updateTabContent(JTabbedPane jTabbedPane, JTextArea nativeLibs, JTextArea sysProps, IItemCollection events) {
-        switch (jTabbedPane.getTitleAt(jTabbedPane.getSelectedIndex())) {
-            case SYSTEM_PROPERTIES:
-                sysProps.firePropertyChange("text", -1, Clock.systemUTC().millis());
-                break;
-
-            case NATIVE_LIBRARIES:
-                nativeLibs.firePropertyChange("text", -1, Clock.systemUTC().millis());
-                break;
-
-            case ALLOCATIONS:
-            case CPU:
-            default:
-        }
-    }
-
-    private static <T extends JComponent> void updateContent(T sysProps, Consumer<T> updater) {
-        if (sysProps.getClientProperty("UP_TO_DATE") == null) {
-            updater.accept(sysProps);
-            sysProps.putClientProperty("UP_TO_DATE", true);
-        }
-    }
-
-    private static StacktraceTreeModel stackTraceAllocationFun(IItemCollection events) {
-        var methodFrameSeparator = new FrameSeparator(FrameCategorization.METHOD, false);
-
-        var allocCollection = events.apply(ItemFilters.type(Set.of(
-                "jdk.ObjectAllocationInNewTLAB",
-                "jdk.ObjectAllocationOutsideTLAB"
-        )));
-
-        return new StacktraceTreeModel(allocCollection,
-                                       methodFrameSeparator,
-                                       false
-                                       //                                       , JdkAttributes.ALLOCATION_SIZE
-        );
-
-
-        //        allocCollection.forEach(eventsCollection -> {
-        //            var stackAccessor = eventsCollection.getType().getAccessor(JfrAttributes.EVENT_STACKTRACE.getKey());
-        //            eventsCollection.stream().limit(10).forEach(item -> {
-        //                var stack = stackAccessor.getMember(item);
-        //
-        //                if (stack == null || stack.getFrames() == null) {
-        //                    return;
-        //                }
-        //
-        //
-        //            });
-        //        });
-    }
-
-    private static StacktraceTreeModel stackTraceCPUFun(IItemCollection events) {
-        var methodFrameSeparator = new FrameSeparator(FrameCategorization.METHOD, false);
-
-        var allocCollection = events.apply(ItemFilters.type(Set.of(
-                "jdk.ExecutionSample"
-        )));
-
-        var invertedStacks = false;
-        return new StacktraceTreeModel(allocCollection,
-                                       methodFrameSeparator,
-                                       invertedStacks
-                                       //                                      , JdkAttributes.SAMPLE_WEIGHT
-        );
-    }
-
-    private static void otherEvents(IItemCollection events) {
-        events.apply(ItemFilters.type(Set.of(
-                "jdk.CPUInformation",
-                "jdk.OSInformation",
-                "jdk.ActiveRecording",
-                //                "jdk.ActiveSetting", // async profiler settings ?
-                "jdk.JVMInformation"
-        ))).forEach(eventsCollection -> {
-            eventsCollection.stream().limit(10).forEach(event -> {
-                System.out.println("\n" + event.getType().getIdentifier());
-                IType<IItem> itemType = ItemToolkit.getItemType(event);
-                itemType.getAccessorKeys().keySet().forEach((accessorKey) -> {
-                    System.out.println(accessorKey.getIdentifier() + "=" + itemType.getAccessor(accessorKey).getMember(event));
-                });
-            });
-        });
-    }
-
-    private static String jvmSystemProperties(IItemCollection events) {
-        var stringBuilder = new StringBuilder();
-
-        events.apply(ItemFilters.type(Set.of(
-                "jdk.InitialSystemProperty"
-        ))).forEach(eventsCollection -> {
-            var keyAccessor = eventsCollection.getType().getAccessor(JdkAttributes.ENVIRONMENT_KEY.getKey());
-            var valueAccessor = eventsCollection.getType().getAccessor(JdkAttributes.ENVIRONMENT_VALUE.getKey());
-            eventsCollection.stream().forEach(event -> stringBuilder.append(keyAccessor.getMember(event)).append(" = ").append(valueAccessor.getMember(event)).append("\n"));
-        });
-
-        return stringBuilder.toString();
-    }
-
-    private static String nativeLibraries(IItemCollection events) {
-        var stringBuilder = new StringBuilder();
-
-        events.apply(ItemFilters.type(Set.of(
-                "jdk.NativeLibrary"
-        ))).forEach(eventsCollection -> {
-            var nativeLibNameAccessor = eventsCollection.getType().getAccessor(JdkAttributes.NATIVE_LIBRARY_NAME.getKey());
-            eventsCollection.stream().forEach(event -> stringBuilder.append(nativeLibNameAccessor.getMember(event)).append("\n"));
-        });
-        return stringBuilder.toString();
     }
 
     private static void setIcon(JFrame jFrame) {
