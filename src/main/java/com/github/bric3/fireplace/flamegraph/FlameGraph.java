@@ -46,7 +46,7 @@ public class FlameGraph<T> {
 
                     scrollPane.getVerticalScrollBar().setUnitIncrement(16);
                     scrollPane.getHorizontalScrollBar().setUnitIncrement(16);
-                    new FGMouseInputListener<>(canvas).install(scrollPane);
+                    new FlameGraphMouseInputListener<>(canvas).install(scrollPane);
                     new MouseInputListenerWorkaroundForToolTipEnabledComponent(scrollPane).install(canvas);
                     canvas.linkListenerTo(scrollPane);
 
@@ -87,11 +87,11 @@ public class FlameGraph<T> {
         canvas.triggerMinimapGeneration();
     }
 
-    static class FGMouseInputListener<T> implements MouseInputListener {
+    static class FlameGraphMouseInputListener<T> implements MouseInputListener {
         private Point pressedPoint;
         private final FlameGraphCanvas<T> canvas;
 
-        public FGMouseInputListener(FlameGraphCanvas<T> canvas) {
+        public FlameGraphMouseInputListener(FlameGraphCanvas<T> canvas) {
             this.canvas = canvas;
         }
 
@@ -139,16 +139,13 @@ public class FlameGraph<T> {
             }
 
             if (e.getClickCount() == 2) {
-                canvas.getFlameGraphPainter()
-                      .ifPresent(fgp -> {
-                          fgp.zoomToFrameAt(
-                                  (Graphics2D) viewPort.getView().getGraphics(),
-                                  point
-                          ).ifPresent(zoomPoint -> {
-                              scrollPane.revalidate();
-                              EventQueue.invokeLater(() -> viewPort.setViewPosition(zoomPoint));
-                          });
-                      });
+                canvas.getFlameGraphPainter().flatMap(fgp -> fgp.zoomToFrameAt(
+                        (Graphics2D) viewPort.getView().getGraphics(),
+                        point
+                )).ifPresent(zoomPoint -> {
+                    scrollPane.revalidate();
+                    EventQueue.invokeLater(() -> viewPort.setViewPosition(zoomPoint));
+                });
 
                 return;
             }
@@ -276,7 +273,10 @@ public class FlameGraph<T> {
         protected void paintComponent(Graphics g) {
             super.paintComponent(g);
             if (flameGraphPainter == null) {
-                new JLabel("No data to display").paint(g);
+                var noData = new JLabel("No data to display");
+                noData.setBorder(BorderFactory.createEmptyBorder(50, 50, 50, 50));
+                noData.setBounds(getBounds());
+                noData.paint(g);
                 return;
             }
 
