@@ -91,9 +91,9 @@ public class FlameGraphTab extends JPanel {
         add(wrapper, BorderLayout.CENTER);
     }
 
-    public FlameGraphTab(Supplier<StacktraceTreeModel> stacktraceTreeModelSupplier) {
+    public FlameGraphTab(StacktraceTreeModel stacktraceTreeModel) {
         this();
-        setStacktraceTreeModel(stacktraceTreeModel.get());
+        setStacktraceTreeModel(stacktraceTreeModel);
     }
 
     static class JfrFrameColorer implements Function<Node, Color> {
