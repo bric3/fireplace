@@ -23,6 +23,11 @@ import com.github.weisj.darklaf.platform.ThemePreferencesHandler;
 
 import javax.swing.*;
 import java.awt.*;
+import java.awt.datatransfer.DataFlavor;
+import java.awt.dnd.DropTargetAdapter;
+import java.awt.dnd.DropTargetDragEvent;
+import java.awt.dnd.DropTargetDropEvent;
+import java.awt.dnd.DropTargetEvent;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
 import java.awt.event.WindowAdapter;
@@ -32,6 +37,7 @@ import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
+import java.util.TooManyListenersException;
 
 import static java.util.stream.Collectors.toUnmodifiableList;
 
@@ -82,6 +88,7 @@ public class FirePlaceMain {
             {
                 openedFileLabel.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
                 openedFileLabel.setEditable(false);
+                openedFileLabel.setDragEnabled(false);
                 jfrBinder.bindPaths(p -> openedFileLabel.setText(p.get(0).toAbsolutePath().toString()));
             }
 
@@ -95,10 +102,12 @@ public class FirePlaceMain {
             }
             var nativeLibs = new JTextArea();
             {
+                nativeLibs.setEditable(false);
                 jfrBinder.bindEvents(JfrAnalyzer::nativeLibraries, nativeLibs::setText);
             }
             var sysProps = new JTextArea();
             {
+                sysProps.setEditable(false);
                 jfrBinder.bindEvents(JfrAnalyzer::jvmSystemProperties, sysProps::setText);
             }
             var jTabbedPane = new JTabbedPane();
@@ -130,19 +139,71 @@ public class FirePlaceMain {
             var panelHider = new Timer(2_000, e -> dimensionOverlayPanel.setVisible(false));
             panelHider.setCoalesce(true);
 
+            var hudPanel = new JPanel() {
+                @Override
+                protected void paintComponent(Graphics g) {
+                    var g2 = (Graphics2D) g;
+                    g2.setColor(Colors.translucent_black_80);
+                    g2.fillRect(0, 0, getWidth(), getHeight());
+                }
+            };
+            hudPanel.setOpaque(false);
+            hudPanel.setVisible(false);
+
             var jLayeredPane = new JLayeredPane();
             jLayeredPane.setLayout(new OverlayLayout(jLayeredPane));
             jLayeredPane.setOpaque(false);
             jLayeredPane.setVisible(true);
             jLayeredPane.add(mainPanel, JLayeredPane.DEFAULT_LAYER);
-            jLayeredPane.add(dimensionOverlayPanel, JLayeredPane.POPUP_LAYER);
+            jLayeredPane.add(dimensionOverlayPanel, JLayeredPane.PALETTE_LAYER);
+            jLayeredPane.add(hudPanel, JLayeredPane.MODAL_LAYER);
+
+            jLayeredPane.setTransferHandler(new JfrFilesDropHandler(jfrBinder::load));
+            hudPanel.setTransferHandler(new JfrFilesDropHandler(jfrBinder::load));
+
+            try {
+                jLayeredPane.getDropTarget().addDropTargetListener(new DropTargetAdapter() {
+                    @Override
+                    public void dragEnter(DropTargetDragEvent dtde) {
+                        var dataFlavorSupported = dtde.isDataFlavorSupported(DataFlavor.javaFileListFlavor);
+
+                        System.out.println("data flavor supported: " + dataFlavorSupported);
+                        if (dataFlavorSupported) {
+                            hudPanel.setVisible(true);
+                        }
+                    }
+
+                    @Override
+                    public void drop(DropTargetDropEvent dtde) {
+                        // no-op
+                    }
+                });
+                hudPanel.getDropTarget().addDropTargetListener(new DropTargetAdapter() {
+                    @Override
+                    public void dragExit(DropTargetEvent dte) {
+                        hudPanel.setVisible(false);
+                    }
+
+                    @Override
+                    public void drop(DropTargetDropEvent dtde) {
+                        hudPanel.setVisible(false);
+                    }
+
+                    @Override
+                    public void dropActionChanged(DropTargetDragEvent dtde) {
+                        hudPanel.setVisible(false);
+                    }
+                });
+            } catch (TooManyListenersException e) {
+                e.printStackTrace();
+            }
+
 
             var frame = new JFrame("FirePlace");
             setIcon(frame);
             frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
             frame.setSize(new Dimension(1000, 600));
             frame.getContentPane().add(jLayeredPane);
-            frame.setVisible(true);
             frame.addComponentListener(new ComponentAdapter() {
                 @Override
                 public void componentResized(ComponentEvent e) {
@@ -161,8 +222,8 @@ public class FirePlaceMain {
                 }
             });
 
-
             frame.getGraphicsConfiguration(); // get active screen
+            frame.setVisible(true);
         });
     }
 
