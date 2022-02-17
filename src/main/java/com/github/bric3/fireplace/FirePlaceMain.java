@@ -23,11 +23,6 @@ import com.github.weisj.darklaf.platform.ThemePreferencesHandler;
 
 import javax.swing.*;
 import java.awt.*;
-import java.awt.datatransfer.DataFlavor;
-import java.awt.dnd.DropTargetAdapter;
-import java.awt.dnd.DropTargetDragEvent;
-import java.awt.dnd.DropTargetDropEvent;
-import java.awt.dnd.DropTargetEvent;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
 import java.awt.event.WindowAdapter;
@@ -37,7 +32,6 @@ import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
-import java.util.TooManyListenersException;
 
 import static java.util.stream.Collectors.toUnmodifiableList;
 
@@ -73,7 +67,7 @@ public class FirePlaceMain {
         initUI(paths, jfrBinder);
     }
 
-    private static void initUI(List<Path> paths, JFRBinder jfrBinder) {
+    private static void initUI(List<Path> cliPaths, JFRBinder jfrBinder) {
         setupLaF();
         if (Boolean.getBoolean("fireplace.swing.debug")) {
             if (Objects.equals(System.getProperty("fireplace.swing.debug.thread.violation.checker"), "IJ")) {
@@ -88,7 +82,7 @@ public class FirePlaceMain {
             {
                 openedFileLabel.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
                 openedFileLabel.setEditable(false);
-                openedFileLabel.setDragEnabled(false);
+                openedFileLabel.setDropTarget(null);
                 jfrBinder.bindPaths(p -> openedFileLabel.setText(p.get(0).toAbsolutePath().toString()));
             }
 
@@ -103,11 +97,17 @@ public class FirePlaceMain {
             var nativeLibs = new JTextArea();
             {
                 nativeLibs.setEditable(false);
+                nativeLibs.setDropTarget(null);
+                nativeLibs.getCaret().setVisible(true);
+                nativeLibs.getCaret().setSelectionVisible(true);
                 jfrBinder.bindEvents(JfrAnalyzer::nativeLibraries, nativeLibs::setText);
             }
             var sysProps = new JTextArea();
             {
                 sysProps.setEditable(false);
+                sysProps.setDropTarget(null);
+                sysProps.getCaret().setVisible(true);
+                sysProps.getCaret().setSelectionVisible(true);
                 jfrBinder.bindEvents(JfrAnalyzer::jvmSystemProperties, sysProps::setText);
             }
             var jTabbedPane = new JTabbedPane();
@@ -139,16 +139,20 @@ public class FirePlaceMain {
             var panelHider = new Timer(2_000, e -> dimensionOverlayPanel.setVisible(false));
             panelHider.setCoalesce(true);
 
-            var hudPanel = new JPanel() {
+            var dndPanel = new JPanel(new GridBagLayout()) {
                 @Override
                 protected void paintComponent(Graphics g) {
                     var g2 = (Graphics2D) g;
-                    g2.setColor(Colors.translucent_black_80);
+                    g2.setColor(Colors.darkMode ? Colors.translucent_black_60 : Colors.translucent_white_D0);
                     g2.fillRect(0, 0, getWidth(), getHeight());
                 }
             };
+            dndPanel.add(new JLabel("<html><font size=+4>Drag and drop JFR file here</font></html>"));
+            dndPanel.setOpaque(false);
+            dndPanel.setVisible(false);
+            var hudPanel = new JPanel(new BorderLayout());
+            hudPanel.add(dndPanel);
             hudPanel.setOpaque(false);
-            hudPanel.setVisible(false);
 
             var jLayeredPane = new JLayeredPane();
             jLayeredPane.setLayout(new OverlayLayout(jLayeredPane));
@@ -158,46 +162,7 @@ public class FirePlaceMain {
             jLayeredPane.add(dimensionOverlayPanel, JLayeredPane.PALETTE_LAYER);
             jLayeredPane.add(hudPanel, JLayeredPane.MODAL_LAYER);
 
-            jLayeredPane.setTransferHandler(new JfrFilesDropHandler(jfrBinder::load));
-            hudPanel.setTransferHandler(new JfrFilesDropHandler(jfrBinder::load));
-
-            try {
-                jLayeredPane.getDropTarget().addDropTargetListener(new DropTargetAdapter() {
-                    @Override
-                    public void dragEnter(DropTargetDragEvent dtde) {
-                        var dataFlavorSupported = dtde.isDataFlavorSupported(DataFlavor.javaFileListFlavor);
-
-                        System.out.println("data flavor supported: " + dataFlavorSupported);
-                        if (dataFlavorSupported) {
-                            hudPanel.setVisible(true);
-                        }
-                    }
-
-                    @Override
-                    public void drop(DropTargetDropEvent dtde) {
-                        // no-op
-                    }
-                });
-                hudPanel.getDropTarget().addDropTargetListener(new DropTargetAdapter() {
-                    @Override
-                    public void dragExit(DropTargetEvent dte) {
-                        hudPanel.setVisible(false);
-                    }
-
-                    @Override
-                    public void drop(DropTargetDropEvent dtde) {
-                        hudPanel.setVisible(false);
-                    }
-
-                    @Override
-                    public void dropActionChanged(DropTargetDragEvent dtde) {
-                        hudPanel.setVisible(false);
-                    }
-                });
-            } catch (TooManyListenersException e) {
-                e.printStackTrace();
-            }
-
+            JfrFilesDropHandler.install(jfrBinder::load, jLayeredPane, dndPanel);
 
             var frame = new JFrame("FirePlace");
             setIcon(frame);
@@ -218,7 +183,7 @@ public class FirePlaceMain {
             frame.addWindowListener(new WindowAdapter() {
                 @Override
                 public void windowOpened(WindowEvent e) {
-                    jfrBinder.load(paths);
+                    jfrBinder.load(cliPaths);
                 }
             });
 

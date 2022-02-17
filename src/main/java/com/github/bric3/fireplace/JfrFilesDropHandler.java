@@ -3,11 +3,17 @@ package com.github.bric3.fireplace;
 import javax.swing.*;
 import java.awt.datatransfer.DataFlavor;
 import java.awt.datatransfer.UnsupportedFlavorException;
+import java.awt.dnd.DropTarget;
+import java.awt.dnd.DropTargetAdapter;
+import java.awt.dnd.DropTargetDragEvent;
+import java.awt.dnd.DropTargetDropEvent;
+import java.awt.dnd.DropTargetEvent;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.List;
+import java.util.TooManyListenersException;
 import java.util.function.Consumer;
 
 import static java.util.stream.Collectors.toList;
@@ -15,7 +21,44 @@ import static java.util.stream.Collectors.toList;
 final class JfrFilesDropHandler extends TransferHandler {
     private final Consumer<List<Path>> pathsHandler;
 
-    JfrFilesDropHandler(Consumer<List<Path>> pathsHandler) {this.pathsHandler = pathsHandler;}
+    private JfrFilesDropHandler(Consumer<List<Path>> pathsHandler) {this.pathsHandler = pathsHandler;}
+
+    public static void install(Consumer<List<Path>> pathsHandler, JComponent parent, JComponent target) {
+        target.setTransferHandler(new JfrFilesDropHandler(pathsHandler));
+        try {
+            parent.setDropTarget(new DropTarget(parent, new DropTargetAdapter() {
+                @Override
+                public void dragEnter(DropTargetDragEvent dtde) {
+                    var dataFlavorSupported = dtde.isDataFlavorSupported(DataFlavor.javaFileListFlavor);
+                    if (dataFlavorSupported) {
+                        target.setVisible(true);
+                    }
+                }
+
+                @Override
+                public void drop(DropTargetDropEvent dtde) {/* no-op */}
+            }));
+
+            target.getDropTarget().addDropTargetListener(new DropTargetAdapter() {
+                @Override
+                public void dragExit(DropTargetEvent dte) {
+                    target.setVisible(false);
+                }
+
+                @Override
+                public void drop(DropTargetDropEvent dtde) {
+                    target.setVisible(false);
+                }
+
+                @Override
+                public void dropActionChanged(DropTargetDragEvent dtde) {
+                    target.setVisible(false);
+                }
+            });
+        } catch (TooManyListenersException e) {
+            e.printStackTrace();
+        }
+    }
 
     @Override
     public boolean canImport(TransferHandler.TransferSupport support) {
