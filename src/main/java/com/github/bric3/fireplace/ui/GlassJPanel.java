@@ -15,7 +15,7 @@ public class GlassJPanel extends JPanel {
     @Override
     protected void paintComponent(Graphics g) {
         var g2 = (Graphics2D) g;
-        g2.setColor(Colors.darkMode ? Colors.translucent_black_60 : Colors.translucent_white_D0);
+        g2.setColor(Colors.darkMode ? Colors.translucent_black_80 : Colors.translucent_white_D0);
         g2.fillRect(0, 0, getWidth(), getHeight());
     }
 }
