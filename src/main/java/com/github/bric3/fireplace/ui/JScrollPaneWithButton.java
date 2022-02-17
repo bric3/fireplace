@@ -94,6 +94,12 @@ public abstract class JScrollPaneWithButton {
         }
 
         @Override
+        public void updateUI(JLayer<? extends JScrollPane> l) {
+            super.updateUI(l);
+            button.updateUI();
+        }
+
+        @Override
         public void installUI(JComponent c) {
             super.installUI(c);
             if (c instanceof JLayer) {
