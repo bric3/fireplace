@@ -22,6 +22,8 @@ import static java.util.stream.Collectors.toUnmodifiableList;
 class JFRBinder {
     private final List<Consumer<IItemCollection>> eventsBinders = new ArrayList<>();
     private final List<Consumer<List<Path>>> pathsBinders = new ArrayList<>();
+    private Runnable onLoadStart;
+    private Runnable onLoadEnd;
 
     public void bindPaths(Consumer<List<Path>> pathsBinder) {
         pathsBinders.add(paths -> SwingUtilities.invokeLater(() -> pathsBinder.accept(paths)));
@@ -45,6 +47,7 @@ class JFRBinder {
         if (jfrPaths.isEmpty()) {
             return;
         }
+        onLoadStart.run();
         CompletableFuture.runAsync(() -> {
             pathsBinders.forEach(pathsBinder -> pathsBinder.accept(jfrPaths));
 
@@ -75,6 +78,13 @@ class JFRBinder {
 
 
             eventsBinders.forEach(binder -> binder.accept(eventSupplier.get()));
+
+            onLoadEnd.run();
         });
+    }
+
+    public void setOnLoadActions(Runnable onLoadStart, Runnable onLoadEnd) {
+        this.onLoadStart = () -> SwingUtilities.invokeLater(onLoadStart);
+        this.onLoadEnd = () -> SwingUtilities.invokeLater(onLoadEnd);
     }
 }

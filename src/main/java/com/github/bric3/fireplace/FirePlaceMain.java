@@ -15,6 +15,7 @@ import com.formdev.flatlaf.FlatLaf;
 import com.formdev.flatlaf.extras.FlatAnimatedLafChange;
 import com.formdev.flatlaf.util.SystemInfo;
 import com.github.bric3.fireplace.ui.Colors;
+import com.github.bric3.fireplace.ui.GlassJPanel;
 import com.github.bric3.fireplace.ui.JScrollPaneWithButton;
 import com.github.bric3.fireplace.ui.debug.AssertiveRepaintManager;
 import com.github.bric3.fireplace.ui.debug.CheckThreadViolationRepaintManager;
@@ -139,19 +140,20 @@ public class FirePlaceMain {
             var panelHider = new Timer(2_000, e -> dimensionOverlayPanel.setVisible(false));
             panelHider.setCoalesce(true);
 
-            var dndPanel = new JPanel(new GridBagLayout()) {
-                @Override
-                protected void paintComponent(Graphics g) {
-                    var g2 = (Graphics2D) g;
-                    g2.setColor(Colors.darkMode ? Colors.translucent_black_60 : Colors.translucent_white_D0);
-                    g2.fillRect(0, 0, getWidth(), getHeight());
-                }
-            };
+            var dndPanel = new GlassJPanel(new GridBagLayout());
             dndPanel.add(new JLabel("<html><font size=+4>Drag and drop JFR file here</font></html>"));
             dndPanel.setOpaque(false);
             dndPanel.setVisible(false);
-            var hudPanel = new JPanel(new BorderLayout());
+            var progressPanel = new GlassJPanel(new BorderLayout());
+            var progress = new JProgressBar();
+            progress.setIndeterminate(true);
+            progressPanel.add(new JLabel("<html><font size=+4>Loading in progress</font></html>", SwingConstants.CENTER), BorderLayout.CENTER);
+            progressPanel.add(progress, BorderLayout.SOUTH);
+            jfrBinder.setOnLoadActions(() -> progressPanel.setVisible(true), () -> progressPanel.setVisible(false));
+            var hudPanel = new JPanel();
+            hudPanel.setLayout(new BoxLayout(hudPanel, BoxLayout.Y_AXIS));
             hudPanel.add(dndPanel);
+            hudPanel.add(progressPanel);
             hudPanel.setOpaque(false);
 
             var jLayeredPane = new JLayeredPane();
@@ -159,7 +161,7 @@ public class FirePlaceMain {
             jLayeredPane.setOpaque(false);
             jLayeredPane.setVisible(true);
             jLayeredPane.add(mainPanel, JLayeredPane.DEFAULT_LAYER);
-            jLayeredPane.add(dimensionOverlayPanel, JLayeredPane.PALETTE_LAYER);
+            jLayeredPane.add(dimensionOverlayPanel, JLayeredPane.POPUP_LAYER);
             jLayeredPane.add(hudPanel, JLayeredPane.MODAL_LAYER);
 
             JfrFilesDropHandler.install(jfrBinder::load, jLayeredPane, dndPanel);
