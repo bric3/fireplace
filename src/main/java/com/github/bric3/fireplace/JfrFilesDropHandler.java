@@ -21,17 +21,18 @@ import static java.util.stream.Collectors.toList;
 final class JfrFilesDropHandler extends TransferHandler {
     private final Consumer<List<Path>> pathsHandler;
 
-    private JfrFilesDropHandler(Consumer<List<Path>> pathsHandler) {this.pathsHandler = pathsHandler;}
+    private JfrFilesDropHandler(Consumer<List<Path>> pathsHandler) {
+        this.pathsHandler = pathsHandler;
+    }
 
-    public static void install(Consumer<List<Path>> pathsHandler, JComponent parent, JComponent target) {
-        target.setTransferHandler(new JfrFilesDropHandler(pathsHandler));
+    public static void install(Consumer<List<Path>> pathsHandler, JComponent parent, DnDTarget target) {
         try {
             parent.setDropTarget(new DropTarget(parent, new DropTargetAdapter() {
                 @Override
                 public void dragEnter(DropTargetDragEvent dtde) {
                     var dataFlavorSupported = dtde.isDataFlavorSupported(DataFlavor.javaFileListFlavor);
                     if (dataFlavorSupported) {
-                        target.setVisible(true);
+                        target.activate();
                     }
                 }
 
@@ -39,20 +40,21 @@ final class JfrFilesDropHandler extends TransferHandler {
                 public void drop(DropTargetDropEvent dtde) {/* no-op */}
             }));
 
-            target.getDropTarget().addDropTargetListener(new DropTargetAdapter() {
+            target.getComponent().setTransferHandler(new JfrFilesDropHandler(pathsHandler));
+            target.getComponent().getDropTarget().addDropTargetListener(new DropTargetAdapter() {
                 @Override
                 public void dragExit(DropTargetEvent dte) {
-                    target.setVisible(false);
+                    target.deactivate();
                 }
 
                 @Override
                 public void drop(DropTargetDropEvent dtde) {
-                    target.setVisible(false);
+                    target.deactivate();
                 }
 
                 @Override
                 public void dropActionChanged(DropTargetDragEvent dtde) {
-                    target.setVisible(false);
+                    target.deactivate();
                 }
             });
         } catch (TooManyListenersException e) {

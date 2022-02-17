@@ -15,7 +15,7 @@ import com.formdev.flatlaf.FlatLaf;
 import com.formdev.flatlaf.extras.FlatAnimatedLafChange;
 import com.formdev.flatlaf.util.SystemInfo;
 import com.github.bric3.fireplace.ui.Colors;
-import com.github.bric3.fireplace.ui.GlassJPanel;
+import com.github.bric3.fireplace.ui.FrameResizeLabel;
 import com.github.bric3.fireplace.ui.JScrollPaneWithButton;
 import com.github.bric3.fireplace.ui.debug.AssertiveRepaintManager;
 import com.github.bric3.fireplace.ui.debug.CheckThreadViolationRepaintManager;
@@ -24,8 +24,6 @@ import com.github.weisj.darklaf.platform.ThemePreferencesHandler;
 
 import javax.swing.*;
 import java.awt.*;
-import java.awt.event.ComponentAdapter;
-import java.awt.event.ComponentEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.nio.file.Files;
@@ -124,64 +122,26 @@ public class FirePlaceMain {
             mainPanel.add(openedFileLabel, BorderLayout.NORTH);
             mainPanel.add(jTabbedPane, BorderLayout.CENTER);
 
-
-            var dimensionLabel = new JLabel("hello");
-            dimensionLabel.setVerticalAlignment(JLabel.CENTER);
-            dimensionLabel.setHorizontalAlignment(JLabel.CENTER);
-            dimensionLabel.setOpaque(true);
-            dimensionLabel.setBorder(BorderFactory.createLineBorder(Color.black));
-            var dimensionOverlayPanel = new JPanel(new BorderLayout());
-            dimensionOverlayPanel.add(dimensionLabel, BorderLayout.CENTER);
-            dimensionOverlayPanel.setBackground(new Color(0, 0, 0, 0));
-            dimensionOverlayPanel.setOpaque(false);
-            dimensionOverlayPanel.setVisible(false);
-            var textHeight = dimensionLabel.getFontMetrics(dimensionLabel.getFont()).getHeight();
-            dimensionOverlayPanel.setMaximumSize(new Dimension(100, textHeight + 10));
-            var panelHider = new Timer(2_000, e -> dimensionOverlayPanel.setVisible(false));
-            panelHider.setCoalesce(true);
-
-            var dndPanel = new GlassJPanel(new GridBagLayout());
-            dndPanel.add(new JLabel("<html><font size=+4>Drag and drop JFR file here</font></html>"));
-            dndPanel.setOpaque(false);
-            dndPanel.setVisible(false);
-            var progressPanel = new GlassJPanel(new BorderLayout());
-            var progress = new JProgressBar();
-            progress.setIndeterminate(true);
-            progressPanel.add(new JLabel("<html><font size=+4>Loading in progress</font></html>", SwingConstants.CENTER), BorderLayout.CENTER);
-            progressPanel.add(progress, BorderLayout.SOUTH);
-            jfrBinder.setOnLoadActions(() -> progressPanel.setVisible(true), () -> progressPanel.setVisible(false));
-            var hudPanel = new JPanel();
-            hudPanel.setLayout(new BoxLayout(hudPanel, BoxLayout.Y_AXIS));
-            hudPanel.add(dndPanel);
-            hudPanel.add(progressPanel);
-            hudPanel.setOpaque(false);
+            var frameResizeLabel = new FrameResizeLabel();
+            var hudPanel = new HudPanel();
+            jfrBinder.setOnLoadActions(() -> hudPanel.setProgressVisible(true), () -> hudPanel.setProgressVisible(false));
 
             var jLayeredPane = new JLayeredPane();
             jLayeredPane.setLayout(new OverlayLayout(jLayeredPane));
             jLayeredPane.setOpaque(false);
             jLayeredPane.setVisible(true);
             jLayeredPane.add(mainPanel, JLayeredPane.DEFAULT_LAYER);
-            jLayeredPane.add(dimensionOverlayPanel, JLayeredPane.POPUP_LAYER);
-            jLayeredPane.add(hudPanel, JLayeredPane.MODAL_LAYER);
+            jLayeredPane.add(hudPanel.getComponent(), JLayeredPane.MODAL_LAYER);
+            jLayeredPane.add(frameResizeLabel.getComponent(), JLayeredPane.POPUP_LAYER);
 
-            JfrFilesDropHandler.install(jfrBinder::load, jLayeredPane, dndPanel);
+            JfrFilesDropHandler.install(jfrBinder::load, jLayeredPane, hudPanel.getDnDTarget());
 
             var frame = new JFrame("FirePlace");
             setIcon(frame);
             frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
             frame.setSize(new Dimension(1000, 600));
             frame.getContentPane().add(jLayeredPane);
-            frame.addComponentListener(new ComponentAdapter() {
-                @Override
-                public void componentResized(ComponentEvent e) {
-                    int height = frame.getHeight();
-                    int width = frame.getWidth();
-                    dimensionLabel.setText(height + " x " + width);
-                    dimensionOverlayPanel.setVisible(true);
-                    panelHider.restart();
-                }
-            });
-
+            frameResizeLabel.installListener(frame);
             frame.addWindowListener(new WindowAdapter() {
                 @Override
                 public void windowOpened(WindowEvent e) {
