@@ -42,6 +42,7 @@ class HudPanel {
 
             @Override
             public void activate() {
+                progressPanel.setVisible(false);
                 dndPanel.setVisible(true);
             }
 
@@ -53,6 +54,9 @@ class HudPanel {
     }
 
     public void setProgressVisible(boolean visible) {
+        if (visible) {
+            dndPanel.setVisible(false);
+        }
         progressPanel.setVisible(visible);
     }
 }

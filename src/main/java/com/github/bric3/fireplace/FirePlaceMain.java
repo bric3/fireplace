@@ -45,29 +45,29 @@ public class FirePlaceMain {
     public static void main(String[] args) {
         System.getProperties().forEach((k, v) -> System.out.println(k + " = " + v));
 
-        if (args.length == 0) {
-            System.err.println("Requires at least one JFR file:\n\nUsage: java -jar fireplace.jar <JFR file>");
-            System.exit(1);
-        }
-
-        var paths = Arrays.stream(args).filter(arg -> !arg.matches("-NSRequiresAquaSystemAppearance|[Ff]alse|[Nn][Oo]|0")).map(Path::of).collect(toUnmodifiableList());
-        if (!paths.stream().allMatch(path -> {
-            var exists = Files.exists(path);
-            if (!exists) {
-                System.err.println("File '" + path + "' does not exist");
-            }
-            return exists;
-        })) {
-            System.exit(1);
-        }
+        var paths = Arrays.stream(args)
+                          .filter(arg -> !arg.matches("-NSRequiresAquaSystemAppearance|[Ff]alse|[Nn][Oo]|0"))
+                          .map(Path::of)
+                          .filter(path -> {
+                              var exists = Files.exists(path);
+                              if (!exists) {
+                                  System.err.println("File '" + path + "' does not exist");
+                              }
+                              return exists;
+                          })
+                          .collect(toUnmodifiableList());
 
         var jfrBinder = new JFRBinder();
 
-        initUI(paths, jfrBinder);
+        initUI(jfrBinder, paths);
     }
 
-    private static void initUI(List<Path> cliPaths, JFRBinder jfrBinder) {
+    private static void initUI(JFRBinder jfrBinder, List<Path> cliPaths) {
+        if (Boolean.getBoolean("fireplace.swing.debug") || Boolean.getBoolean("fireplace.debug")) {
+            System.getProperties().forEach((k, v) -> System.out.println(k + " = " + v));
+        }
         setupLaF();
+
         if (Boolean.getBoolean("fireplace.swing.debug")) {
             if (Objects.equals(System.getProperty("fireplace.swing.debug.thread.violation.checker"), "IJ")) {
                 AssertiveRepaintManager.install();
@@ -126,26 +126,30 @@ public class FirePlaceMain {
             var hudPanel = new HudPanel();
             jfrBinder.setOnLoadActions(() -> hudPanel.setProgressVisible(true), () -> hudPanel.setProgressVisible(false));
 
-            var jLayeredPane = new JLayeredPane();
-            jLayeredPane.setLayout(new OverlayLayout(jLayeredPane));
-            jLayeredPane.setOpaque(false);
-            jLayeredPane.setVisible(true);
-            jLayeredPane.add(mainPanel, JLayeredPane.DEFAULT_LAYER);
-            jLayeredPane.add(hudPanel.getComponent(), JLayeredPane.MODAL_LAYER);
-            jLayeredPane.add(frameResizeLabel.getComponent(), JLayeredPane.POPUP_LAYER);
+            var appLayers = new JLayeredPane();
+            appLayers.setLayout(new OverlayLayout(appLayers));
+            appLayers.setOpaque(false);
+            appLayers.setVisible(true);
+            appLayers.add(mainPanel, JLayeredPane.DEFAULT_LAYER);
+            appLayers.add(hudPanel.getComponent(), JLayeredPane.MODAL_LAYER);
+            appLayers.add(frameResizeLabel.getComponent(), JLayeredPane.POPUP_LAYER);
 
-            JfrFilesDropHandler.install(jfrBinder::load, jLayeredPane, hudPanel.getDnDTarget());
+            JfrFilesDropHandler.install(jfrBinder::load, appLayers, hudPanel.getDnDTarget());
 
             var frame = new JFrame("FirePlace");
             setIcon(frame);
             frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
             frame.setSize(new Dimension(1000, 600));
-            frame.getContentPane().add(jLayeredPane);
+            frame.getContentPane().add(appLayers);
             frameResizeLabel.installListener(frame);
             frame.addWindowListener(new WindowAdapter() {
                 @Override
                 public void windowOpened(WindowEvent e) {
-                    jfrBinder.load(cliPaths);
+                    if (cliPaths.isEmpty()) {
+                        hudPanel.getDnDTarget().activate();
+                    } else {
+                        jfrBinder.load(cliPaths);
+                    }
                 }
             });
 
@@ -177,7 +181,7 @@ public class FirePlaceMain {
         Runtime.getRuntime().addShutdownHook(new Thread(() -> ThemePreferencesHandler.getSharedInstance().enablePreferenceChangeReporting(false)));
 
         Runnable themeChanger = () -> {
-            System.out.println(">>>> theme preference changed = " + ThemePreferencesHandler.getSharedInstance().getPreferredThemeStyle());
+            // System.out.println(">>>> theme preference changed = " + ThemePreferencesHandler.getSharedInstance().getPreferredThemeStyle());
             switch (ThemePreferencesHandler.getSharedInstance().getPreferredThemeStyle().getColorToneRule()) {
                 case DARK:
                     FlatDarculaLaf.setup();
