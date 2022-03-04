@@ -10,19 +10,19 @@
 package com.github.bric3.fireplace;
 
 import com.github.bric3.fireplace.flamegraph.FrameColorMode;
-import com.github.bric3.fireplace.ui.Colors.Palette;
 import org.openjdk.jmc.common.IMCFrame.Type;
 import org.openjdk.jmc.flightrecorder.stacktrace.tree.Node;
 
 import java.awt.*;
+import java.util.function.Function;
 import java.util.regex.Pattern;
 
 public enum JfrFrameColorMode implements FrameColorMode<Node> {
     BY_PACKAGE {
-        Pattern runtimePrefixes = Pattern.compile("(java\\.|javax\\.|sun\\.|com\\.sun\\.|com\\.oracle\\.|com\\.ibm\\.)");
+        final Pattern runtimePrefixes = Pattern.compile("(java\\.|javax\\.|sun\\.|com\\.sun\\.|com\\.oracle\\.|com\\.ibm\\.)");
 
         @Override
-        public Color getColor(Palette colorPalette, Node frameNode) {
+        public Color getColor(Function<Object, Color> colorPalette, Node frameNode) {
             if (frameNode.isRoot()) {
                 return rootNodeColor;
             }
@@ -35,21 +35,21 @@ public enum JfrFrameColorMode implements FrameColorMode<Node> {
             if (runtimePrefixes.matcher(name).lookingAt()) {
                 return runtimeColor;
             }
-            return colorPalette.mapToColor(name);
+            return colorPalette.apply(name);
         }
     },
     BY_MODULE {
         @Override
-        public Color getColor(Palette colorPalette, Node frameNode) {
+        public Color getColor(Function<Object, Color> colorPalette, Node frameNode) {
             if (frameNode.isRoot()) {
                 return rootNodeColor;
             }
-            return colorPalette.mapToColor(frameNode.getFrame().getMethod().getType().getPackage().getModule());
+            return colorPalette.apply(frameNode.getFrame().getMethod().getType().getPackage().getModule());
         }
     },
     BY_FRAME_TYPE {
         @Override
-        public Color getColor(Palette colorPalette, Node frameNode) {
+        public Color getColor(Function<Object, Color> colorPalette, Node frameNode) {
             if (frameNode.isRoot()) {
                 return rootNodeColor;
             }

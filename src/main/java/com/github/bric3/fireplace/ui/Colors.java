@@ -9,6 +9,8 @@
  */
 package com.github.bric3.fireplace.ui;
 
+import com.github.bric3.fireplace.flamegraph.ColorMapper;
+
 import javax.swing.*;
 import java.awt.*;
 import java.util.Arrays;
@@ -54,7 +56,7 @@ public class Colors {
         refreshColors();
     }
 
-    public enum Palette {
+    public enum Palette implements ColorMapper {
         // use https://color.hailpixel.com/
         // https://www.toptal.com/designers/colourcode/
 

@@ -10,13 +10,12 @@
 package com.github.bric3.fireplace.flamegraph;
 
 import java.awt.*;
-import java.util.function.BiFunction;
 import java.util.function.Function;
 
-public interface FrameColorMode<T> extends BiFunction<Function<Object, Color>, T, Color> {
-    default Color apply(Function<Object, Color> colorMapper, T frameNode) {
-        return getColor(colorMapper, frameNode);
+public interface ColorMapper extends Function<Object, Color> {
+    default Color apply(Object o) {
+        return mapToColor(o);
     }
 
-    Color getColor(Function<Object, Color> colorMapper, T frameNode);
+    Color mapToColor(Object o);
 }
