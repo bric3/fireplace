@@ -21,7 +21,7 @@ plugins {
     id("com.github.hierynomus.license") version "0.16.1"
 }
 
-group = "com.github.bric3"
+group = "com.github.bric3.fireplace"
 version = scmVersion.version
 
 repositories {
