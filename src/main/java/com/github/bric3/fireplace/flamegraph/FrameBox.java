@@ -10,13 +10,13 @@
 package com.github.bric3.fireplace.flamegraph;
 
 public class FrameBox<T> {
-    public final T jfrNode;
+    public final T actualNode;
     public final double startX;
     public final double endX;
     public final int stackDepth;
 
-    public FrameBox(T jfrNode, double startX, double endX, int stackDepth) {
-        this.jfrNode = jfrNode;
+    public FrameBox(T actualNode, double startX, double endX, int stackDepth) {
+        this.actualNode = actualNode;
         this.startX = startX;
         this.endX = endX;
         this.stackDepth = stackDepth;

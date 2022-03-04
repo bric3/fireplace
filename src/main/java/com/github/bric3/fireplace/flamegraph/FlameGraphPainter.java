@@ -160,8 +160,8 @@ public class FlameGraphPainter<T> {
             if (visibleRect.intersects(rectOnCanvas)) {
                 paintRootFrameRectangle((Graphics2D) g2.create(rectOnCanvas.x, rectOnCanvas.y, rectOnCanvas.width, rectOnCanvas.height),
                                         frameRect,
-                                        rootFrameToText.apply(rootFrame.jfrNode),
-                                        handleFocus(frameColorFunction.apply(rootFrame.jfrNode),
+                                        rootFrameToText.apply(rootFrame.actualNode),
+                                        handleFocus(frameColorFunction.apply(rootFrame.actualNode),
                                                     hoveredFrame == rootFrame,
                                                     false,
                                                     selectedFrame != null && rootFrame.stackDepth < selectedFrame.stackDepth, minimapMode),
@@ -190,8 +190,8 @@ public class FlameGraphPainter<T> {
             if (visibleRect.intersects(rectOnCanvas)) {
                 paintNodeFrameRectangle((Graphics2D) g2.create(rectOnCanvas.x, rectOnCanvas.y, rectOnCanvas.width, rectOnCanvas.height),
                                         frameRect,
-                                        frame.jfrNode,
-                                        handleFocus(frameColorFunction.apply(frame.jfrNode),
+                                        frame.actualNode,
+                                        handleFocus(frameColorFunction.apply(frame.actualNode),
                                                     hoveredFrame == frame,
                                                     false,
                                                     selectedFrame != null && (

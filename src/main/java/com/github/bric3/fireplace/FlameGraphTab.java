@@ -131,7 +131,7 @@ public class FlameGraphTab extends JPanel {
                         return "";
                     }
 
-                    var method = frame.jfrNode.getFrame().getMethod();
+                    var method = frame.actualNode.getFrame().getMethod();
                     var desc = FormatToolkit.getHumanReadable(method,
                                                               false,
                                                               false,
@@ -142,10 +142,10 @@ public class FlameGraphTab extends JPanel {
                                                               false);
 
                     return "<html>"
-                           + "<b>" + frame.jfrNode.getFrame().getHumanReadableShortString() + "</b><br>"
+                           + "<b>" + frame.actualNode.getFrame().getHumanReadableShortString() + "</b><br>"
                            + desc + "<br><hr>"
-                           + frame.jfrNode.getCumulativeWeight() + " " + frame.jfrNode.getWeight() + "<br>"
-                           + "BCI: " + frame.jfrNode.getFrame().getBCI() + " Line number: " + frame.jfrNode.getFrame().getFrameLineNumber() + "<br>"
+                           + frame.actualNode.getCumulativeWeight() + " " + frame.actualNode.getWeight() + "<br>"
+                           + "BCI: " + frame.actualNode.getFrame().getBCI() + " Line number: " + frame.actualNode.getFrame().getFrameLineNumber() + "<br>"
                            + "</html>";
                 }
         );

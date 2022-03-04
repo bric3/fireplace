@@ -14,6 +14,8 @@ import org.openjdk.jmc.flightrecorder.stacktrace.tree.StacktraceTreeModel;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Function;
+import java.util.function.ToDoubleFunction;
 
 /**
  * Creates an array of FlameNodes that live in the [0.0, 1.0] world space on the X axis and the depth of the stack representing
@@ -25,24 +27,43 @@ public class FrameNodeConverter {
     public static List<FrameBox<Node>> convert(StacktraceTreeModel model) {
         var nodes = new ArrayList<FrameBox<Node>>();
 
-        iterate(nodes, model.getRoot(), 0.0d, 1.0d, 0);
+        flattenAndCalculateCoordinate(
+                nodes,
+                model.getRoot(),
+                Node::getChildren,
+                Node::getCumulativeWeight,
+                0.0d,
+                1.0d,
+                0
+        );
 
-        assert nodes.get(0).jfrNode.isRoot() : "First node should be the root node";
+        assert nodes.get(0).actualNode.isRoot() : "First node should be the root node";
 
         return nodes;
     }
 
-    private static void iterate(List<FrameBox<Node>> nodes, Node currentNode, double startX, double endX, int depth) {
+    public static <T> void flattenAndCalculateCoordinate(
+            List<FrameBox<T>> nodes,
+            T currentNode,
+            Function<T, List<T>> nodeChildren,
+            ToDoubleFunction<T> nodeWeight,
+            double startX,
+            double endX,
+            int depth) {
         nodes.add(new FrameBox<>(currentNode, startX, endX, depth));
 
-        depth++;
+        var children = nodeChildren.apply(currentNode);
+        if (children == null || children.isEmpty()) {
+            return;
+        }
 
+        depth++;
         var parentWidth = endX - startX;
-        var totalWeight = currentNode.getChildren().stream().mapToDouble(Node::getCumulativeWeight).sum();
-        for (Node node : currentNode.getChildren()) {
-            var nodeWidth = (node.getCumulativeWeight() / totalWeight) * parentWidth;
+        var totalWeight = children.stream().mapToDouble(nodeWeight).sum();
+        for (var node : children) {
+            var nodeWidth = (nodeWeight.applyAsDouble(node) / totalWeight) * parentWidth;
             endX = startX + nodeWidth;
-            iterate(nodes, node, startX, endX, depth);
+            flattenAndCalculateCoordinate(nodes, node, nodeChildren, nodeWeight, startX, endX, depth);
             startX = endX;
         }
     }
