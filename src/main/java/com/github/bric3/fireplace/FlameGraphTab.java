@@ -36,6 +36,7 @@ public class FlameGraphTab extends JPanel {
         super(new BorderLayout());
 
         jfrFlameGraph = new FlameGraph<>();
+        jfrFlameGraph.setMinimapShadeColorSupplier(() -> Colors.darkMode ? Colors.translucent_black_40 : Colors.translucent_white_80);
         var wrapper = new JPanel(new BorderLayout());
         wrapper.add(jfrFlameGraph.component);
 

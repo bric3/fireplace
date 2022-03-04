@@ -10,7 +10,6 @@
 package com.github.bric3.fireplace.flamegraph;
 
 import com.github.bric3.fireplace.ui.BalloonToolTip;
-import com.github.bric3.fireplace.ui.Colors;
 import com.github.bric3.fireplace.ui.JScrollPaneWithButton;
 import com.github.bric3.fireplace.ui.MouseInputListenerWorkaroundForToolTipEnabledComponent;
 
@@ -25,6 +24,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 public class FlameGraph<T> {
     private final FlameGraphCanvas<T> canvas;
@@ -63,6 +63,10 @@ public class FlameGraph<T> {
     public void setPaintFrameBorder(boolean paintFrameBorder) {
         canvas.getFlameGraphPainter()
               .ifPresent(fgp -> fgp.paintFrameBorder = paintFrameBorder);
+    }
+
+    public void setMinimapShadeColorSupplier(Supplier<Color> minimapShadeColorSupplier) {
+        canvas.setMinimapShadeColorSupplier(minimapShadeColorSupplier);
     }
 
     public void setStacktraceTree(List<FrameBox<T>> frames,
@@ -218,6 +222,7 @@ public class FlameGraph<T> {
         private int minimapInset = 10;
         private int minimapRadius = 10;
         private Point minimapLocation = new Point(50, 50);
+        private Supplier<Color> minimapShadeColorSupplier = null;
 
         public FlameGraphCanvas() {
         }
@@ -316,7 +321,11 @@ public class FlameGraph<T> {
                     var zoomZone = new Area(new Rectangle(minimapInset, minimapInset, minimapWidth, minimapHeight));
                     zoomZone.subtract(new Area(new Rectangle(x + minimapInset, y + minimapInset, w, h)));
 
-                    g2.setColor(Colors.darkMode ? Colors.translucent_black_40 : Colors.translucent_white_80);
+
+                    var color = minimapShadeColorSupplier == null ?
+                                new Color(getBackground().getRGB() & 0xBA_FFFFFF, true) :
+                                minimapShadeColorSupplier.get();
+                    g2.setColor(color);
                     g2.fill(zoomZone);
 
                     g2.setColor(getForeground());
@@ -465,6 +474,10 @@ public class FlameGraph<T> {
 
         public void setToolTipTextFunction(Function<FrameBox<T>, String> tooltipTextFunction) {
             this.tooltipTextFunction = tooltipTextFunction;
+        }
+
+        public void setMinimapShadeColorSupplier(Supplier<Color> minimapShadeColorSupplier) {
+            this.minimapShadeColorSupplier = minimapShadeColorSupplier;
         }
     }
 }
