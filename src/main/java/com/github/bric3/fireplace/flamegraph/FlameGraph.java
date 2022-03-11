@@ -26,7 +26,10 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
+import static java.lang.Boolean.TRUE;
+
 public class FlameGraph<T> {
+    public static String SHOW_STATS = "flamegraph.show_stats";
     private final FlameGraphCanvas<T> canvas;
     public final JComponent component;
 
@@ -69,6 +72,10 @@ public class FlameGraph<T> {
         canvas.setMinimapShadeColorSupplier(minimapShadeColorSupplier);
     }
 
+    public void showMinimap(boolean showMinimap) {
+        canvas.showMinimap(showMinimap);
+    }
+
     public void setStacktraceTree(List<FrameBox<T>> frames,
                                   List<Function<T, String>> frameToStringCandidates,
                                   Function<T, String> rootFrameToString,
@@ -80,10 +87,15 @@ public class FlameGraph<T> {
                 rootFrameToString,
                 frameColorFunction
         );
+        flameGraphPainter.frameWidthVisibilityThreshold = 2;
 
         canvas.setFlameGraphPainter(flameGraphPainter);
         canvas.setToolTipTextFunction(tooltipTextFunction);
         canvas.invalidate();
+    }
+
+    public void putClientProperty(String key, Object value) {
+        canvas.putClientProperty(key, value);
     }
 
     public void requestRepaint() {
@@ -156,12 +168,13 @@ public class FlameGraph<T> {
 
             if ((e.getSource() instanceof JScrollPane)) {
                 canvas.getFlameGraphPainter()
-                      .ifPresent(fgp -> fgp.toggleSelectedFrameAt(
-                              (Graphics2D) viewPort.getView().getGraphics(),
-                              point
-                      ));
-
-                scrollPane.repaint();
+                      .ifPresent(fgp -> {
+                          fgp.toggleSelectedFrameAt(
+                                  (Graphics2D) viewPort.getView().getGraphics(),
+                                  point
+                          );
+                          scrollPane.repaint();
+                      });
             }
         }
 
@@ -199,10 +212,11 @@ public class FlameGraph<T> {
                   .ifPresent(fgp -> fgp.hoverFrameAt(
                           (Graphics2D) view.getGraphics(),
                           point,
-                          canvas::setToolTipText
+                          frame -> {
+                              canvas.setToolTipText(frame);
+                              scrollPane.repaint();
+                          }
                   ));
-
-            scrollPane.repaint();
         }
 
         public void install(JScrollPane sp) {
@@ -223,6 +237,7 @@ public class FlameGraph<T> {
         private int minimapRadius = 10;
         private Point minimapLocation = new Point(50, 50);
         private Supplier<Color> minimapShadeColorSupplier = null;
+        private boolean showMinimap = true;
 
         public FlameGraphCanvas() {
         }
@@ -286,12 +301,13 @@ public class FlameGraph<T> {
             }
 
             var visibleRect = getVisibleRect();
+            flameGraphPainter.paintDetails = getClientProperty(SHOW_STATS) == TRUE;
             flameGraphPainter.paint((Graphics2D) g, visibleRect);
             paintMinimap(g, visibleRect);
         }
 
         private void paintMinimap(Graphics g, Rectangle visibleRect) {
-            if (minimap != null) {
+            if (showMinimap && minimap != null) {
                 var g2 = (Graphics2D) g.create(visibleRect.x + minimapLocation.x,
                                                visibleRect.y + visibleRect.height - minimapHeight - minimapLocation.y,
                                                minimapWidth + minimapInset * 2,
@@ -375,7 +391,7 @@ public class FlameGraph<T> {
 
 
         private void triggerMinimapGeneration() {
-            if (flameGraphPainter == null) {
+            if (!showMinimap || flameGraphPainter == null) {
                 return;
             }
 
@@ -478,6 +494,11 @@ public class FlameGraph<T> {
 
         public void setMinimapShadeColorSupplier(Supplier<Color> minimapShadeColorSupplier) {
             this.minimapShadeColorSupplier = minimapShadeColorSupplier;
+        }
+
+        public void showMinimap(boolean showMinimap) {
+            this.showMinimap = showMinimap;
+            repaint();
         }
     }
 }

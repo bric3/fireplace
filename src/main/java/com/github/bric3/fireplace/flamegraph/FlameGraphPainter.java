@@ -28,7 +28,7 @@ public class FlameGraphPainter<T> {
     private final int depth;
     private int visibleDepth;
     private final int textBorder = 2;
-    private final int frameWidthVisibilityThreshold = 4;
+    protected int frameWidthVisibilityThreshold = 4;
     private final int minimapFrameBoxHeight = 1;
 
     private FrameBox<T> hoveredFrame;
@@ -44,8 +44,8 @@ public class FlameGraphPainter<T> {
     // handle root node
     private final Function<T, String> rootFrameToText;
     Function<T, Color> frameColorFunction;
-    private int internalPadding = 2;
-    private boolean paintDetails = true;
+    private final int internalPadding = 2;
+    protected boolean paintDetails = true;
 
 
     public FlameGraphPainter(List<FrameBox<T>> frames,
