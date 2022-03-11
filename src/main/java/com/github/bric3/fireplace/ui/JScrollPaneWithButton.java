@@ -39,6 +39,7 @@ public abstract class JScrollPaneWithButton {
                 setBorderPainted(true);
                 setContentAreaFilled(false);
                 setRolloverEnabled(false); // handled by the icon
+                setPreferredSize(new Dimension(30, 30));
             }
 
             @Override
@@ -47,18 +48,19 @@ public abstract class JScrollPaneWithButton {
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
                 if (getModel().isArmed()) {
-                    g2.setColor(Color.darkGray);
+                    g2.setColor(Colors.darkMode ? Color.lightGray : Color.darkGray);
                 } else {
+                    // g2.setColor(Colors.darkMode ? getBackground().brighter() : getBackground().darker());
                     g2.setColor(getBackground());
                 }
 
-                g2.fillOval(0, 0, getSize().width - 1, getSize().height - 1);
+                g2.fillOval(0, 0, getWidth() - 1, getHeight() - 1);
                 super.paintComponent(g2);
             }
 
             protected void paintBorder(Graphics g) {
-                g.setColor(Color.darkGray);
-                g.drawOval(0, 0, getSize().width - 1, getSize().height - 1);
+                g.setColor(Colors.darkMode ? Color.darkGray.brighter() : Color.darkGray);
+                g.drawOval(0, 0, getWidth() - 1, getHeight() - 1);
             }
         };
         private final Rectangle buttonRect = new Rectangle(button.getPreferredSize());

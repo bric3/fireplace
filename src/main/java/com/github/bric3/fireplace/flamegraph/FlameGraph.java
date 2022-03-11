@@ -323,7 +323,7 @@ public class FlameGraph<T> {
 
 
                     var color = minimapShadeColorSupplier == null ?
-                                new Color(getBackground().getRGB() & 0xBA_FFFFFF, true) :
+                                new Color(getBackground().getRGB() & 0x90_FFFFFF, true) :
                                 minimapShadeColorSupplier.get();
                     g2.setColor(color);
                     g2.fill(zoomZone);
