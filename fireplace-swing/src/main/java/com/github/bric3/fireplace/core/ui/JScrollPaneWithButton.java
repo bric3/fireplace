@@ -16,8 +16,18 @@ import java.awt.event.MouseEvent;
 import java.awt.geom.Path2D;
 import java.util.function.Supplier;
 
+/**
+ * Builds a JLayer over a JScrollPane that displays a button that go back
+ * on top of the scroll pane.
+ */
 public abstract class JScrollPaneWithButton {
 
+    /**
+     * Creates a JScrollPane with a button that go back on top of the scroll pane.
+     *
+     * @param scrollPaneSupplier The supplier of the scroll pane.
+     * @return a JLayer over the scroll pane.
+     */
     public static JLayer<JScrollPane> create(Supplier<JScrollPane> scrollPaneSupplier) {
         return new JLayer<>(scrollPaneSupplier.get(),
                             new ScrollBackToTopLayerUI(15, 15));
@@ -48,7 +58,7 @@ public abstract class JScrollPaneWithButton {
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
                 if (getModel().isArmed()) {
-                    g2.setColor(Colors.darkMode ? Color.lightGray : Color.darkGray);
+                    g2.setColor(Colors.isDarkMode() ? Color.lightGray : Color.darkGray);
                 } else {
                     // g2.setColor(Colors.darkMode ? getBackground().brighter() : getBackground().darker());
                     g2.setColor(getBackground());
@@ -59,7 +69,7 @@ public abstract class JScrollPaneWithButton {
             }
 
             protected void paintBorder(Graphics g) {
-                g.setColor(Colors.darkMode ? Color.darkGray.brighter() : Color.darkGray);
+                g.setColor(Colors.isDarkMode() ? Color.darkGray.brighter() : Color.darkGray);
                 g.drawOval(0, 0, getWidth() - 1, getHeight() - 1);
             }
         };

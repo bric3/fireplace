@@ -15,6 +15,9 @@ import java.awt.geom.AffineTransform;
 import java.awt.geom.Rectangle2D;
 import java.awt.image.ColorModel;
 
+/**
+ * Represents a color that can return two values depending on the {@link Colors#darkMode}
+ */
 public class DarkLightColor extends Color {
     private final Color dark;
 
@@ -29,7 +32,7 @@ public class DarkLightColor extends Color {
     }
 
     private Color currentColor() {
-        return Colors.darkMode ? dark : this;
+        return Colors.isDarkMode() ? dark : this;
     }
 
     @Override

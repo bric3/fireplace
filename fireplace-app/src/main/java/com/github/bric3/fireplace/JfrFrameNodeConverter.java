@@ -15,8 +15,6 @@ import org.openjdk.jmc.flightrecorder.stacktrace.tree.StacktraceTreeModel;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.function.Function;
-import java.util.function.ToDoubleFunction;
 
 /**
  * Creates an array of FlameNodes that live in the [0.0, 1.0] world space on the X axis and the depth of the stack representing
@@ -28,7 +26,7 @@ public class JfrFrameNodeConverter {
     public static List<FrameBox<Node>> convert(StacktraceTreeModel model) {
         var nodes = new ArrayList<FrameBox<Node>>();
 
-        flattenAndCalculateCoordinate(
+        FrameBox.flattenAndCalculateCoordinate(
                 nodes,
                 model.getRoot(),
                 Node::getChildren,
@@ -41,31 +39,5 @@ public class JfrFrameNodeConverter {
         assert nodes.get(0).actualNode.isRoot() : "First node should be the root node";
 
         return nodes;
-    }
-
-    public static <T> void flattenAndCalculateCoordinate(
-            List<FrameBox<T>> nodes,
-            T currentNode,
-            Function<T, List<T>> nodeChildren,
-            ToDoubleFunction<T> nodeWeight,
-            double startX,
-            double endX,
-            int depth) {
-        nodes.add(new FrameBox<>(currentNode, startX, endX, depth));
-
-        var children = nodeChildren.apply(currentNode);
-        if (children == null || children.isEmpty()) {
-            return;
-        }
-
-        depth++;
-        var parentWidth = endX - startX;
-        var totalWeight = children.stream().mapToDouble(nodeWeight).sum();
-        for (var node : children) {
-            var nodeWidth = (nodeWeight.applyAsDouble(node) / totalWeight) * parentWidth;
-            endX = startX + nodeWidth;
-            flattenAndCalculateCoordinate(nodes, node, nodeChildren, nodeWeight, startX, endX, depth);
-            startX = endX;
-        }
     }
 }

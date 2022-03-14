@@ -20,6 +20,26 @@ import java.awt.event.MouseWheelEvent;
  * <p>
  * This listener's job is to propagate the mouse input events to the
  * target container.
+ * </p>
+ * <p>
+ * This happens on {@link JScrollPane}, when the component is presented, eg on
+ * the official javadoc:
+ * <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.desktop/javax/swing/JScrollPane.html">
+ * <img href="https://docs.oracle.com/en/java/javase/11/docs/api/java.desktop/javax/swing/doc-files/JScrollPane-1.gif" alt="JScrollPane javadoc image">
+ * </a>
+ * The image suggests that content of the scroll pane is behind. This is a
+ * conceptual view, in practice the content is actually on the top of the scroll
+ * pane (its coordinate and its visible size will just be adjusted to match
+ * the scroll pane) and as it is over the scroll pane it will be the one that
+ * gets the mouse events.
+ * </p>
+ * <p>
+ * When a component does not have mouse listeners they are propagated to the
+ * parent component that is behind. But when a component has mouse listeners
+ * the events are <em>trapped</em> by the top component's listener.
+ * <strong>That means that if the parent is also interested by mouse events
+ * they need to be propagated, that is the goal of this class</strong>.
+ * </p>
  */
 public class MouseInputListenerWorkaroundForToolTipEnabledComponent extends MouseAdapter {
     private final JComponent destination;

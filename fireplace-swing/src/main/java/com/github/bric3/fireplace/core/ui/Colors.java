@@ -14,11 +14,13 @@ import com.github.bric3.fireplace.flamegraph.ColorMapper;
 import javax.swing.*;
 import java.awt.*;
 import java.util.Arrays;
-import java.util.Objects;
 import java.util.regex.Pattern;
 
+/**
+ * Various color related utilities.
+ */
 public class Colors {
-    public static volatile boolean darkMode = false;
+    private static volatile boolean darkMode = false;
 
     /**
      * Perceived brightness threshold between dark and light.
@@ -40,23 +42,46 @@ public class Colors {
     public static Color translucent_white_20 = new Color(0x20FFFFFF, true);
 
 
-    public static Color panelBackGround = UIManager.getColor("Panel.background");
-    public static Color panelForeGround = UIManager.getColor("Panel.foreground");
+    /**
+     * Panel background color, from the current LaF (updated on dark mode change).
+     */
+    public static Color panelBackground = UIManager.getColor("Panel.background");
+    /**
+     * Panel foreground color, from the current LaF (updated on dark mode change).
+     */
+    public static Color panelForeground = UIManager.getColor("Panel.foreground");
 
     /**
      * Refresh the colors when the LaF changes
      */
     public static void refreshColors() {
-        panelBackGround = UIManager.getColor("Panel.background");
-        panelForeGround = UIManager.getColor("Panel.foreground");
+        panelBackground = UIManager.getColor("Panel.background");
+        panelForeground = UIManager.getColor("Panel.foreground");
     }
 
+    /**
+     * @return Whether the dark mode is currently active
+     */
+    public static boolean isDarkMode() {
+        return darkMode;
+    }
+
+    /**
+     * @param darkMode The dark mode toggle
+     */
     public static void setDarkMode(boolean darkMode) {
         Colors.darkMode = darkMode;
         refreshColors();
     }
 
-    public enum Palette implements ColorMapper {
+    /**
+     * Preset color palettes.
+     * This class implements {@link ColorMapper} and use the hashcode of the object
+     * to assign a color.
+     *
+     * @see ColorMapper
+     */
+    public enum Palette {
         // use https://color.hailpixel.com/
         // https://www.toptal.com/designers/colourcode/
 
@@ -154,24 +179,30 @@ public class Colors {
             this.palette = palette;
         }
 
-        public Color mapToColor(Object value) {
-            return value == null ?
-                   palette[0] :
-                   palette[Math.abs(Objects.hashCode(value)) % palette.length];
+        public Color[] colors() {
+            // Maybe make a defensive copy of the array?
+            return palette;
         }
     }
 
+    /**
+     * Pick a foreground color based on the perceived luminance of the
+     * background color and on the dark mode.
+     *
+     * @param backgroundColor The background color.
+     * @return The foreground color.
+     */
     public static Color foregroundColor(Color backgroundColor) {
         // sRGB luminance(Y) values
         var brightness = brightness(backgroundColor);
 
         return brightness < DARK_PERCEIVED_BRIGHTNESS_THRESHOLD ?
                Color.white :
-               darkMode ? Colors.panelBackGround : Colors.panelForeGround;
+               darkMode ? Colors.panelBackground : Colors.panelForeground;
     }
 
     /**
-     * Perceived brightness of a color
+     * Computes the perceived brightness of a color
      * <p>
      * See <a href="https://stackoverflow.com/questions/596216/formula-to-determine-perceived-brightness-of-rgb-color">Perceived brightness on StackOverflow</a>
      *
@@ -207,6 +238,13 @@ public class Colors {
         }
     }
 
+    /**
+     * Mix two colors.
+     *
+     * @param c0 Color A
+     * @param c1 Color B
+     * @return The blended color
+     */
     public static Color blend(Color c0, Color c1) {
         double totalAlpha = c0.getAlpha() + c1.getAlpha();
         double weight0 = c0.getAlpha() / totalAlpha;

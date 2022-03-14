@@ -9,11 +9,10 @@
  */
 package com.github.bric3.fireplace;
 
-import com.github.bric3.fireplace.ui.BalloonToolTip;
-import com.github.bric3.fireplace.flamegraph.FlameGraph;
-import com.github.bric3.fireplace.flamegraph.FrameColorMode;
 import com.github.bric3.fireplace.core.ui.Colors;
 import com.github.bric3.fireplace.core.ui.Colors.Palette;
+import com.github.bric3.fireplace.flamegraph.ColorMapper;
+import com.github.bric3.fireplace.flamegraph.FlameGraph;
 import org.openjdk.jmc.common.util.FormatToolkit;
 import org.openjdk.jmc.flightrecorder.stacktrace.tree.Node;
 import org.openjdk.jmc.flightrecorder.stacktrace.tree.StacktraceTreeModel;
@@ -22,7 +21,6 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionListener;
 import java.util.List;
-import java.util.function.Function;
 
 import static java.util.stream.Collectors.joining;
 
@@ -36,8 +34,8 @@ public class FlameGraphTab extends JPanel {
         super(new BorderLayout());
 
         jfrFlameGraph = new FlameGraph<>();
-        jfrFlameGraph.setTooltipComponentSupplier(BalloonToolTip::new);
-        jfrFlameGraph.setMinimapShadeColorSupplier(() -> Colors.darkMode ? Colors.translucent_black_40 : Colors.translucent_white_80);
+        // jfrFlameGraph.setTooltipComponentSupplier(BalloonToolTip::new);
+        jfrFlameGraph.setMinimapShadeColorSupplier(() -> Colors.isDarkMode() ? Colors.translucent_black_40 : Colors.translucent_white_80);
         var wrapper = new JPanel(new BorderLayout());
         wrapper.add(jfrFlameGraph.component);
 
@@ -67,9 +65,9 @@ public class FlameGraphTab extends JPanel {
 
         ActionListener actionListener = e -> {
             jfrFlameGraph.setColorFunction(
-                    new JfrFrameColorer((Colors.Palette) colorPaletteJComboBox.getSelectedItem(),
-                                        (JfrFrameColorMode) colorModeJComboBox.getSelectedItem())
-            );
+                    ((JfrFrameColorMode) colorModeJComboBox.getSelectedItem())
+                            .colorMapperUsing(ColorMapper.ofObjectHashUsing(
+                                    ((Palette) colorPaletteJComboBox.getSelectedItem()).colors())));
             jfrFlameGraph.requestRepaint();
         };
         colorPaletteJComboBox.addActionListener(actionListener);
@@ -98,23 +96,8 @@ public class FlameGraphTab extends JPanel {
         setStacktraceTreeModel(stacktraceTreeModel);
     }
 
-    static class JfrFrameColorer implements Function<Node, Color> {
-        private final FrameColorMode<Node> frameColorMode;
-        private final Colors.Palette colorPalette;
-
-        public JfrFrameColorer(Colors.Palette colorPalette, JfrFrameColorMode frameColorMode) {
-            this.colorPalette = colorPalette;
-            this.frameColorMode = frameColorMode;
-        }
-
-        @Override
-        public Color apply(Node node) {
-            return this.frameColorMode.getColor(this.colorPalette, node);
-        }
-    }
-
     public void setStacktraceTreeModel(StacktraceTreeModel stackTraceTreeModel) {
-        jfrFlameGraph.setStacktraceTree(
+        jfrFlameGraph.setData(
                 JfrFrameNodeConverter.convert(stackTraceTreeModel),
                 List.of(
                         node -> node.getFrame().getHumanReadableShortString(),
@@ -127,7 +110,7 @@ public class FlameGraphTab extends JPanel {
                                                     .collect(joining(", "));
                     return "all (" + events + ")";
                 },
-                new JfrFrameColorer(defaultColorPalette, defaultFrameColorMode),
+                defaultFrameColorMode.colorMapperUsing(ColorMapper.ofObjectHashUsing(defaultColorPalette.colors())),
                 frame -> {
                     if (frame.stackDepth == 0) {
                         return "";

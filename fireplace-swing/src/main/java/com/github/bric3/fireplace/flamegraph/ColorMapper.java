@@ -10,12 +10,22 @@
 package com.github.bric3.fireplace.flamegraph;
 
 import java.awt.*;
+import java.util.Objects;
 import java.util.function.Function;
 
-public interface ColorMapper extends Function<Object, Color> {
-    default Color apply(Object o) {
+/**
+ * Named function to map a value to a color.
+ */
+public interface ColorMapper<T> extends Function<T, Color> {
+    static ColorMapper<Object> ofObjectHashUsing(Color... palette) {
+        return value -> value == null ?
+                        palette[0] :
+                        palette[Math.abs(Objects.hashCode(value)) % palette.length];
+    }
+
+    default Color apply(T o) {
         return mapToColor(o);
     }
 
-    Color mapToColor(Object o);
+    Color mapToColor(T o);
 }

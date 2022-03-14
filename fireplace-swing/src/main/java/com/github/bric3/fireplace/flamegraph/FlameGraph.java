@@ -27,11 +27,53 @@ import java.util.function.Supplier;
 
 import static java.lang.Boolean.TRUE;
 
+/**
+ * Class that allows to display a flame graph.
+ * <p>
+ * In general the Flamegraph's raw data is an actual tree. However walking
+ * this tree require substantial effort to process during painting.
+ * For this reason the actual tree must be pre-processed as a list of
+ * {@link FrameBox}.
+ * </p>
+ * <p>
+ * It can be used is as follows:
+ * <pre><code>
+ * FlameGraph&lt;MyNode&gt; flameGraph = new FlameGraph&lt;&gt;();
+ * flameGraph.showMinimap(false);
+ * flameGraph.setData(
+ *     (FrameBox&lt;MyNode&gt;) listOfFrameBox(),   // list of frames
+ *     List.of(n -> n.stringRepresentation()),      // string representation candidates
+ *     rootNode -> rootNode.stringRepresentation(), // root node string representation
+ *     frameToColorFunction,                        // color function
+ *     frameToToolTipTextFunction                   // text tooltip function
+ * );
+ *
+ * panel.add(flameGraph.component);
+ * </code></pre>
+ * <p>
+ * The created and <em>final</em> {@code component} is a composite that is based
+ * on a {@link JScrollPane}.
+ * </p>
+ *
+ * @param <T> The type of the node data.
+ * @see FlameGraphPainter
+ */
 public class FlameGraph<T> {
+    /**
+     * Simple property that allows to display some painting data statistics
+     */
     public static String SHOW_STATS = "flamegraph.show_stats";
     private final FlameGraphCanvas<T> canvas;
+
+    /**
+     * The final composite component that can display a flame graph.
+     */
     public final JComponent component;
 
+    /**
+     * Creates an empty flame graph.
+     * In order to use in Swing just access the {@link #component} field.
+     */
     public FlameGraph() {
         canvas = new FlameGraphCanvas<>();
         ToolTipManager.sharedInstance().registerComponent(canvas);
@@ -57,33 +99,83 @@ public class FlameGraph<T> {
         );
     }
 
+    /**
+     * Replaces the frame to color function.
+     *
+     * @param frameColorFunction A function that takes a frame and returns a color.
+     */
     public void setColorFunction(Function<T, Color> frameColorFunction) {
         this.canvas.getFlameGraphPainter()
                    .ifPresent(fgp -> fgp.frameColorFunction = frameColorFunction);
     }
 
+    /**
+     * Toggle the display of borders around frames.
+     *
+     * @param paintFrameBorder {@code true} to paint borders around frames, {@code false} otherwise.
+     */
     public void setPaintFrameBorder(boolean paintFrameBorder) {
         canvas.getFlameGraphPainter()
               .ifPresent(fgp -> fgp.paintFrameBorder = paintFrameBorder);
     }
 
+    /**
+     * Replaces the default color shade for the minimap.
+     * Alpha color are supported.
+     *
+     * @param minimapShadeColorSupplier Color supplier.
+     */
     public void setMinimapShadeColorSupplier(Supplier<Color> minimapShadeColorSupplier) {
         canvas.setMinimapShadeColorSupplier(minimapShadeColorSupplier);
     }
 
+    /**
+     * @param showMinimap {@code true} to show the minimap, {@code false} otherwise.
+     */
     public void showMinimap(boolean showMinimap) {
         canvas.showMinimap(showMinimap);
     }
 
+    /**
+     * Replaces the default tooltip component.
+     *
+     * @param tooltipComponentSupplier The tooltip component supplier.
+     */
     public void setTooltipComponentSupplier(Supplier<JToolTip> tooltipComponentSupplier) {
         canvas.setTooltipComponentSupplier(tooltipComponentSupplier);
     }
 
-    public void setStacktraceTree(List<FrameBox<T>> frames,
-                                  List<Function<T, String>> frameToStringCandidates,
-                                  Function<T, String> rootFrameToString,
-                                  Function<T, Color> frameColorFunction,
-                                  Function<FrameBox<T>, String> tooltipTextFunction) {
+    /**
+     * Actually set the {@link FlameGraph} with typed data and configure how to use it.
+     * <p>
+     * It takes a list of {@link FrameBox} objects that wraps the actual data,
+     * which is referred to as <em>node</em>.
+     * </p>
+     * <p>
+     * In particular this function defines the behavior to access the typed data:
+     * <ul>
+     *     <li>Possible string candidates to display in frames, those are
+     *     selected based on the available space</li>
+     *     <li>The root node text to display, if something specific is relevant,
+     *     like the type of events, their number, etc.</li>
+     *     <li>The frame background color, this function can be replaced by
+     *     {@link #setColorFunction(Function)}, note that the foreground color
+     *     is chosen automatically</li>
+     *     <li>The tooltip text from the current node</li>
+     * </ul>
+     * </p>
+     *
+     * @param frames                  The {@code FrameBox} list to display.
+     * @param frameToStringCandidates candidates function to display in frames.
+     * @param rootFrameToString       the root node description.
+     * @param frameColorFunction      the frame to background color function.
+     * @param tooltipTextFunction     the frame tooltip text function.
+     */
+    public void setData(List<FrameBox<T>> frames,
+                        List<Function<T, String>> frameToStringCandidates,
+                        Function<T, String> rootFrameToString,
+                        Function<T, Color> frameColorFunction,
+                        Function<FrameBox<T>, String> tooltipTextFunction) {
         var flameGraphPainter = new FlameGraphPainter<>(
                 frames,
                 frameToStringCandidates,
@@ -97,10 +189,31 @@ public class FlameGraph<T> {
         canvas.invalidate();
     }
 
+    /**
+     * Adds an arbitrary key/value "client property".
+     *
+     * @param key   the key, use {@code null} to remove.
+     * @param value the value.
+     * @see JComponent#putClientProperty(Object, Object)
+     */
     public void putClientProperty(String key, Object value) {
         canvas.putClientProperty(key, value);
     }
 
+    /**
+     * Returns the value of the property with the specified key.
+     *
+     * @param key the key.
+     * @return the value
+     * @see JComponent#getClientProperty(Object)
+     */
+    public Object getClientProperty(String key) {
+        return canvas.getClientProperty(key);
+    }
+
+    /**
+     * Triggers a repaint of the component.
+     */
     public void requestRepaint() {
         canvas.repaint();
         canvas.triggerMinimapGeneration();

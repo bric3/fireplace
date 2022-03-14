@@ -53,6 +53,12 @@ tasks.test {
     useJUnitPlatform()
 }
 
+tasks.withType(JavaCompile::class) {
+    options.compilerArgs.addAll(arrayOf("-Xlint"))
+    options.release.set(11)
+}
+
+
 // Due to https://github.com/gradle/gradle/issues/18426, tasks are not declared in the TaskContainerScope
 tasks.withType<JavaExec>().configureEach {
     group = "class-with-main"

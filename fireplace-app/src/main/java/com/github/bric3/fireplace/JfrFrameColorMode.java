@@ -9,7 +9,6 @@
  */
 package com.github.bric3.fireplace;
 
-import com.github.bric3.fireplace.flamegraph.FrameColorMode;
 import org.openjdk.jmc.common.IMCFrame.Type;
 import org.openjdk.jmc.flightrecorder.stacktrace.tree.Node;
 
@@ -17,12 +16,15 @@ import java.awt.*;
 import java.util.function.Function;
 import java.util.regex.Pattern;
 
-public enum JfrFrameColorMode implements FrameColorMode<Node> {
+/**
+ * A JFR specific color mapping modes.
+ */
+public enum JfrFrameColorMode {
     BY_PACKAGE {
         final Pattern runtimePrefixes = Pattern.compile("(java\\.|javax\\.|sun\\.|com\\.sun\\.|com\\.oracle\\.|com\\.ibm\\.)");
 
         @Override
-        public Color getColor(Function<Object, Color> colorPalette, Node frameNode) {
+        public Color getColor(Function<Object, Color> colorMapper, Node frameNode) {
             if (frameNode.isRoot()) {
                 return rootNodeColor;
             }
@@ -35,21 +37,21 @@ public enum JfrFrameColorMode implements FrameColorMode<Node> {
             if (runtimePrefixes.matcher(name).lookingAt()) {
                 return runtimeColor;
             }
-            return colorPalette.apply(name);
+            return colorMapper.apply(name);
         }
     },
     BY_MODULE {
         @Override
-        public Color getColor(Function<Object, Color> colorPalette, Node frameNode) {
+        public Color getColor(Function<Object, Color> colorMapper, Node frameNode) {
             if (frameNode.isRoot()) {
                 return rootNodeColor;
             }
-            return colorPalette.apply(frameNode.getFrame().getMethod().getType().getPackage().getModule());
+            return colorMapper.apply(frameNode.getFrame().getMethod().getType().getPackage().getModule());
         }
     },
     BY_FRAME_TYPE {
         @Override
-        public Color getColor(Function<Object, Color> colorPalette, Node frameNode) {
+        public Color getColor(Function<Object, Color> colorMapper, Node frameNode) {
             if (frameNode.isRoot()) {
                 return rootNodeColor;
             }
@@ -73,4 +75,10 @@ public enum JfrFrameColorMode implements FrameColorMode<Node> {
     public static Color jitCompiledColor = new Color(21, 110, 64);
     public static Color inlinedColor = Color.pink;
     public static Color interpretedColor = Color.orange;
+
+    protected abstract Color getColor(Function<Object, Color> colorMapper, Node frameNode);
+
+    public Function<Node, Color> colorMapperUsing(Function<Object, Color> colorMapper) {
+        return frameNode -> getColor(colorMapper, frameNode);
+    }
 }

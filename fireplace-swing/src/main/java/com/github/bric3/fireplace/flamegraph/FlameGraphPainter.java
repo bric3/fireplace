@@ -18,6 +18,16 @@ import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
+/**
+ * Engine that paint a flamegraph.
+ * <p>
+ * Note this class a some field that are public and non final; this allows
+ * to quickly toy with this tool, use with caution, or not at all.
+ * </p>
+ *
+ * @param <T> The type of the node
+ * @see FlameGraph
+ */
 public class FlameGraphPainter<T> {
     public Color highlightedColor;
     public Color frameBorderColor;
@@ -65,7 +75,7 @@ public class FlameGraphPainter<T> {
      * This method is used to resync colors when the LaF changes
      */
     public void updateUI() {
-        frameBorderColor = Colors.panelBackGround;
+        frameBorderColor = Colors.panelBackground;
         highlightedColor = Color.yellow;
     }
 
