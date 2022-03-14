@@ -7,6 +7,15 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
-rootProject.name = "fireplace"
-include("fireplace-swing", "fireplace-app")
-enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
+
+fun properties(key: String) = project.findProperty(key).toString()
+
+plugins {
+    `java-library`
+}
+
+tasks {
+    withType(JavaCompile::class) {
+        options.release.set(11)
+    }
+}

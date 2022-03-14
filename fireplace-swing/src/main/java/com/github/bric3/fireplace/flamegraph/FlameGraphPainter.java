@@ -9,7 +9,7 @@
  */
 package com.github.bric3.fireplace.flamegraph;
 
-import com.github.bric3.fireplace.ui.Colors;
+import com.github.bric3.fireplace.core.ui.Colors;
 
 import java.awt.*;
 import java.awt.geom.Rectangle2D;

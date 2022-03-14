@@ -12,7 +12,6 @@ fun properties(key: String) = project.findProperty(key).toString()
 
 plugins {
     id("application")
-    id("pl.allegro.tech.build.axion-release") version "1.13.6"
     id("com.github.johnrengelman.shadow") version "7.1.2"
 
     // Playing with graal compiler
@@ -22,13 +21,13 @@ plugins {
 }
 
 group = "com.github.bric3.fireplace"
-version = scmVersion.version
 
 repositories {
     mavenCentral()
 }
 
 dependencies {
+    implementation(projects.fireplaceSwing)
     implementation(libs.bundles.flatlaf)
     implementation(libs.darklaf)
     implementation(libs.flightrecorder)

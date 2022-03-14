@@ -7,8 +7,9 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
-package com.github.bric3.fireplace.flamegraph;
+package com.github.bric3.fireplace;
 
+import com.github.bric3.fireplace.flamegraph.FrameBox;
 import org.openjdk.jmc.flightrecorder.stacktrace.tree.Node;
 import org.openjdk.jmc.flightrecorder.stacktrace.tree.StacktraceTreeModel;
 
@@ -23,7 +24,7 @@ import java.util.function.ToDoubleFunction;
  * A child node will be proportional to its parent's X space according to its proportion of time it took of its parent's time.
  * The root of the flame graph will always be full width.
  */
-public class FrameNodeConverter {
+public class JfrFrameNodeConverter {
     public static List<FrameBox<Node>> convert(StacktraceTreeModel model) {
         var nodes = new ArrayList<FrameBox<Node>>();
 

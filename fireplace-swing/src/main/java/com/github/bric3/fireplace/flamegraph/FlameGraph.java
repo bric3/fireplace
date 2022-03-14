@@ -9,9 +9,8 @@
  */
 package com.github.bric3.fireplace.flamegraph;
 
-import com.github.bric3.fireplace.ui.BalloonToolTip;
-import com.github.bric3.fireplace.ui.JScrollPaneWithButton;
-import com.github.bric3.fireplace.ui.MouseInputListenerWorkaroundForToolTipEnabledComponent;
+import com.github.bric3.fireplace.core.ui.JScrollPaneWithButton;
+import com.github.bric3.fireplace.core.ui.MouseInputListenerWorkaroundForToolTipEnabledComponent;
 
 import javax.swing.*;
 import javax.swing.event.MouseInputListener;
@@ -76,6 +75,10 @@ public class FlameGraph<T> {
         canvas.showMinimap(showMinimap);
     }
 
+    public void setTooltipComponentSupplier(Supplier<JToolTip> tooltipComponentSupplier) {
+        canvas.setTooltipComponentSupplier(tooltipComponentSupplier);
+    }
+
     public void setStacktraceTree(List<FrameBox<T>> frames,
                                   List<Function<T, String>> frameToStringCandidates,
                                   Function<T, String> rootFrameToString,
@@ -103,7 +106,7 @@ public class FlameGraph<T> {
         canvas.triggerMinimapGeneration();
     }
 
-    static class FlameGraphMouseInputListener<T> implements MouseInputListener {
+    private static class FlameGraphMouseInputListener<T> implements MouseInputListener {
         private Point pressedPoint;
         private final FlameGraphCanvas<T> canvas;
 
@@ -227,9 +230,9 @@ public class FlameGraph<T> {
 
     private static class FlameGraphCanvas<T> extends JPanel {
         private Image minimap;
-        private BalloonToolTip toolTip;
+        private JToolTip toolTip;
         private FlameGraphPainter<T> flameGraphPainter;
-        private Function<FrameBox<T>, String> tooltipTextFunction;
+        private Function<FrameBox<T>, String> tooltipToTextFunction;
         private Dimension flameGraphDimension;
         private int minimapWidth = 200;
         private int minimapHeight = 100;
@@ -238,6 +241,7 @@ public class FlameGraph<T> {
         private Point minimapLocation = new Point(50, 50);
         private Supplier<Color> minimapShadeColorSupplier = null;
         private boolean showMinimap = true;
+        private Supplier<JToolTip> tooltipComponentSupplier;
 
         public FlameGraphCanvas() {
         }
@@ -373,16 +377,19 @@ public class FlameGraph<T> {
         }
 
         public void setToolTipText(FrameBox<T> frame) {
-            if (tooltipTextFunction == null) {
+            if (tooltipToTextFunction == null) {
                 return;
             }
-            setToolTipText(tooltipTextFunction.apply(frame));
+            setToolTipText(tooltipToTextFunction.apply(frame));
         }
 
         @Override
         public JToolTip createToolTip() {
+            if (tooltipComponentSupplier == null) {
+                return super.createToolTip();
+            }
             if (toolTip == null) {
-                toolTip = new BalloonToolTip();
+                toolTip = tooltipComponentSupplier.get();
                 toolTip.setComponent(this);
             }
 
@@ -413,7 +420,7 @@ public class FlameGraph<T> {
                 flameGraphPainter.paintMinimap(minimapGraphics, new Rectangle(minimapWidth, height));
                 minimapGraphics.dispose();
 
-                SwingUtilities.invokeLater(() -> this.setImage(minimapImage));
+                SwingUtilities.invokeLater(() -> this.setMinimapImage(minimapImage));
             }).handle((__, t) -> {
                 if (t != null) {
                     t.printStackTrace(); // no thumbnail
@@ -422,7 +429,7 @@ public class FlameGraph<T> {
             });
         }
 
-        private void setImage(BufferedImage i) {
+        private void setMinimapImage(BufferedImage i) {
             this.minimap = i.getScaledInstance(minimapWidth, minimapHeight, Image.SCALE_SMOOTH);
             var visibleRect = getVisibleRect();
 
@@ -489,7 +496,11 @@ public class FlameGraph<T> {
         }
 
         public void setToolTipTextFunction(Function<FrameBox<T>, String> tooltipTextFunction) {
-            this.tooltipTextFunction = tooltipTextFunction;
+            this.tooltipToTextFunction = tooltipTextFunction;
+        }
+
+        public void setTooltipComponentSupplier(Supplier<JToolTip> tooltipComponentSupplier) {
+            this.tooltipComponentSupplier = tooltipComponentSupplier;
         }
 
         public void setMinimapShadeColorSupplier(Supplier<Color> minimapShadeColorSupplier) {

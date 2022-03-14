@@ -1,5 +1,7 @@
 package com.github.bric3.fireplace.ui;
 
+import com.github.bric3.fireplace.core.ui.Colors;
+
 import javax.swing.*;
 import java.awt.*;
 

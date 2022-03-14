@@ -7,7 +7,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
-package com.github.bric3.fireplace.ui;
+package com.github.bric3.fireplace.core.ui;
 
 import javax.swing.*;
 import javax.swing.plaf.LayerUI;

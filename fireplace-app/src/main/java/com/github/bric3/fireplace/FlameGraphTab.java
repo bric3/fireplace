@@ -9,11 +9,11 @@
  */
 package com.github.bric3.fireplace;
 
+import com.github.bric3.fireplace.ui.BalloonToolTip;
 import com.github.bric3.fireplace.flamegraph.FlameGraph;
 import com.github.bric3.fireplace.flamegraph.FrameColorMode;
-import com.github.bric3.fireplace.flamegraph.FrameNodeConverter;
-import com.github.bric3.fireplace.ui.Colors;
-import com.github.bric3.fireplace.ui.Colors.Palette;
+import com.github.bric3.fireplace.core.ui.Colors;
+import com.github.bric3.fireplace.core.ui.Colors.Palette;
 import org.openjdk.jmc.common.util.FormatToolkit;
 import org.openjdk.jmc.flightrecorder.stacktrace.tree.Node;
 import org.openjdk.jmc.flightrecorder.stacktrace.tree.StacktraceTreeModel;
@@ -27,8 +27,8 @@ import java.util.function.Function;
 import static java.util.stream.Collectors.joining;
 
 public class FlameGraphTab extends JPanel {
-    private static Palette defaultColorPalette = Palette.DATADOG;
-    private static JfrFrameColorMode defaultFrameColorMode = JfrFrameColorMode.BY_PACKAGE;
+    private static final Palette defaultColorPalette = Palette.DATADOG;
+    private static final JfrFrameColorMode defaultFrameColorMode = JfrFrameColorMode.BY_PACKAGE;
     private static final boolean defaultPaintFrameBorder = true;
     private FlameGraph<Node> jfrFlameGraph;
 
@@ -36,6 +36,7 @@ public class FlameGraphTab extends JPanel {
         super(new BorderLayout());
 
         jfrFlameGraph = new FlameGraph<>();
+        jfrFlameGraph.setTooltipComponentSupplier(BalloonToolTip::new);
         jfrFlameGraph.setMinimapShadeColorSupplier(() -> Colors.darkMode ? Colors.translucent_black_40 : Colors.translucent_white_80);
         var wrapper = new JPanel(new BorderLayout());
         wrapper.add(jfrFlameGraph.component);
@@ -114,7 +115,7 @@ public class FlameGraphTab extends JPanel {
 
     public void setStacktraceTreeModel(StacktraceTreeModel stackTraceTreeModel) {
         jfrFlameGraph.setStacktraceTree(
-                FrameNodeConverter.convert(stackTraceTreeModel),
+                JfrFrameNodeConverter.convert(stackTraceTreeModel),
                 List.of(
                         node -> node.getFrame().getHumanReadableShortString(),
                         node -> node.getFrame().getMethod().getMethodName()

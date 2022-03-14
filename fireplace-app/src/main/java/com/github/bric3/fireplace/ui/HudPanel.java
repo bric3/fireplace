@@ -1,11 +1,11 @@
-package com.github.bric3.fireplace;
+package com.github.bric3.fireplace.ui;
 
-import com.github.bric3.fireplace.ui.GlassJPanel;
+import com.github.bric3.fireplace.DnDTarget;
 
 import javax.swing.*;
 import java.awt.*;
 
-class HudPanel {
+public class HudPanel {
     private final JPanel dndPanel;
     private final JPanel progressPanel;
     private final JPanel hudPanel;
