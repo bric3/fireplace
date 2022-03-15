@@ -8,12 +8,6 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-fun properties(key: String) = project.findProperty(key).toString()
-
-plugins {
-    `java-library`
-}
-
 tasks {
     withType(JavaCompile::class) {
         options.release.set(11)
