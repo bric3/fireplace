@@ -45,13 +45,11 @@ gitVersioning.apply {
 
 val isSnapshot = gitVersioning.gitVersionDetails.refType != GitRefType.TAG
 
+
 val fireplaceModules = subprojects.filter { it.name != projects.fireplaceApp.name }
 configure(fireplaceModules) {
     apply(plugin = "java-library") // needed to get the java component
     apply(plugin = "maven-publish")
-
-    println("Publishing ${name}")
-    println("Publishing ${project.name}")
 
     // configure<JavaPluginExtension> {
     //     withSourcesJar()
@@ -66,11 +64,21 @@ configure(fireplaceModules) {
             metaInf.with(licenseSpec)
         }
 
+        // todo replace by java.withSourcesJar()
         val sourcesJar by registering(Jar::class) {
             archiveClassifier.set("sources")
             from(
                 // take extension from project instance
                 project.the<SourceSetContainer>().named("main").get().allJava
+            )
+        }
+
+        val jar = named<Jar>("jar") {
+            manifest.attributes(
+                "Implementation-Title" to project.name,
+                "Implementation-Version" to project.version,
+                "Automatic-Module-Name" to project.name.replace('-', '.'),
+                "Created-By" to "${System.getProperty("java.version")} (${System.getProperty("java.specification.vendor")})",
             )
         }
     }

@@ -45,6 +45,15 @@ application {
     mainClass.set("com.github.bric3.fireplace.FirePlaceMain")
 }
 
+tasks.jar {
+    manifest.attributes(
+        "Implementation-Title" to project.name,
+        "Implementation-Version" to project.version,
+        "Automatic-Module-Name" to project.name.replace('-', '.'),
+        "Created-By" to "${System.getProperty("java.version")} (${System.getProperty("java.specification.vendor")})",
+    )
+}
+
 tasks.test {
     useJUnitPlatform()
 }
