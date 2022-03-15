@@ -18,7 +18,7 @@ plugins {
 }
 
 allprojects {
-    group = "com.github.bric3.fireplace"
+    group = "io.github.bric3.fireplace"
 }
 
 
@@ -121,6 +121,23 @@ configure(fireplaceModules) {
             }
         }
         repositories {
+            if (properties("publish.central").toBoolean()) {
+                val isGithubRelease = System.getenv("GITHUB_EVENT_NAME").equals("release", true)
+                maven {
+                    name = "central"
+                    url = uri(
+                        if (isGithubRelease && !isSnapshot)
+                            "https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/"
+                        else
+                            "https://s01.oss.sonatype.org/content/repositories/snapshots"
+                    )
+                    credentials {
+                        username = System.getenv("OSSRH_USERNAME")
+                        password = System.getenv("OSSRH_PASSWORD")
+                    }
+                }
+            }
+
             maven {
                 url = uri("${rootProject.buildDir}/publishing-repository")
             }
