@@ -12,7 +12,6 @@ package com.github.bric3.fireplace.flamegraph;
 import com.github.bric3.fireplace.core.ui.Colors;
 
 import java.awt.*;
-import java.awt.geom.Rectangle2D;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Consumer;
@@ -30,10 +29,13 @@ import java.util.function.Function;
  */
 public class FlameGraphPainter<T> {
     public Color highlightedColor;
-    public Color frameBorderColor;
-    public boolean paintFrameBorder = true;
+    public Color frameGapColor;
+    public boolean frameGapEnabled = true;
+    public int frameGapWidth = 1;
+
     public boolean paintHoveredFrameBorder = true;
     public int frameBorderWidth = 1;
+    public Stroke frameBorderStroke = new BasicStroke(frameBorderWidth);
 
     private final int depth;
     private int visibleDepth;
@@ -75,12 +77,12 @@ public class FlameGraphPainter<T> {
      * This method is used to resync colors when the LaF changes
      */
     public void updateUI() {
-        frameBorderColor = Colors.panelBackground;
+        frameGapColor = Colors.panelBackground;
         highlightedColor = Color.yellow;
     }
 
     private int getFrameBoxHeight(Graphics2D g2) {
-        return g2.getFontMetrics().getAscent() + (textBorder * 2) + frameBorderWidth * 2;
+        return g2.getFontMetrics().getAscent() + (textBorder * 2) + frameGapWidth * 2;
     }
 
     public int computeFlameGraphMinimapHeight(int thumbnailWidth) {
@@ -134,7 +136,7 @@ public class FlameGraphPainter<T> {
     }
 
     private float getFrameBoxTextOffset(Graphics2D g2) {
-        return getFrameBoxHeight(g2) - (g2.getFontMetrics().getDescent() / 2f) - textBorder - frameBorderWidth;
+        return getFrameBoxHeight(g2) - (g2.getFontMetrics().getDescent() / 2f) - textBorder - frameGapWidth;
     }
 
     public void paint(Graphics2D g2, Rectangle visibleRect) {
@@ -149,12 +151,12 @@ public class FlameGraphPainter<T> {
 
     private void paint(Graphics2D g2, Rectangle visibleRect, boolean minimapMode) {
         long start = System.currentTimeMillis();
+        Graphics2D g2d = (Graphics2D) g2.create();
         var frameBoxHeight = minimapMode ? minimapFrameBoxHeight : getFrameBoxHeight(g2);
         var flameGraphWidth = minimapMode ? visibleRect.width : this.flameGraphWidth;
         var rectOnCanvas = new Rectangle(); // reusable rectangle
-        var frameRect = new Rectangle(); // reusable rectangle
 
-        identifyDisplayScale(g2);
+        identifyDisplayScale(g2d);
 
         {
             var rootFrame = frames.get(0);
@@ -164,17 +166,14 @@ public class FlameGraphPainter<T> {
             rectOnCanvas.y = frameBoxHeight * rootFrame.stackDepth;
             rectOnCanvas.height = frameBoxHeight;
 
-            frameRect.width = rectOnCanvas.width;
-            frameRect.height = rectOnCanvas.height;
-
             if (visibleRect.intersects(rectOnCanvas)) {
-                paintRootFrameRectangle((Graphics2D) g2.create(rectOnCanvas.x, rectOnCanvas.y, rectOnCanvas.width, rectOnCanvas.height),
-                                        frameRect,
+                paintRootFrameRectangle(g2d, rectOnCanvas,
                                         rootFrameToText.apply(rootFrame.actualNode),
                                         handleFocus(frameColorFunction.apply(rootFrame.actualNode),
                                                     hoveredFrame == rootFrame,
                                                     false,
                                                     selectedFrame != null && rootFrame.stackDepth < selectedFrame.stackDepth, minimapMode),
+                                        frameGapColor,
                                         minimapMode);
             }
         }
@@ -194,12 +193,8 @@ public class FlameGraphPainter<T> {
             rectOnCanvas.y = frameBoxHeight * frame.stackDepth;
             rectOnCanvas.height = frameBoxHeight;
 
-            frameRect.width = rectOnCanvas.width;
-            frameRect.height = rectOnCanvas.height;
-
             if (visibleRect.intersects(rectOnCanvas)) {
-                paintNodeFrameRectangle((Graphics2D) g2.create(rectOnCanvas.x, rectOnCanvas.y, rectOnCanvas.width, rectOnCanvas.height),
-                                        frameRect,
+                paintNodeFrameRectangle(g2d, rectOnCanvas,
                                         frame.actualNode,
                                         handleFocus(frameColorFunction.apply(frame.actualNode),
                                                     hoveredFrame == frame,
@@ -209,13 +204,13 @@ public class FlameGraphPainter<T> {
                                                             || frame.endX < selectedFrame.startX
                                                             || frame.startX > selectedFrame.endX),
                                                     minimapMode),
-                                        frameBorderColor,
+                                        frameGapColor,
                                         minimapMode);
             }
         }
 
         if (!minimapMode) {
-            paintHoveredFrameBorder(g2, visibleRect, frameBoxHeight, rectOnCanvas);
+            paintHoveredFrameBorder(g2d, visibleRect, frameBoxHeight, rectOnCanvas);
         }
 
         if (!minimapMode && paintDetails) {
@@ -223,20 +218,20 @@ public class FlameGraphPainter<T> {
             var drawTimeMs = "FrameGraph width " + flameGraphWidth + " Zoom Factor " + zoomFactor + " Coordinate (" + visibleRect.x + ", " + visibleRect.y + ") size (" +
                              visibleRect.width + ", " + visibleRect.height +
                              ") , Draw time: " + (System.currentTimeMillis() - start) + " ms";
-            var nowWidth = g2.getFontMetrics().stringWidth(drawTimeMs);
-            g2.setColor(Color.darkGray);
-            g2.fillRect(visibleRect.x + visibleRect.width - nowWidth - textBorder * 2,
+            var nowWidth = g2d.getFontMetrics().stringWidth(drawTimeMs);
+            g2d.setColor(Color.DARK_GRAY);
+            g2d.fillRect(visibleRect.x + visibleRect.width - nowWidth - textBorder * 2,
                         visibleRect.y + visibleRect.height - frameBoxHeight,
                         nowWidth + textBorder * 2,
                         frameBoxHeight);
 
-            g2.setColor(Color.yellow);
-            g2.drawString(drawTimeMs,
+            g2d.setColor(Color.YELLOW);
+            g2d.drawString(drawTimeMs,
                           visibleRect.x + visibleRect.width - nowWidth - textBorder,
                           visibleRect.y + visibleRect.height - textBorder);
         }
 
-        g2.clip(visibleRect);
+        g2d.dispose();
     }
 
     private void paintHoveredFrameBorder(Graphics2D g2, Rectangle visibleRect, int frameBoxHeight, Rectangle rect) {
@@ -245,7 +240,7 @@ public class FlameGraphPainter<T> {
         }
 
         rect.x = (int) (flameGraphWidth * hoveredFrame.startX) + internalPadding;
-        rect.width = ((int) (flameGraphWidth * hoveredFrame.endX)) - rect.x - internalPadding;
+        rect.width = ((int) (flameGraphWidth * hoveredFrame.endX)) - rect.x - internalPadding - frameGapWidth;
 
         if ((rect.width < frameWidthVisibilityThreshold)) {
             return;
@@ -255,9 +250,9 @@ public class FlameGraphPainter<T> {
         rect.height = frameBoxHeight;
 
         if (visibleRect.intersects(rect)) {
-            g2.setColor(Color.white);
-            g2.setStroke(new BasicStroke(frameBorderWidth));
-            g2.drawRect(rect.x + 1, rect.y + 1, rect.width - 1, rect.height - 1);
+            g2.setColor(Color.WHITE);
+            g2.setStroke(frameBorderStroke);
+            g2.drawRect(rect.x, rect.y, rect.width - frameBorderWidth, rect.height - frameGapWidth - frameBorderWidth);
         }
     }
 
@@ -287,8 +282,8 @@ public class FlameGraphPainter<T> {
         return bgColor;
     }
 
-    private void paintNodeFrameRectangle(Graphics2D g2, Rectangle frameRect, T node, Color bgColor, Color frameBorderColor, boolean minimapMode) {
-        var frameRectSurface = paintFrameRectangle(g2, frameRect, bgColor, frameBorderColor, minimapMode);
+    private void paintNodeFrameRectangle(Graphics2D g2, Rectangle frameRect, T node, Color bgColor, Color frameGapColor, boolean minimapMode) {
+        var frameRectSurface = paintFrameRectangle(g2, frameRect, bgColor, frameGapColor, minimapMode);
         if (minimapMode) {
             return;
         }
@@ -297,47 +292,39 @@ public class FlameGraphPainter<T> {
                        frameRectSurface.width - textBorder * 2 - frameBorderWidth * 2,
                        text -> {
                            g2.setColor(Colors.foregroundColor(bgColor));
-                           g2.drawString(text, textBorder + frameBorderWidth, getFrameBoxTextOffset(g2));
+                           g2.drawString(text, frameRect.x + textBorder, frameRect.y + getFrameBoxTextOffset(g2));
                        });
-        g2.dispose();
     }
 
-    private void paintRootFrameRectangle(Graphics2D g2, Rectangle rect, String str, Color bgColor, boolean minimapMode) {
-        var frameRectSurface = paintFrameRectangle(g2, rect, bgColor, frameBorderColor, minimapMode);
+    private void paintRootFrameRectangle(Graphics2D g2, Rectangle rect, String str, Color bgColor, Color gapColor, boolean minimapMode) {
+        var frameRectSurface = paintFrameRectangle(g2, rect, bgColor, gapColor, minimapMode);
         if (minimapMode) {
             return;
         }
         paintFrameText(str,
                        g2,
-                       frameRectSurface.width - textBorder * 2 - frameBorderWidth * 2,
+                       frameRectSurface.width - textBorder * 2 - frameGapWidth * 2,
                        text -> {
                            g2.setColor(Colors.foregroundColor(bgColor));
                            g2.drawString(text, textBorder + frameBorderWidth, getFrameBoxTextOffset(g2));
                        });
-        g2.dispose();
     }
 
-    private Rectangle2D.Double paintFrameRectangle(Graphics2D g2, Rectangle frameRect, Color bgColor, Color frameBorderColor, boolean minimapMode) {
+    private Rectangle paintFrameRectangle(Graphics2D g2, Rectangle frameRect, Color bgColor, Color frameGapColor, boolean minimapMode) {
         var borderWidth = minimapMode ?
                           0 :
-                          paintFrameBorder ? frameBorderWidth : 0;
+                          frameGapEnabled ? frameGapWidth : 0;
 
-        if (paintFrameBorder && !minimapMode) {
-            var growBoxSurface = new Rectangle.Double(frameRect.x,
-                                                      frameRect.y,
-                                                      frameRect.width + borderWidth,
-                                                      frameRect.height + borderWidth);
-            g2.setColor(frameBorderColor);
-            g2.fill(growBoxSurface);
+        if (frameGapEnabled && !minimapMode) {
+            g2.setColor(frameGapColor);
+            g2.fill(frameRect);
         }
 
-        var frameRectSurface = new Rectangle2D.Double(frameRect.x + borderWidth,
-                                                      frameRect.y + borderWidth,
-                                                      frameRect.width - borderWidth,
-                                                      frameRect.height - borderWidth);
+        frameRect.width = frameRect.width - borderWidth;
+        frameRect.height = frameRect.height - borderWidth;
         g2.setColor(bgColor);
-        g2.fill(frameRectSurface);
-        return frameRectSurface;
+        g2.fill(frameRect);
+        return frameRect;
     }
 
     public Optional<FrameBox<T>> getFrameAt(Graphics2D g2, Point point) {

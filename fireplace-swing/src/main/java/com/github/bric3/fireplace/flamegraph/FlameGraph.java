@@ -110,13 +110,13 @@ public class FlameGraph<T> {
     }
 
     /**
-     * Toggle the display of borders around frames.
+     * Toggle the display of a gap between frames.
      *
-     * @param paintFrameBorder {@code true} to paint borders around frames, {@code false} otherwise.
+     * @param frameGapEnabled {@code true} to show a gap between frames, {@code false} otherwise.
      */
-    public void setPaintFrameBorder(boolean paintFrameBorder) {
+    public void setFrameGapEnabled(boolean frameGapEnabled) {
         canvas.getFlameGraphPainter()
-              .ifPresent(fgp -> fgp.paintFrameBorder = paintFrameBorder);
+              .ifPresent(fgp -> fgp.frameGapEnabled = frameGapEnabled);
     }
 
     /**
