@@ -24,7 +24,7 @@ allprojects {
 
 // Doc : https://github.com/qoomon/gradle-git-versioning-plugin
 gitVersioning.apply {
-    val dirty = if (properties("showDirtiness", "true") != "true") "" else "\${dirty}"
+    val dirty = if (!properties("version.showDirtiness", "true").toBoolean()) "" else "\${dirty}"
     refs {
         considerTagsOnBranches = true
         tag("v(?<tagVersion>[0-9].*)") {
@@ -43,7 +43,10 @@ gitVersioning.apply {
     }
 }
 
-val isSnapshot = gitVersioning.gitVersionDetails.refType != GitRefType.TAG
+val isSnapshot =
+    properties("version.forceSnapshot").toBoolean()
+            || (!properties("version.forceRelease").toBoolean()
+            && gitVersioning.gitVersionDetails.refType != GitRefType.TAG)
 
 
 val fireplaceModules = subprojects.filter { it.name != projects.fireplaceApp.name }
@@ -100,6 +103,12 @@ configure(fireplaceModules) {
                 artifact(tasks["sourcesJar"])
                 groupId = project.group.toString()
                 artifactId = project.name
+                // OSSRH enforces the `-SNAPSHOT` suffix on snapshot repository
+                // https://central.sonatype.org/faq/400-error/#question
+                version = if (isSnapshot)
+                    project.version.toString().replace("DIRTY", "-SNAPSHOT")
+                else
+                    project.version.toString()
 
                 afterEvaluate {
                     description = project.description
@@ -141,8 +150,11 @@ configure(fireplaceModules) {
                             "https://s01.oss.sonatype.org/content/repositories/snapshots"
                     )
                     credentials {
-                        username = System.getenv("OSSRH_USERNAME")
-                        password = System.getenv("OSSRH_PASSWORD")
+                        username = findProperty("ossrhUsername") as? String
+                        password = findProperty("ossrhPassword") as? String
+                    }
+                    afterEvaluate {
+                        logger.lifecycle("Release $version on '$url' repository for publishing")
                     }
                 }
             }
