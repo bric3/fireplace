@@ -50,6 +50,7 @@ val fireplaceModules = subprojects.filter { it.name != projects.fireplaceApp.nam
 configure(fireplaceModules) {
     apply(plugin = "java-library") // needed to get the java component
     apply(plugin = "maven-publish")
+    apply(plugin = "signing")
 
     // configure<JavaPluginExtension> {
     //     withSourcesJar()
@@ -83,7 +84,15 @@ configure(fireplaceModules) {
         }
     }
 
+    // https://docs.gradle.org/current/userguide/signing_plugin.html#sec:signatory_credentials
+    configure<SigningExtension> {
+        setRequired({ gradle.taskGraph.hasTask("publish") })
+        useInMemoryPgpKeys(findProperty("signingKey") as? String, findProperty("signingPassword") as? String)
+        sign(publishing.publications)
+    }
 
+    // test run via
+    // ORG_GRADLE_PROJECT_signingKey=$(cat secring.gpg) ORG_GRADLE_PROJECT_signingPassword=$(pbpaste) ./gradlew publish --console=verbose
     publishing {
         publications {
             create<MavenPublication>("mavenJava") {
