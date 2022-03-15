@@ -206,8 +206,8 @@ public class FlameGraphPainter<T> {
                                                     false,
                                                     selectedFrame != null && (
                                                             frame.stackDepth < selectedFrame.stackDepth
-                                                            || frame.endX < selectedFrame.startX
-                                                            || frame.startX > selectedFrame.endX),
+                                                            || frame.endX <= selectedFrame.startX
+                                                            || frame.startX >= selectedFrame.endX),
                                                     minimapMode),
                                         frameBorderColor,
                                         minimapMode);
