@@ -241,7 +241,7 @@ public class FlameGraphPainter<T> {
         }
 
         rect.x = (int) (flameGraphWidth * hoveredFrame.startX) + internalPadding;
-        rect.width = ((int) (flameGraphWidth * hoveredFrame.endX)) - rect.x - internalPadding - frameBorderWidth - (frameGapEnabled ? frameGapWidth : 0);
+        rect.width = ((int) (flameGraphWidth * hoveredFrame.endX)) - rect.x - internalPadding - frameBorderWidth;
 
         if ((rect.width < frameWidthVisibilityThreshold)) {
             return;
