@@ -18,8 +18,6 @@ plugins {
     id("org.graalvm.plugin.compiler") version "0.1.0-alpha2"
 }
 
-group = "com.github.bric3.fireplace"
-
 repositories {
     mavenCentral()
 }
@@ -45,6 +43,15 @@ java {
 
 application {
     mainClass.set("com.github.bric3.fireplace.FirePlaceMain")
+}
+
+tasks.jar {
+    manifest.attributes(
+        "Implementation-Title" to project.name,
+        "Implementation-Version" to project.version,
+        "Automatic-Module-Name" to project.name.replace('-', '.'),
+        "Created-By" to "${System.getProperty("java.version")} (${System.getProperty("java.specification.vendor")})",
+    )
 }
 
 tasks.test {
@@ -82,3 +89,30 @@ graal {
     version = libs.versions.graalvm.get()
 }
 
+
+// work in progress
+// plugins {
+//     id("org.jreleaser") version "1.0.0-M3"
+// }
+//
+// jreleaser {
+//     project {
+//         website.set("https://github.com/bric3/fireplace")
+//         authors.set(listOf("Brice Dutheil"))
+//         license.set("MPL-2.0")
+//         extraProperties.put("inceptionYear", "2021")
+//     }
+//
+//     release {
+//         github {
+//             owner.set("bric3")
+//             overwrite.set(true)
+//         }
+//     }
+//
+//     distributions.create("app") {
+//         artifact {
+//             path.set(file("build/distributions/{{distributionName}}-{{projectVersion}}.zip"))
+//         }
+//     }
+// }

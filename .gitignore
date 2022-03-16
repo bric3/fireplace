@@ -167,5 +167,9 @@ gradle-app.setting
 ### Gradle Patch ###
 **/build/
 
+
+### asdf ###
+.tool-versions
+
 # End of https://www.toptal.com/developers/gitignore/api/vscode,gradle,intellij,java,eclipse,vim
 

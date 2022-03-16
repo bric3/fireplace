@@ -1,0 +1,5 @@
+image:https://github.com/bric3/fireplace/actions/workflows/build.yml/badge.svg[Java CI with Gradle,link=https://github.com/bric3/fireplace/actions/workflows/build.yml]
+
+Snapshot versions will be delivered at
+
+> https://s01.oss.sonatype.org/content/repositories/snapshots/io/github/bric3/fireplace[https://s01.oss.sonatype.org/content/repositories/*snapshots*/io/github/bric3/fireplace]
