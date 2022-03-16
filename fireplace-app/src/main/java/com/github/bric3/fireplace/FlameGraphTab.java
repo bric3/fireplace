@@ -75,7 +75,7 @@ public class FlameGraphTab extends JPanel {
 
         var borderToggle = new JCheckBox("Border");
         borderToggle.addActionListener(e -> {
-            jfrFlameGraph.setPaintFrameBorder(borderToggle.isSelected());
+            jfrFlameGraph.setFrameGapEnabled(borderToggle.isSelected());
             jfrFlameGraph.requestRepaint();
         });
         borderToggle.setSelected(defaultPaintFrameBorder);
