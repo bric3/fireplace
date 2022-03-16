@@ -16,6 +16,7 @@ import java.awt.geom.Rectangle2D;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -387,6 +388,17 @@ public class FlameGraphPainter<T> {
         return frameRect;
     }
 
+    public Rectangle getFrameRectangle(Graphics2D g2, Rectangle2D bounds, FrameBox<T> frame) {
+        var frameBoxHeight = getFrameBoxHeight(g2);
+
+        var rect = new Rectangle();
+        rect.x = (int) (bounds.getWidth() * frame.startX) - frameGapWidth; // + internalPadding;
+        rect.width = (int) (bounds.getWidth() * frame.endX) - rect.x + 2 * frameGapWidth; // - internalPadding;
+        rect.y = frameBoxHeight * frame.stackDepth - frameGapWidth;
+        rect.height = frameBoxHeight + 2 * frameGapWidth;
+        return rect;
+    }
+
     public Optional<FrameBox<T>> getFrameAt(Graphics2D g2, Rectangle2D bounds, Point point) {
         int depth = point.y / getFrameBoxHeight(g2);
         double xLocation = point.x / bounds.getWidth();
@@ -396,17 +408,24 @@ public class FlameGraphPainter<T> {
                      .findFirst();
     }
 
-    public void toggleSelectedFrameAt(Graphics2D g2, Rectangle2D bounds, Point point) {
+    public void toggleSelectedFrameAt(Graphics2D g2, Rectangle2D bounds, Point point, BiConsumer<FrameBox<T>, Rectangle> toggleConsumer) {
         getFrameAt(g2, bounds, point)
-                .ifPresent(frame -> selectedFrame = selectedFrame == frame ? null : frame);
+                .ifPresent(frame -> {
+                    selectedFrame = selectedFrame == frame ? null : frame;
+                    toggleConsumer.accept(frame, getFrameRectangle(g2, bounds, frame));
+                });
     }
 
-    public void hoverFrameAt(Graphics2D g2, Rectangle2D bounds, Point point, Consumer<FrameBox<T>> hoverConsumer) {
+    public void hoverFrameAt(Graphics2D g2, Rectangle2D bounds, Point point, BiConsumer<FrameBox<T>, Rectangle> hoverConsumer) {
         getFrameAt(g2, bounds, point)
                 .ifPresentOrElse(frame -> {
+                                     var oldHoveredFrame = hoveredFrame;
                                      hoveredFrame = frame;
                                      if (hoverConsumer != null) {
-                                         hoverConsumer.accept(frame);
+                                         hoverConsumer.accept(frame, getFrameRectangle(g2, bounds, frame));
+                                         if (oldHoveredFrame != null) {
+                                             hoverConsumer.accept(oldHoveredFrame, getFrameRectangle(g2, bounds, oldHoveredFrame));
+                                         }
                                      }
                                  },
                                  this::stopHover);

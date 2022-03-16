@@ -194,6 +194,7 @@ public class FlameGraph<T> {
         canvas.setFlameGraphPainter(flameGraphPainter);
         canvas.setToolTipTextFunction(tooltipTextFunction);
         canvas.invalidate();
+        canvas.repaint();
     }
 
     /**
@@ -333,9 +334,9 @@ public class FlameGraph<T> {
                             fgp.toggleSelectedFrameAt(
                                     (Graphics2D) viewPort.getView().getGraphics(),
                                     canvas.getBounds(),
-                                    point
+                                    point,
+                                    (frame, r) -> canvas.repaint()
                             );
-                            scrollPane.repaint();
                         });
             }
         }
@@ -351,10 +352,9 @@ public class FlameGraph<T> {
         @Override
         public void mouseExited(MouseEvent e) {
             if ((e.getSource() instanceof JScrollPane)) {
-                var scrollPane = (JScrollPane) e.getComponent();
                 canvas.getFlameGraphPainter()
                       .ifPresent(FlameGraphPainter::stopHover);
-                scrollPane.repaint();
+                canvas.repaint();
             }
         }
 
@@ -375,9 +375,9 @@ public class FlameGraph<T> {
                             (Graphics2D) view.getGraphics(),
                             canvas.getBounds(),
                             point,
-                            frame -> {
+                            (frame, r) -> {
                                 canvas.setToolTipText(frame);
-                                scrollPane.repaint();
+                                canvas.repaint(r);
                             }
                     ));
         }
