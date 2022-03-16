@@ -556,12 +556,16 @@ public class FlameGraph<T> {
             var mouseAdapter = new MouseAdapter() {
                 @Override
                 public void mousePressed(MouseEvent e) {
-                    processMinimapMouseEvent(e);
+                    if (isInsideMinimap(e.getPoint())) {
+                        processMinimapMouseEvent(e);
+                    }
                 }
 
                 @Override
                 public void mouseDragged(MouseEvent e) {
-                    processMinimapMouseEvent(e);
+                    if (isInsideMinimap(e.getPoint())) {
+                        processMinimapMouseEvent(e);
+                    }
                 }
 
                 private void processMinimapMouseEvent(MouseEvent e) {
