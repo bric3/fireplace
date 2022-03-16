@@ -36,7 +36,7 @@ public class FlameGraphPainter<T> {
     public boolean paintHoveredFrameBorder = true;
     public int frameBorderWidth = 1;
     public Stroke frameBorderStroke = new BasicStroke(frameBorderWidth);
-    public Color frameBorderColor = Color.WHITE;
+    public Color frameBorderColor = Colors.panelForeground;
 
     private final int depth;
     private int visibleDepth;
