@@ -167,9 +167,6 @@ configure(fireplaceModules) {
 
             }
         }
-        // afterEvaluate {
-        //     logger.lifecycle("Uploading version '${project.extra["publishingVersion"]}' to ${project.extra["publishingRepositoryUrl"]}")
-        // }
     }
 }
 
