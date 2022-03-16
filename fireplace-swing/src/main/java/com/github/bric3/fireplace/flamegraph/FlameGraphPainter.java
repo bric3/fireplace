@@ -36,6 +36,7 @@ public class FlameGraphPainter<T> {
     public boolean paintHoveredFrameBorder = true;
     public int frameBorderWidth = 1;
     public Stroke frameBorderStroke = new BasicStroke(frameBorderWidth);
+    public Color frameBorderColor = Color.WHITE;
 
     private final int depth;
     private int visibleDepth;
@@ -240,19 +241,19 @@ public class FlameGraphPainter<T> {
         }
 
         rect.x = (int) (flameGraphWidth * hoveredFrame.startX) + internalPadding;
-        rect.width = ((int) (flameGraphWidth * hoveredFrame.endX)) - rect.x - internalPadding - frameGapWidth;
+        rect.width = ((int) (flameGraphWidth * hoveredFrame.endX)) - rect.x - internalPadding - frameBorderWidth - (frameGapEnabled ? frameGapWidth : 0);
 
         if ((rect.width < frameWidthVisibilityThreshold)) {
             return;
         }
 
         rect.y = frameBoxHeight * hoveredFrame.stackDepth;
-        rect.height = frameBoxHeight;
+        rect.height = frameBoxHeight - frameGapWidth;
 
         if (visibleRect.intersects(rect)) {
-            g2.setColor(Color.WHITE);
+            g2.setColor(frameBorderColor);
             g2.setStroke(frameBorderStroke);
-            g2.drawRect(rect.x, rect.y, rect.width - frameBorderWidth, rect.height - frameGapWidth - frameBorderWidth);
+            g2.draw(rect);
         }
     }
 
