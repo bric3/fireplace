@@ -85,17 +85,24 @@ configure(fireplaceModules) {
                 "Created-By" to "${System.getProperty("java.version")} (${System.getProperty("java.specification.vendor")})",
             )
         }
+
+        named("publish") {
+            doFirst {
+                logger.lifecycle("Uploading version '${project.extra["publishingVersion"]}' to ${project.extra["publishingRepositoryUrl"]}")
+            }
+        }
     }
 
-    // https://docs.gradle.org/current/userguide/signing_plugin.html#sec:signatory_credentials
+    // Doc https://docs.gradle.org/current/userguide/signing_plugin.html#sec:signatory_credentials
+    // Details in https://github.com/bric3/fireplace/issues/25
     configure<SigningExtension> {
         setRequired({ gradle.taskGraph.hasTask("publish") })
         useInMemoryPgpKeys(findProperty("signingKey") as? String, findProperty("signingPassword") as? String)
         sign(publishing.publications)
     }
 
-    // test run via
-    // ORG_GRADLE_PROJECT_signingKey=$(cat secring.gpg) ORG_GRADLE_PROJECT_signingPassword=$(pbpaste) ./gradlew publish --console=verbose
+    // test run via (deploy on local repo 'build/publishing-repository')
+    // ORG_GRADLE_PROJECT_signingKey=$(cat armoredKey) ORG_GRADLE_PROJECT_signingPassword=$(cat passphrase) ./gradlew publish --console=verbose
     publishing {
         publications {
             create<MavenPublication>("mavenJava") {
@@ -105,10 +112,11 @@ configure(fireplaceModules) {
                 artifactId = project.name
                 // OSSRH enforces the `-SNAPSHOT` suffix on snapshot repository
                 // https://central.sonatype.org/faq/400-error/#question
-                version = if (isSnapshot)
-                    project.version.toString().replace("DIRTY", "-SNAPSHOT")
-                else
-                    project.version.toString()
+                version = when {
+                    isSnapshot -> project.version.toString().replace("-DIRTY", "-SNAPSHOT")
+                    else -> project.version.toString()
+                }
+                project.extra["publishingVersion"] = version
 
                 afterEvaluate {
                     description = project.description
@@ -139,30 +147,29 @@ configure(fireplaceModules) {
             }
         }
         repositories {
-            if (properties("publish.central").toBoolean()) {
-                val isGithubRelease = System.getenv("GITHUB_EVENT_NAME").equals("release", true)
-                maven {
+            maven {
+                if (properties("publish.central").toBoolean()) {
+                    val isGithubRelease = System.getenv("GITHUB_EVENT_NAME").equals("release", true)
                     name = "central"
-                    url = uri(
-                        if (isGithubRelease && !isSnapshot)
-                            "https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/"
-                        else
-                            "https://s01.oss.sonatype.org/content/repositories/snapshots"
-                    )
+                    url = uri(when {
+                                  isGithubRelease && !isSnapshot -> "https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/"
+                                  else -> "https://s01.oss.sonatype.org/content/repositories/snapshots"
+                              })
                     credentials {
                         username = findProperty("ossrhUsername") as? String
                         password = findProperty("ossrhPassword") as? String
                     }
-                    afterEvaluate {
-                        logger.lifecycle("Release $version on '$url' repository for publishing")
-                    }
+                } else {
+                    name = "build-dir"
+                    url = uri("${rootProject.buildDir}/publishing-repository")
                 }
-            }
+                project.extra["publishingRepositoryUrl"] = url
 
-            maven {
-                url = uri("${rootProject.buildDir}/publishing-repository")
             }
         }
+        // afterEvaluate {
+        //     logger.lifecycle("Uploading version '${project.extra["publishingVersion"]}' to ${project.extra["publishingRepositoryUrl"]}")
+        // }
     }
 }
 

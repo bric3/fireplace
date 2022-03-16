@@ -29,10 +29,10 @@ jobs:
       - name: Build with Gradle
         uses: gradle/gradle-build-action@v2
         with:
-          arguments: build --console=verbose --stacktrace
+          arguments: build --stacktrace
       - name: Publish snapshot
         uses: gradle/gradle-build-action@v2
-        if: success() && (github.event_name != 'pull_request' || startsWith(github.event.head_commit.message, 'upload snapshot'))
+        if: success() && (github.event_name != 'pull_request' || contains(github.event.head_commit.message, 'upload snapshot'))
         env:
           ORG_GRADLE_PROJECT_signingKey: ${{ secrets.ORG_GRADLE_PROJECT_SIGNINGKEY }}
           ORG_GRADLE_PROJECT_signingPassword: ${{ secrets.ORG_GRADLE_PROJECT_SIGNINGPASSWORD }}

@@ -19,10 +19,6 @@ jobs:
           java-version: '11'
           distribution: 'zulu'
           cache: gradle
-      - name: Build with Gradle
-        uses: gradle/gradle-build-action@v2
-        with:
-          arguments: build
       - name: Publish to Central
         uses: gradle/gradle-build-action@v2
         if: success()
