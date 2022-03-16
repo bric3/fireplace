@@ -21,6 +21,7 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionListener;
 import java.util.List;
+import java.util.function.Consumer;
 
 import static java.util.stream.Collectors.joining;
 
@@ -29,11 +30,13 @@ public class FlameGraphTab extends JPanel {
     private static final JfrFrameColorMode defaultFrameColorMode = JfrFrameColorMode.BY_PACKAGE;
     private static final boolean defaultPaintFrameBorder = true;
     private FlameGraph<Node> jfrFlameGraph;
+    private Consumer<FlameGraph<Node>> dataApplier;
 
     public FlameGraphTab() {
         super(new BorderLayout());
 
         jfrFlameGraph = new FlameGraph<>();
+        jfrFlameGraph.putClientProperty(FlameGraph.SHOW_STATS, true);
         // jfrFlameGraph.setTooltipComponentSupplier(BalloonToolTip::new);
         jfrFlameGraph.setMinimapShadeColorSupplier(() -> Colors.isDarkMode() ? Colors.translucent_black_40 : Colors.translucent_white_80);
         var wrapper = new JPanel(new BorderLayout());
@@ -41,6 +44,12 @@ public class FlameGraphTab extends JPanel {
 
         var timer = new Timer(2_000, e -> {
             jfrFlameGraph = new FlameGraph<>();
+            jfrFlameGraph.putClientProperty(FlameGraph.SHOW_STATS, true);
+            jfrFlameGraph.setMinimapShadeColorSupplier(() -> Colors.isDarkMode() ? Colors.translucent_black_40 : Colors.translucent_white_80);
+            if (dataApplier != null) {
+                dataApplier.accept(jfrFlameGraph);
+            }
+
             wrapper.removeAll();
             wrapper.add(jfrFlameGraph.component);
             wrapper.repaint(1_000);
@@ -97,8 +106,14 @@ public class FlameGraphTab extends JPanel {
     }
 
     public void setStacktraceTreeModel(StacktraceTreeModel stackTraceTreeModel) {
-        jfrFlameGraph.setData(
-                JfrFrameNodeConverter.convert(stackTraceTreeModel),
+        dataApplier = dataApplier(stackTraceTreeModel);
+        dataApplier.accept(jfrFlameGraph);
+    }
+
+    private Consumer<FlameGraph<Node>> dataApplier(StacktraceTreeModel stackTraceTreeModel) {
+        var flatFrameList = JfrFrameNodeConverter.convert(stackTraceTreeModel);
+        return (flameGraph) -> flameGraph.setData(
+                flatFrameList,
                 List.of(
                         node -> node.getFrame().getHumanReadableShortString(),
                         node -> node.getFrame().getMethod().getMethodName()
