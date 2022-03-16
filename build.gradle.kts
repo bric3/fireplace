@@ -113,7 +113,7 @@ configure(fireplaceModules) {
                 // OSSRH enforces the `-SNAPSHOT` suffix on snapshot repository
                 // https://central.sonatype.org/faq/400-error/#question
                 version = when {
-                    isSnapshot -> project.version.toString().replace("-DIRTY", "-SNAPSHOT")
+                    isSnapshot -> project.version.toString().replace("-DIRTY", "") + "-SNAPSHOT"
                     else -> project.version.toString()
                 }
                 project.extra["publishingVersion"] = version
