@@ -461,7 +461,7 @@ public class FlameGraph<T> {
         }
 
         private void paintMinimap(Graphics g, Rectangle visibleRect) {
-            if (showMinimap && minimap != null) {
+            if (flameGraphDimension != null && showMinimap && minimap != null) {
                 var g2 = (Graphics2D) g.create(visibleRect.x + minimapLocation.x,
                         visibleRect.y + visibleRect.height - minimapHeight - minimapLocation.y,
                         minimapWidth + minimapInset * 2,
