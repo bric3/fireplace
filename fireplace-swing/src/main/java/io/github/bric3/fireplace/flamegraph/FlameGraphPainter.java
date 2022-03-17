@@ -13,6 +13,7 @@ import io.github.bric3.fireplace.core.ui.Colors;
 
 import java.awt.*;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -28,6 +29,11 @@ import java.util.function.Function;
  * @see FlameGraph
  */
 public class FlameGraphPainter<T> {
+
+    private Font frameLabelFont;
+
+    private Font frameLabelFontItalic;
+
     public Color highlightedColor;
     public Color frameGapColor;
     public boolean frameGapEnabled = true;
@@ -60,11 +66,14 @@ public class FlameGraphPainter<T> {
     private final int internalPadding = 2;
     protected boolean paintDetails = true;
 
-
     public FlameGraphPainter(List<FrameBox<T>> frames,
                              List<Function<T, String>> nodeToTextCandidates,
                              Function<T, String> rootFrameToText,
                              Function<T, Color> frameColorFunction) {
+
+        this.frameLabelFont = new Font(Font.SANS_SERIF, Font.PLAIN, 12);
+        this.frameLabelFontItalic = new Font(Font.SANS_SERIF, Font.ITALIC, 12);
+
         this.frames = frames;
         this.depth = this.frames.stream().mapToInt(fb -> fb.stackDepth).max().orElse(0);
         visibleDepth = depth;
@@ -72,6 +81,22 @@ public class FlameGraphPainter<T> {
         this.rootFrameToText = rootFrameToText;
         this.frameColorFunction = frameColorFunction;
         updateUI();
+    }
+
+    public Font getFrameLabelFont() {
+        return this.frameLabelFont;
+    }
+
+    /**
+     * Sets the font used to display frame labels.  Internally an italicised version is also
+     * created for use in special cases.
+     *
+     * @param font  the font ({@code null} not permitted).
+     */
+    public void setFrameLabelFont(Font font) {
+        Objects.requireNonNull(font);
+        this.frameLabelFont = font;
+        this.frameLabelFontItalic = font.deriveFont(Font.ITALIC);
     }
 
     /**
@@ -83,7 +108,7 @@ public class FlameGraphPainter<T> {
     }
 
     private int getFrameBoxHeight(Graphics2D g2) {
-        return g2.getFontMetrics().getAscent() + (textBorder * 2) + frameGapWidth * 2;
+        return g2.getFontMetrics(this.frameLabelFont).getAscent() + (textBorder * 2) + frameGapWidth * 2;
     }
 
     public int computeFlameGraphMinimapHeight(int thumbnailWidth) {
@@ -137,7 +162,7 @@ public class FlameGraphPainter<T> {
     }
 
     private float getFrameBoxTextOffset(Graphics2D g2) {
-        return getFrameBoxHeight(g2) - (g2.getFontMetrics().getDescent() / 2f) - textBorder - frameGapWidth;
+        return getFrameBoxHeight(g2) - (g2.getFontMetrics(frameLabelFont).getDescent() / 2f) - textBorder - frameGapWidth;
     }
 
     public void paint(Graphics2D g2, Rectangle visibleRect) {
@@ -167,9 +192,11 @@ public class FlameGraphPainter<T> {
             rectOnCanvas.y = frameBoxHeight * rootFrame.stackDepth;
             rectOnCanvas.height = frameBoxHeight;
 
-            if (visibleRect.intersects(rectOnCanvas)) {
+            Rectangle intersection = visibleRect.intersection(rectOnCanvas);
+            if (!intersection.isEmpty()) {
                 paintRootFrameRectangle(g2d, rectOnCanvas,
                                         rootFrameToText.apply(rootFrame.actualNode),
+                                        intersection,
                                         handleFocus(frameColorFunction.apply(rootFrame.actualNode),
                                                     hoveredFrame == rootFrame,
                                                     false,
@@ -194,9 +221,11 @@ public class FlameGraphPainter<T> {
             rectOnCanvas.y = frameBoxHeight * frame.stackDepth;
             rectOnCanvas.height = frameBoxHeight;
 
-            if (visibleRect.intersects(rectOnCanvas)) {
+            Rectangle intersection = visibleRect.intersection(rectOnCanvas);
+            if (!intersection.isEmpty()) {
                 paintNodeFrameRectangle(g2d, rectOnCanvas,
                                         frame.actualNode,
+                                        intersection,
                                         handleFocus(frameColorFunction.apply(frame.actualNode),
                                                     hoveredFrame == frame,
                                                     false,
@@ -219,7 +248,7 @@ public class FlameGraphPainter<T> {
             var drawTimeMs = "FrameGraph width " + flameGraphWidth + " Zoom Factor " + zoomFactor + " Coordinate (" + visibleRect.x + ", " + visibleRect.y + ") size (" +
                              visibleRect.width + ", " + visibleRect.height +
                              ") , Draw time: " + (System.currentTimeMillis() - start) + " ms";
-            var nowWidth = g2d.getFontMetrics().stringWidth(drawTimeMs);
+            var nowWidth = g2d.getFontMetrics(frameLabelFont).stringWidth(drawTimeMs);
             g2d.setColor(Color.DARK_GRAY);
             g2d.fillRect(visibleRect.x + visibleRect.width - nowWidth - textBorder * 2,
                         visibleRect.y + visibleRect.height - frameBoxHeight,
@@ -283,31 +312,58 @@ public class FlameGraphPainter<T> {
         return bgColor;
     }
 
-    private void paintNodeFrameRectangle(Graphics2D g2, Rectangle frameRect, T node, Color bgColor, Color frameGapColor, boolean minimapMode) {
+    /**
+     * Paints a standard frame.
+     *
+     * @param g2            the graphics target.
+     * @param frameRect     the frame rectangle (may fall partly outside the visible region).
+     * @param node          the underlying node (used for label generation).
+     * @param intersection  the intersection between the frame rectangle and the visible region
+     *                      (used to position text labels).
+     * @param bgColor       the background color.
+     * @param frameGapColor the frame gap color.
+     * @param minimapMode    is the minimap in the process of being rendered?
+     */
+    private void paintNodeFrameRectangle(Graphics2D g2, Rectangle frameRect, T node, Rectangle intersection, Color bgColor, Color frameGapColor, boolean minimapMode) {
         var frameRectSurface = paintFrameRectangle(g2, frameRect, bgColor, frameGapColor, minimapMode);
         if (minimapMode) {
             return;
         }
         paintFrameText(node,
                        g2,
-                       frameRectSurface.width - textBorder * 2 - frameBorderWidth * 2,
+                       intersection.width - textBorder * 2 - frameBorderWidth * 2,
                        text -> {
+                           g2.setFont(intersection.x == frameRect.x ? frameLabelFont : frameLabelFontItalic);
                            g2.setColor(Colors.foregroundColor(bgColor));
-                           g2.drawString(text, frameRect.x + textBorder, frameRect.y + getFrameBoxTextOffset(g2));
+                           g2.drawString(text, intersection.x + textBorder, frameRect.y + getFrameBoxTextOffset(g2));
                        });
     }
 
-    private void paintRootFrameRectangle(Graphics2D g2, Rectangle rect, String str, Color bgColor, Color gapColor, boolean minimapMode) {
+    /**
+     * Paints the root frame.
+     *
+     * @param g2           the graphics target.
+     * @param rect         the frame region (may fall outside visible area).
+     * @param str          the text to display.
+     * @param intersection the intersection between the frame rectangle and the visible region
+                           (used to position the text label).
+     * @param bgColor      the background color.
+     * @param gapColor     the gap color.
+     * @param minimapMode  is the minimap in the process of being rendered?
+     */
+    private void paintRootFrameRectangle(Graphics2D g2, Rectangle rect, String str, Rectangle intersection, Color bgColor, Color gapColor, boolean minimapMode) {
         var frameRectSurface = paintFrameRectangle(g2, rect, bgColor, gapColor, minimapMode);
         if (minimapMode) {
             return;
         }
         paintFrameText(str,
                        g2,
-                       frameRectSurface.width - textBorder * 2 - frameGapWidth * 2,
+                       frameLabelFont,
+                       intersection.width - textBorder * 2 - frameGapWidth * 2,
                        text -> {
+                           g2.setFont(intersection.x == rect.x ? frameLabelFont : frameLabelFontItalic);
                            g2.setColor(Colors.foregroundColor(bgColor));
-                           g2.drawString(text, textBorder + frameBorderWidth, getFrameBoxTextOffset(g2));
+                           g2.drawString(text, intersection.x + textBorder + frameBorderWidth, getFrameBoxTextOffset(g2));
                        });
     }
 
@@ -384,7 +440,7 @@ public class FlameGraphPainter<T> {
     }
 
     private void paintFrameText(T node, Graphics2D g2, double targetWidth, Consumer<String> textConsumer) {
-        var metrics = g2.getFontMetrics();
+        var metrics = g2.getFontMetrics(frameLabelFont);
 
         nodeToTextCandidates.stream()
                             .map(f -> f.apply(node))
@@ -404,8 +460,8 @@ public class FlameGraphPainter<T> {
                             );
     }
 
-    private static void paintFrameText(String text, Graphics2D g2, double targetWidth, Consumer<String> textConsumer) {
-        var metrics = g2.getFontMetrics();
+    private static void paintFrameText(String text, Graphics2D g2, Font font, double targetWidth, Consumer<String> textConsumer) {
+        var metrics = g2.getFontMetrics(font);
 
         var textBounds = metrics.getStringBounds(text, g2);
         if (!(textBounds.getWidth() > targetWidth)) {
