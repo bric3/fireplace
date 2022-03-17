@@ -285,7 +285,7 @@ public class FlameGraph<T> {
                         viewPort.getViewRect(),
                         point
                 )).ifPresent(zoomTarget -> {
-                    System.getLogger(FlameGraphCanvas.class.getName()).log(System.Logger.Level.INFO,() -> "zoom to " + zoomTarget);
+                    System.getLogger(FlameGraphCanvas.class.getName()).log(System.Logger.Level.DEBUG,() -> "zoom to " + zoomTarget);
                     int startW = canvas.getWidth();
                     int startH = canvas.getHeight();
                     double deltaW = zoomTarget.bounds.width - startW;
@@ -311,9 +311,11 @@ public class FlameGraph<T> {
                                 }
                                 @Override
                                 public void onTimelinePulse(float durationFraction, float timelinePosition) {
-                                    canvas.setSize(new Dimension((int) (startW + timelinePosition * deltaW), (int) (startH + timelinePosition * deltaH)));
-                                    Point pos = new Point(startX + (int) (timelinePosition * deltaX), startY + (int) (timelinePosition * deltaY));
-                                    viewPort.setViewPosition(pos);
+                                    SwingUtilities.invokeLater(() -> {
+                                        canvas.setSize(new Dimension((int) (startW + timelinePosition * deltaW), (int) (startH + timelinePosition * deltaH)));
+                                        Point pos = new Point(startX + (int) (timelinePosition * deltaX), startY + (int) (timelinePosition * deltaY));
+                                        viewPort.setViewPosition(pos);
+                                    });
                                 }
                             }).build().playSkipping(3L);
                 });
