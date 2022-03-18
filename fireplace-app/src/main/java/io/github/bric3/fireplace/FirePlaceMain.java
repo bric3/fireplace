@@ -14,14 +14,16 @@ import com.formdev.flatlaf.FlatIntelliJLaf;
 import com.formdev.flatlaf.FlatLaf;
 import com.formdev.flatlaf.extras.FlatAnimatedLafChange;
 import com.formdev.flatlaf.util.SystemInfo;
+import com.github.weisj.darklaf.platform.ThemePreferencesHandler;
 import io.github.bric3.fireplace.core.ui.Colors;
-import io.github.bric3.fireplace.ui.FrameResizeLabel;
 import io.github.bric3.fireplace.core.ui.JScrollPaneWithButton;
+import io.github.bric3.fireplace.icons.darkMode_moon;
+import io.github.bric3.fireplace.icons.darkMode_sun;
+import io.github.bric3.fireplace.ui.FrameResizeLabel;
 import io.github.bric3.fireplace.ui.HudPanel;
 import io.github.bric3.fireplace.ui.debug.AssertiveRepaintManager;
 import io.github.bric3.fireplace.ui.debug.CheckThreadViolationRepaintManager;
 import io.github.bric3.fireplace.ui.debug.EventDispatchThreadHangMonitor;
-import com.github.weisj.darklaf.platform.ThemePreferencesHandler;
 
 import javax.swing.*;
 import java.awt.*;
@@ -78,6 +80,8 @@ public class FirePlaceMain {
             EventDispatchThreadHangMonitor.initMonitoring();
         }
         SwingUtilities.invokeLater(() -> {
+
+
             var openedFileLabel = new JTextField("");
             {
                 openedFileLabel.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
@@ -119,8 +123,12 @@ public class FirePlaceMain {
                 jTabbedPane.setTabPlacement(JTabbedPane.BOTTOM);
             }
 
+            var topPanel = new JPanel(new BorderLayout());
+            topPanel.add(openedFileLabel, BorderLayout.CENTER);
+            topPanel.add(AppearanceControl.INSTANCE.getComponent(), BorderLayout.EAST);
+
             var mainPanel = new JPanel(new BorderLayout());
-            mainPanel.add(openedFileLabel, BorderLayout.NORTH);
+            mainPanel.add(topPanel, BorderLayout.NORTH);
             mainPanel.add(jTabbedPane, BorderLayout.CENTER);
 
             var frameResizeLabel = new FrameResizeLabel();
@@ -138,7 +146,7 @@ public class FirePlaceMain {
             JfrFilesDropHandler.install(jfrBinder::load, appLayers, hudPanel.getDnDTarget());
 
             var frame = new JFrame("FirePlace");
-            setIcon(frame);
+            installAppIcon(frame);
             frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
             frame.setSize(new Dimension(1000, 600));
             frame.getContentPane().add(appLayers);
@@ -178,10 +186,38 @@ public class FirePlaceMain {
             //            System.setProperty("apple.awt.application.appearance", "NSAppearanceNameDarkAqua");
             System.setProperty("apple.awt.application.appearance", "system");
         }
-        ThemePreferencesHandler.getSharedInstance().enablePreferenceChangeReporting(true);
-        Runtime.getRuntime().addShutdownHook(new Thread(() -> ThemePreferencesHandler.getSharedInstance().enablePreferenceChangeReporting(false)));
+        // ThemePreferencesHandler.getSharedInstance().enablePreferenceChangeReporting(true);
+        // Runtime.getRuntime().addShutdownHook(new Thread(() -> ThemePreferencesHandler.getSharedInstance().enablePreferenceChangeReporting(false)));
+        //
+        // Runnable themeChanger = () -> {
+        //     // System.out.println(">>>> theme preference changed = " + ThemePreferencesHandler.getSharedInstance().getPreferredThemeStyle());
+        //     switch (ThemePreferencesHandler.getSharedInstance().getPreferredThemeStyle().getColorToneRule()) {
+        //         case DARK:
+        //             FlatDarculaLaf.setup();
+        //             Colors.setDarkMode(true);
+        //             break;
+        //         case LIGHT:
+        //             FlatIntelliJLaf.setup();
+        //             Colors.setDarkMode(false);
+        //             break;
+        //     }
+        //     FlatLaf.updateUI();
+        //     FlatAnimatedLafChange.hideSnapshotWithAnimation();
+        // };
+        // themeChanger.run();
+        // ThemePreferencesHandler.getSharedInstance().addThemePreferenceChangeListener(
+        //         e -> themeChanger.run()
+        // );
 
-        Runnable themeChanger = () -> {
+        AppearanceControl.INSTANCE.install();
+    }
+
+    private static class AppearanceControl {
+        public static final AppearanceControl INSTANCE = new AppearanceControl();
+        public static final String TO_APPEARANCE = "CURRENT_MODE";
+        public static final String TO_LIGHT_LAF = "LIGHT";
+        public static final String TO_DARK_LAF = "DARK";
+        public static final Runnable SYNC_THEME_CHANGER = () -> {
             // System.out.println(">>>> theme preference changed = " + ThemePreferencesHandler.getSharedInstance().getPreferredThemeStyle());
             switch (ThemePreferencesHandler.getSharedInstance().getPreferredThemeStyle().getColorToneRule()) {
                 case DARK:
@@ -196,13 +232,83 @@ public class FirePlaceMain {
             FlatLaf.updateUI();
             FlatAnimatedLafChange.hideSnapshotWithAnimation();
         };
-        themeChanger.run();
-        ThemePreferencesHandler.getSharedInstance().addThemePreferenceChangeListener(
-                e -> themeChanger.run()
-        );
+
+        void install() {
+            ThemePreferencesHandler.getSharedInstance().enablePreferenceChangeReporting(true);
+            Runtime.getRuntime().addShutdownHook(new Thread(() -> ThemePreferencesHandler.getSharedInstance().enablePreferenceChangeReporting(false)));
+
+            SYNC_THEME_CHANGER.run();
+            ThemePreferencesHandler.getSharedInstance().addThemePreferenceChangeListener(
+                    e -> SYNC_THEME_CHANGER.run()
+            );
+        }
+
+        void toggleSync(boolean sync) {
+            ThemePreferencesHandler.getSharedInstance().enablePreferenceChangeReporting(sync);
+        }
+
+        JComponent getComponent() {
+            var appearanceModeButton = new JButton();
+            {
+                var toLightMode = darkMode_sun.of(20, 20);
+                var toDarkMode = darkMode_moon.of(20, 20);
+                Runnable syncIconUpdater = () -> {
+                    switch (ThemePreferencesHandler.getSharedInstance().getPreferredThemeStyle().getColorToneRule()) {
+                        case DARK:
+                            appearanceModeButton.putClientProperty(TO_APPEARANCE, TO_LIGHT_LAF);
+                            appearanceModeButton.setIcon(toLightMode);
+                            break;
+                        case LIGHT:
+                            appearanceModeButton.putClientProperty(TO_APPEARANCE, TO_DARK_LAF);
+                            appearanceModeButton.setIcon(toDarkMode);
+                            break;
+                    }
+                };
+                ThemePreferencesHandler.getSharedInstance().addThemePreferenceChangeListener(e -> syncIconUpdater.run());
+                appearanceModeButton.addPropertyChangeListener("enabled", e -> syncIconUpdater.run());
+                syncIconUpdater.run();
+
+                appearanceModeButton.addActionListener(e -> {
+                    toggleSync(false);
+                    switch (appearanceModeButton.getClientProperty(TO_APPEARANCE).toString()) {
+                        case TO_DARK_LAF:
+                            FlatDarculaLaf.setup();
+                            Colors.setDarkMode(true);
+                            appearanceModeButton.putClientProperty(TO_APPEARANCE, TO_LIGHT_LAF);
+                            appearanceModeButton.setIcon(toLightMode);
+                            break;
+                        case TO_LIGHT_LAF:
+                            FlatIntelliJLaf.setup();
+                            Colors.setDarkMode(false);
+                            appearanceModeButton.putClientProperty(TO_APPEARANCE, TO_DARK_LAF);
+                            appearanceModeButton.setIcon(toDarkMode);
+                            break;
+                    }
+                    FlatLaf.updateUI();
+                    FlatAnimatedLafChange.hideSnapshotWithAnimation();
+                });
+            }
+            appearanceModeButton.setEnabled(false);
+
+            var syncAppearanceButton = new JCheckBox("Sync appearance");
+            {
+                syncAppearanceButton.addActionListener(e -> {
+                    toggleSync(syncAppearanceButton.isSelected());
+                    appearanceModeButton.setEnabled(!syncAppearanceButton.isSelected());
+                    SYNC_THEME_CHANGER.run();
+                });
+            }
+            syncAppearanceButton.setSelected(true);
+
+            var appearanceControlsPanel = new JPanel(new FlowLayout());
+            appearanceControlsPanel.add(appearanceModeButton);
+            appearanceControlsPanel.add(syncAppearanceButton);
+
+            return appearanceControlsPanel;
+        }
     }
 
-    private static void setIcon(JFrame jFrame) {
+    private static void installAppIcon(JFrame jFrame) {
         var resource = FirePlaceMain.class.getClassLoader().getResource("fire.png");
         var image = Toolkit.getDefaultToolkit().getImage(resource);
 
