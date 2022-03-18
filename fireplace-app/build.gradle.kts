@@ -24,6 +24,7 @@ repositories {
 
 dependencies {
     implementation(projects.fireplaceSwing)
+    implementation(projects.fireplaceSwingAnimation)
     implementation(libs.bundles.flatlaf)
     implementation(libs.darklaf)
     implementation(libs.flightrecorder)
