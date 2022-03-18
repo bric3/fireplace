@@ -13,6 +13,7 @@ import io.github.bric3.fireplace.core.ui.Colors;
 import io.github.bric3.fireplace.core.ui.Colors.Palette;
 import io.github.bric3.fireplace.flamegraph.ColorMapper;
 import io.github.bric3.fireplace.flamegraph.FlameGraph;
+import io.github.bric3.fireplace.flamegraph.ZoomAnimation;
 import org.openjdk.jmc.common.util.FormatToolkit;
 import org.openjdk.jmc.flightrecorder.stacktrace.tree.Node;
 import org.openjdk.jmc.flightrecorder.stacktrace.tree.StacktraceTreeModel;
@@ -39,16 +40,50 @@ public class FlameGraphTab extends JPanel {
         jfrFlameGraph.putClientProperty(FlameGraph.SHOW_STATS, true);
         // jfrFlameGraph.setTooltipComponentSupplier(BalloonToolTip::new);
         jfrFlameGraph.setMinimapShadeColorSupplier(() -> Colors.isDarkMode() ? Colors.translucent_black_40 : Colors.translucent_white_80);
+        var zoomAnimation = new ZoomAnimation();
+        zoomAnimation.install(jfrFlameGraph);
+
+        var colorPaletteJComboBox = new JComboBox<>(Palette.values());
+        colorPaletteJComboBox.setSelectedItem(defaultColorPalette);
+        var colorModeJComboBox = new JComboBox<>(JfrFrameColorMode.values());
+        colorModeJComboBox.setSelectedItem(defaultFrameColorMode);
+
+        ActionListener updateColorSettingsListener = e -> {
+            jfrFlameGraph.setColorFunction(
+                    ((JfrFrameColorMode) colorModeJComboBox.getSelectedItem())
+                            .colorMapperUsing(ColorMapper.ofObjectHashUsing(
+                                    ((Palette) colorPaletteJComboBox.getSelectedItem()).colors())));
+            jfrFlameGraph.requestRepaint();
+        };
+        colorPaletteJComboBox.addActionListener(updateColorSettingsListener);
+        colorModeJComboBox.addActionListener(updateColorSettingsListener);
+
+        var borderToggle = new JCheckBox("Border");
+        borderToggle.addActionListener(e -> {
+            jfrFlameGraph.setFrameGapEnabled(borderToggle.isSelected());
+            jfrFlameGraph.requestRepaint();
+        });
+        borderToggle.setSelected(defaultPaintFrameBorder);
+
+        var animateToggle = new JCheckBox("Animate");
+        animateToggle.addActionListener(e -> {
+            zoomAnimation.setAnimateZoomTransitions(animateToggle.isSelected());
+        });
+        animateToggle.setSelected(true);
+
+
         var wrapper = new JPanel(new BorderLayout());
         wrapper.add(jfrFlameGraph.component);
 
         var timer = new Timer(2_000, e -> {
             jfrFlameGraph = new FlameGraph<>();
+            zoomAnimation.install(jfrFlameGraph);
             jfrFlameGraph.putClientProperty(FlameGraph.SHOW_STATS, true);
             jfrFlameGraph.setMinimapShadeColorSupplier(() -> Colors.isDarkMode() ? Colors.translucent_black_40 : Colors.translucent_white_80);
             if (dataApplier != null) {
                 dataApplier.accept(jfrFlameGraph);
             }
+            updateColorSettingsListener.actionPerformed(null);
 
             wrapper.removeAll();
             wrapper.add(jfrFlameGraph.component);
@@ -67,32 +102,11 @@ public class FlameGraphTab extends JPanel {
             }
         });
 
-        var colorPaletteJComboBox = new JComboBox<>(Palette.values());
-        colorPaletteJComboBox.setSelectedItem(defaultColorPalette);
-        var colorModeJComboBox = new JComboBox<>(JfrFrameColorMode.values());
-        colorModeJComboBox.setSelectedItem(defaultFrameColorMode);
-
-        ActionListener actionListener = e -> {
-            jfrFlameGraph.setColorFunction(
-                    ((JfrFrameColorMode) colorModeJComboBox.getSelectedItem())
-                            .colorMapperUsing(ColorMapper.ofObjectHashUsing(
-                                    ((Palette) colorPaletteJComboBox.getSelectedItem()).colors())));
-            jfrFlameGraph.requestRepaint();
-        };
-        colorPaletteJComboBox.addActionListener(actionListener);
-        colorModeJComboBox.addActionListener(actionListener);
-
-        var borderToggle = new JCheckBox("Border");
-        borderToggle.addActionListener(e -> {
-            jfrFlameGraph.setFrameGapEnabled(borderToggle.isSelected());
-            jfrFlameGraph.requestRepaint();
-        });
-        borderToggle.setSelected(defaultPaintFrameBorder);
-
         var controlPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         controlPanel.add(colorPaletteJComboBox);
         controlPanel.add(colorModeJComboBox);
         controlPanel.add(borderToggle);
+        controlPanel.add(animateToggle);
         controlPanel.add(refreshToggle);
 
 

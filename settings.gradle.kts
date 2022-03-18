@@ -12,7 +12,11 @@ plugins {
 }
 
 rootProject.name = "fireplace"
-include("fireplace-swing", "fireplace-app")
+include(
+    "fireplace-swing",
+    "fireplace-swing-animation",
+    "fireplace-app"
+)
 enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 
 gradleEnterprise {
