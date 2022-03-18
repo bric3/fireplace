@@ -30,9 +30,23 @@ import java.util.function.Function;
  */
 public class FlameGraphPainter<T> {
 
+    /**
+     * A short string to display in place of labels that are too long to fit the
+     * available space.
+     */
+    private static final String LONG_TEXT_PLACEHOLDER = "...";
+
+    /**
+     * The font used to display frame labels
+     */
     private Font frameLabelFont;
 
-    private Font frameLabelFontItalic;
+    /**
+     * If a frame is clipped, we'll shift the label to make it visible but show it with
+     * a modified (italicised by default) font to highlight that the frame is only partially
+     * visible.
+     */
+    private Font frameLabelFontForPartialFrames;
 
     public Color highlightedColor;
     public Color frameGapColor;
@@ -72,7 +86,7 @@ public class FlameGraphPainter<T> {
                              Function<T, Color> frameColorFunction) {
 
         this.frameLabelFont = new Font(Font.SANS_SERIF, Font.PLAIN, 12);
-        this.frameLabelFontItalic = new Font(Font.SANS_SERIF, Font.ITALIC, 12);
+        this.frameLabelFontForPartialFrames = new Font(Font.SANS_SERIF, Font.ITALIC, 12);
 
         this.frames = frames;
         this.depth = this.frames.stream().mapToInt(fb -> fb.stackDepth).max().orElse(0);
@@ -96,7 +110,7 @@ public class FlameGraphPainter<T> {
     public void setFrameLabelFont(Font font) {
         Objects.requireNonNull(font);
         this.frameLabelFont = font;
-        this.frameLabelFontItalic = font.deriveFont(Font.ITALIC);
+        this.frameLabelFontForPartialFrames = font.deriveFont(Font.ITALIC);
     }
 
     /**
@@ -329,11 +343,14 @@ public class FlameGraphPainter<T> {
         if (minimapMode) {
             return;
         }
+        // choose font depending on whether the left-side of the frame is clipped
+        final Font labelFont = (frameRect.x == intersection.x) ? frameLabelFont : frameLabelFontForPartialFrames;
         paintFrameText(node,
                        g2,
+                       labelFont,
                        intersection.width - textBorder * 2 - frameBorderWidth * 2,
                        text -> {
-                           g2.setFont(intersection.x == frameRect.x ? frameLabelFont : frameLabelFontItalic);
+                           g2.setFont(labelFont);
                            g2.setColor(Colors.foregroundColor(bgColor));
                            g2.drawString(text, intersection.x + textBorder, frameRect.y + getFrameBoxTextOffset(g2));
                        });
@@ -356,12 +373,14 @@ public class FlameGraphPainter<T> {
         if (minimapMode) {
             return;
         }
-        paintFrameText(str,
+        // choose a font depending on whether the left-side of the frame is clipped
+        final Font labelFont = (rect.x == intersection.x) ? frameLabelFont : frameLabelFontForPartialFrames;
+        paintRootFrameText(str,
                        g2,
-                       frameLabelFont,
+                       labelFont,
                        intersection.width - textBorder * 2 - frameGapWidth * 2,
                        text -> {
-                           g2.setFont(intersection.x == rect.x ? frameLabelFont : frameLabelFontItalic);
+                           g2.setFont(labelFont);
                            g2.setColor(Colors.foregroundColor(bgColor));
                            g2.drawString(text, intersection.x + textBorder + frameBorderWidth, getFrameBoxTextOffset(g2));
                        });
@@ -439,8 +458,8 @@ public class FlameGraphPainter<T> {
         hoveredFrame = null;
     }
 
-    private void paintFrameText(T node, Graphics2D g2, double targetWidth, Consumer<String> textConsumer) {
-        var metrics = g2.getFontMetrics(frameLabelFont);
+    private void paintFrameText(T node, Graphics2D g2, Font font, double targetWidth, Consumer<String> textConsumer) {
+        var metrics = g2.getFontMetrics(font);
 
         nodeToTextCandidates.stream()
                             .map(f -> f.apply(node))
@@ -452,24 +471,24 @@ public class FlameGraphPainter<T> {
                             .ifPresentOrElse(
                                     textConsumer,
                                     () -> {
-                                        var textBounds = metrics.getStringBounds("...", g2);
+                                        var textBounds = metrics.getStringBounds(LONG_TEXT_PLACEHOLDER, g2);
                                         if (!(textBounds.getWidth() > targetWidth)) {
-                                            textConsumer.accept("...");
+                                            textConsumer.accept(LONG_TEXT_PLACEHOLDER);
                                         }
                                     }
                             );
     }
 
-    private static void paintFrameText(String text, Graphics2D g2, Font font, double targetWidth, Consumer<String> textConsumer) {
+    private static void paintRootFrameText(String text, Graphics2D g2, Font font, double targetWidth, Consumer<String> textConsumer) {
         var metrics = g2.getFontMetrics(font);
 
         var textBounds = metrics.getStringBounds(text, g2);
         if (!(textBounds.getWidth() > targetWidth)) {
             textConsumer.accept(text);
         }
-        textBounds = metrics.getStringBounds("...", g2);
+        textBounds = metrics.getStringBounds(LONG_TEXT_PLACEHOLDER, g2);
         if (!(textBounds.getWidth() > targetWidth)) {
-            textConsumer.accept("...");
+            textConsumer.accept(LONG_TEXT_PLACEHOLDER);
         }
         // don't draw text
     }
