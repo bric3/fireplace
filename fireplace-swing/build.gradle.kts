@@ -8,6 +8,14 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation(libs.radianceanimation)
+}
+
 tasks {
     withType(JavaCompile::class) {
         options.release.set(11)

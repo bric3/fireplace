@@ -11,6 +11,9 @@ package io.github.bric3.fireplace.flamegraph;
 
 import io.github.bric3.fireplace.core.ui.JScrollPaneWithButton;
 import io.github.bric3.fireplace.core.ui.MouseInputListenerWorkaroundForToolTipEnabledComponent;
+import org.pushingpixels.radiance.animation.api.Timeline;
+import org.pushingpixels.radiance.animation.api.callback.TimelineCallback;
+import org.pushingpixels.radiance.animation.api.ease.Sine;
 
 import javax.swing.*;
 import javax.swing.event.MouseInputListener;
@@ -18,6 +21,7 @@ import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.geom.Area;
+import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
 import java.util.List;
 import java.util.Optional;
@@ -59,10 +63,14 @@ import static java.lang.Boolean.TRUE;
  * @see FlameGraphPainter
  */
 public class FlameGraph<T> {
+
+    private static final long ZOOM_ANIMATION_DURATION = 400L;
+
     /**
      * Simple property that allows to display some painting data statistics
      */
     public static String SHOW_STATS = "flamegraph.show_stats";
+
     private final FlameGraphCanvas<T> canvas;
 
     /**
@@ -77,7 +85,6 @@ public class FlameGraph<T> {
     public FlameGraph() {
         canvas = new FlameGraphCanvas<>();
         ToolTipManager.sharedInstance().registerComponent(canvas);
-
         component = JScrollPaneWithButton.create(
                 () -> {
                     var scrollPane = new JScrollPane(canvas);
@@ -271,26 +278,65 @@ public class FlameGraph<T> {
             }
 
             if (e.getClickCount() == 2) {
-                canvas.getFlameGraphPainter().flatMap(fgp -> fgp.zoomToFrameAt(
+                // find zoom target then do an animated transition
+                canvas.getFlameGraphPainter().flatMap(fgp -> fgp.calculateZoomTargetForFrameAt(
                         (Graphics2D) viewPort.getView().getGraphics(),
+                        canvas.getBounds(),
+                        viewPort.getViewRect(),
                         point
-                )).ifPresent(zoomPoint -> {
-                    scrollPane.revalidate();
-                    EventQueue.invokeLater(() -> viewPort.setViewPosition(zoomPoint));
+                )).ifPresent(zoomTarget -> {
+                    System.getLogger(FlameGraphCanvas.class.getName()).log(System.Logger.Level.DEBUG,() -> "zoom to " + zoomTarget);
+                    if (canvas.isAnimateZoomTransitions()) {
+                        int startW = canvas.getWidth();
+                        int startH = canvas.getHeight();
+                        double deltaW = zoomTarget.bounds.width - startW;
+                        double deltaH = zoomTarget.bounds.height - startH;
+                        int startX = viewPort.getViewPosition().x;
+                        int startY = viewPort.getViewPosition().y;
+                        double deltaX = zoomTarget.viewOffset.x - startX;
+                        double deltaY = zoomTarget.viewOffset.y - startY;
+                        Timeline.builder()
+                                .setDuration(ZOOM_ANIMATION_DURATION)
+                                .setEase(new Sine())
+                                .addCallback(new TimelineCallback() {
+                                    @Override
+                                    public void onTimelineStateChanged(Timeline.TimelineState oldState, Timeline.TimelineState newState, float durationFraction, float timelinePosition) {
+                                        if (newState.equals(Timeline.TimelineState.DONE)) {
+                                            // throw in a final update to the target position, because the last pulse
+                                            // might not have reached exactly timelinePosition = 1.0...
+                                            SwingUtilities.invokeLater(() -> {
+                                                canvas.setSize(zoomTarget.bounds);
+                                                viewPort.setViewPosition(zoomTarget.viewOffset);
+                                            });
+                                        }
+                                    }
+                                    @Override
+                                    public void onTimelinePulse(float durationFraction, float timelinePosition) {
+                                        SwingUtilities.invokeLater(() -> {
+                                            canvas.setSize(new Dimension((int) (startW + timelinePosition * deltaW), (int) (startH + timelinePosition * deltaH)));
+                                            Point pos = new Point(startX + (int) (timelinePosition * deltaX), startY + (int) (timelinePosition * deltaY));
+                                            viewPort.setViewPosition(pos);
+                                        });
+                                    }
+                                }).build().playSkipping(3L);
+                    } else {
+                        canvas.setSize(zoomTarget.bounds);
+                        viewPort.setViewPosition(zoomTarget.viewOffset);
+                    }
                 });
-
                 return;
             }
 
             if ((e.getSource() instanceof JScrollPane)) {
                 canvas.getFlameGraphPainter()
-                      .ifPresent(fgp -> {
-                          fgp.toggleSelectedFrameAt(
-                                  (Graphics2D) viewPort.getView().getGraphics(),
-                                  point
-                          );
-                          scrollPane.repaint();
-                      });
+                        .ifPresent(fgp -> {
+                            fgp.toggleSelectedFrameAt(
+                                    (Graphics2D) viewPort.getView().getGraphics(),
+                                    canvas.getBounds(),
+                                    point
+                            );
+                            scrollPane.repaint();
+                        });
             }
         }
 
@@ -325,14 +371,15 @@ public class FlameGraph<T> {
             }
 
             canvas.getFlameGraphPainter()
-                  .ifPresent(fgp -> fgp.hoverFrameAt(
-                          (Graphics2D) view.getGraphics(),
-                          point,
-                          frame -> {
-                              canvas.setToolTipText(frame);
-                              scrollPane.repaint();
-                          }
-                  ));
+                    .ifPresent(fgp -> fgp.hoverFrameAt(
+                            (Graphics2D) view.getGraphics(),
+                            canvas.getBounds(),
+                            point,
+                            frame -> {
+                                canvas.setToolTipText(frame);
+                                scrollPane.repaint();
+                            }
+                    ));
         }
 
         public void install(JScrollPane sp) {
@@ -342,6 +389,13 @@ public class FlameGraph<T> {
     }
 
     private static class FlameGraphCanvas<T> extends JPanel {
+
+        /**
+         * A key for a system property that can be used to disable zoom animations.  Used to set the
+         * initial state of the `animateZoomTransitions` flag.
+         */
+        private static final String ZOOM_ANIMATION_DISABLED_KEY = "fireplace.zoom.animation.disabled";
+
         private Image minimap;
         private JToolTip toolTip;
         private FlameGraphPainter<T> flameGraphPainter;
@@ -356,11 +410,39 @@ public class FlameGraph<T> {
         private boolean showMinimap = true;
         private Supplier<JToolTip> tooltipComponentSupplier;
 
+        /**
+         * A flag controlling whether zoom transitions are animated.  Defaults to true unless a
+         * system property is set to disable it (`-Dfireplace.zoom.animation.disabled=true`).
+         */
+        private boolean animateZoomTransitions;
+
         public FlameGraphCanvas() {
+            this(null);
         }
 
         public FlameGraphCanvas(FlameGraphPainter<T> flameGraphPainter) {
             this.flameGraphPainter = flameGraphPainter;
+            animateZoomTransitions = !Boolean.getBoolean(ZOOM_ANIMATION_DISABLED_KEY);
+        }
+
+        /**
+         * Returns the flag that controls whether zoom transitions are animated.  The default
+         * value is {@code true} unless the System property {@code fireplace.zoom.animation.disabled}
+         * is set to {@code true} (this provides a way to switch off the feature if required).
+         *
+         * @return A boolean.
+         */
+        public boolean isAnimateZoomTransitions() {
+            return animateZoomTransitions;
+        }
+
+        /**
+         * Sets the flag that controls whether zoom transitions are animated.
+         *
+         * @param animateZoomTransitions the new flag value.
+         */
+        public void setAnimateZoomTransitions(boolean animateZoomTransitions) {
+            this.animateZoomTransitions = animateZoomTransitions;
         }
 
         /**
@@ -385,18 +467,11 @@ public class FlameGraph<T> {
 
             Insets insets = getInsets();
             var flameGraphDimension = flameGraphPainter.computeFlameGraphDimension((Graphics2D) getGraphics(),
-                                                                                   getVisibleRect(),
-                                                                                   insets
+                    getWidth(),
+                    insets
             );
             defaultDimension.width = Math.max(defaultDimension.width, flameGraphDimension.width + insets.left + insets.right);
             defaultDimension.height = Math.max(defaultDimension.height, flameGraphDimension.height + insets.top + insets.bottom);
-
-            // When the preferred size is discovered, also set the actual
-            // canvas size, as it is needed during `viewPort.setViewPosition`
-            // if it is not then the viewport will not be able to scroll to the
-            // right frame when the flamegraph is zoomed (ie its dimensions
-            // change)
-            setSize(defaultDimension);
 
             // trigger minimap generation
             if (!flameGraphDimension.equals(this.flameGraphDimension)) {
@@ -409,26 +484,32 @@ public class FlameGraph<T> {
         @Override
         protected void paintComponent(Graphics g) {
             super.paintComponent(g);
+            Graphics2D g2 = (Graphics2D) g.create();
+            var visibleRect = getVisibleRect();
             if (flameGraphPainter == null) {
-                var noData = new JLabel("No data to display");
-                noData.setBorder(BorderFactory.createEmptyBorder(50, 50, 50, 50));
-                noData.setBounds(getBounds());
-                noData.paint(g);
+                String message = "No data to display";
+                Font font = g2.getFont();
+                // calculate center position
+                Rectangle2D bounds = g2.getFontMetrics(font).getStringBounds(message, g2);
+                int xx = visibleRect.x + (int) ((visibleRect.width - bounds.getWidth()) / 2.0);
+                int yy = visibleRect.y + (int) ((visibleRect.height + bounds.getHeight()) / 2.0);
+                g2.drawString(message, xx, yy);
+                g2.dispose();
                 return;
             }
 
-            var visibleRect = getVisibleRect();
             flameGraphPainter.paintDetails = getClientProperty(SHOW_STATS) == TRUE;
-            flameGraphPainter.paint((Graphics2D) g, visibleRect);
-            paintMinimap(g, visibleRect);
+            flameGraphPainter.paint(g2, getBounds(), visibleRect);
+            paintMinimap(g2, visibleRect);
+            g2.dispose();
         }
 
         private void paintMinimap(Graphics g, Rectangle visibleRect) {
             if (showMinimap && minimap != null) {
                 var g2 = (Graphics2D) g.create(visibleRect.x + minimapLocation.x,
-                                               visibleRect.y + visibleRect.height - minimapHeight - minimapLocation.y,
-                                               minimapWidth + minimapInset * 2,
-                                               minimapHeight + minimapInset * 2);
+                        visibleRect.y + visibleRect.height - minimapHeight - minimapLocation.y,
+                        minimapWidth + minimapInset * 2,
+                        minimapHeight + minimapInset * 2);
 
                 g2.setColor(getBackground());
                 g2.fillRoundRect(1, 1, minimapWidth + 2 * minimapInset - 1, minimapHeight + 2 * minimapInset - 1, minimapRadius, minimapRadius);
@@ -529,8 +610,8 @@ public class FlameGraph<T> {
                 minimapGraphics.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
                 minimapGraphics.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
 
-
-                flameGraphPainter.paintMinimap(minimapGraphics, new Rectangle(minimapWidth, height));
+                Rectangle bounds = new Rectangle(minimapWidth, height);
+                flameGraphPainter.paintMinimap(minimapGraphics, bounds);
                 minimapGraphics.dispose();
 
                 SwingUtilities.invokeLater(() -> this.setMinimapImage(minimapImage));
@@ -596,8 +677,8 @@ public class FlameGraph<T> {
                 @Override
                 public void mouseMoved(MouseEvent e) {
                     setCursor(isInsideMinimap(e.getPoint()) ?
-                              Cursor.getPredefinedCursor(System.getProperty("os.name").startsWith("Mac") ? Cursor.HAND_CURSOR : Cursor.MOVE_CURSOR) :
-                              Cursor.getDefaultCursor());
+                            Cursor.getPredefinedCursor(System.getProperty("os.name").startsWith("Mac") ? Cursor.HAND_CURSOR : Cursor.MOVE_CURSOR) :
+                            Cursor.getDefaultCursor());
                 }
             };
             this.addMouseListener(mouseAdapter);
