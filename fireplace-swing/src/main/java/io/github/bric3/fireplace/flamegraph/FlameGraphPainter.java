@@ -155,7 +155,7 @@ public class FlameGraphPainter<T> {
             return new Dimension();
         }
 
-        return new Dimension(width + insets.left + insets.right, depth * getFrameBoxHeight(g2));
+        return new Dimension(width + insets.left + insets.right, depth * getFrameBoxHeight(g2) + insets.top + insets.bottom);
     }
 
     private float getFrameBoxTextOffset(Graphics2D g2) {
