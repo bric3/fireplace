@@ -25,15 +25,38 @@ import java.util.function.ToDoubleFunction;
  * utility method.
  * </p>
  *
- * @param <T>
  * @see FlameGraph
  */
 public class FrameBox<T> {
+
+    /**
+     * The underlying node in the flame graph.
+     */
     public final T actualNode;
+
+    /**
+     * The left edge of the frame in the range [0.0 - 1.0].
+     */
     public final double startX;
+
+    /**
+     * The right edge of the frame in the range [0.0 - 1.0].
+     */
     public final double endX;
+
+    /**
+     * The depth of the frame in the call stack.
+     */
     public final int stackDepth;
 
+    /**
+     * Creates a new instance.
+     *
+     * @param actualNode the underlying node.
+     * @param startX     the left edge of the frame in the range [0.0 - 1.0]
+     * @param endX       the right edge of the frame in the range [0.0 - 1.0]
+     * @param stackDepth the depth of the frame in the call stack.
+     */
     public FrameBox(T actualNode, double startX, double endX, int stackDepth) {
         this.actualNode = actualNode;
         this.startX = startX;
@@ -41,6 +64,11 @@ public class FrameBox<T> {
         this.stackDepth = stackDepth;
     }
 
+    /**
+     * Returns a string representation of this object, primarily for debugging purposes.
+     *
+     * @return A string representation of this object.
+     */
     @Override
     public String toString() {
         return "FlameNode{" +
@@ -69,7 +97,6 @@ public class FrameBox<T> {
      *
      * flameGraph.setData(nodes, ...);
      * </code></pre>
-     * </p>
      *
      * @param accumulator The flattened list of nodes.
      * @param fromNode    Node to start from.

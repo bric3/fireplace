@@ -16,21 +16,38 @@ import java.awt.geom.Rectangle2D;
 import java.awt.image.ColorModel;
 
 /**
- * Represents a color that can return two values depending on the {@link Colors#darkMode}
+ * Represents a color that can return two values depending on the {@link Colors#isDarkMode()}
  */
 public class DarkLightColor extends Color {
     private final Color dark;
 
+    /**
+     * Creates a new instance.
+     *
+     * @param light the light color.
+     * @param dark  the dark color.
+     */
     public DarkLightColor(Color light, Color dark) {
         super(light.getRGB(), light.getAlpha() != 255);
         this.dark = dark;
     }
 
+    /**
+     * Creates a new instance.
+     *
+     * @param light_rgba the light color.
+     * @param dark_rgba  the dark color.
+     */
     public DarkLightColor(int light_rgba, int dark_rgba) {
         super(light_rgba, true);
         this.dark = new Color(dark_rgba, true);
     }
 
+    /**
+     * Returns the color object corresponding to the current mode (see {@link Colors#isDarkMode()}).
+     *
+     * @return The color object.
+     */
     private Color currentColor() {
         return Colors.isDarkMode() ? dark : this;
     }

@@ -27,7 +27,7 @@ import java.util.function.Function;
  * to quickly toy with this tool, use with caution, or not at all.
  * </p>
  *
- * @param <T> The type of the node
+ * @param <T> The type of the frame node (depends on the source of profiling data).
  * @see FlameGraph
  */
 public class FlameGraphPainter<T> {
@@ -50,19 +50,54 @@ public class FlameGraphPainter<T> {
      */
     private Font frameLabelFontForPartialFrames;
 
+    /**
+     * The color used to draw frames that are highlighted.
+     */
     public Color highlightedColor;
+
+    /**
+     * The color used for the gap between frames, if it is enabled.
+     */
     public Color frameGapColor;
+
+    /**
+     * A flag that controls whether a gap is shown at the right and bottom of each frame.
+     */
     public boolean frameGapEnabled = true;
+
+    /**
+     * The size of the gap at the right and bottom of each frame.
+     */
     public int frameGapWidth = 1;
 
+    /**
+     * A flag that controls whether a frame is drawn around the frame that the mouse pointer
+     * hovers over.
+     */
     public boolean paintHoveredFrameBorder = true;
+
+    /**
+     * The width of the border drawn around the hovered frame.
+     */
     public int frameBorderWidth = 1;
+
+    /**
+     * The stroke used to draw a border around the hovered frame.
+     */
     public Stroke frameBorderStroke = new BasicStroke(frameBorderWidth);
+
+    /**
+     * The color used to draw a border around the hovered frame.
+     */
     public Color frameBorderColor = Colors.panelForeground;
 
     private final int depth;
     private int visibleDepth;
     private final int textBorder = 2;
+
+    /**
+     * The minimum width threshold for a frame to be rendered.
+     */
     protected int frameWidthVisibilityThreshold = 4;
     private final int minimapFrameBoxHeight = 1;
 
@@ -77,8 +112,22 @@ public class FlameGraphPainter<T> {
     private final Function<T, String> rootFrameToText;
     Function<T, Color> frameColorFunction;
     private final int internalPadding = 2;
+
+    /**
+     * A flag that controls the display of rendering info and statistics.
+     *
+     * @see FlameGraph#SHOW_STATS
+     */
     protected boolean paintDetails = true;
 
+    /**
+     * Creates a new instance to render the specified list of frames.
+     *
+     * @param frames               the frames to be displayed.
+     * @param nodeToTextCandidates a list of functions that create labels for a node (ordered from longest to shortest).
+     * @param rootFrameToText      a function that creates a label for the root frame.
+     * @param frameColorFunction   a function that maps frames to colors.
+     */
     public FlameGraphPainter(List<FrameBox<T>> frames,
                              List<Function<T, String>> nodeToTextCandidates,
                              Function<T, String> rootFrameToText,
@@ -96,6 +145,11 @@ public class FlameGraphPainter<T> {
         updateUI();
     }
 
+    /**
+     * Returns the font used to display frame labels.
+     *
+     * @return The font used to display frame labels.
+     */
     public Font getFrameLabelFont() {
         return this.frameLabelFont;
     }
@@ -117,13 +171,20 @@ public class FlameGraphPainter<T> {
      */
     public void updateUI() {
         frameGapColor = Colors.panelBackground;
-        highlightedColor = Color.yellow;
+        highlightedColor = Color.YELLOW;
     }
 
     private int getFrameBoxHeight(Graphics2D g2) {
         return g2.getFontMetrics(this.frameLabelFont).getAscent() + (textBorder * 2) + frameGapWidth * 2;
     }
 
+    /**
+     * Returns the height of the minimap for the specified width.
+     *
+     * @param thumbnailWidth the minimap width.
+     *
+     * @return The height.
+     */
     public int computeFlameGraphMinimapHeight(int thumbnailWidth) {
         assert thumbnailWidth > 0 : "minimap width must be superior to 0";
 
@@ -144,7 +205,7 @@ public class FlameGraphPainter<T> {
      * Computes the dimensions of the flamegraph for the specified width (just the height needs calculating,
      * and this depends on the font metrics).
      *
-     * @param g2     the graphics target.
+     * @param g2     the graphics target ({@code null} not permitted).
      * @param width  the preferred width.
      * @param insets the insets.
      * @return The dimensions required to draw the whole fra
@@ -162,6 +223,14 @@ public class FlameGraphPainter<T> {
         return getFrameBoxHeight(g2) - (g2.getFontMetrics(frameLabelFont).getDescent() / 2f) - textBorder - frameGapWidth;
     }
 
+    /**
+     * Draws the subset of the flame graph that fits within {@code viewRect} assuming that the whole
+     * flame graph is being rendered within the specified {@code bounds}.
+     *
+     * @param g2       the graphics target ({@code null} not permitted).
+     * @param bounds   the flame graph bounds ({@code null} not permitted).
+     * @param viewRect the subset that is being viewed/rendered ({@code null} not permitted).
+     */
     public void paint(Graphics2D g2, Rectangle2D bounds, Rectangle2D viewRect) {
         paint(g2, bounds, viewRect, false);
     }
@@ -169,14 +238,17 @@ public class FlameGraphPainter<T> {
     /**
      * Paints the minimap (always the entire flame graph).
      *
-     * @param g2     the graphics target.
-     * @param bounds the bounds.
+     * @param g2     the graphics target ({@code null} not permitted).
+     * @param bounds the bounds ({@code null} not permitted).
      */
     public void paintMinimap(Graphics2D g2, Rectangle2D bounds) {
         paint(g2, bounds, bounds, true);
     }
 
     private void paint(Graphics2D g2, Rectangle2D bounds, Rectangle2D viewRect, boolean minimapMode) {
+        Objects.requireNonNull(g2);
+        Objects.requireNonNull(bounds);
+        Objects.requireNonNull(viewRect);
         long start = System.currentTimeMillis();
         Graphics2D g2d = (Graphics2D) g2.create();
         var frameBoxHeight = minimapMode ? minimapFrameBoxHeight : getFrameBoxHeight(g2);
@@ -388,6 +460,16 @@ public class FlameGraphPainter<T> {
         return frameRect;
     }
 
+    /**
+     * Creates and returns the bounds for the specified frame, assuming that the whole flame graph is to
+     * be rendered within the specified {@code bounds}.
+     *
+     * @param g2     the graphics target ({@code null} not permitted).
+     * @param bounds the flame graph bounds ({@code null} not permitted)
+     * @param frame  the frame ({@code null} not permitted)
+     *
+     * @return The bounds for the specified frame.
+     */
     public Rectangle getFrameRectangle(Graphics2D g2, Rectangle2D bounds, FrameBox<T> frame) {
         var frameBoxHeight = getFrameBoxHeight(g2);
 
@@ -399,6 +481,16 @@ public class FlameGraphPainter<T> {
         return rect;
     }
 
+    /**
+     * Returns the frame at the specified point, assuming that the full flame graph is rendered within
+     * the specified bounds.
+     *
+     * @param g2     the graphics target ({@code null} not permitted).
+     * @param bounds the bounds in which the full flame graph is rendered ({@code null} not permitted).
+     * @param point  the point of interest ({@code null} not permitted).
+     *
+     * @return An optional frame box.
+     */
     public Optional<FrameBox<T>> getFrameAt(Graphics2D g2, Rectangle2D bounds, Point point) {
         int depth = point.y / getFrameBoxHeight(g2);
         double xLocation = point.x / bounds.getWidth();
@@ -408,6 +500,15 @@ public class FlameGraphPainter<T> {
                      .findFirst();
     }
 
+    /**
+     * Toggles the selection status of the frame at the specified point, if there is one, and notifies
+     * the supplied consumer.
+     *
+     * @param g2             the graphics target ({@code null} not permitted).
+     * @param bounds         the bounds in which the full flame graph is rendered ({@code null} not permitted).
+     * @param point          the point of interest ({@code null} not permitted).
+     * @param toggleConsumer the function that is called to notify about the frame selection ({@code null} not permitted).
+     */
     public void toggleSelectedFrameAt(Graphics2D g2, Rectangle2D bounds, Point point, BiConsumer<FrameBox<T>, Rectangle> toggleConsumer) {
         getFrameAt(g2, bounds, point)
                 .ifPresent(frame -> {
@@ -416,6 +517,15 @@ public class FlameGraphPainter<T> {
                 });
     }
 
+    /**
+     * Toggles the hover status of the frame at the specified point, if there is one, and notifies
+     * the supplied consumer.
+     *
+     * @param g2            the graphics target ({@code null} not permitted).
+     * @param bounds        the bounds in which the full flame graph is rendered ({@code null} not permitted).
+     * @param point         the point of interest ({@code null} not permitted).
+     * @param hoverConsumer the function that is called to notify about the frame selection ({@code null} not permitted).
+     */
     public void hoverFrameAt(Graphics2D g2, Rectangle2D bounds, Point point, BiConsumer<FrameBox<T>, Rectangle> hoverConsumer) {
         getFrameAt(g2, bounds, point)
                 .ifPresentOrElse(frame -> {
@@ -431,6 +541,18 @@ public class FlameGraphPainter<T> {
                                  this::stopHover);
     }
 
+    /**
+     * Finds the frame at {@code point} and, if there is one, returns the new canvas size and the offset that
+     * will make the frame fully visible at the top of the specified {@code viewRect}.  A side effect of this
+     * method is that the frame is marked as the "selected" frame.
+     *
+     * @param g2       the graphics target ({@code null} not permitted).
+     * @param bounds   the bounds within which the flame graph is currently rendered.
+     * @param viewRect the subset of the bounds that is actually visible
+     * @param point    the coordinates at which to look for a frame.
+     *
+     * @return An optional zoom target.
+     */
     public Optional<ZoomTarget> calculateZoomTargetForFrameAt(Graphics2D g2, Rectangle2D bounds, Rectangle2D viewRect, Point point) {
         return getFrameAt(g2, bounds, point).map(frame -> {
             this.selectedFrame = frame;
@@ -446,6 +568,9 @@ public class FlameGraphPainter<T> {
         });
     }
 
+    /**
+     * Clears the hovered frame (to indicate that no frame is hovered).
+     */
     public void stopHover() {
         hoveredFrame = null;
     }
