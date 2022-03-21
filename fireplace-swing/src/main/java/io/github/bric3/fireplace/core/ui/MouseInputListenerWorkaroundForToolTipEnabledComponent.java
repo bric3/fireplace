@@ -25,7 +25,7 @@ import java.awt.event.MouseWheelEvent;
  * This happens on {@link JScrollPane}, when the component is presented, eg on
  * the official javadoc:
  * <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.desktop/javax/swing/JScrollPane.html">
- * <img href="https://docs.oracle.com/en/java/javase/11/docs/api/java.desktop/javax/swing/doc-files/JScrollPane-1.gif" alt="JScrollPane javadoc image">
+ * <img src="https://docs.oracle.com/en/java/javase/11/docs/api/java.desktop/javax/swing/doc-files/JScrollPane-1.gif" alt="JScrollPane javadoc image">
  * </a>
  * The image suggests that content of the scroll pane is behind. This is a
  * conceptual view, in practice the content is actually on the top of the scroll

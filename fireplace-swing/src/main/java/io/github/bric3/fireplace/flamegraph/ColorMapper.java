@@ -17,15 +17,39 @@ import java.util.function.Function;
  * Named function to map a value to a color.
  */
 public interface ColorMapper<T> extends Function<T, Color> {
+
+    /**
+     * Returns a {@code ColorMapper} instance that maps objects (using the hashCode) to colors
+     * in the supplied palette.
+     *
+     * @param palette the palette.
+     *
+     * @return A color.
+     */
     static ColorMapper<Object> ofObjectHashUsing(Color... palette) {
         return value -> value == null ?
                         palette[0] :
                         palette[Math.abs(Objects.hashCode(value)) % palette.length];
     }
 
+    /**
+     * Returns the color that is mapped to the specified object.
+     *
+     * @param o the object ({@code null} permitted).
+     *
+     * @return A color.
+     */
     default Color apply(T o) {
         return mapToColor(o);
     }
 
+    /**
+     * Returns the color that is mapped to the specified object.  This is the same as the {@link #apply(Object)}
+     * method but has a more descriptive name.
+     *
+     * @param o the object ({@code null} permitted).
+     *
+     * @return The color.
+     */
     Color mapToColor(T o);
 }

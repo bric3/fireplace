@@ -22,6 +22,10 @@ import java.util.function.Supplier;
  */
 public abstract class JScrollPaneWithButton {
 
+    private JScrollPaneWithButton() {
+        // no need to instantiate this class
+    }
+
     /**
      * Creates a JScrollPane with a button that go back on top of the scroll pane.
      *

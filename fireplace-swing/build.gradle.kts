@@ -11,4 +11,9 @@ tasks {
     withType(JavaCompile::class) {
         options.release.set(11)
     }
+
+    withType(Javadoc::class) {
+        options.overview = "src/main/javadoc/overview.html"
+        (options as StandardJavadocDocletOptions).linkSource(true)
+    }
 }

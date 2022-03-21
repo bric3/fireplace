@@ -44,8 +44,8 @@ import static java.lang.Boolean.TRUE;
  * flameGraph.showMinimap(false);
  * flameGraph.setData(
  *     (FrameBox&lt;MyNode&gt;) listOfFrameBox(),   // list of frames
- *     List.of(n -> n.stringRepresentation()),      // string representation candidates
- *     rootNode -> rootNode.stringRepresentation(), // root node string representation
+ *     List.of(n -&gt; n.stringRepresentation()),      // string representation candidates
+ *     rootNode -&gt; rootNode.stringRepresentation(), // root node string representation
  *     frameToColorFunction,                        // color function
  *     frameToToolTipTextFunction                   // text tooltip function
  * );
@@ -62,7 +62,7 @@ import static java.lang.Boolean.TRUE;
  */
 public class FlameGraph<T> {
     /**
-     * Simple property that allows to display some painting data statistics
+     * The key for a client property that controls the display of rendering statistics.
      */
     public static String SHOW_STATS = "flamegraph.show_stats";
 
@@ -132,6 +132,8 @@ public class FlameGraph<T> {
     }
 
     /**
+     * Sets a flag that controls whether the minimap is visible.
+     *
      * @param showMinimap {@code true} to show the minimap, {@code false} otherwise.
      */
     public void showMinimap(boolean showMinimap) {
@@ -175,7 +177,7 @@ public class FlameGraph<T> {
      *     is chosen automatically</li>
      *     <li>The tooltip text from the current node</li>
      * </ul>
-     * </p>
+     *
      *
      * @param frames                  The {@code FrameBox} list to display.
      * @param frameToStringCandidates candidates function to display in frames.

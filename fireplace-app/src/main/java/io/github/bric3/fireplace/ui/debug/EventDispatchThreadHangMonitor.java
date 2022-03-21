@@ -24,7 +24,7 @@ import java.util.function.Consumer;
  * This is useful in determining what code is causing your Java application's
  * GUI to be unresponsive.
  *
- * @author Elliott Hughes <enh@jessies.org>
+ * @author Elliott Hughes &lt;enh@jessies.org&gt;
  * <p>
  * Advice, bug fixes, and test cases from Alexander Potochkin and
  * Oleg Sukhodolsky.
