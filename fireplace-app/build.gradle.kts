@@ -26,7 +26,7 @@ dependencies {
     implementation(projects.fireplaceSwing)
     implementation(projects.fireplaceSwingAnimation)
     implementation(libs.bundles.flatlaf)
-    implementation(libs.darklaf)
+    implementation(libs.bundles.darklaf)
     implementation(libs.flightrecorder)
 
 //    implementation(libs.graal.sdk)
@@ -90,30 +90,3 @@ graal {
     version = libs.versions.graalvm.get()
 }
 
-
-// work in progress
-// plugins {
-//     id("org.jreleaser") version "1.0.0-M3"
-// }
-//
-// jreleaser {
-//     project {
-//         website.set("https://github.com/bric3/fireplace")
-//         authors.set(listOf("Brice Dutheil"))
-//         license.set("MPL-2.0")
-//         extraProperties.put("inceptionYear", "2021")
-//     }
-//
-//     release {
-//         github {
-//             owner.set("bric3")
-//             overwrite.set(true)
-//         }
-//     }
-//
-//     distributions.create("app") {
-//         artifact {
-//             path.set(file("build/distributions/{{distributionName}}-{{projectVersion}}.zip"))
-//         }
-//     }
-// }

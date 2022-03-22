@@ -124,6 +124,9 @@ public class FirePlaceMain {
             }
 
             var topPanel = new JPanel(new BorderLayout());
+            if (SystemInfo.isMacOS) {
+                openedFileLabel.setBorder(BorderFactory.createEmptyBorder(30, 5, 5, 5));
+            }
             topPanel.add(openedFileLabel, BorderLayout.CENTER);
             topPanel.add(AppearanceControl.INSTANCE.getComponent(), BorderLayout.EAST);
 
@@ -146,6 +149,14 @@ public class FirePlaceMain {
             JfrFilesDropHandler.install(jfrBinder::load, appLayers, hudPanel.getDnDTarget());
 
             var frame = new JFrame("FirePlace");
+            final JRootPane rootPane = frame.getRootPane();
+            if (SystemInfo.isMacOS) {
+                // allows to place swing components on the whole window
+                rootPane.putClientProperty("apple.awt.fullWindowContent", true);
+                // makes the title bar transparent
+                rootPane.putClientProperty("apple.awt.transparentTitleBar", true);
+            }
+
             installAppIcon(frame);
             frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
             frame.setSize(new Dimension(1000, 600));
@@ -250,8 +261,9 @@ public class FirePlaceMain {
         JComponent getComponent() {
             var appearanceModeButton = new JButton();
             {
-                var toLightMode = darkMode_sun.of(20, 20);
-                var toDarkMode = darkMode_moon.of(20, 20);
+                var iconSize = 10;
+                var toLightMode = darkMode_sun.of(iconSize, iconSize);
+                var toDarkMode = darkMode_moon.of(iconSize, iconSize);
                 Runnable syncIconUpdater = () -> {
                     switch (ThemePreferencesHandler.getSharedInstance().getPreferredThemeStyle().getColorToneRule()) {
                         case DARK:
