@@ -13,9 +13,11 @@ import io.github.bric3.fireplace.core.ui.Colors;
 
 import java.awt.*;
 import java.awt.geom.Rectangle2D;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -48,15 +50,28 @@ public class FlameGraphPainter<T> {
      * a modified (italicised by default) font to highlight that the frame is only partially
      * visible.
      */
-    private Font frameLabelFontForPartialFrames;
+    private Font partialFrameLabelFont;
+
+    /**
+     * The font used to display frame labels
+     */
+    private Font highlightedFrameLabelFont;
+
+    /**
+     * If a frame is clipped, we'll shift the label to make it visible but show it with
+     * a modified (italicised by default) font to highlight that the frame is only partially
+     * visible.
+     */
+    private Font highlightedPartialFrameLabelFont;
 
     /**
      * The color used to draw frames that are highlighted.
      */
-    public Color highlightedColor;
+    public Color highlightedColor = new Color(0xFFFFE771, true);
 
     /**
      * The color used for the gap between frames, if it is enabled.
+     * Normally the same color as the panel background.
      */
     public Color frameGapColor;
 
@@ -119,6 +134,8 @@ public class FlameGraphPainter<T> {
      * @see FlameGraph#SHOW_STATS
      */
     protected boolean paintDetails = true;
+    private Set<FrameBox<T>> toHighlight = Collections.emptySet();
+    private String searchedText = "";
 
     /**
      * Creates a new instance to render the specified list of frames.
@@ -134,7 +151,9 @@ public class FlameGraphPainter<T> {
                              Function<T, Color> frameColorFunction) {
 
         this.frameLabelFont = new Font(Font.SANS_SERIF, Font.PLAIN, 12);
-        this.frameLabelFontForPartialFrames = new Font(Font.SANS_SERIF, Font.ITALIC, 12);
+        this.partialFrameLabelFont = new Font(Font.SANS_SERIF, Font.ITALIC, 12);
+        this.highlightedFrameLabelFont = new Font(Font.SANS_SERIF, Font.PLAIN | Font.BOLD, 12);
+        this.highlightedPartialFrameLabelFont = new Font(Font.SANS_SERIF, Font.ITALIC | Font.BOLD, 12);
 
         this.frames = frames;
         this.depth = this.frames.stream().mapToInt(fb -> fb.stackDepth).max().orElse(0);
@@ -163,7 +182,19 @@ public class FlameGraphPainter<T> {
     public void setFrameLabelFont(Font font) {
         Objects.requireNonNull(font);
         this.frameLabelFont = font;
-        this.frameLabelFontForPartialFrames = font.deriveFont(Font.ITALIC);
+        this.partialFrameLabelFont = font.deriveFont(Font.ITALIC);
+        this.highlightedFrameLabelFont = font.deriveFont(Font.BOLD);
+        this.highlightedPartialFrameLabelFont = font.deriveFont(Font.ITALIC | Font.BOLD);
+    }
+
+    /**
+     * Sets the color used for highlighting frames.
+     *
+     * @param highlightedColor
+     */
+    public void setHighlightedColor(Color highlightedColor) {
+        Objects.requireNonNull(highlightedColor);
+        this.highlightedColor = highlightedColor;
     }
 
     /**
@@ -171,7 +202,6 @@ public class FlameGraphPainter<T> {
      */
     public void updateUI() {
         frameGapColor = Colors.panelBackground;
-        highlightedColor = Color.YELLOW;
     }
 
     private int getFrameBoxHeight(Graphics2D g2) {
@@ -182,7 +212,6 @@ public class FlameGraphPainter<T> {
      * Returns the height of the minimap for the specified width.
      *
      * @param thumbnailWidth the minimap width.
-     *
      * @return The height.
      */
     public int computeFlameGraphMinimapHeight(int thumbnailWidth) {
@@ -257,6 +286,7 @@ public class FlameGraphPainter<T> {
 
         identifyDisplayScale(g2d);
 
+        // paint root
         {
             var rootFrame = frames.get(0);
             rect.x = (int) (flameGraphWidth * rootFrame.startX) + internalPadding;
@@ -270,16 +300,17 @@ public class FlameGraphPainter<T> {
                                         rect,
                                         rootFrameToText.apply(rootFrame.actualNode),
                                         intersection,
-                                        handleFocus(frameColorFunction.apply(rootFrame.actualNode),
-                                                    hoveredFrame == rootFrame,
-                                                    false,
-                                                    selectedFrame != null && rootFrame.stackDepth < selectedFrame.stackDepth),
+                                        tweakLabelFont(rect, intersection, false),
+                                        tweakBgColor(frameColorFunction.apply(rootFrame.actualNode),
+                                                     hoveredFrame == rootFrame,
+                                                     false,
+                                                     selectedFrame != null && rootFrame.stackDepth < selectedFrame.stackDepth),
                                         frameGapColor,
                                         minimapMode);
             }
         }
 
-        // draw real flames
+        // paint real flames
         for (int i = 1; i < frames.size(); i++) {
             var frame = frames.get(i);
             // TODO Can we do cheaper checks like depth is outside range etc
@@ -300,13 +331,15 @@ public class FlameGraphPainter<T> {
                                         rect,
                                         frame.actualNode,
                                         intersection,
-                                        handleFocus(frameColorFunction.apply(frame.actualNode),
-                                                    hoveredFrame == frame,
-                                                    false,
-                                                    selectedFrame != null && (
-                                                            frame.stackDepth < selectedFrame.stackDepth
-                                                            || frame.endX <= selectedFrame.startX
-                                                            || frame.startX >= selectedFrame.endX)),
+                                        // choose font depending on whether the left-side of the frame is clipped
+                                        tweakLabelFont(rect, intersection, toHighlight.contains(frame)),
+                                        tweakBgColor(frameColorFunction.apply(frame.actualNode),
+                                                     hoveredFrame == frame,
+                                                     toHighlight.contains(frame),
+                                                     selectedFrame != null && (
+                                                             frame.stackDepth < selectedFrame.stackDepth
+                                                             || frame.endX <= selectedFrame.startX
+                                                             || frame.startX >= selectedFrame.endX)),
                                         frameGapColor,
                                         minimapMode);
             }
@@ -336,6 +369,21 @@ public class FlameGraphPainter<T> {
         }
 
         g2d.dispose();
+    }
+
+    private Font tweakLabelFont(Rectangle rect, Rectangle intersection, boolean highlighted) {
+        if (highlighted) {
+            if (rect.x == intersection.x) {
+                return highlightedFrameLabelFont;
+            } else {
+                return highlightedPartialFrameLabelFont;
+            }
+        }
+        if (rect.x == intersection.x) {
+            return frameLabelFont;
+        } else {
+            return partialFrameLabelFont;
+        }
     }
 
     private void paintHoveredFrameBorder(Graphics2D g2, Rectangle2D bounds, Rectangle2D viewRect, int frameBoxHeight, Rectangle rect) {
@@ -370,15 +418,15 @@ public class FlameGraphPainter<T> {
         //                          scaleY = transform.getScaleY());
     }
 
-    private Color handleFocus(Color bgColor, boolean hovered, boolean highlighted, boolean dimmed) {
+    private Color tweakBgColor(Color bgColor, boolean hovered, boolean highlighted, boolean dimmed) {
+        if (highlighted) {
+            return hovered ? Colors.blend(highlightedColor, Colors.translucent_black_40) : highlightedColor;
+        }
         if (dimmed) {
             return Colors.blend(bgColor, Colors.translucent_black_B0);
         }
         if (hovered) {
             return Colors.blend(bgColor, Colors.translucent_black_40);
-        }
-        if (highlighted) {
-            return highlightedColor;
         }
         return bgColor;
     }
@@ -391,17 +439,24 @@ public class FlameGraphPainter<T> {
      * @param node          the underlying node (used for label generation).
      * @param intersection  the intersection between the frame rectangle and the visible region
      *                      (used to position text labels).
+     * @param labelFont
      * @param bgColor       the background color.
      * @param frameGapColor the frame gap color.
      * @param minimapMode   is the minimap in the process of being rendered?
      */
-    private void paintNodeFrameRectangle(Graphics2D g2, Rectangle frameRect, T node, Rectangle intersection, Color bgColor, Color frameGapColor, boolean minimapMode) {
+    private void paintNodeFrameRectangle(
+            Graphics2D g2,
+            Rectangle frameRect,
+            T node,
+            Rectangle intersection,
+            Font labelFont, Color bgColor,
+            Color frameGapColor,
+            boolean minimapMode
+    ) {
         var frameRectSurface = paintFrameRectangle(g2, frameRect, bgColor, frameGapColor, minimapMode);
         if (minimapMode) {
             return;
         }
-        // choose font depending on whether the left-side of the frame is clipped
-        final Font labelFont = (frameRect.x == intersection.x) ? frameLabelFont : frameLabelFontForPartialFrames;
         paintFrameText(node,
                        g2,
                        labelFont,
@@ -421,17 +476,25 @@ public class FlameGraphPainter<T> {
      * @param str          the text to display.
      * @param intersection the intersection between the frame rectangle and the visible region
      *                     (used to position the text label).
+     * @param labelFont
      * @param bgColor      the background color.
      * @param gapColor     the gap color.
      * @param minimapMode  is the minimap in the process of being rendered?
      */
-    private void paintRootFrameRectangle(Graphics2D g2, Rectangle rect, String str, Rectangle intersection, Color bgColor, Color gapColor, boolean minimapMode) {
+    private void paintRootFrameRectangle(
+            Graphics2D g2,
+            Rectangle rect,
+            String str,
+            Rectangle intersection,
+            Font labelFont,
+            Color bgColor,
+            Color gapColor,
+            boolean minimapMode
+    ) {
         var frameRectSurface = paintFrameRectangle(g2, rect, bgColor, gapColor, minimapMode);
         if (minimapMode) {
             return;
         }
-        // choose a font depending on whether the left-side of the frame is clipped
-        final Font labelFont = (rect.x == intersection.x) ? frameLabelFont : frameLabelFontForPartialFrames;
         paintRootFrameText(str,
                            g2,
                            labelFont,
@@ -443,7 +506,13 @@ public class FlameGraphPainter<T> {
                            });
     }
 
-    private Rectangle paintFrameRectangle(Graphics2D g2, Rectangle frameRect, Color bgColor, Color frameGapColor, boolean minimapMode) {
+    private Rectangle paintFrameRectangle(
+            Graphics2D g2,
+            Rectangle frameRect,
+            Color bgColor,
+            Color frameGapColor,
+            boolean minimapMode
+    ) {
         var borderWidth = minimapMode ?
                           0 :
                           frameGapEnabled ? frameGapWidth : 0;
@@ -467,7 +536,6 @@ public class FlameGraphPainter<T> {
      * @param g2     the graphics target ({@code null} not permitted).
      * @param bounds the flame graph bounds ({@code null} not permitted)
      * @param frame  the frame ({@code null} not permitted)
-     *
      * @return The bounds for the specified frame.
      */
     public Rectangle getFrameRectangle(Graphics2D g2, Rectangle2D bounds, FrameBox<T> frame) {
@@ -488,7 +556,6 @@ public class FlameGraphPainter<T> {
      * @param g2     the graphics target ({@code null} not permitted).
      * @param bounds the bounds in which the full flame graph is rendered ({@code null} not permitted).
      * @param point  the point of interest ({@code null} not permitted).
-     *
      * @return An optional frame box.
      */
     public Optional<FrameBox<T>> getFrameAt(Graphics2D g2, Rectangle2D bounds, Point point) {
@@ -550,7 +617,6 @@ public class FlameGraphPainter<T> {
      * @param bounds   the bounds within which the flame graph is currently rendered.
      * @param viewRect the subset of the bounds that is actually visible
      * @param point    the coordinates at which to look for a frame.
-     *
      * @return An optional zoom target.
      */
     public Optional<ZoomTarget> calculateZoomTargetForFrameAt(Graphics2D g2, Rectangle2D bounds, Rectangle2D viewRect, Point point) {
@@ -610,4 +676,8 @@ public class FlameGraphPainter<T> {
         // don't draw text
     }
 
+    public void setHighlightFrames(Set<FrameBox<T>> toHighlight, String searchedText) {
+        this.toHighlight = toHighlight;
+        this.searchedText = searchedText;
+    }
 }
