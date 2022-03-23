@@ -21,7 +21,9 @@ import java.awt.geom.Area;
 import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
@@ -72,6 +74,7 @@ public class FlameGraph<T> {
      * The final composite component that can display a flame graph.
      */
     public final JComponent component;
+    private List<FrameBox<T>> frames;
 
     /**
      * Creates an empty flame graph.
@@ -107,6 +110,7 @@ public class FlameGraph<T> {
      * @param frameColorFunction A function that takes a frame and returns a color.
      */
     public void setColorFunction(Function<T, Color> frameColorFunction) {
+        Objects.requireNonNull(frameColorFunction);
         this.canvas.getFlameGraphPainter()
                    .ifPresent(fgp -> fgp.frameColorFunction = frameColorFunction);
     }
@@ -128,7 +132,7 @@ public class FlameGraph<T> {
      * @param minimapShadeColorSupplier Color supplier.
      */
     public void setMinimapShadeColorSupplier(Supplier<Color> minimapShadeColorSupplier) {
-        canvas.setMinimapShadeColorSupplier(minimapShadeColorSupplier);
+        canvas.setMinimapShadeColorSupplier(Objects.requireNonNull(minimapShadeColorSupplier));
     }
 
     /**
@@ -146,7 +150,7 @@ public class FlameGraph<T> {
      * @param tooltipComponentSupplier The tooltip component supplier.
      */
     public void setTooltipComponentSupplier(Supplier<JToolTip> tooltipComponentSupplier) {
-        canvas.setTooltipComponentSupplier(tooltipComponentSupplier);
+        canvas.setTooltipComponentSupplier(Objects.requireNonNull(tooltipComponentSupplier));
     }
 
     /**
@@ -156,7 +160,7 @@ public class FlameGraph<T> {
      * @param consumer the consumer ({@code null} permitted).
      */
     public void setPopupConsumer(BiConsumer<FrameBox<T>, Point> consumer) {
-        canvas.setPopupConsumer(consumer);
+        canvas.setPopupConsumer(Objects.requireNonNull(consumer));
     }
 
     /**
@@ -191,17 +195,22 @@ public class FlameGraph<T> {
                         Function<T, Color> frameColorFunction,
                         Function<FrameBox<T>, String> tooltipTextFunction) {
         var flameGraphPainter = new FlameGraphPainter<>(
-                frames,
-                frameToStringCandidates,
-                rootFrameToString,
-                frameColorFunction
+                Objects.requireNonNull(frames),
+                Objects.requireNonNull(frameToStringCandidates),
+                Objects.requireNonNull(rootFrameToString),
+                Objects.requireNonNull(frameColorFunction)
         );
+        this.frames = frames;
         flameGraphPainter.frameWidthVisibilityThreshold = 2;
 
-        canvas.setFlameGraphPainter(flameGraphPainter);
-        canvas.setToolTipTextFunction(tooltipTextFunction);
+        canvas.setFlameGraphPainter(Objects.requireNonNull(flameGraphPainter));
+        canvas.setToolTipTextFunction(Objects.requireNonNull(tooltipTextFunction));
         canvas.invalidate();
         canvas.repaint();
+    }
+
+    public List<FrameBox<T>> getFrames() {
+        return frames;
     }
 
     /**
@@ -212,6 +221,8 @@ public class FlameGraph<T> {
      * @see JComponent#putClientProperty(Object, Object)
      */
     public void putClientProperty(String key, Object value) {
+        Objects.requireNonNull(key);
+        // value can be null, it means removing the key (see putClientProperty)
         canvas.putClientProperty(key, value);
     }
 
@@ -223,6 +234,7 @@ public class FlameGraph<T> {
      * @see JComponent#getClientProperty(Object)
      */
     public Object getClientProperty(String key) {
+        Objects.requireNonNull(key);
         return canvas.getClientProperty(key);
     }
 
@@ -235,7 +247,37 @@ public class FlameGraph<T> {
     }
 
     public void overrideZoomAction(ZoomAction zoomActionOverride) {
+        Objects.requireNonNull(zoomActionOverride);
         this.canvas.zoomActionOverride = zoomActionOverride;
+    }
+
+    /**
+     * Reset the zoom to 1:1.
+     */
+    public void resetZoom() {
+        canvas.setSize(canvas.getVisibleRect().getSize());
+    }
+
+    /**
+     * Sets frames that need to be highlighted.
+     * <p>
+     * The passed collection must be a subset of the frames that were used
+     * in {@link #setData(List, List, Function, Function, Function)}.
+     * this triggers a repaint event.
+     * </p>
+     *
+     * <p>
+     * To remove highlighting pass an empty collection.
+     * </p>
+     *
+     * @param framesToHighlight Subset of frames to highlight.
+     * @param searched          Text searched for.
+     */
+    public void highlightFrames(Set<FrameBox<T>> framesToHighlight, String searched) {
+        Objects.requireNonNull(framesToHighlight);
+        Objects.requireNonNull(searched);
+        canvas.flameGraphPainter.setHighlightFrames(framesToHighlight, searched);
+        canvas.repaint();
     }
 
     public interface ZoomAction {

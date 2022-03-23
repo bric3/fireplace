@@ -21,9 +21,14 @@ import org.openjdk.jmc.flightrecorder.stacktrace.tree.StacktraceTreeModel;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionListener;
+import java.util.Collections;
+import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
+import static java.util.Collections.emptySet;
 import static java.util.stream.Collectors.joining;
 
 public class FlameGraphTab extends JPanel {
@@ -73,7 +78,11 @@ public class FlameGraphTab extends JPanel {
 
 
         var wrapper = new JPanel(new BorderLayout());
-        wrapper.add(jfrFlameGraph.component);
+        {
+            var component = jfrFlameGraph.component;
+            component.setBorder(null);
+            wrapper.add(component);
+        }
 
         var timer = new Timer(2_000, e -> {
             jfrFlameGraph = new FlameGraph<>();
@@ -86,7 +95,11 @@ public class FlameGraphTab extends JPanel {
             updateColorSettingsListener.actionPerformed(null);
 
             wrapper.removeAll();
-            wrapper.add(jfrFlameGraph.component);
+            {
+                var cmp = jfrFlameGraph.component;
+                cmp.setBorder(null);
+                wrapper.add(cmp);
+            }
             wrapper.repaint(1_000);
             wrapper.revalidate();
         });
@@ -102,12 +115,49 @@ public class FlameGraphTab extends JPanel {
             }
         });
 
-        var controlPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        var resetZoom = new JButton("1:1");
+        resetZoom.addActionListener(e -> {
+            jfrFlameGraph.resetZoom();
+        });
+
+        var searchField = new JTextField("");
+        searchField.addActionListener(e -> {
+            var searched = searchField.getText();
+            if (searched.isEmpty()) {
+                jfrFlameGraph.highlightFrames(emptySet(), searched);
+                return;
+            }
+            CompletableFuture.runAsync(() -> {
+                try {
+                    var matches = jfrFlameGraph.getFrames()
+                                               .stream()
+                                               .filter(frame -> {
+                                                   var method = frame.actualNode.getFrame().getMethod();
+                                                   return method.getMethodName().contains(searched)
+                                                          || method.getType().getTypeName().contains(searched)
+                                                          || (method.getType().getPackage().getName() != null && method.getType().getPackage().getName().contains(searched))
+                                                          || (method.getType().getPackage().getModule() != null && method.getType().getPackage().getModule().getName().contains(searched))
+                                                          || method.getFormalDescriptor().replace('/', '.').contains(searched)
+                                                           ;
+                                               })
+                                               .collect(Collectors.toCollection(() -> Collections.newSetFromMap(new IdentityHashMap<>())));
+                    jfrFlameGraph.highlightFrames(matches, searched);
+                } catch (Exception ex) {
+                    ex.printStackTrace();
+                }
+            });
+        });
+
+
+        var controlPanel = new JPanel();
+        controlPanel.setLayout(new BoxLayout(controlPanel, BoxLayout.X_AXIS));
         controlPanel.add(colorPaletteJComboBox);
         controlPanel.add(colorModeJComboBox);
         controlPanel.add(borderToggle);
         controlPanel.add(animateToggle);
         controlPanel.add(refreshToggle);
+        controlPanel.add(resetZoom);
+        controlPanel.add(searchField);
 
 
         add(controlPanel, BorderLayout.NORTH);
