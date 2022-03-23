@@ -15,7 +15,8 @@ rootProject.name = "fireplace"
 include(
     "fireplace-swing",
     "fireplace-swing-animation",
-    "fireplace-app"
+    "fireplace-app",
+    "fireplace-swt-experiment"
 )
 enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 
