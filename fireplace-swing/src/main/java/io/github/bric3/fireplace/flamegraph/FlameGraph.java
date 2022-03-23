@@ -182,7 +182,6 @@ public class FlameGraph<T> {
      *     <li>The tooltip text from the current node</li>
      * </ul>
      *
-     *
      * @param frames                  The {@code FrameBox} list to display.
      * @param frameToStringCandidates candidates function to display in frames.
      * @param rootFrameToString       the root node description.
@@ -255,7 +254,18 @@ public class FlameGraph<T> {
      * Reset the zoom to 1:1.
      */
     public void resetZoom() {
-        canvas.setSize(canvas.getVisibleRect().getSize());
+        zoom(
+                canvas,
+                (JViewport) canvas.getParent(),
+                new ZoomTarget(canvas.getVisibleRect().getSize(), new Point())
+        );
+    }
+
+    private static <T> void zoom(FlameGraphCanvas<T> canvas, JViewport viewPort, ZoomTarget zoomTarget) {
+        if (canvas.zoomActionOverride == null || !canvas.zoomActionOverride.zoom(viewPort, canvas, zoomTarget)) {
+            canvas.setSize(zoomTarget.bounds);
+            viewPort.setViewPosition(zoomTarget.viewOffset);
+        }
     }
 
     /**
@@ -343,10 +353,7 @@ public class FlameGraph<T> {
                         viewPort.getViewRect(),
                         point
                 )).ifPresent(zoomTarget -> {
-                    if (canvas.zoomActionOverride == null || !canvas.zoomActionOverride.zoom(viewPort, canvas, zoomTarget)) {
-                        canvas.setSize(zoomTarget.bounds);
-                        viewPort.setViewPosition(zoomTarget.viewOffset);
-                    }
+                    zoom(canvas, viewPort, zoomTarget);
                 });
                 return;
             }
@@ -363,6 +370,7 @@ public class FlameGraph<T> {
                       });
             }
         }
+
 
         @Override
         public void mouseEntered(MouseEvent e) {
@@ -394,15 +402,15 @@ public class FlameGraph<T> {
             }
 
             canvas.getFlameGraphPainter()
-                    .ifPresent(fgp -> fgp.hoverFrameAt(
-                            (Graphics2D) view.getGraphics(),
-                            canvas.getBounds(),
-                            point,
-                            (frame, r) -> {
-                                canvas.setToolTipText(frame);
-                                canvas.repaint(r);
-                            }
-                    ));
+                  .ifPresent(fgp -> fgp.hoverFrameAt(
+                          (Graphics2D) view.getGraphics(),
+                          canvas.getBounds(),
+                          point,
+                          (frame, r) -> {
+                              canvas.setToolTipText(frame);
+                              canvas.repaint(r);
+                          }
+                  ));
         }
 
         public void install(JScrollPane sp) {
@@ -465,8 +473,8 @@ public class FlameGraph<T> {
 
             Insets insets = getInsets();
             var flameGraphDimension = flameGraphPainter.computeFlameGraphDimension((Graphics2D) getGraphics(),
-                    getWidth(),
-                    insets
+                                                                                   getWidth(),
+                                                                                   insets
             );
             defaultDimension.width = Math.max(defaultDimension.width, flameGraphDimension.width + insets.left + insets.right);
             defaultDimension.height = Math.max(defaultDimension.height, flameGraphDimension.height + insets.top + insets.bottom);
@@ -505,9 +513,9 @@ public class FlameGraph<T> {
         private void paintMinimap(Graphics g, Rectangle visibleRect) {
             if (flameGraphDimension != null && showMinimap && minimap != null) {
                 var g2 = (Graphics2D) g.create(visibleRect.x + minimapLocation.x,
-                        visibleRect.y + visibleRect.height - minimapHeight - minimapLocation.y,
-                        minimapWidth + minimapInset * 2,
-                        minimapHeight + minimapInset * 2);
+                                               visibleRect.y + visibleRect.height - minimapHeight - minimapLocation.y,
+                                               minimapWidth + minimapInset * 2,
+                                               minimapHeight + minimapInset * 2);
 
                 g2.setColor(getBackground());
                 g2.fillRoundRect(1, 1, minimapWidth + 2 * minimapInset - 1, minimapHeight + 2 * minimapInset - 1, minimapRadius, minimapRadius);
@@ -694,8 +702,8 @@ public class FlameGraph<T> {
                 @Override
                 public void mouseMoved(MouseEvent e) {
                     setCursor(isInsideMinimap(e.getPoint()) ?
-                            Cursor.getPredefinedCursor(System.getProperty("os.name").startsWith("Mac") ? Cursor.HAND_CURSOR : Cursor.MOVE_CURSOR) :
-                            Cursor.getDefaultCursor());
+                              Cursor.getPredefinedCursor(System.getProperty("os.name").startsWith("Mac") ? Cursor.HAND_CURSOR : Cursor.MOVE_CURSOR) :
+                              Cursor.getDefaultCursor());
                 }
             };
             this.addMouseListener(mouseAdapter);
