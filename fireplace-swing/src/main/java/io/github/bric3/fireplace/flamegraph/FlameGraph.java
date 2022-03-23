@@ -159,7 +159,7 @@ public class FlameGraph<T> {
      *
      * @param consumer the consumer ({@code null} permitted).
      */
-    public void setPopupConsumer(BiConsumer<FrameBox<T>, Point> consumer) {
+    public void setPopupConsumer(BiConsumer<FrameBox<T>, MouseEvent> consumer) {
         canvas.setPopupConsumer(Objects.requireNonNull(consumer));
     }
 
@@ -436,7 +436,7 @@ public class FlameGraph<T> {
         private Supplier<JToolTip> tooltipComponentSupplier;
 
         private ZoomAction zoomActionOverride;
-        private BiConsumer<FrameBox<T>, Point> popupConsumer;
+        private BiConsumer<FrameBox<T>, MouseEvent> popupConsumer;
 
 
         public FlameGraphCanvas() {
@@ -447,7 +447,7 @@ public class FlameGraph<T> {
             this.flameGraphPainter = flameGraphPainter;
         }
 
-        public void setPopupConsumer(BiConsumer<FrameBox<T>, Point> consumer) {
+        public void setPopupConsumer(BiConsumer<FrameBox<T>, MouseEvent> consumer) {
             this.popupConsumer = consumer;
         }
 
@@ -645,26 +645,26 @@ public class FlameGraph<T> {
                 public void mousePressed(MouseEvent e) {
                     if (isInsideMinimap(e.getPoint())) {
                         processMinimapMouseEvent(e);
+                        return;
                     }
-                    if (e.isPopupTrigger()) {
-                        notifyPopupConsumer(e);
-                    }
+                    handlePopup(e);
                 }
 
                 @Override
                 public void mouseReleased(MouseEvent e) {
-                    if (e.isPopupTrigger()) {
-                        notifyPopupConsumer(e);
-                    }
+                    handlePopup(e);
                 }
 
-                private void notifyPopupConsumer(MouseEvent e) {
+                private void handlePopup(MouseEvent e) {
+                    if (!e.isPopupTrigger()) {
+                        return;
+                    }
                     if (popupConsumer == null) {
                         return;
                     }
                     FlameGraphCanvas<T> canvas = FlameGraphCanvas.this;
-                    Optional<FrameBox<T>> f = flameGraphPainter.getFrameAt((Graphics2D) canvas.getGraphics(), canvas.getBounds(), e.getPoint());
-                    popupConsumer.accept(f.orElse(null), e.getLocationOnScreen());
+                    flameGraphPainter.getFrameAt((Graphics2D) canvas.getGraphics(), canvas.getBounds(), e.getPoint())
+                                     .ifPresent(frame -> popupConsumer.accept(frame, e));
                 }
 
                 @Override
