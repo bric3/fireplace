@@ -419,16 +419,20 @@ public class FlameGraphPainter<T> {
     }
 
     private Color tweakBgColor(Color bgColor, boolean hovered, boolean highlighted, boolean dimmed) {
-        if (highlighted) {
-            return hovered ? Colors.blend(highlightedColor, Colors.translucent_black_40) : highlightedColor;
-        }
+        Color color = bgColor;
         if (dimmed) {
-            return Colors.blend(bgColor, Colors.translucent_black_B0);
+            color = Colors.blend(bgColor, Colors.translucent_black_80);
+        }
+        if (!toHighlight.isEmpty()) {
+            color = Colors.isDarkMode() ? Colors.blend(color, Colors.translucent_black_B0) : Colors.blend(color, Color.WHITE);
+            if (highlighted) {
+                color = bgColor;
+            }
         }
         if (hovered) {
-            return Colors.blend(bgColor, Colors.translucent_black_40);
+            color = Colors.blend(color, Colors.translucent_black_40);
         }
-        return bgColor;
+        return color;
     }
 
     /**
