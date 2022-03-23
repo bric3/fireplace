@@ -648,22 +648,20 @@ public class FlameGraphPainter<T> {
     private void paintFrameText(T node, Graphics2D g2, Font font, double targetWidth, Consumer<String> textConsumer) {
         var metrics = g2.getFontMetrics(font);
 
-        nodeToTextCandidates.stream()
-                            .map(f -> f.apply(node))
-                            .filter(text -> {
-                                var textBounds = metrics.getStringBounds(text, g2);
-                                return !(textBounds.getWidth() > targetWidth);
-                            })
-                            .findFirst()
-                            .ifPresentOrElse(
-                                    textConsumer,
-                                    () -> {
-                                        var textBounds = metrics.getStringBounds(LONG_TEXT_PLACEHOLDER, g2);
-                                        if (!(textBounds.getWidth() > targetWidth)) {
-                                            textConsumer.accept(LONG_TEXT_PLACEHOLDER);
-                                        }
-                                    }
-                            );
+        // don't use stream to avoid allocations during painting
+        for (Function<T, String> nodeToTextCandidate : nodeToTextCandidates) {
+            var textCandidate = nodeToTextCandidate.apply(node);
+            var textBounds = metrics.getStringBounds(textCandidate, g2);
+            if (textBounds.getWidth() > targetWidth) {
+                continue;
+            }
+            textConsumer.accept(textCandidate);
+            return;
+        }
+        var textBounds = metrics.getStringBounds(LONG_TEXT_PLACEHOLDER, g2);
+        if (!(textBounds.getWidth() > targetWidth)) {
+            textConsumer.accept(LONG_TEXT_PLACEHOLDER);
+        }
     }
 
     private static void paintRootFrameText(String text, Graphics2D g2, Font font, double targetWidth, Consumer<String> textConsumer) {
