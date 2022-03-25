@@ -64,17 +64,16 @@ public abstract class JScrollPaneWithButton {
                 if (getModel().isArmed()) {
                     g2.setColor(Colors.isDarkMode() ? Color.lightGray : Color.darkGray);
                 } else {
-                    // g2.setColor(Colors.darkMode ? getBackground().brighter() : getBackground().darker());
-                    g2.setColor(getBackground());
+                    g2.setColor(UIManager.getColor("Button.background"));
                 }
 
-                g2.fillOval(0, 0, getWidth() - 1, getHeight() - 1);
+                g2.fillOval(2, 2, getWidth() - 1 - 4, getHeight() - 1 - 4);
                 super.paintComponent(g2);
             }
 
             protected void paintBorder(Graphics g) {
-                g.setColor(Colors.isDarkMode() ? Color.darkGray.brighter() : Color.darkGray);
-                g.drawOval(0, 0, getWidth() - 1, getHeight() - 1);
+                g.setColor(UIManager.getColor("Button.borderColor"));
+                g.drawOval(2, 2, getWidth() - 1 - 4, getHeight() - 1 - 4);
             }
         };
         private final Rectangle buttonRect = new Rectangle(button.getPreferredSize());
@@ -205,7 +204,7 @@ public abstract class JScrollPaneWithButton {
             if (c instanceof AbstractButton && ((AbstractButton) c).getModel().isRollover()) {
                 g2.setPaint(rolloverColor);
             } else {
-                g2.setPaint(arrowColor);
+                g2.setPaint(UIManager.getColor("Button.borderColor"));
             }
 
             float w2 = getIconWidth() / 2f;
