@@ -26,6 +26,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -74,7 +75,35 @@ public class FlameGraph<T> {
      * The final composite component that can display a flame graph.
      */
     public final JComponent component;
+
+    /**
+     * Mouse input listener used to move the canvas over the JScrollPane
+     * as well as trigger other bhavior on the canvas.
+     */
+    private final FlameGraphMouseInputListener<T> listener;
+
+    /**
+     * The precomputed list of frames.
+     */
     private List<FrameBox<T>> frames;
+
+    /**
+     * Represents a custom actions when zooming
+     */
+    public interface ZoomAction {
+        <T> boolean zoom(JViewport viewPort, final FlameGraphCanvas<T> canvas, ZoomTarget zoomTarget);
+    }
+
+    /**
+     * Represents a custom actions when zooming
+     *
+     * @param <T> The type of the node data.
+     */
+    public interface HoveringListener<T> {
+        void onStopHover(MouseEvent e);
+
+        void onFrameHover(FrameBox<T> frame, Rectangle hoveredFrameRectangle, MouseEvent e);
+    }
 
     /**
      * Creates an empty flame graph.
@@ -82,7 +111,7 @@ public class FlameGraph<T> {
      */
     public FlameGraph() {
         canvas = new FlameGraphCanvas<>();
-        ToolTipManager.sharedInstance().registerComponent(canvas);
+        listener = new FlameGraphMouseInputListener<>(canvas);
         component = JScrollPaneWithButton.create(
                 () -> {
                     var scrollPane = new JScrollPane(canvas);
@@ -95,13 +124,20 @@ public class FlameGraph<T> {
 
                     scrollPane.getVerticalScrollBar().setUnitIncrement(16);
                     scrollPane.getHorizontalScrollBar().setUnitIncrement(16);
-                    new FlameGraphMouseInputListener<>(canvas).install(scrollPane);
+                    listener.install(scrollPane);
                     new MouseInputListenerWorkaroundForToolTipEnabledComponent(scrollPane).install(canvas);
                     canvas.linkListenerTo(scrollPane);
 
                     return scrollPane;
                 }
         );
+    }
+
+    /**
+     * Experimental configuration hook for the underlying hook.
+     */
+    public void configureCanvas(Consumer<JComponent> canvasConfigurer) {
+        Objects.requireNonNull(canvasConfigurer).accept(canvas);
     }
 
     /**
@@ -161,6 +197,16 @@ public class FlameGraph<T> {
      */
     public void setPopupConsumer(BiConsumer<FrameBox<T>, MouseEvent> consumer) {
         canvas.setPopupConsumer(Objects.requireNonNull(consumer));
+    }
+
+
+    /**
+     * Sets a listener that will be called when the mouse hovers a frame, or when it stops hovering.
+     *
+     * @param hoverListener the listener ({@code null} permitted).
+     */
+    public void setHoveringListener(HoveringListener<T> hoverListener) {
+        listener.setHoveringListener(hoverListener);
     }
 
     /**
@@ -290,13 +336,19 @@ public class FlameGraph<T> {
         canvas.repaint();
     }
 
-    public interface ZoomAction {
-        <T> boolean zoom(JViewport viewPort, final FlameGraphCanvas<T> canvas, ZoomTarget zoomTarget);
-    }
-
+    /**
+     * The internal mouse listener that is attached to the scrollpane.
+     * <p>
+     * This listener will be responsible to trigger some behaviors on the canvas itself.
+     * </p>
+     *
+     * @param <T>
+     */
     private static class FlameGraphMouseInputListener<T> implements MouseInputListener {
         private Point pressedPoint;
         private final FlameGraphCanvas<T> canvas;
+        private Rectangle hoveredFrameRectangle;
+        private HoveringListener<T> hoveringListener;
 
         public FlameGraphMouseInputListener(FlameGraphCanvas<T> canvas) {
             this.canvas = canvas;
@@ -339,8 +391,8 @@ public class FlameGraph<T> {
             }
             var scrollPane = (JScrollPane) e.getComponent();
             var viewPort = scrollPane.getViewport();
-            var point = SwingUtilities.convertPoint(e.getComponent(), e.getPoint(), viewPort.getView());
-            if (canvas.isInsideMinimap(point)) {
+            var pointOnCanvas = SwingUtilities.convertPoint(scrollPane, e.getPoint(), viewPort.getView());
+            if (canvas.isInsideMinimap(pointOnCanvas)) {
                 // bail out
                 return;
             }
@@ -351,7 +403,7 @@ public class FlameGraph<T> {
                         (Graphics2D) viewPort.getView().getGraphics(),
                         canvas.getBounds(),
                         viewPort.getViewRect(),
-                        point
+                        pointOnCanvas
                 )).ifPresent(zoomTarget -> {
                     zoom(canvas, viewPort, zoomTarget);
                 });
@@ -364,7 +416,7 @@ public class FlameGraph<T> {
                           fgp.toggleSelectedFrameAt(
                                   (Graphics2D) viewPort.getView().getGraphics(),
                                   canvas.getBounds(),
-                                  point,
+                                  pointOnCanvas,
                                   (frame, r) -> canvas.repaint()
                           );
                       });
@@ -378,6 +430,7 @@ public class FlameGraph<T> {
             if ((e.getComponent() instanceof JScrollPane)) {
                 e.getComponent().requestFocus();
             }
+
         }
 
         @Override
@@ -386,6 +439,9 @@ public class FlameGraph<T> {
                 canvas.getFlameGraphPainter()
                       .ifPresent(FlameGraphPainter::stopHover);
                 canvas.repaint();
+                if (hoveringListener != null) {
+                    hoveringListener.onStopHover(e);
+                }
             }
         }
 
@@ -394,23 +450,58 @@ public class FlameGraph<T> {
             var scrollPane = (JScrollPane) e.getComponent();
             var viewPort = scrollPane.getViewport();
             var view = (JComponent) viewPort.getView();
-            var point = SwingUtilities.convertPoint(e.getComponent(), e.getPoint(), view);
 
-            if (canvas.isInsideMinimap(point)) {
+            // TODO use latest mouse pointer coordinates
+            // var pointOnCanvas = MouseInfo.getPointerInfo().getLocation();
+            // SwingUtilities.convertPointFromScreen(latestLocation, view);
+            var pointOnCanvas = SwingUtilities.convertPoint(scrollPane, e.getPoint(), view);
+
+            if (canvas.isInsideMinimap(pointOnCanvas)) {
                 // bail out
                 return;
             }
 
+            if (hoveredFrameRectangle != null && hoveredFrameRectangle.contains(pointOnCanvas)) {
+                // still hovering the same frame, avoid unnecessary work
+                return;
+            }
+
+            // handle hovering
             canvas.getFlameGraphPainter()
-                  .ifPresent(fgp -> fgp.hoverFrameAt(
-                          (Graphics2D) view.getGraphics(),
-                          canvas.getBounds(),
-                          point,
-                          (frame, r) -> {
-                              canvas.setToolTipText(frame);
-                              canvas.repaint(r);
-                          }
-                  ));
+                  .ifPresent(fgp -> {
+                      var canvasGraphics = (Graphics2D) view.getGraphics();
+                      fgp.getFrameAt(
+                                 canvasGraphics,
+                                 canvas.getBounds(),
+                                 pointOnCanvas
+                         )
+                         .ifPresentOrElse(
+                                 frame -> {
+                                     fgp.hoverFrame(
+                                             frame,
+                                             canvasGraphics,
+                                             canvas.getBounds(),
+                                             canvas::repaint
+                                     );
+                                     canvas.setToolTipText(frame);
+                                     hoveredFrameRectangle = fgp.getFrameRectangle(canvasGraphics, canvas.getBounds(), frame);
+                                     if (hoveringListener != null) {
+                                         hoveringListener.onFrameHover(frame, hoveredFrameRectangle, e);
+                                     }
+                                 },
+                                 () -> {
+                                     fgp.stopHover();
+                                     hoveredFrameRectangle = null;
+                                     if (hoveringListener != null) {
+                                         hoveringListener.onStopHover(e);
+                                     }
+                                 }
+                         );
+                  });
+        }
+
+        public void setHoveringListener(HoveringListener<T> hoveringListener) {
+            this.hoveringListener = hoveringListener;
         }
 
         public void install(JScrollPane sp) {
@@ -445,10 +536,6 @@ public class FlameGraph<T> {
 
         public FlameGraphCanvas(FlameGraphPainter<T> flameGraphPainter) {
             this.flameGraphPainter = flameGraphPainter;
-        }
-
-        public void setPopupConsumer(BiConsumer<FrameBox<T>, MouseEvent> consumer) {
-            this.popupConsumer = consumer;
         }
 
         /**
@@ -733,6 +820,10 @@ public class FlameGraph<T> {
         public void showMinimap(boolean showMinimap) {
             this.showMinimap = showMinimap;
             repaint();
+        }
+
+        public void setPopupConsumer(BiConsumer<FrameBox<T>, MouseEvent> consumer) {
+            this.popupConsumer = consumer;
         }
     }
 }

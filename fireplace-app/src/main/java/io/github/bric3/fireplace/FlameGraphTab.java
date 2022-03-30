@@ -42,6 +42,7 @@ public class FlameGraphTab extends JPanel {
         super(new BorderLayout());
 
         jfrFlameGraph = new FlameGraph<>();
+        jfrFlameGraph.configureCanvas(ToolTipManager.sharedInstance()::registerComponent);
         jfrFlameGraph.putClientProperty(FlameGraph.SHOW_STATS, true);
         // jfrFlameGraph.setTooltipComponentSupplier(BalloonToolTip::new);
         jfrFlameGraph.setMinimapShadeColorSupplier(() -> Colors.isDarkMode() ? Colors.translucent_black_40 : Colors.translucent_white_80);
@@ -86,9 +87,10 @@ public class FlameGraphTab extends JPanel {
 
         var timer = new Timer(2_000, e -> {
             jfrFlameGraph = new FlameGraph<>();
-            zoomAnimation.install(jfrFlameGraph);
+            jfrFlameGraph.configureCanvas(ToolTipManager.sharedInstance()::registerComponent);
             jfrFlameGraph.putClientProperty(FlameGraph.SHOW_STATS, true);
             jfrFlameGraph.setMinimapShadeColorSupplier(() -> Colors.isDarkMode() ? Colors.translucent_black_40 : Colors.translucent_white_80);
+            zoomAnimation.install(jfrFlameGraph);
             if (dataApplier != null) {
                 dataApplier.accept(jfrFlameGraph);
             }

@@ -565,9 +565,13 @@ public class FlameGraphPainter<T> {
     public Optional<FrameBox<T>> getFrameAt(Graphics2D g2, Rectangle2D bounds, Point point) {
         int depth = point.y / getFrameBoxHeight(g2);
         double xLocation = point.x / bounds.getWidth();
+        double visibilityThreshold = frameWidthVisibilityThreshold / bounds.getWidth();
 
         return frames.stream()
-                     .filter(node -> node.stackDepth == depth && node.startX <= xLocation && xLocation <= node.endX)
+                     .filter(node -> node.stackDepth == depth
+                                     && node.startX <= xLocation
+                                     && xLocation <= node.endX
+                                     && visibilityThreshold < node.endX - node.startX)
                      .findFirst();
     }
 
@@ -589,27 +593,25 @@ public class FlameGraphPainter<T> {
     }
 
     /**
-     * Toggles the hover status of the frame at the specified point, if there is one, and notifies
-     * the supplied consumer.
+     * Toggles the hover status of the frame
      *
      * @param g2            the graphics target ({@code null} not permitted).
      * @param bounds        the bounds in which the full flame graph is rendered ({@code null} not permitted).
-     * @param point         the point of interest ({@code null} not permitted).
      * @param hoverConsumer the function that is called to notify about the frame selection ({@code null} not permitted).
      */
-    public void hoverFrameAt(Graphics2D g2, Rectangle2D bounds, Point point, BiConsumer<FrameBox<T>, Rectangle> hoverConsumer) {
-        getFrameAt(g2, bounds, point)
-                .ifPresentOrElse(frame -> {
-                                     var oldHoveredFrame = hoveredFrame;
-                                     hoveredFrame = frame;
-                                     if (hoverConsumer != null) {
-                                         hoverConsumer.accept(frame, getFrameRectangle(g2, bounds, frame));
-                                         if (oldHoveredFrame != null) {
-                                             hoverConsumer.accept(oldHoveredFrame, getFrameRectangle(g2, bounds, oldHoveredFrame));
-                                         }
-                                     }
-                                 },
-                                 this::stopHover);
+    public void hoverFrame(FrameBox<T> frame, Graphics2D g2, Rectangle2D bounds, Consumer<Rectangle> hoverConsumer) {
+        if (frame == null) {
+            stopHover();
+            return;
+        }
+        var oldHoveredFrame = hoveredFrame;
+        hoveredFrame = frame;
+        if (hoverConsumer != null) {
+            hoverConsumer.accept(getFrameRectangle(g2, bounds, frame));
+            if (oldHoveredFrame != null) {
+                hoverConsumer.accept(getFrameRectangle(g2, bounds, oldHoveredFrame));
+            }
+        }
     }
 
     /**
