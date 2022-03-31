@@ -386,7 +386,7 @@ public class FlameGraph<T> {
 
         @Override
         public void mouseClicked(MouseEvent e) {
-            if (!SwingUtilities.isLeftMouseButton(e)) {
+            if (!SwingUtilities.isLeftMouseButton(e) && e.getSource() instanceof JScrollPane) {
                 return;
             }
             var scrollPane = (JScrollPane) e.getComponent();
@@ -410,17 +410,15 @@ public class FlameGraph<T> {
                 return;
             }
 
-            if ((e.getSource() instanceof JScrollPane)) {
-                canvas.getFlameGraphPainter()
-                      .ifPresent(fgp -> {
-                          fgp.toggleSelectedFrameAt(
-                                  (Graphics2D) viewPort.getView().getGraphics(),
-                                  canvas.getBounds(),
-                                  pointOnCanvas,
-                                  (frame, r) -> canvas.repaint()
-                          );
-                      });
-            }
+            canvas.getFlameGraphPainter()
+                  .ifPresent(fgp -> {
+                      fgp.toggleSelectedFrameAt(
+                              (Graphics2D) viewPort.getView().getGraphics(),
+                              canvas.getBounds(),
+                              pointOnCanvas,
+                              (frame, r) -> canvas.repaint()
+                      );
+                  });
         }
 
 
