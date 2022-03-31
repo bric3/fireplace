@@ -651,6 +651,9 @@ public class FlameGraph<T> {
         }
 
         public boolean isInsideMinimap(Point point) {
+            if (!showMinimap) {
+                return false;
+            }
             var visibleRect = getVisibleRect();
             var rectangle = new Rectangle(visibleRect.x + minimapLocation.y,
                                           visibleRect.y + visibleRect.height - minimapHeight - minimapLocation.y,
