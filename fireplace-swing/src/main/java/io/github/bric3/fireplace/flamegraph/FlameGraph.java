@@ -459,7 +459,9 @@ public class FlameGraph<T> {
             SwingUtilities.convertPointFromScreen(latestMouseLocation, canvas);
 
             if (this.canvas.isInsideMinimap(latestMouseLocation)) {
-                hoveringListener.onStopHover(e);
+                if (hoveringListener != null) {
+                    hoveringListener.onStopHover(e);
+                }
                 // bail out
                 return;
             }
@@ -468,7 +470,9 @@ public class FlameGraph<T> {
             if (hoveredFrameRectangle != null && hoveredFrameRectangle.contains(latestMouseLocation)) {
                 // still hovering the same frame, avoid unnecessary work
                 // and reuse what we got before
-                hoveringListener.onFrameHover(hoveredFrame, hoveredFrameRectangle, e);
+                if (hoveringListener != null) {
+                    hoveringListener.onFrameHover(hoveredFrame, hoveredFrameRectangle, e);
+                }
                 return;
             }
             this.canvas.getFlameGraphPainter()

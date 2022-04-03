@@ -32,7 +32,6 @@ public class ZoomAnimation implements ZoomAction {
      * system property is set to disable it (`-Dfireplace.zoom.animation.disabled=true`).
      */
     private boolean animateZoomTransitions = !Boolean.getBoolean(ZOOM_ANIMATION_DISABLED_KEY);
-    ;
 
     public <T> void install(final FlameGraph<T> flameGraph) {
         flameGraph.overrideZoomAction(this);
