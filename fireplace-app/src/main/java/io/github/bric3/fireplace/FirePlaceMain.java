@@ -253,8 +253,8 @@ public class FirePlaceMain {
                 }
 
                 @Override
-                public boolean isDark() {
-                    return !Colors.isDarkMode();
+                public TitleColor windowTitleColor() {
+                    return Colors.isDarkMode() ? TitleColor.LIGHT : TitleColor.DARK;
                 }
             });
             SYNC_THEME_CHANGER.run();
