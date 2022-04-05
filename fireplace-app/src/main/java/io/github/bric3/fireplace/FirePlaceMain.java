@@ -14,6 +14,7 @@ import com.formdev.flatlaf.FlatIntelliJLaf;
 import com.formdev.flatlaf.FlatLaf;
 import com.formdev.flatlaf.extras.FlatAnimatedLafChange;
 import com.formdev.flatlaf.util.SystemInfo;
+import com.github.weisj.darklaf.platform.decorations.DecorationsColorProvider;
 import com.github.weisj.darklaf.platform.decorations.ExternalLafDecorator;
 import com.github.weisj.darklaf.platform.preferences.SystemPreferencesManager;
 import io.github.bric3.fireplace.core.ui.Colors;
@@ -226,12 +227,6 @@ public class FirePlaceMain {
                         break;
                 }
 
-                UIManager.put("MacOS.TitlePane.borderColor", UIManager.get("TitlePane.borderColor"));
-                UIManager.put("MacOS.TitlePane.background", UIManager.get("TitlePane.background"));
-                UIManager.put("MacOS.TitlePane.foreground", UIManager.get("TitlePane.foreground"));
-                UIManager.put("MacOS.TitlePane.inactiveBackground", UIManager.get("TitlePane.inactiveBackground"));
-                UIManager.put("MacOS.TitlePane.inactiveForeground", UIManager.get(" TitlePane.inactiveForeground"));
-
                 FlatLaf.updateUI();
                 FlatAnimatedLafChange.hideSnapshotWithAnimation();
             };
@@ -240,6 +235,28 @@ public class FirePlaceMain {
 
         void install() {
             ExternalLafDecorator.instance().install();
+            ExternalLafDecorator.instance().setColorProvider(new DecorationsColorProvider() {
+                @Override
+                public Color backgroundColor() {
+                    return UIManager.getColor("TitlePane.background");
+                }
+
+                @Override
+                public Color activeForegroundColor() {
+                    // ignored on macOs
+                    return UIManager.getColor("TitlePane.foreground");
+                }
+
+                @Override
+                public Color inactiveForegroundColor() {
+                    return Color.RED;
+                }
+
+                @Override
+                public boolean isDark() {
+                    return !Colors.isDarkMode();
+                }
+            });
             SYNC_THEME_CHANGER.run();
             manager.enableReporting(true);
         }
@@ -290,11 +307,6 @@ public class FirePlaceMain {
                             appearanceModeButton.setIcon(toDarkMode);
                             break;
                     }
-                    UIManager.put("MacOS.TitlePane.borderColor", UIManager.get("TitlePane.borderColor"));
-                    UIManager.put("MacOS.TitlePane.background", UIManager.get("TitlePane.background"));
-                    UIManager.put("MacOS.TitlePane.foreground", UIManager.get("TitlePane.foreground"));
-                    UIManager.put("MacOS.TitlePane.inactiveBackground", UIManager.get("TitlePane.inactiveBackground"));
-                    UIManager.put("MacOS.TitlePane.inactiveForeground", UIManager.get(" TitlePane.inactiveForeground"));
                     FlatLaf.updateUI();
                     FlatAnimatedLafChange.hideSnapshotWithAnimation();
                 });
