@@ -151,13 +151,13 @@ public class FirePlaceMain {
             JfrFilesDropHandler.install(jfrBinder::load, appLayers, hudPanel.getDnDTarget());
 
             var frame = new JFrame("FirePlace");
-            // final JRootPane rootPane = frame.getRootPane();
-            // if (SystemInfo.isMacOS) {
-            //     // allows to place swing components on the whole window
-            //     rootPane.putClientProperty("apple.awt.fullWindowContent", true);
-            //     // makes the title bar transparent
-            //     rootPane.putClientProperty("apple.awt.transparentTitleBar", true);
-            // }
+            final var rootPane = frame.getRootPane();
+            if (SystemInfo.isMacOS) {
+                // allows to place swing components on the whole window
+                rootPane.putClientProperty("apple.awt.fullWindowContent", true);
+                // makes the title bar transparent
+                rootPane.putClientProperty("apple.awt.transparentTitleBar", true);
+            }
 
             installAppIcon(frame);
             frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -218,12 +218,12 @@ public class FirePlaceMain {
                 // System.out.println(">>>> theme preference changed = " + ThemePreferencesHandler.getSharedInstance().getPreferredThemeStyle());
                 switch (manager.getPreferredThemeStyle().getColorToneRule()) {
                     case DARK:
-                        FlatDarculaLaf.setup();
                         Colors.setDarkMode(true);
+                        FlatDarculaLaf.setup();
                         break;
                     case LIGHT:
-                        FlatIntelliJLaf.setup();
                         Colors.setDarkMode(false);
+                        FlatIntelliJLaf.setup();
                         break;
                 }
 
@@ -250,17 +250,12 @@ public class FirePlaceMain {
 
                 @Override
                 public Color inactiveForegroundColor() {
-                    return Color.RED;
+                    return Color.ORANGE;
                 }
 
                 @Override
                 public TitleColor windowTitleColor() {
-                    return Colors.isDarkMode() ? TitleColor.DARK : TitleColor.LIGHT;
-                }
-
-                @Override
-                public Color inactiveWindowButtonColor() {
-                    return DecorationsColorProvider.super.inactiveWindowButtonColor();
+                    return FlatLaf.isLafDark() ? TitleColor.LIGHT : TitleColor.DARK;
                 }
             });
             SYNC_THEME_CHANGER.run();
@@ -270,13 +265,8 @@ public class FirePlaceMain {
         void toggleSync(boolean sync) {
             try {
                 manager.enableReporting(sync);
-                // if (sync) {
-                //     ExternalLafDecorator.instance().uninstall();
-                // } else {
-                //     ExternalLafDecorator.instance().install();
-                // }
             } catch (Exception e) {
-                e.printStackTrace();
+                System.getLogger(AppearanceControl.class.getName()).log(System.Logger.Level.ERROR, "Failed to sync theme", (Throwable) e);
             }
         }
 
@@ -331,8 +321,8 @@ public class FirePlaceMain {
                     appearanceModeButton.setEnabled(!syncAppearanceButton.isSelected());
                     SYNC_THEME_CHANGER.run();
                 });
+                syncAppearanceButton.setSelected(true);
             }
-            syncAppearanceButton.setSelected(true);
 
             var appearanceControlsPanel = new JPanel(new FlowLayout());
             appearanceControlsPanel.add(appearanceModeButton);
