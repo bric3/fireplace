@@ -235,6 +235,7 @@ public class FirePlaceMain {
 
         void install() {
             ExternalLafDecorator.instance().install();
+
             ExternalLafDecorator.instance().setColorProvider(new DecorationsColorProvider() {
                 @Override
                 public Color backgroundColor() {
@@ -254,16 +255,26 @@ public class FirePlaceMain {
 
                 @Override
                 public TitleColor windowTitleColor() {
-                    return Colors.isDarkMode() ? TitleColor.LIGHT : TitleColor.DARK;
+                    return Colors.isDarkMode() ? TitleColor.DARK : TitleColor.LIGHT;
+                }
+
+                @Override
+                public Color inactiveWindowButtonColor() {
+                    return DecorationsColorProvider.super.inactiveWindowButtonColor();
                 }
             });
             SYNC_THEME_CHANGER.run();
-            manager.enableReporting(true);
+            toggleSync(true);
         }
 
         void toggleSync(boolean sync) {
             try {
                 manager.enableReporting(sync);
+                // if (sync) {
+                //     ExternalLafDecorator.instance().uninstall();
+                // } else {
+                //     ExternalLafDecorator.instance().install();
+                // }
             } catch (Exception e) {
                 e.printStackTrace();
             }
