@@ -122,9 +122,7 @@ public class FlameGraphPainter<T> {
     private double scaleY;
 
     private final List<FrameBox<T>> frames;
-    private final List<Function<T, String>> nodeToTextCandidates;
-    // handle root node
-    private final Function<T, String> rootFrameToText;
+    private final NodeDisplayStringProvider<T> nodeToTextProvider;
     Function<T, Color> frameColorFunction;
     private final int internalPadding = 2;
 
@@ -140,14 +138,12 @@ public class FlameGraphPainter<T> {
     /**
      * Creates a new instance to render the specified list of frames.
      *
-     * @param frames               the frames to be displayed.
-     * @param nodeToTextCandidates a list of functions that create labels for a node (ordered from longest to shortest).
-     * @param rootFrameToText      a function that creates a label for the root frame.
-     * @param frameColorFunction   a function that maps frames to colors.
+     * @param frames             the frames to be displayed.
+     * @param nodeToTextProvider functions that create a label for a node
+     * @param frameColorFunction a function that maps frames to colors.
      */
     public FlameGraphPainter(List<FrameBox<T>> frames,
-                             List<Function<T, String>> nodeToTextCandidates,
-                             Function<T, String> rootFrameToText,
+                             NodeDisplayStringProvider<T> nodeToTextProvider,
                              Function<T, Color> frameColorFunction) {
 
         this.frameLabelFont = new Font(Font.SANS_SERIF, Font.PLAIN, 12);
@@ -158,8 +154,7 @@ public class FlameGraphPainter<T> {
         this.frames = frames;
         this.depth = this.frames.stream().mapToInt(fb -> fb.stackDepth).max().orElse(0);
         visibleDepth = depth;
-        this.nodeToTextCandidates = nodeToTextCandidates;
-        this.rootFrameToText = rootFrameToText;
+        this.nodeToTextProvider = nodeToTextProvider;
         this.frameColorFunction = frameColorFunction;
         updateUI();
     }
@@ -296,17 +291,17 @@ public class FlameGraphPainter<T> {
 
             Rectangle intersection = viewRect.createIntersection(rect).getBounds();
             if (!intersection.isEmpty()) {
-                paintRootFrameRectangle(g2d,
-                                        rect,
-                                        rootFrameToText.apply(rootFrame.actualNode),
-                                        intersection,
-                                        tweakLabelFont(rect, intersection, false),
-                                        tweakBgColor(frameColorFunction.apply(rootFrame.actualNode),
-                                                     hoveredFrame == rootFrame,
-                                                     false,
-                                                     selectedFrame != null && rootFrame.stackDepth < selectedFrame.stackDepth),
-                                        frameGapColor,
-                                        minimapMode);
+                paintFrame(g2d,
+                        rect,
+                        rootFrame,
+                        intersection,
+                        tweakLabelFont(rect, intersection, false),
+                        tweakBgColor(frameColorFunction.apply(rootFrame.actualNode),
+                                hoveredFrame == rootFrame,
+                                false,
+                                selectedFrame != null && rootFrame.stackDepth < selectedFrame.stackDepth),
+                        frameGapColor,
+                        minimapMode);
             }
         }
 
@@ -327,9 +322,9 @@ public class FlameGraphPainter<T> {
 
             Rectangle intersection = viewRect.createIntersection(rect).getBounds();
             if (!intersection.isEmpty()) {
-                paintNodeFrameRectangle(g2d,
+                paintFrame(g2d,
                                         rect,
-                                        frame.actualNode,
+                                        frame,
                                         intersection,
                                         // choose font depending on whether the left-side of the frame is clipped
                                         tweakLabelFont(rect, intersection, toHighlight.contains(frame)),
@@ -436,81 +431,49 @@ public class FlameGraphPainter<T> {
     }
 
     /**
-     * Paints a standard frame.
-     *
-     * @param g2            the graphics target.
-     * @param frameRect     the frame rectangle (may fall partly outside the visible region).
-     * @param node          the underlying node (used for label generation).
-     * @param intersection  the intersection between the frame rectangle and the visible region
-     *                      (used to position text labels).
-     * @param labelFont
-     * @param bgColor       the background color.
-     * @param frameGapColor the frame gap color.
-     * @param minimapMode   is the minimap in the process of being rendered?
-     */
-    private void paintNodeFrameRectangle(
-            Graphics2D g2,
-            Rectangle frameRect,
-            T node,
-            Rectangle intersection,
-            Font labelFont, Color bgColor,
-            Color frameGapColor,
-            boolean minimapMode
-    ) {
-        var frameRectSurface = paintFrameRectangle(g2, frameRect, bgColor, frameGapColor, minimapMode);
-        if (minimapMode) {
-            return;
-        }
-        paintFrameText(node,
-                       g2,
-                       labelFont,
-                       intersection.width - textBorder * 2 - frameBorderWidth * 2,
-                       text -> {
-                           g2.setFont(labelFont);
-                           g2.setColor(Colors.foregroundColor(bgColor));
-                           g2.drawString(text, intersection.x + textBorder, frameRect.y + getFrameBoxTextOffset(g2));
-                       });
-    }
-
-    /**
-     * Paints the root frame.
+     * Paints the frame.
      *
      * @param g2           the graphics target.
      * @param rect         the frame region (may fall outside visible area).
-     * @param str          the text to display.
+     * @param frame        the frame to paint
      * @param intersection the intersection between the frame rectangle and the visible region
      *                     (used to position the text label).
-     * @param labelFont
      * @param bgColor      the background color.
      * @param gapColor     the gap color.
      * @param minimapMode  is the minimap in the process of being rendered?
      */
-    private void paintRootFrameRectangle(
+    private void paintFrame(
             Graphics2D g2,
             Rectangle rect,
-            String str,
+            FrameBox<T> frame,
             Rectangle intersection,
             Font labelFont,
             Color bgColor,
             Color gapColor,
             boolean minimapMode
     ) {
-        var frameRectSurface = paintFrameRectangle(g2, rect, bgColor, gapColor, minimapMode);
+        paintFrameRectangle(g2, rect, bgColor, gapColor, minimapMode);
         if (minimapMode) {
             return;
         }
-        paintRootFrameText(str,
-                           g2,
-                           labelFont,
-                           intersection.width - textBorder * 2 - frameGapWidth * 2,
-                           text -> {
-                               g2.setFont(labelFont);
-                               g2.setColor(Colors.foregroundColor(bgColor));
-                               g2.drawString(text, intersection.x + textBorder + frameBorderWidth, getFrameBoxTextOffset(g2));
-                           });
+
+        var text = calculateFrameText(
+                g2,
+                labelFont,
+                intersection.width - textBorder * 2 - frameGapWidth * 2,
+                frame
+        );
+
+        if (text == null) {
+            return;
+        }
+
+        g2.setFont(labelFont);
+        g2.setColor(Colors.foregroundColor(bgColor));
+        g2.drawString(text, intersection.x + textBorder + frameBorderWidth, rect.y +getFrameBoxTextOffset(g2));
     }
 
-    private Rectangle paintFrameRectangle(
+    private void paintFrameRectangle(
             Graphics2D g2,
             Rectangle frameRect,
             Color bgColor,
@@ -530,7 +493,6 @@ public class FlameGraphPainter<T> {
         frameRect.height = frameRect.height - borderWidth;
         g2.setColor(bgColor);
         g2.fill(frameRect);
-        return frameRect;
     }
 
     /**
@@ -647,37 +609,30 @@ public class FlameGraphPainter<T> {
         hoveredFrame = null;
     }
 
-    private void paintFrameText(T node, Graphics2D g2, Font font, double targetWidth, Consumer<String> textConsumer) {
+    private String calculateFrameText(Graphics2D g2, Font font, double targetWidth, FrameBox<T> frame) {
         var metrics = g2.getFontMetrics(font);
 
-        // don't use stream to avoid allocations during painting
-        for (Function<T, String> nodeToTextCandidate : nodeToTextCandidates) {
-            var textCandidate = nodeToTextCandidate.apply(node);
-            var textBounds = metrics.getStringBounds(textCandidate, g2);
-            if (textBounds.getWidth() > targetWidth) {
-                continue;
-            }
-            textConsumer.accept(textCandidate);
-            return;
-        }
-        var textBounds = metrics.getStringBounds(LONG_TEXT_PLACEHOLDER, g2);
-        if (!(textBounds.getWidth() > targetWidth)) {
-            textConsumer.accept(LONG_TEXT_PLACEHOLDER);
-        }
-    }
-
-    private static void paintRootFrameText(String text, Graphics2D g2, Font font, double targetWidth, Consumer<String> textConsumer) {
-        var metrics = g2.getFontMetrics(font);
+        String text = nodeToTextProvider.frameString(frame.actualNode, frame.stackDepth == 0);
 
         var textBounds = metrics.getStringBounds(text, g2);
-        if (!(textBounds.getWidth() > targetWidth)) {
-            textConsumer.accept(text);
+        if (textBounds.getWidth() <= targetWidth) {
+            return text;
         }
-        textBounds = metrics.getStringBounds(LONG_TEXT_PLACEHOLDER, g2);
-        if (!(textBounds.getWidth() > targetWidth)) {
-            textConsumer.accept(LONG_TEXT_PLACEHOLDER);
+
+        var avgPerChar = metrics.charWidth('A');
+        var numOfChars = Math.floor(targetWidth / avgPerChar) - 2;
+        if (numOfChars < 0) {
+            return null;
         }
+
+        var shortedString = text.substring(0, (int) numOfChars) + LONG_TEXT_PLACEHOLDER;
+        textBounds = metrics.getStringBounds(shortedString, g2);
+        if (textBounds.getWidth() <= targetWidth) {
+            return shortedString;
+        }
+
         // don't draw text
+        return null;
     }
 
     public void setHighlightFrames(Set<FrameBox<T>> toHighlight, String searchedText) {

@@ -169,16 +169,16 @@ public class FirePlaceSwtMain {
             SwingUtilities.invokeLater(() -> {
                 flameGraph.setData(
                         flatFrameList,
-                        List.of(
-                                node -> node.getFrame().getHumanReadableShortString(),
-                                node -> node.getFrame().getMethod().getMethodName()
-                        ),
-                        node -> {
-                            var events = stacktraceTreeModel.getItems()
-                                                            .stream()
-                                                            .map(iItems -> iItems.getType().getIdentifier())
-                                                            .collect(joining(", "));
-                            return "all (" + events + ")";
+                        (node, isRoot) -> {
+                            if(isRoot) {
+                                var events = stacktraceTreeModel.getItems()
+                                        .stream()
+                                        .map(iItems -> iItems.getType().getIdentifier())
+                                        .collect(joining(", "));
+                                return "all (" + events + ")";
+                            } else {
+                                return node.getFrame().getHumanReadableShortString();
+                            }
                         },
                         node -> ColorMapper.ofObjectHashUsing(Palette.DATADOG.colors()).apply(node.getFrame().getMethod().getType().getPackage()),
                         frame -> ""

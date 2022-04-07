@@ -23,7 +23,6 @@ import java.awt.*;
 import java.awt.event.ActionListener;
 import java.util.Collections;
 import java.util.IdentityHashMap;
-import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
@@ -180,16 +179,16 @@ public class FlameGraphTab extends JPanel {
         var flatFrameList = JfrFrameNodeConverter.convert(stackTraceTreeModel);
         return (flameGraph) -> flameGraph.setData(
                 flatFrameList,
-                List.of(
-                        node -> node.getFrame().getHumanReadableShortString(),
-                        node -> node.getFrame().getMethod().getMethodName()
-                ),
-                node -> {
-                    var events = stackTraceTreeModel.getItems()
-                                                    .stream()
-                                                    .map(iItems -> iItems.getType().getIdentifier())
-                                                    .collect(joining(", "));
-                    return "all (" + events + ")";
+                (node, isRoot) -> {
+                    if(isRoot) {
+                        var events = stackTraceTreeModel.getItems()
+                                .stream()
+                                .map(iItems -> iItems.getType().getIdentifier())
+                                .collect(joining(", "));
+                        return "all (" + events + ")";
+                    } else {
+                        return node.getFrame().getHumanReadableShortString();
+                    }
                 },
                 defaultFrameColorMode.colorMapperUsing(ColorMapper.ofObjectHashUsing(defaultColorPalette.colors())),
                 frame -> {
