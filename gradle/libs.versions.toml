@@ -10,7 +10,7 @@
 
 [versions]
 flatlaf = "2.1"
-darklaf = "2.7.3"
+darklaf = "latest.integration"
 graalvm = "22.0.0.2"
 junit-jupiter = "5.8.2"
 jmc-flightrecorder = "8.1.0"
@@ -19,8 +19,8 @@ radiance-animation = "5.0.0"
 [libraries]
 flatlaf = { module = "com.formdev:flatlaf", version.ref = "flatlaf" }
 flatlaf-extras = { module = "com.formdev:flatlaf-extras", version.ref = "flatlaf" }
-darklaf-core = { module = "com.github.weisj:darklaf-core", version.ref = "darklaf" }
-darklaf-platform-base = { module = "com.github.weisj:darklaf-platform-base", version.ref = "darklaf" }
+darklaf-platform-preferences = { module = "com.github.weisj:darklaf-platform-preferences", version.ref = "darklaf" }
+darklaf-platform-decorations = { module = "com.github.weisj:darklaf-platform-decorations", version.ref = "darklaf" }
 flightrecorder = { module = "org.openjdk.jmc:flightrecorder", version.ref = "jmc-flightrecorder" }
 radianceanimation = { module = "org.pushing-pixels:radiance-animation", version.ref = "radiance-animation" }
 
@@ -36,4 +36,4 @@ junit-jupiter-engine = { module = "org.junit.jupiter:junit-jupiter-engine", vers
 junit-jupiter = ["junit-jupiter-api", "junit-jupiter-engine"]
 graal-js = ["graal-js", "graal-js-scriptengine"]
 flatlaf = ["flatlaf", "flatlaf-extras"]
-darklaf = ["darklaf-core", "darklaf-platform-base"]
+darklaf = ["darklaf-platform-preferences", "darklaf-platform-decorations"]
