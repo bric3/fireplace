@@ -229,20 +229,17 @@ public class FlameGraph<T> {
      * </ul>
      *
      * @param frames                  The {@code FrameBox} list to display.
-     * @param frameToStringCandidates candidates function to display in frames.
-     * @param rootFrameToString       the root node description.
+     * @param frameToString           function to display label in frames.
      * @param frameColorFunction      the frame to background color function.
      * @param tooltipTextFunction     the frame tooltip text function.
      */
     public void setData(List<FrameBox<T>> frames,
-                        List<Function<T, String>> frameToStringCandidates,
-                        Function<T, String> rootFrameToString,
+                        NodeDisplayStringProvider<T> frameToString,
                         Function<T, Color> frameColorFunction,
                         Function<FrameBox<T>, String> tooltipTextFunction) {
         var flameGraphPainter = new FlameGraphPainter<>(
                 Objects.requireNonNull(frames),
-                Objects.requireNonNull(frameToStringCandidates),
-                Objects.requireNonNull(rootFrameToString),
+                Objects.requireNonNull(frameToString),
                 Objects.requireNonNull(frameColorFunction)
         );
         this.frames = frames;

@@ -132,4 +132,8 @@ public class FrameBox<T> {
             startX = endX;
         }
     }
+
+    public boolean isRoot() {
+        return stackDepth == 0;
+    }
 }
