@@ -4,6 +4,7 @@ import io.github.bric3.fireplace.core.ui.Colors.Palette;
 import io.github.bric3.fireplace.flamegraph.ColorMapper;
 import io.github.bric3.fireplace.flamegraph.FlameGraph;
 import io.github.bric3.fireplace.flamegraph.FrameBox;
+import io.github.bric3.fireplace.flamegraph.NodeDisplayStringProvider;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.awt.SWT_AWT;
 import org.eclipse.swt.events.DisposeEvent;
@@ -20,6 +21,7 @@ import org.openjdk.jmc.common.item.IItemCollection;
 import org.openjdk.jmc.common.item.IItemIterable;
 import org.openjdk.jmc.common.item.IType;
 import org.openjdk.jmc.common.item.ItemFilters;
+import org.openjdk.jmc.common.util.FormatToolkit;
 import org.openjdk.jmc.flightrecorder.CouldNotLoadRecordingException;
 import org.openjdk.jmc.flightrecorder.JfrLoaderToolkit;
 import org.openjdk.jmc.flightrecorder.stacktrace.FrameSeparator;
@@ -169,17 +171,21 @@ public class FirePlaceSwtMain {
             SwingUtilities.invokeLater(() -> {
                 flameGraph.setData(
                         flatFrameList,
-                        (node, isRoot) -> {
-                            if(isRoot) {
-                                var events = stacktraceTreeModel.getItems()
-                                        .stream()
-                                        .map(iItems -> iItems.getType().getIdentifier())
-                                        .collect(joining(", "));
-                                return "all (" + events + ")";
-                            } else {
-                                return node.getFrame().getHumanReadableShortString();
-                            }
-                        },
+                        NodeDisplayStringProvider.of(
+                                (frame) -> {
+                                    if (frame.isRoot()) {
+                                        var events = stacktraceTreeModel.getItems()
+                                                                        .stream()
+                                                                        .map(iItems -> iItems.getType().getIdentifier())
+                                                                        .collect(joining(", "));
+                                        return "all (" + events + ")";
+                                    } else {
+                                        return frame.actualNode.getFrame().getHumanReadableShortString();
+                                    }
+                                },
+                                frame -> frame.isRoot() ? "" : FormatToolkit.getHumanReadable(frame.actualNode.getFrame().getMethod(), false, false, false, false, true, false),
+                                frame -> frame.isRoot() ? "" : frame.actualNode.getFrame().getMethod().getMethodName()
+                        ),
                         node -> ColorMapper.ofObjectHashUsing(Palette.DATADOG.colors()).apply(node.getFrame().getMethod().getType().getPackage()),
                         frame -> ""
                         // frame -> {

@@ -13,6 +13,7 @@ import io.github.bric3.fireplace.core.ui.Colors;
 import io.github.bric3.fireplace.core.ui.Colors.Palette;
 import io.github.bric3.fireplace.flamegraph.ColorMapper;
 import io.github.bric3.fireplace.flamegraph.FlameGraph;
+import io.github.bric3.fireplace.flamegraph.NodeDisplayStringProvider;
 import io.github.bric3.fireplace.flamegraph.ZoomAnimation;
 import org.openjdk.jmc.common.util.FormatToolkit;
 import org.openjdk.jmc.flightrecorder.stacktrace.tree.Node;
@@ -23,6 +24,7 @@ import java.awt.*;
 import java.awt.event.ActionListener;
 import java.util.Collections;
 import java.util.IdentityHashMap;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
@@ -170,29 +172,33 @@ public class FlameGraphTab extends JPanel {
         setStacktraceTreeModel(stacktraceTreeModel);
     }
 
-    public void setStacktraceTreeModel(StacktraceTreeModel stackTraceTreeModel) {
-        dataApplier = dataApplier(stackTraceTreeModel);
+    public void setStacktraceTreeModel(StacktraceTreeModel stacktraceTreeModel) {
+        dataApplier = dataApplier(stacktraceTreeModel);
         dataApplier.accept(jfrFlameGraph);
     }
 
-    private Consumer<FlameGraph<Node>> dataApplier(StacktraceTreeModel stackTraceTreeModel) {
-        var flatFrameList = JfrFrameNodeConverter.convert(stackTraceTreeModel);
+    private Consumer<FlameGraph<Node>> dataApplier(StacktraceTreeModel stacktraceTreeModel) {
+        var flatFrameList = JfrFrameNodeConverter.convert(stacktraceTreeModel);
         return (flameGraph) -> flameGraph.setData(
                 flatFrameList,
-                (node, isRoot) -> {
-                    if(isRoot) {
-                        var events = stackTraceTreeModel.getItems()
-                                .stream()
-                                .map(iItems -> iItems.getType().getIdentifier())
-                                .collect(joining(", "));
-                        return "all (" + events + ")";
-                    } else {
-                        return node.getFrame().getHumanReadableShortString();
-                    }
-                },
+                NodeDisplayStringProvider.of(
+                        (frame) -> {
+                            if (frame.isRoot()) {
+                                var events = stacktraceTreeModel.getItems()
+                                                                .stream()
+                                                                .map(iItems -> iItems.getType().getIdentifier())
+                                                                .collect(joining(", "));
+                                return "all (" + events + ")";
+                            } else {
+                                return frame.actualNode.getFrame().getHumanReadableShortString();
+                            }
+                        },
+                        frame -> frame.isRoot() ? "" : FormatToolkit.getHumanReadable(frame.actualNode.getFrame().getMethod(), false, false, false, false, true, false),
+                        frame -> frame.isRoot() ? "" : frame.actualNode.getFrame().getMethod().getMethodName()
+                ),
                 defaultFrameColorMode.colorMapperUsing(ColorMapper.ofObjectHashUsing(defaultColorPalette.colors())),
                 frame -> {
-                    if (frame.stackDepth == 0) {
+                    if (frame.isRoot()) {
                         return "";
                     }
 
