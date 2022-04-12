@@ -31,7 +31,7 @@ gitVersioning.apply {
             version = "\${ref.tagVersion}${dirty}"
         }
         branch("master") {
-            version = "\${commit.short}${dirty}"
+            version = "${project.version}${dirty}"
         }
         branch(".+") {
             version = "\${ref}-\${commit.short}${dirty}"
@@ -44,10 +44,16 @@ gitVersioning.apply {
 }
 
 val isSnapshot =
-    properties("version.forceSnapshot").toBoolean()
+    version.toString().endsWith("SNAPSHOT")
+            || properties("version.forceSnapshot").toBoolean()
             || (!properties("version.forceRelease").toBoolean()
             && gitVersioning.gitVersionDetails.refType != GitRefType.TAG)
 
+tasks.create("v") {
+    doLast {
+        println("Version : ${project.version}, snapshot : ${isSnapshot}")
+    }
+}
 
 val fireplaceModules = subprojects.filter { it.name != projects.fireplaceApp.name }
 configure(fireplaceModules) {
@@ -113,7 +119,7 @@ configure(fireplaceModules) {
                 // OSSRH enforces the `-SNAPSHOT` suffix on snapshot repository
                 // https://central.sonatype.org/faq/400-error/#question
                 version = when {
-                    isSnapshot -> project.version.toString().replace("-DIRTY", "") + "-SNAPSHOT"
+                    isSnapshot -> project.version.toString().replace("-(DIRTY)", "")
                     else -> project.version.toString()
                 }
                 project.extra["publishingVersion"] = version
