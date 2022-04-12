@@ -43,6 +43,7 @@ public class FlameGraphTab extends JPanel {
         super(new BorderLayout());
 
         jfrFlameGraph = new FlameGraph<>();
+        jfrFlameGraph.showMinimap(false);
         jfrFlameGraph.configureCanvas(ToolTipManager.sharedInstance()::registerComponent);
         jfrFlameGraph.putClientProperty(FlameGraph.SHOW_STATS, true);
         // jfrFlameGraph.setTooltipComponentSupplier(BalloonToolTip::new);
@@ -72,6 +73,12 @@ public class FlameGraphTab extends JPanel {
         });
         borderToggle.setSelected(defaultPaintFrameBorder);
 
+        var minimapToggle = new JCheckBox("Minimap");
+        minimapToggle.addActionListener(e -> {
+            jfrFlameGraph.showMinimap(minimapToggle.isSelected());
+        });
+        minimapToggle.setSelected(defaultPaintFrameBorder);
+
         var animateToggle = new JCheckBox("Animate");
         animateToggle.addActionListener(e -> {
             zoomAnimation.setAnimateZoomTransitions(animateToggle.isSelected());
@@ -88,6 +95,7 @@ public class FlameGraphTab extends JPanel {
 
         var timer = new Timer(2_000, e -> {
             jfrFlameGraph = new FlameGraph<>();
+            jfrFlameGraph.showMinimap(true);
             jfrFlameGraph.configureCanvas(ToolTipManager.sharedInstance()::registerComponent);
             jfrFlameGraph.putClientProperty(FlameGraph.SHOW_STATS, true);
             jfrFlameGraph.setMinimapShadeColorSupplier(() -> Colors.isDarkMode() ? Colors.translucent_black_40 : Colors.translucent_white_80);
@@ -158,6 +166,7 @@ public class FlameGraphTab extends JPanel {
         controlPanel.add(colorModeJComboBox);
         controlPanel.add(borderToggle);
         controlPanel.add(animateToggle);
+        controlPanel.add(minimapToggle);
         controlPanel.add(refreshToggle);
         controlPanel.add(resetZoom);
         controlPanel.add(searchField);

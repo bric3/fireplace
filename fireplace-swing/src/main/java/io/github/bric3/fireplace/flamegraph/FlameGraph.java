@@ -696,6 +696,7 @@ public class FlameGraph<T> {
 
         private void triggerMinimapGeneration() {
             if (!showMinimap || flameGraphPainter == null) {
+                repaintMinimapArea();
                 return;
             }
 
@@ -726,10 +727,13 @@ public class FlameGraph<T> {
             });
         }
 
-        private void setMinimapImage(BufferedImage i) {
-            this.minimap = i.getScaledInstance(minimapWidth, minimapHeight, Image.SCALE_SMOOTH);
-            var visibleRect = getVisibleRect();
+        private void setMinimapImage(BufferedImage minimapImage) {
+            this.minimap = minimapImage.getScaledInstance(minimapWidth, minimapHeight, Image.SCALE_SMOOTH);
+            repaintMinimapArea();
+        }
 
+        private void repaintMinimapArea() {
+            var visibleRect = getVisibleRect();
             repaint(visibleRect.x + minimapLocation.x,
                     visibleRect.y + visibleRect.height - minimapHeight - minimapLocation.y,
                     minimapWidth + minimapInset * 2,
@@ -829,7 +833,7 @@ public class FlameGraph<T> {
 
         public void showMinimap(boolean showMinimap) {
             this.showMinimap = showMinimap;
-            repaint();
+            triggerMinimapGeneration();
         }
 
         public void setPopupConsumer(BiConsumer<FrameBox<T>, MouseEvent> consumer) {
