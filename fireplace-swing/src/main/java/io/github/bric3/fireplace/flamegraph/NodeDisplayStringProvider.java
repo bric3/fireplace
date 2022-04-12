@@ -28,6 +28,10 @@ public interface NodeDisplayStringProvider<T> {
         return of(List.of(frameToTextCandidates));
     }
 
+    static <T> NodeDisplayStringProvider<T> empty() {
+        return of(List.of());
+    }
+
     default StringClipper clipStrategy() {
         return StringClipper.RIGHT;
     }
