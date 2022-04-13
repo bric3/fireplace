@@ -118,7 +118,7 @@ public class FlameGraphPainter<T> {
 
     private final List<FrameBox<T>> frames;
     private final NodeDisplayStringProvider<T> nodeToTextProvider;
-    Function<T, Color> frameColorFunction;
+    Function<FrameBox<T>, Color> frameColorFunction;
     private final int internalPadding = 2;
 
     /**
@@ -138,7 +138,7 @@ public class FlameGraphPainter<T> {
      */
     public FlameGraphPainter(List<FrameBox<T>> frames,
                              NodeDisplayStringProvider<T> nodeToTextProvider,
-                             Function<T, Color> frameColorFunction) {
+                             Function<FrameBox<T>, Color> frameColorFunction) {
 
         this.frameLabelFont = new Font(Font.SANS_SERIF, Font.PLAIN, 12);
         this.partialFrameLabelFont = new Font(Font.SANS_SERIF, Font.ITALIC, 12);
@@ -290,7 +290,7 @@ public class FlameGraphPainter<T> {
                            rootFrame,
                            intersection,
                            tweakLabelFont(frameRect, intersection, false),
-                           tweakBgColor(frameColorFunction.apply(rootFrame.actualNode),
+                           tweakBgColor(frameColorFunction.apply(rootFrame),
                                         hoveredFrame == rootFrame,
                                         false,
                                         selectedFrame != null && rootFrame.stackDepth < selectedFrame.stackDepth),
@@ -322,7 +322,7 @@ public class FlameGraphPainter<T> {
                            paintableIntersection,
                            // choose font depending on whether the left-side of the frame is clipped
                            tweakLabelFont(frameRect, paintableIntersection, toHighlight.contains(frame)),
-                           tweakBgColor(frameColorFunction.apply(frame.actualNode),
+                           tweakBgColor(frameColorFunction.apply(frame),
                                         hoveredFrame == frame,
                                         toHighlight.contains(frame),
                                         selectedFrame != null && (

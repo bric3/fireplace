@@ -27,9 +27,9 @@ public interface ColorMapper<T> extends Function<T, Color> {
      * @return A color.
      */
     static ColorMapper<Object> ofObjectHashUsing(Color... palette) {
-        return value -> value == null ?
+        return o -> o == null ?
                         palette[0] :
-                        palette[Math.abs(Objects.hashCode(value)) % palette.length];
+                        palette[Math.abs(Objects.hashCode(o)) % palette.length];
     }
 
     /**

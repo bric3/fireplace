@@ -146,7 +146,7 @@ public class FlameGraph<T> {
      *
      * @param frameColorFunction A function that takes a frame and returns a color.
      */
-    public void setColorFunction(Function<T, Color> frameColorFunction) {
+    public void setColorFunction(Function<FrameBox<T>, Color> frameColorFunction) {
         Objects.requireNonNull(frameColorFunction);
         this.canvas.getFlameGraphPainter()
                    .ifPresent(fgp -> fgp.frameColorFunction = frameColorFunction);
@@ -236,7 +236,7 @@ public class FlameGraph<T> {
      */
     public void setData(List<FrameBox<T>> frames,
                         NodeDisplayStringProvider<T> frameToString,
-                        Function<T, Color> frameColorFunction,
+                        Function<FrameBox<T>, Color> frameColorFunction,
                         Function<FrameBox<T>, String> tooltipTextFunction) {
         var flameGraphPainter = new FlameGraphPainter<>(
                 Objects.requireNonNull(frames),

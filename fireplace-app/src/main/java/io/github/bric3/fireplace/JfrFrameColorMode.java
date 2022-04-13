@@ -9,6 +9,7 @@
  */
 package io.github.bric3.fireplace;
 
+import io.github.bric3.fireplace.flamegraph.FrameBox;
 import org.openjdk.jmc.common.IMCFrame.Type;
 import org.openjdk.jmc.flightrecorder.stacktrace.tree.Node;
 
@@ -24,7 +25,7 @@ public enum JfrFrameColorMode {
         final Pattern runtimePrefixes = Pattern.compile("(java\\.|javax\\.|sun\\.|com\\.sun\\.|com\\.oracle\\.|com\\.ibm\\.)");
 
         @Override
-        public Color getColor(Function<Object, Color> colorMapper, Node frameNode) {
+        public Color getJfrNodeColor(Function<Object, Color> colorMapper, Node frameNode) {
             if (frameNode.isRoot()) {
                 return rootNodeColor;
             }
@@ -42,7 +43,7 @@ public enum JfrFrameColorMode {
     },
     BY_MODULE {
         @Override
-        public Color getColor(Function<Object, Color> colorMapper, Node frameNode) {
+        public Color getJfrNodeColor(Function<Object, Color> colorMapper, Node frameNode) {
             if (frameNode.isRoot()) {
                 return rootNodeColor;
             }
@@ -51,7 +52,7 @@ public enum JfrFrameColorMode {
     },
     BY_FRAME_TYPE {
         @Override
-        public Color getColor(Function<Object, Color> colorMapper, Node frameNode) {
+        public Color getJfrNodeColor(Function<Object, Color> colorMapper, Node frameNode) {
             if (frameNode.isRoot()) {
                 return rootNodeColor;
             }
@@ -76,9 +77,9 @@ public enum JfrFrameColorMode {
     public static Color inlinedColor = Color.pink;
     public static Color interpretedColor = Color.orange;
 
-    protected abstract Color getColor(Function<Object, Color> colorMapper, Node frameNode);
+    protected abstract Color getJfrNodeColor(Function<Object, Color> colorMapper, Node frameNode);
 
-    public Function<Node, Color> colorMapperUsing(Function<Object, Color> colorMapper) {
-        return frameNode -> getColor(colorMapper, frameNode);
+    public Function<FrameBox<Node>, Color> colorMapperUsing(Function<Object, Color> colorMapper) {
+        return frameNode -> getJfrNodeColor(colorMapper, frameNode.actualNode);
     }
 }
