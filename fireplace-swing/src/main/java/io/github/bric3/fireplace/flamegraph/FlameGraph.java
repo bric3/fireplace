@@ -20,6 +20,7 @@ import java.awt.event.MouseEvent;
 import java.awt.geom.Area;
 import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -242,11 +243,21 @@ public class FlameGraph<T> {
                 Objects.requireNonNull(frameToString),
                 Objects.requireNonNull(frameColorFunction)
         );
-        this.frames = frames;
+        this.frames = Objects.requireNonNull(frames);
         flameGraphPainter.frameWidthVisibilityThreshold = 2;
 
         canvas.setFlameGraphPainter(Objects.requireNonNull(flameGraphPainter));
         canvas.setToolTipTextFunction(Objects.requireNonNull(tooltipTextFunction));
+        canvas.invalidate();
+        canvas.repaint();
+    }
+
+    /**
+     * Clear all data.
+     */
+    public void clear() {
+        frames = Collections.emptyList();
+        canvas.setFlameGraphPainter(null);
         canvas.invalidate();
         canvas.repaint();
     }
@@ -315,7 +326,7 @@ public class FlameGraph<T> {
      * Sets frames that need to be highlighted.
      * <p>
      * The passed collection must be a subset of the frames that were used
-     * in {@link #setData(List, List, Function, Function, Function)}.
+     * in {@link #setData(List, NodeDisplayStringProvider, Function, Function)}.
      * this triggers a repaint event.
      * </p>
      *
@@ -329,7 +340,9 @@ public class FlameGraph<T> {
     public void highlightFrames(Set<FrameBox<T>> framesToHighlight, String searched) {
         Objects.requireNonNull(framesToHighlight);
         Objects.requireNonNull(searched);
-        canvas.flameGraphPainter.setHighlightFrames(framesToHighlight, searched);
+        canvas.getFlameGraphPainter().ifPresent(painter ->
+                painter.setHighlightFrames(framesToHighlight, searched)
+        );
         canvas.repaint();
     }
 
@@ -517,7 +530,7 @@ public class FlameGraph<T> {
         }
     }
 
-    protected static class FlameGraphCanvas<T> extends JPanel {
+    static class FlameGraphCanvas<T> extends JPanel {
 
         private Image minimap;
         private JToolTip toolTip;
