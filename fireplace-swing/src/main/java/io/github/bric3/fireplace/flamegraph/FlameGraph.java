@@ -418,21 +418,17 @@ public class FlameGraph<T> {
                         canvas.getBounds(),
                         viewPort.getViewRect(),
                         latestMouseLocation
-                )).ifPresent(zoomTarget -> {
-                    zoom(canvas, viewPort, zoomTarget);
-                });
+                )).ifPresent(zoomTarget -> zoom(canvas, viewPort, zoomTarget));
                 return;
             }
 
             canvas.getFlameGraphPainter()
-                  .ifPresent(fgp -> {
-                      fgp.toggleSelectedFrameAt(
-                              (Graphics2D) viewPort.getView().getGraphics(),
-                              canvas.getBounds(),
-                              latestMouseLocation,
-                              (frame, r) -> canvas.repaint()
-                      );
-                  });
+                  .ifPresent(fgp -> fgp.toggleSelectedFrameAt(
+                          (Graphics2D) viewPort.getView().getGraphics(),
+                          canvas.getBounds(),
+                          latestMouseLocation,
+                          (frame, r) -> canvas.repaint()
+                  ));
         }
 
 
