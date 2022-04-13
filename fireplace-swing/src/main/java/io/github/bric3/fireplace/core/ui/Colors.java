@@ -23,11 +23,17 @@ public class Colors {
     private static volatile boolean darkMode = false;
 
     /**
-     * Perceived brightness threshold between dark and light.
+     * Perceived brightness threshold between dark and light (between 0 and 255).
+     *
      * <p>
-     * Between 0 and 255
+     * Subtract 0.05 from 0.5, because WCAG (Web Content Accessibility Guidelines)
+     * contrast ratio is defined as (L1 + 0.05) / (L2 + 0.05), where L1 and L2
+     * are brightness scores. 0.05 stands for minimum brightness of the screen
+     * which is never truly black due to highlighting.
+     * See <a href="https://www.w3.org/TR/WCAG21/#dfn-relative-luminance">WCAG 2.1</a>
+     * </p>
      */
-    public static final int DARK_PERCEIVED_BRIGHTNESS_THRESHOLD = 128;
+    public static final int DARK_PERCEIVED_BRIGHTNESS_THRESHOLD = gammaFunction(0.45);
 
     /** Color BLACK with alpha 0xD0. */
     public static Color translucent_black_D0 = new Color(0xD0000000, true);
@@ -269,22 +275,34 @@ public class Colors {
      * Pick a foreground color based on the perceived luminance of the
      * background color and on the dark mode.
      *
+     * <p>
+     * Assumes an sRGB color space.
+     * </p>
+     *
      * @param backgroundColor The background color.
      * @return The foreground color.
      */
     public static Color foregroundColor(Color backgroundColor) {
         // sRGB luminance(Y) values
         var brightness = brightness(backgroundColor);
-
-        return brightness < DARK_PERCEIVED_BRIGHTNESS_THRESHOLD ?
-               Color.white :
-               darkMode ? Colors.panelBackground : Colors.panelForeground;
+        var isBright = brightness >= DARK_PERCEIVED_BRIGHTNESS_THRESHOLD;
+        return isBright ?
+               (darkMode ? Colors.panelBackground : Colors.panelForeground) :
+               Color.white;
     }
 
     /**
      * Computes the perceived brightness of a color
      * <p>
      * See <a href="https://stackoverflow.com/questions/596216/formula-to-determine-perceived-brightness-of-rgb-color">Perceived brightness on StackOverflow</a>
+     * </p>
+     *
+     * <p>
+     * Assuming the given color is in the sRGB color space, it translates colors
+     * into linear-lighting RGB color space, undoing the gamma encoding of sRGB space.
+     * Then it multiplies each channel with a coefficient to take into account human perception of brightness.
+     * Also see <a href="https://www.w3.org/TR/WCAG21/#dfn-relative-luminance">W3C doc</a>
+     * </p>
      *
      * @param color The color
      * @return The perceived brightness between 0 and 255
@@ -311,7 +329,7 @@ public class Colors {
 
     private static double inverseOfGammaFunction(int ic) {
         double c = ic / 255.0;
-        if (c <= 0.04045) {
+        if (c <= 0.03928) {
             return c / 12.92;
         } else {
             return Math.pow((c + 0.055) / 1.055, 2.4);
