@@ -244,7 +244,6 @@ public class FlameGraph<T> {
                 Objects.requireNonNull(frameColorFunction)
         );
         this.frames = Objects.requireNonNull(frames);
-        flameGraphPainter.frameWidthVisibilityThreshold = 2;
 
         canvas.setFlameGraphPainter(Objects.requireNonNull(flameGraphPainter));
         canvas.setToolTipTextFunction(Objects.requireNonNull(tooltipTextFunction));

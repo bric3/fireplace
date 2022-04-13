@@ -108,7 +108,7 @@ public class FlameGraphPainter<T> {
     /**
      * The minimum width threshold for a frame to be rendered.
      */
-    protected int frameWidthVisibilityThreshold = 4;
+    protected int frameWidthVisibilityThreshold = 2;
     private final int minimapFrameBoxHeight = 1;
 
     private FrameBox<T> hoveredFrame;
@@ -128,7 +128,6 @@ public class FlameGraphPainter<T> {
      */
     protected boolean paintDetails = true;
     private Set<FrameBox<T>> toHighlight = Collections.emptySet();
-    private String searchedText = "";
 
     /**
      * Creates a new instance to render the specified list of frames.
@@ -180,7 +179,7 @@ public class FlameGraphPainter<T> {
     /**
      * Sets the color used for highlighting frames.
      *
-     * @param highlightedColor
+     * @param highlightedColor the highlight color.
      */
     public void setHighlightedColor(Color highlightedColor) {
         Objects.requireNonNull(highlightedColor);
@@ -637,6 +636,5 @@ public class FlameGraphPainter<T> {
 
     public void setHighlightFrames(Set<FrameBox<T>> toHighlight, String searchedText) {
         this.toHighlight = toHighlight;
-        this.searchedText = searchedText;
     }
 }
