@@ -592,9 +592,9 @@ public class FlameGraph<T> {
         @Override
         public void updateUI() {
             super.updateUI();
-            if (flameGraphPainter != null) {
-                flameGraphPainter.updateUI();
-            }
+            // if (flameGraphPainter != null) {
+            //     flameGraphPainter.updateUI();
+            // }
         }
 
         @Override

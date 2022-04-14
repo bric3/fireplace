@@ -13,6 +13,7 @@ import io.github.bric3.fireplace.core.ui.Colors;
 import io.github.bric3.fireplace.core.ui.StringClipper;
 
 import java.awt.*;
+import java.awt.geom.Area;
 import java.awt.geom.Rectangle2D;
 import java.util.Collections;
 import java.util.List;
@@ -119,6 +120,10 @@ public class FlameGraphPainter<T> {
     private final List<FrameBox<T>> frames;
     private final NodeDisplayStringProvider<T> nodeToTextProvider;
     Function<FrameBox<T>, Color> frameColorFunction;
+
+    /**
+     * Internal padding with the component bounds.
+     */
     private final int internalPadding = 2;
 
     /**
@@ -190,7 +195,6 @@ public class FlameGraphPainter<T> {
      * This method is used to resync colors when the LaF changes
      */
     public void updateUI() {
-        frameGapColor = Colors.panelBackground;
     }
 
     private int getFrameBoxHeight(Graphics2D g2) {
@@ -250,7 +254,7 @@ public class FlameGraphPainter<T> {
      * @param viewRect the subset that is being viewed/rendered ({@code null} not permitted).
      */
     public void paint(Graphics2D g2, Rectangle2D bounds, Rectangle2D viewRect) {
-        paint(g2, bounds, viewRect, false);
+        internalPaint(g2, bounds, viewRect, false);
     }
 
     /**
@@ -260,20 +264,20 @@ public class FlameGraphPainter<T> {
      * @param bounds the bounds ({@code null} not permitted).
      */
     public void paintMinimap(Graphics2D g2, Rectangle2D bounds) {
-        paint(g2, bounds, bounds, true);
+        internalPaint(g2, bounds, bounds, true);
     }
 
-    private void paint(Graphics2D g2, Rectangle2D bounds, Rectangle2D viewRect, boolean minimapMode) {
+    private void internalPaint(Graphics2D g2, Rectangle2D bounds, Rectangle2D viewRect, boolean minimapMode) {
         Objects.requireNonNull(g2);
         Objects.requireNonNull(bounds);
         Objects.requireNonNull(viewRect);
         long start = System.currentTimeMillis();
         Graphics2D g2d = (Graphics2D) g2.create();
+        identifyDisplayScale(g2d);
         var frameBoxHeight = minimapMode ? minimapFrameBoxHeight : getFrameBoxHeight(g2);
         var flameGraphWidth = minimapMode ? viewRect.getWidth() : bounds.getWidth();
-        var frameRect = new Rectangle(); // reusable rectangle
+        var frameRect = new Rectangle2D.Double(); // reusable rectangle
 
-        identifyDisplayScale(g2d);
 
         // paint root
         {
@@ -283,7 +287,7 @@ public class FlameGraphPainter<T> {
             frameRect.y = frameBoxHeight * rootFrame.stackDepth;
             frameRect.height = frameBoxHeight;
 
-            Rectangle intersection = viewRect.createIntersection(frameRect).getBounds();
+            var intersection = viewRect.createIntersection(frameRect);
             if (!intersection.isEmpty()) {
                 paintFrame(g2d,
                            frameRect,
@@ -304,8 +308,8 @@ public class FlameGraphPainter<T> {
             var frame = frames.get(i);
             // TODO Can we do cheaper checks like depth is outside range etc
 
-            frameRect.x = (int) (flameGraphWidth * frame.startX) + internalPadding;
-            frameRect.width = ((int) (flameGraphWidth * frame.endX)) - frameRect.x - internalPadding;
+            frameRect.x = (int) (flameGraphWidth * frame.startX); //+ internalPadding;
+            frameRect.width = ((int) (flameGraphWidth * frame.endX)) - frameRect.x; //- internalPadding;
 
             if ((frameRect.width < frameWidthVisibilityThreshold) && !minimapMode) {
                 continue;
@@ -314,7 +318,7 @@ public class FlameGraphPainter<T> {
             frameRect.y = frameBoxHeight * frame.stackDepth;
             frameRect.height = frameBoxHeight;
 
-            Rectangle paintableIntersection = viewRect.createIntersection(frameRect).getBounds();
+            var paintableIntersection = viewRect.createIntersection(frameRect);
             if (!paintableIntersection.isEmpty()) {
                 paintFrame(g2d,
                            frameRect,
@@ -335,7 +339,7 @@ public class FlameGraphPainter<T> {
         }
 
         if (!minimapMode) {
-            paintHoveredFrameBorder(g2d, bounds, viewRect, frameBoxHeight, frameRect);
+            paintHoveredFrameBorder(g2d, viewRect, flameGraphWidth, frameBoxHeight, frameRect);
         }
 
         if (!minimapMode && paintDetails) {
@@ -360,51 +364,63 @@ public class FlameGraphPainter<T> {
         g2d.dispose();
     }
 
-    private Font tweakLabelFont(Rectangle rect, Rectangle intersection, boolean highlighted) {
+    private Font tweakLabelFont(Rectangle2D rect, Rectangle2D intersection, boolean highlighted) {
         if (highlighted) {
-            if (rect.x == intersection.x) {
+            if (rect.getX() == intersection.getX()) {
                 return highlightedFrameLabelFont;
             } else {
                 return highlightedPartialFrameLabelFont;
             }
         }
-        if (rect.x == intersection.x) {
+        if (rect.getX() == intersection.getX()) {
             return frameLabelFont;
         } else {
             return partialFrameLabelFont;
         }
     }
 
-    private void paintHoveredFrameBorder(Graphics2D g2, Rectangle2D bounds, Rectangle2D viewRect, int frameBoxHeight, Rectangle rect) {
+    private void paintHoveredFrameBorder(Graphics2D g2, Rectangle2D viewRect, double flameGraphWidth, int frameBoxHeight, Rectangle2D frameRect) {
         if (hoveredFrame == null || !paintHoveredFrameBorder) {
             return;
         }
+        var gapThickness = frameGapEnabled ? frameGapWidth : 0;
 
-        rect.x = (int) (bounds.getWidth() * hoveredFrame.startX) + internalPadding;
-        rect.width = ((int) (bounds.getWidth() * hoveredFrame.endX)) - rect.x - internalPadding - frameBorderWidth;
+        // DISCLAIMER: it happens that drawing perfectly aligned rect is very difficult with
+        // Graphics2D.
+        // 1. I t may depend on the current Screen scale (Retina is 2, other monitors like 1x)
+        //    g2.getTransform().getScaleX() / getScaleY(), (so in pixels that would 1 / scale)
+        // 2. When drawing a rectangle, it seems that the current sun implementation draws
+        //    the line on 50% outside and 50% inside. I don;t know how to avoid that
+        //
+        // In some of my test what is ok on a retina is ugly on a 1.x monitor,
+        // adjusting the rectangle with the scale wasn't very pretty, as sometime
+        // the border starts inside the frame.
+        // Played with Area subtraction, but this wasn't successful.
 
-        if ((rect.width < frameWidthVisibilityThreshold)) {
+        var x = flameGraphWidth * hoveredFrame.startX;
+        var y = frameBoxHeight * hoveredFrame.stackDepth;
+        var w = (flameGraphWidth * hoveredFrame.endX) - x - gapThickness;
+        var h = frameBoxHeight - gapThickness;
+        frameRect.setRect(x, y, w, h);
+
+        if ((frameRect.getWidth() < frameWidthVisibilityThreshold)) {
             return;
         }
 
-        rect.y = frameBoxHeight * hoveredFrame.stackDepth;
-        rect.height = frameBoxHeight - frameGapWidth;
-
-        if (viewRect.intersects(rect)) {
+        if (viewRect.intersects(frameRect)) {
+            g2.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);
             g2.setColor(frameBorderColor);
-            g2.setStroke(frameBorderStroke);
-            g2.draw(rect);
+            // TODO use floor / ceil ?
+            g2.drawRect((int) x, (int) y, (int) w, (int) h);
         }
     }
 
     private void identifyDisplayScale(Graphics2D g2) {
-        // if true we're on a HiDPI display
+        // if > 1 we're on a HiDPI display
         // https://github.com/libgdx/libgdx/commit/2bc16a08961dd303afe2d1c8df96a50d8cd639db
         var transform = g2.getTransform();
-        //        System.out.printf("%sscale factor, x=%s y=%s%n",
-        //                          (transform.getType() & AffineTransform.TYPE_MASK_SCALE) == AffineTransform.TYPE_UNIFORM_SCALE ? "HiDPI " : "",
-        //                          scaleX = transform.getScaleX(),
-        //                          scaleY = transform.getScaleY());
+        scaleX = transform.getScaleX();
+        scaleY = transform.getScaleY();
     }
 
     private Color tweakBgColor(Color bgColor, boolean hovered, boolean highlighted, boolean dimmed) {
@@ -438,9 +454,9 @@ public class FlameGraphPainter<T> {
      */
     private void paintFrame(
             Graphics2D g2,
-            Rectangle frameRect,
+            Rectangle2D frameRect,
             FrameBox<T> frame,
-            Rectangle paintableIntersection,
+            Rectangle2D paintableIntersection,
             Font labelFont,
             Color bgColor,
             Color gapColor,
@@ -454,8 +470,7 @@ public class FlameGraphPainter<T> {
         var text = calculateFrameText(
                 g2,
                 labelFont,
-                paintableIntersection.width - textBorder * 2 - frameGapWidth * 2,
-                frameRect,
+                paintableIntersection.getWidth() - textBorder * 2 - frameGapWidth * 2,
                 frame
         );
 
@@ -465,27 +480,30 @@ public class FlameGraphPainter<T> {
 
         g2.setFont(labelFont);
         g2.setColor(Colors.foregroundColor(bgColor));
-        g2.drawString(text, paintableIntersection.x + textBorder + frameBorderWidth, frameRect.y + getFrameBoxTextOffset(g2));
+        g2.drawString(
+                text,
+                (float) (paintableIntersection.getX() + textBorder + frameBorderWidth),
+                (float) (frameRect.getY() + getFrameBoxTextOffset(g2))
+        );
     }
 
     private void paintFrameRectangle(
             Graphics2D g2,
-            Rectangle frameRect,
+            Rectangle2D frameRect,
             Color bgColor,
             Color frameGapColor,
             boolean minimapMode
     ) {
-        var borderWidth = minimapMode ?
-                          0 :
-                          frameGapEnabled ? frameGapWidth : 0;
+        var gapThickness = minimapMode ?
+                           0 :
+                           frameGapEnabled ? frameGapWidth : 0;
 
-        if (frameGapEnabled && !minimapMode) {
-            g2.setColor(frameGapColor);
-            g2.fill(frameRect);
-        }
+        var x = frameRect.getX();
+        var y = frameRect.getY();
+        var w = frameRect.getWidth() - gapThickness;
+        var h = frameRect.getHeight() - gapThickness;
+        frameRect.setRect(x, y, w, h);
 
-        frameRect.width = frameRect.width - borderWidth;
-        frameRect.height = frameRect.height - borderWidth;
         g2.setColor(bgColor);
         g2.fill(frameRect);
     }
@@ -605,7 +623,7 @@ public class FlameGraphPainter<T> {
     }
 
     // layout text
-    private String calculateFrameText(Graphics2D g2, Font font, double targetWidth, Rectangle rect, FrameBox<T> frame) {
+    private String calculateFrameText(Graphics2D g2, Font font, double targetWidth, FrameBox<T> frame) {
         var metrics = g2.getFontMetrics(font);
 
         // don't use stream to avoid allocations during painting
