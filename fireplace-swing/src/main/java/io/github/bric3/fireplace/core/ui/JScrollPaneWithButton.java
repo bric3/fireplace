@@ -40,7 +40,7 @@ public abstract class JScrollPaneWithButton {
     private static class ScrollBackToTopLayerUI extends LayerUI<JScrollPane> {
         public int xGap;
         public int yGap;
-        private final Container buttonContainer = new JPanel();
+        private final JPanel buttonContainer = new JPanel();
         private final Point currentMousePoint = new Point();
         private final JButton button = new JButton(new UpArrowIcon(new Color(0xAA_3D_42_44, true),
                                                                    new Color(0xAA_38_9F_D6, true))) {
@@ -204,7 +204,7 @@ public abstract class JScrollPaneWithButton {
             if (c instanceof AbstractButton && ((AbstractButton) c).getModel().isRollover()) {
                 g2.setPaint(rolloverColor);
             } else {
-                g2.setPaint(UIManager.getColor("Button.borderColor"));
+                g2.setPaint(UIManager.getColor("Button.foreground"));
             }
 
             float w2 = getIconWidth() / 2f;
