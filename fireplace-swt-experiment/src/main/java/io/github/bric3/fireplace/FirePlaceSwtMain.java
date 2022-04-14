@@ -169,7 +169,7 @@ public class FirePlaceSwtMain {
             var flatFrameList = convert(stacktraceTreeModel);
 
             SwingUtilities.invokeLater(() -> {
-                flameGraph.setData(
+                flameGraph.setConfigurationAndData(
                         flatFrameList,
                         NodeDisplayStringProvider.of(
                                 (frame) -> {

@@ -262,15 +262,52 @@ public class FlameGraph<T> {
      *     <li>The tooltip text from the current node</li>
      * </ul>
      *
-     * @param frames                  The {@code FrameBox} list to display.
-     * @param frameToString           function to display label in frames.
-     * @param frameColorFunction      the frame to background color function.
-     * @param tooltipTextFunction     the frame tooltip text function.
+     * @param frames              The {@code FrameBox} list to display.
+     * @param frameToString       function to display label in frames.
+     * @param frameColorFunction  the frame to background color function.
+     * @param tooltipTextFunction the frame tooltip text function.
      */
+    @Deprecated(forRemoval = true)
     public void setData(List<FrameBox<T>> frames,
                         NodeDisplayStringProvider<T> frameToString,
-                        Function<FrameBox<T>, Color> frameColorFunction,
+                        Function<T, Color> frameColorFunction,
                         Function<FrameBox<T>, String> tooltipTextFunction) {
+        setConfigurationAndData(
+                frames,
+                frameToString,
+                frame -> frameColorFunction.apply(frame.actualNode),
+                tooltipTextFunction
+        );
+    }
+
+    /**
+     * Actually set the {@link FlameGraph} with typed data and configure how to use it.
+     * <p>
+     * It takes a list of {@link FrameBox} objects that wraps the actual data,
+     * which is referred to as <em>node</em>.
+     * </p>
+     * <p>
+     * In particular this function defines the behavior to access the typed data:
+     * <ul>
+     *     <li>Possible string candidates to display in frames, those are
+     *     selected based on the available space</li>
+     *     <li>The root node text to display, if something specific is relevant,
+     *     like the type of events, their number, etc.</li>
+     *     <li>The frame background color, this function can be replaced by
+     *     {@link #setColorFunction(Function)}, note that the foreground color
+     *     is chosen automatically</li>
+     *     <li>The tooltip text from the current node</li>
+     * </ul>
+     *
+     * @param frames              The {@code FrameBox} list to display.
+     * @param frameToString       function to display label in frames.
+     * @param frameColorFunction  the frame to background color function.
+     * @param tooltipTextFunction the frame tooltip text function.
+     */
+    public void setConfigurationAndData(List<FrameBox<T>> frames,
+                                        NodeDisplayStringProvider<T> frameToString,
+                                        Function<FrameBox<T>, Color> frameColorFunction,
+                                        Function<FrameBox<T>, String> tooltipTextFunction) {
         var flameGraphPainter = new FlameGraphPainter<>(
                 Objects.requireNonNull(frames),
                 Objects.requireNonNull(frameToString),
@@ -373,7 +410,7 @@ public class FlameGraph<T> {
         Objects.requireNonNull(framesToHighlight);
         Objects.requireNonNull(searched);
         canvas.getFlameGraphPainter().ifPresent(painter ->
-                painter.setHighlightFrames(framesToHighlight, searched)
+                                                        painter.setHighlightFrames(framesToHighlight, searched)
         );
         canvas.repaint();
     }
