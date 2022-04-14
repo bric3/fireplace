@@ -113,9 +113,10 @@ public class FlameGraph<T> {
     public FlameGraph() {
         canvas = new FlameGraphCanvas<>();
         listener = new FlameGraphMouseInputListener<>(canvas);
-        component = JScrollPaneWithButton.create(
+        var scrollPane = new JScrollPane(canvas);
+        var layeredScrollPane = JScrollPaneWithButton.create(
                 () -> {
-                    var scrollPane = new JScrollPane(canvas);
+
                     // Code to tweak the actions
                     // https://stackoverflow.com/a/71009104/48136
                     // see javax.swing.plaf.basic.BasicScrollPaneUI.Actions
@@ -132,6 +133,38 @@ public class FlameGraph<T> {
                     return scrollPane;
                 }
         );
+
+        component = wrap(scrollPane, layeredScrollPane);
+    }
+
+    /**
+     * Murky workaround to propagate the background color to the canvas
+     * since JLayer is final.
+     */
+    private JPanel wrap(JScrollPane scrollPane, JLayer<JScrollPane> layeredScrollPane) {
+        var wrapper = new JPanel(new BorderLayout()) {
+            @Override
+            public void updateUI() {
+                super.updateUI();
+                scrollPane.setBorder(null);
+                scrollPane.getVerticalScrollBar().setBackground(getBackground());
+                scrollPane.getHorizontalScrollBar().setBackground(getBackground());
+                canvas.setBackground(getBackground());
+            }
+
+            @Override
+            public void setBackground(Color bg) {
+                super.setBackground(bg);
+                scrollPane.setBorder(null);
+                scrollPane.setBackground(bg);
+                scrollPane.getVerticalScrollBar().setBackground(bg);
+                scrollPane.getHorizontalScrollBar().setBackground(bg);
+                canvas.setBackground(bg);
+            }
+        };
+        wrapper.setBorder(null);
+        wrapper.add(layeredScrollPane);
+        return wrapper;
     }
 
     /**
