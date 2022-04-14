@@ -24,7 +24,6 @@ import java.awt.*;
 import java.awt.event.ActionListener;
 import java.util.Collections;
 import java.util.IdentityHashMap;
-import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
@@ -188,7 +187,7 @@ public class FlameGraphTab extends JPanel {
 
     private Consumer<FlameGraph<Node>> dataApplier(StacktraceTreeModel stacktraceTreeModel) {
         var flatFrameList = JfrFrameNodeConverter.convert(stacktraceTreeModel);
-        return (flameGraph) -> flameGraph.setData(
+        return (flameGraph) -> flameGraph.setConfigurationAndData(
                 flatFrameList,
                 NodeDisplayStringProvider.of(
                         (frame) -> {

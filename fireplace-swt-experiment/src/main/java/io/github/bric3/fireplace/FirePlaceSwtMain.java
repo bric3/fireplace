@@ -169,7 +169,7 @@ public class FirePlaceSwtMain {
             var flatFrameList = convert(stacktraceTreeModel);
 
             SwingUtilities.invokeLater(() -> {
-                flameGraph.setData(
+                flameGraph.setConfigurationAndData(
                         flatFrameList,
                         NodeDisplayStringProvider.of(
                                 (frame) -> {
@@ -186,7 +186,7 @@ public class FirePlaceSwtMain {
                                 frame -> frame.isRoot() ? "" : FormatToolkit.getHumanReadable(frame.actualNode.getFrame().getMethod(), false, false, false, false, true, false),
                                 frame -> frame.isRoot() ? "" : frame.actualNode.getFrame().getMethod().getMethodName()
                         ),
-                        node -> ColorMapper.ofObjectHashUsing(Palette.DATADOG.colors()).apply(node.getFrame().getMethod().getType().getPackage()),
+                        frame -> ColorMapper.ofObjectHashUsing(Palette.DATADOG.colors()).apply(frame.actualNode.getFrame().getMethod().getType().getPackage()),
                         frame -> ""
                         // frame -> {
                         //     if (frame.stackDepth == 0) {
