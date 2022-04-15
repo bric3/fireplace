@@ -1,10 +1,20 @@
+/*
+ * Fireplace
+ *
+ * Copyright (c) 2021, Today - Brice Dutheil
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/.
+ */
 package io.github.bric3.fireplace;
 
 import com.formdev.flatlaf.FlatDarculaLaf;
 import com.formdev.flatlaf.FlatIntelliJLaf;
 import com.formdev.flatlaf.FlatLaf;
 import com.formdev.flatlaf.extras.FlatAnimatedLafChange;
-import com.formdev.flatlaf.util.SystemInfo;
+import com.github.weisj.darklaf.platform.DecorationsConstants;
+import com.github.weisj.darklaf.platform.SystemInfo;
 import com.github.weisj.darklaf.platform.decorations.DecorationsColorProvider;
 import com.github.weisj.darklaf.platform.decorations.ExternalLafDecorator;
 import com.github.weisj.darklaf.platform.preferences.SystemPreferencesManager;
@@ -48,11 +58,13 @@ class AppearanceControl {
 
         // configure frame for transparency
         var rootPane = frame.getRootPane();
-        if (SystemInfo.isMacOS) {
+        if (SystemInfo.isMac) {
             // allows to place swing components on the whole window
             rootPane.putClientProperty("apple.awt.fullWindowContent", true);
             // makes the title bar transparent
             rootPane.putClientProperty("apple.awt.transparentTitleBar", true);
+            // hide window title
+            rootPane.putClientProperty(DecorationsConstants.KEY_HIDE_TITLE, true);
         }
 
         ExternalLafDecorator.instance().install();
@@ -81,6 +93,10 @@ class AppearanceControl {
         INSTANCE.start();
     }
 
+    static Rectangle getWindowButtonsRect(JFrame frame){
+        return ExternalLafDecorator.instance().decorationsManager().titlePaneLayoutInfo(frame).windowButtonRect();
+    }
+
     private static void setGlobalProperties(String title) {
         if (SystemInfo.isLinux) {
             // most linux distros have ugly font rendering, but these here can fix that:
@@ -89,7 +105,7 @@ class AppearanceControl {
             System.setProperty("sun.java2d.xrender", "true");
         }
 
-        if (SystemInfo.isMacOS) {
+        if (SystemInfo.isMac) {
             System.setProperty("apple.laf.useScreenMenuBar", "true"); // moves menu bar from JFrame window to top of screen
             System.setProperty("apple.awt.application.name", title); // application name used in screen menu bar
             // appearance of window title bars

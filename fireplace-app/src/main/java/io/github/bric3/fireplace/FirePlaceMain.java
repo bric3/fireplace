@@ -13,11 +13,14 @@ import com.formdev.flatlaf.util.SystemInfo;
 import io.github.bric3.fireplace.core.ui.JScrollPaneWithButton;
 import io.github.bric3.fireplace.ui.FrameResizeLabel;
 import io.github.bric3.fireplace.ui.HudPanel;
+import io.github.bric3.fireplace.ui.TitleBar;
 import io.github.bric3.fireplace.ui.debug.AssertiveRepaintManager;
 import io.github.bric3.fireplace.ui.debug.CheckThreadViolationRepaintManager;
 import io.github.bric3.fireplace.ui.debug.EventDispatchThreadHangMonitor;
 
 import javax.swing.*;
+import javax.swing.border.Border;
+import javax.swing.border.CompoundBorder;
 import java.awt.*;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
@@ -113,14 +116,11 @@ public class FirePlaceMain {
             }
 
             var topPanel = new JPanel(new BorderLayout());
-            if (SystemInfo.isMacOS) {
-                openedFileLabel.setBorder(BorderFactory.createEmptyBorder(30, 5, 5, 5));
-            }
             topPanel.add(openedFileLabel, BorderLayout.CENTER);
             topPanel.add(AppearanceControl.getComponent(), BorderLayout.EAST);
 
             var mainPanel = new JPanel(new BorderLayout());
-            mainPanel.add(topPanel, BorderLayout.NORTH);
+            mainPanel.add(new TitleBar(topPanel), BorderLayout.NORTH);
             mainPanel.add(jTabbedPane, BorderLayout.CENTER);
 
             var frameResizeLabel = new FrameResizeLabel();
@@ -138,8 +138,6 @@ public class FirePlaceMain {
             JfrFilesDropHandler.install(jfrBinder::load, appLayers, hudPanel.getDnDTarget());
 
             var frame = new JFrame("FirePlace");
-
-
             frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
             frame.setSize(new Dimension(1000, 600));
             frame.getContentPane().add(appLayers);
