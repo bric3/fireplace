@@ -10,7 +10,7 @@
 
 [versions]
 flatlaf = "2.1"
-darklaf = "2.7.3"
+darklaf = "3.0.0"
 graalvm = "22.0.0.2"
 junit-jupiter = "5.8.2"
 jmc-flightrecorder = "8.1.0"
