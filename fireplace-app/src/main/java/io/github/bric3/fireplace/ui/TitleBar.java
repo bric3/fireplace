@@ -16,6 +16,8 @@ import javax.swing.*;
 import java.awt.*;
 
 public class TitleBar extends JPanel {
+    private static final long serialVersionUID = 1L;
+
     public TitleBar(JComponent component) {
         setLayout(new BorderLayout());
         add(component, BorderLayout.CENTER);
