@@ -132,7 +132,7 @@ public class FirePlaceMain {
             appLayers.setOpaque(false);
             appLayers.setVisible(true);
             appLayers.add(mainPanel, JLayeredPane.PALETTE_LAYER);
-            // appLayers.add(hudPanel.getComponent(), JLayeredPane.MODAL_LAYER);
+            appLayers.add(hudPanel.getComponent(), JLayeredPane.MODAL_LAYER);
             appLayers.add(frameResizeLabel.getComponent(), JLayeredPane.POPUP_LAYER);
 
             JfrFilesDropHandler.install(jfrBinder::load, appLayers, hudPanel.getDnDTarget());
