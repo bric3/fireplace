@@ -124,7 +124,7 @@ public class FrameBox<T> {
 
         depth++;
         var parentWidth = endX - startX;
-        var totalWeight = children.stream().mapToDouble(nodeWeight).sum();
+        var totalWeight = nodeWeight.applyAsDouble(fromNode);
         for (var node : children) {
             var nodeWidth = (nodeWeight.applyAsDouble(node) / totalWeight) * parentWidth;
             endX = startX + nodeWidth;
