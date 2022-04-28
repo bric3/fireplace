@@ -13,6 +13,7 @@ import io.github.bric3.fireplace.core.ui.JScrollPaneWithButton;
 import io.github.bric3.fireplace.core.ui.MouseInputListenerWorkaroundForToolTipEnabledComponent;
 
 import javax.swing.*;
+import javax.swing.event.MouseInputAdapter;
 import javax.swing.event.MouseInputListener;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
@@ -215,6 +216,15 @@ public class FlameGraph<T> {
     }
 
     /**
+     * Sets a flag that controls whether the minimap is visible.
+     *
+     * @return {@code true} if the minimap shown, {@code false} otherwise.
+     */
+    public boolean isShowMinimap() {
+        return canvas.isShowMinimap();
+    }
+
+    /**
      * Replaces the default tooltip component.
      *
      * @param tooltipComponentSupplier The tooltip component supplier.
@@ -231,6 +241,16 @@ public class FlameGraph<T> {
      */
     public void setPopupConsumer(BiConsumer<FrameBox<T>, MouseEvent> consumer) {
         canvas.setPopupConsumer(Objects.requireNonNull(consumer));
+    }
+
+    /**
+     * Sets a callback that provides a reference to a frame when the user performs a
+     * "popup" action on the frame graph (typically a right-click with the mouse).
+     *
+     * @param consumer the consumer ({@code null} permitted).
+     */
+    public void setSelectedFrameConsumer(BiConsumer<FrameBox<T>, MouseEvent> consumer) {
+        canvas.setSelectedFrameConsumer(Objects.requireNonNull(consumer));
     }
 
 
@@ -613,6 +633,7 @@ public class FlameGraph<T> {
 
         private ZoomAction zoomActionOverride;
         private BiConsumer<FrameBox<T>, MouseEvent> popupConsumer;
+        private BiConsumer<FrameBox<T>, MouseEvent> selectedFrameConsumer;
 
 
         public FlameGraphCanvas() {
@@ -819,7 +840,20 @@ public class FlameGraph<T> {
         }
 
         public void linkListenerTo(JScrollPane scrollPane) {
-            var mouseAdapter = new MouseAdapter() {
+            var mouseAdapter = new MouseInputAdapter() {
+                @Override
+                public void mouseClicked(MouseEvent e) {
+                    if (e.getClickCount() != 1 || e.getButton() != MouseEvent.BUTTON1) {
+                        return;
+                    }
+                    if (selectedFrameConsumer == null) {
+                        return;
+                    }
+                    FlameGraphCanvas<T> canvas = FlameGraphCanvas.this;
+                    flameGraphPainter.getFrameAt((Graphics2D) canvas.getGraphics(), canvas.getBounds(), e.getPoint())
+                                     .ifPresent(frame -> selectedFrameConsumer.accept(frame, e));
+                }
+
                 @Override
                 public void mousePressed(MouseEvent e) {
                     if (isInsideMinimap(e.getPoint())) {
@@ -914,8 +948,16 @@ public class FlameGraph<T> {
             triggerMinimapGeneration();
         }
 
+        public boolean isShowMinimap() {
+            return showMinimap;
+        }
+
         public void setPopupConsumer(BiConsumer<FrameBox<T>, MouseEvent> consumer) {
             this.popupConsumer = consumer;
+        }
+
+        public void setSelectedFrameConsumer(BiConsumer<FrameBox<T>, MouseEvent> consumer) {
+            this.selectedFrameConsumer = consumer;
         }
     }
 }
