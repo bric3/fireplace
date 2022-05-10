@@ -16,7 +16,6 @@ import javax.swing.*;
 import javax.swing.event.MouseInputAdapter;
 import javax.swing.event.MouseInputListener;
 import java.awt.*;
-import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.geom.Area;
 import java.awt.geom.Rectangle2D;
@@ -67,6 +66,10 @@ import static java.lang.Boolean.TRUE;
  */
 public class FlameGraph<T> {
     /**
+     * Internal key to get the FlameGraph from the component.
+     */
+    private static final String OWNER_KEY = "flamegraphOwner";
+    /**
      * The key for a client property that controls the display of rendering statistics.
      */
     public static String SHOW_STATS = "flamegraph.show_stats";
@@ -105,6 +108,20 @@ public class FlameGraph<T> {
         void onStopHover(MouseEvent e);
 
         void onFrameHover(FrameBox<T> frame, Rectangle hoveredFrameRectangle, MouseEvent e);
+    }
+
+    /**
+     * Return the {@code FlameGraph} that created the passed component.
+     * <p>
+     * If this wasn't returned by a {@code FlaemGraph} then retunr empty.
+     *
+     * @param component the JComponent
+     * @param <T>       The type of the node data.
+     * @return The {@code FlameGraph} instance that crated this JComponent or empty.
+     */
+    @SuppressWarnings("unchecked")
+    public static <T> Optional<FlameGraph<T>> from(JComponent component) {
+        return Optional.ofNullable((FlameGraph<T>) component.getClientProperty(OWNER_KEY));
     }
 
     /**
@@ -165,6 +182,7 @@ public class FlameGraph<T> {
         };
         wrapper.setBorder(null);
         wrapper.add(layeredScrollPane);
+        wrapper.putClientProperty(OWNER_KEY, this);
         return wrapper;
     }
 
@@ -402,6 +420,21 @@ public class FlameGraph<T> {
                 (JViewport) canvas.getParent(),
                 new ZoomTarget(canvas.getVisibleRect().getSize(), new Point())
         );
+    }
+
+    /**
+     * Programmtic zoom to the specified frame.
+     *
+     * @param frame The frame to zoom to.
+     */
+    public void zoomTo(FrameBox<T> frame) {
+        var viewport = (JViewport) canvas.getParent();
+        canvas.getFlameGraphPainter().map(fgp -> fgp.calculateZoomTargetFrame(
+                (Graphics2D) canvas.getGraphics(),
+                canvas.getBounds(),
+                viewport.getViewRect(),
+                frame
+        )).ifPresent(zoomTarget -> zoom(canvas, viewport, zoomTarget));
     }
 
     private static <T> void zoom(FlameGraphCanvas<T> canvas, JViewport viewPort, ZoomTarget zoomTarget) {

@@ -13,7 +13,6 @@ import io.github.bric3.fireplace.core.ui.Colors;
 import io.github.bric3.fireplace.core.ui.StringClipper;
 
 import java.awt.*;
-import java.awt.geom.Area;
 import java.awt.geom.Rectangle2D;
 import java.util.Collections;
 import java.util.List;
@@ -604,15 +603,31 @@ public class FlameGraphPainter<T> {
         return getFrameAt(g2, bounds, point).map(frame -> {
             this.selectedFrame = frame;
 
-            var frameWidthX = frame.endX - frame.startX;
-            var frameBoxHeight = getFrameBoxHeight(g2);
-            int y = frameBoxHeight * frame.stackDepth;
-
-            // Change offset to center the flame from this frame
-            double factor = (1.0 / frameWidthX) * (viewRect.getWidth() / bounds.getWidth());
-            return new ZoomTarget(new Dimension((int) (bounds.getWidth() * factor), (int) (bounds.getHeight() * factor)),
-                                  new Point((int) (frame.startX * bounds.getWidth() * factor), Math.max(0, y)));
+            return calculateZoomTargetFrame(g2, bounds, viewRect, frame);
         });
+    }
+
+    /**
+     * Compute the {@code ZommTarget} for the passed frame.
+     *
+     * Returns the new canvas size and the offset that
+     * will make the frame fully visible at the top of the specified {@code viewRect}.
+     *
+     * @param g2       the graphics target ({@code null} not permitted).
+     * @param bounds   the bounds within which the flame graph is currently rendered.
+     * @param viewRect the subset of the bounds that is actually visible
+     * @param frame    the frame.
+     * @return A zoom target.
+     */
+    public ZoomTarget calculateZoomTargetFrame(Graphics2D g2, Rectangle2D bounds, Rectangle2D viewRect, FrameBox<T> frame) {
+        var frameWidthX = frame.endX - frame.startX;
+        var frameBoxHeight = getFrameBoxHeight(g2);
+        int y = frameBoxHeight * frame.stackDepth;
+
+        // Change offset to center the flame from this frame
+        double factor = (1.0 / frameWidthX) * (viewRect.getWidth() / bounds.getWidth());
+        return new ZoomTarget(new Dimension((int) (bounds.getWidth() * factor), (int) (bounds.getHeight() * factor)),
+                              new Point((int) (frame.startX * bounds.getWidth() * factor), Math.max(0, y)));
     }
 
     /**
