@@ -527,6 +527,11 @@ public class FlameGraph<T> {
             var scrollPane = (JScrollPane) e.getComponent();
             var viewPort = scrollPane.getViewport();
 
+            // this seems to enable key navigation
+            if ((e.getComponent() instanceof JScrollPane)) {
+                e.getComponent().requestFocus();
+            }
+
             var latestMouseLocation = MouseInfo.getPointerInfo().getLocation();
             SwingUtilities.convertPointFromScreen(latestMouseLocation, canvas);
 
@@ -558,11 +563,6 @@ public class FlameGraph<T> {
 
         @Override
         public void mouseEntered(MouseEvent e) {
-            // this seems to enable key navigation
-            if ((e.getComponent() instanceof JScrollPane)) {
-                e.getComponent().requestFocus();
-            }
-
         }
 
         @Override
