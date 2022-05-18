@@ -266,7 +266,12 @@ class FlameGraphPainter<T> {
         internalPaint(g2, bounds, bounds, true);
     }
 
-    private void internalPaint(Graphics2D g2, Rectangle2D bounds, Rectangle2D viewRect, boolean minimapMode) {
+    private void internalPaint(
+            Graphics2D g2,
+            Rectangle2D bounds,
+            Rectangle2D viewRect,
+            boolean minimapMode
+    ) {
         Objects.requireNonNull(g2);
         Objects.requireNonNull(bounds);
         Objects.requireNonNull(viewRect);
@@ -344,10 +349,12 @@ class FlameGraphPainter<T> {
         if (!minimapMode && paintDetails) {
             // timestamp
             var zoomFactor = bounds.getWidth() / viewRect.getWidth();
-            var drawTimeMs = "FrameGraph width " + flameGraphWidth + " Zoom Factor " + zoomFactor + " Coordinate (" + viewRect.getX() + ", " + viewRect.getY() + ") size (" +
-                             viewRect.getWidth() + ", " + viewRect.getHeight() +
-                             ") , Draw time: " + (System.currentTimeMillis() - start) + " ms";
-            var nowWidth = g2d.getFontMetrics(frameLabelFont).stringWidth(drawTimeMs);
+            var stats = "FrameGraph width " + flameGraphWidth +
+                        " Zoom Factor " + zoomFactor +
+                        " Coordinate (" + viewRect.getX() + ", " + viewRect.getY() + ") " +
+                        "size (" + viewRect.getWidth() + ", " + viewRect.getHeight() + "), " +
+                        "Draw time: " + (System.currentTimeMillis() - start) + " ms";
+            var nowWidth = g2d.getFontMetrics(frameLabelFont).stringWidth(stats);
             g2d.setColor(Color.DARK_GRAY);
             g2d.fillRect((int) (viewRect.getX() + viewRect.getWidth() - nowWidth - textBorder * 2),
                          (int) (viewRect.getY() + viewRect.getHeight() - frameBoxHeight),
@@ -355,7 +362,7 @@ class FlameGraphPainter<T> {
                          frameBoxHeight);
 
             g2d.setColor(Color.YELLOW);
-            g2d.drawString(drawTimeMs,
+            g2d.drawString(stats,
                            (int) (viewRect.getX() + viewRect.getWidth() - nowWidth - textBorder),
                            (int) (viewRect.getY() + viewRect.getHeight() - textBorder));
         }
@@ -363,7 +370,11 @@ class FlameGraphPainter<T> {
         g2d.dispose();
     }
 
-    private Font tweakLabelFont(Rectangle2D rect, Rectangle2D intersection, boolean highlighted) {
+    private Font tweakLabelFont(
+            Rectangle2D rect,
+            Rectangle2D intersection,
+            boolean highlighted
+    ) {
         if (highlighted) {
             if (rect.getX() == intersection.getX()) {
                 return highlightedFrameLabelFont;
@@ -378,7 +389,13 @@ class FlameGraphPainter<T> {
         }
     }
 
-    private void paintHoveredFrameBorder(Graphics2D g2, Rectangle2D viewRect, double flameGraphWidth, int frameBoxHeight, Rectangle2D frameRect) {
+    private void paintHoveredFrameBorder(
+            Graphics2D g2,
+            Rectangle2D viewRect,
+            double flameGraphWidth,
+            int frameBoxHeight,
+            Rectangle2D frameRect
+    ) {
         if (hoveredFrame == null || !paintHoveredFrameBorder) {
             return;
         }
@@ -422,7 +439,12 @@ class FlameGraphPainter<T> {
         scaleY = transform.getScaleY();
     }
 
-    private Color tweakBgColor(Color bgColor, boolean hovered, boolean highlighted, boolean dimmed) {
+    private Color tweakBgColor(
+            Color bgColor,
+            boolean hovered,
+            boolean highlighted,
+            boolean dimmed
+    ) {
         Color color = bgColor;
         if (dimmed) {
             color = Colors.blend(bgColor, Colors.translucent_black_80);
@@ -516,7 +538,11 @@ class FlameGraphPainter<T> {
      * @param frame  the frame ({@code null} not permitted)
      * @return The bounds for the specified frame.
      */
-    public Rectangle getFrameRectangle(Graphics2D g2, Rectangle2D bounds, FrameBox<T> frame) {
+    public Rectangle getFrameRectangle(
+            Graphics2D g2,
+            Rectangle2D bounds,
+            FrameBox<T> frame
+    ) {
         var frameBoxHeight = getFrameBoxHeight(g2);
 
         var rect = new Rectangle();
@@ -536,7 +562,11 @@ class FlameGraphPainter<T> {
      * @param point  the point of interest ({@code null} not permitted).
      * @return An optional frame box.
      */
-    public Optional<FrameBox<T>> getFrameAt(Graphics2D g2, Rectangle2D bounds, Point point) {
+    public Optional<FrameBox<T>> getFrameAt(
+            Graphics2D g2,
+            Rectangle2D bounds,
+            Point point
+    ) {
         int depth = point.y / getFrameBoxHeight(g2);
         double xLocation = point.x / bounds.getWidth();
         double visibilityThreshold = frameWidthVisibilityThreshold / bounds.getWidth();
@@ -558,7 +588,12 @@ class FlameGraphPainter<T> {
      * @param point          the point of interest ({@code null} not permitted).
      * @param toggleConsumer the function that is called to notify about the frame selection ({@code null} not permitted).
      */
-    public void toggleSelectedFrameAt(Graphics2D g2, Rectangle2D bounds, Point point, BiConsumer<FrameBox<T>, Rectangle> toggleConsumer) {
+    public void toggleSelectedFrameAt(
+            Graphics2D g2,
+            Rectangle2D bounds,
+            Point point,
+            BiConsumer<FrameBox<T>, Rectangle> toggleConsumer
+    ) {
         getFrameAt(g2, bounds, point)
                 .ifPresent(frame -> {
                     selectedFrame = selectedFrame == frame ? null : frame;
@@ -573,7 +608,12 @@ class FlameGraphPainter<T> {
      * @param bounds        the bounds in which the full flame graph is rendered ({@code null} not permitted).
      * @param hoverConsumer the function that is called to notify about the frame selection ({@code null} not permitted).
      */
-    public void hoverFrame(FrameBox<T> frame, Graphics2D g2, Rectangle2D bounds, Consumer<Rectangle> hoverConsumer) {
+    public void hoverFrame(
+            FrameBox<T> frame,
+            Graphics2D g2,
+            Rectangle2D bounds,
+            Consumer<Rectangle> hoverConsumer
+    ) {
         if (frame == null) {
             stopHover();
             return;
@@ -599,7 +639,12 @@ class FlameGraphPainter<T> {
      * @param point    the coordinates at which to look for a frame.
      * @return An optional zoom target.
      */
-    public Optional<ZoomTarget> calculateZoomTargetForFrameAt(Graphics2D g2, Rectangle2D bounds, Rectangle2D viewRect, Point point) {
+    public Optional<ZoomTarget> calculateZoomTargetForFrameAt(
+            Graphics2D g2,
+            Rectangle2D bounds,
+            Rectangle2D viewRect,
+            Point point
+    ) {
         return getFrameAt(g2, bounds, point).map(frame -> {
             this.selectedFrame = frame;
 
@@ -619,7 +664,12 @@ class FlameGraphPainter<T> {
      * @param frame    the frame.
      * @return A zoom target.
      */
-    public ZoomTarget calculateZoomTargetFrame(Graphics2D g2, Rectangle2D bounds, Rectangle2D viewRect, FrameBox<T> frame) {
+    public ZoomTarget calculateZoomTargetFrame(
+            Graphics2D g2,
+            Rectangle2D bounds,
+            Rectangle2D viewRect,
+            FrameBox<T> frame
+    ) {
         var frameWidthX = frame.endX - frame.startX;
         var frameBoxHeight = getFrameBoxHeight(g2);
         int y = frameBoxHeight * frame.stackDepth;
@@ -638,7 +688,12 @@ class FlameGraphPainter<T> {
     }
 
     // layout text
-    private String calculateFrameText(Graphics2D g2, Font font, double targetWidth, FrameBox<T> frame) {
+    private String calculateFrameText(
+            Graphics2D g2,
+            Font font,
+            double targetWidth,
+            FrameBox<T> frame
+    ) {
         var metrics = g2.getFontMetrics(font);
 
         // don't use stream to avoid allocations during painting
