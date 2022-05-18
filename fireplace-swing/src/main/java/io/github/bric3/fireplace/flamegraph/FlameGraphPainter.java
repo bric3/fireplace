@@ -648,36 +648,55 @@ class FlameGraphPainter<T> {
         return getFrameAt(g2, bounds, point).map(frame -> {
             this.selectedFrame = frame;
 
-            return calculateZoomTargetFrame(g2, bounds, viewRect, frame);
+            return calculateZoomTargetFrame(g2, bounds, viewRect, frame, 0, 0);
         });
     }
 
     /**
-     * Compute the {@code ZommTarget} for the passed frame.
+     * Compute the {@code ZoomTarget} for the passed frame.
      *
      * Returns the new canvas size and the offset that
      * will make the frame fully visible at the top of the specified {@code viewRect}.
      *
-     * @param g2       the graphics target ({@code null} not permitted).
-     * @param bounds   the bounds within which the flame graph is currently rendered.
-     * @param viewRect the subset of the bounds that is actually visible
-     * @param frame    the frame.
+     * @param g2               the graphics target ({@code null} not permitted).
+     * @param bounds           the bounds within which the flame graph is currently rendered.
+     * @param viewRect         the subset of the bounds that is actually visible
+     * @param frame            the frame.
+     * @param contextBefore    number of contextual parents
+     * @param contextLeftRight the contextual frames on the left and right (unused at this time)
      * @return A zoom target.
      */
     public ZoomTarget calculateZoomTargetFrame(
             Graphics2D g2,
             Rectangle2D bounds,
             Rectangle2D viewRect,
-            FrameBox<T> frame
+            FrameBox<T> frame,
+            int contextBefore,
+            int contextLeftRight
     ) {
         var frameWidthX = frame.endX - frame.startX;
         var frameBoxHeight = getFrameBoxHeight(g2);
-        int y = frameBoxHeight * frame.stackDepth;
+        int y = frameBoxHeight * (Math.min(frame.stackDepth - contextBefore, 0));
 
+        /*
+         * The new scale factor is
+         *
+         *                viewRect.width
+         * factor = ----------------------------
+         *           frameWidthX * bounds.width
+         */
+        double factor = viewRect.getWidth() / (bounds.getWidth() * frameWidthX);
         // Change offset to center the flame from this frame
-        double factor = (1.0 / frameWidthX) * (viewRect.getWidth() / bounds.getWidth());
-        return new ZoomTarget(new Dimension((int) (bounds.getWidth() * factor), (int) (bounds.getHeight() * factor)),
-                              new Point((int) (frame.startX * bounds.getWidth() * factor), Math.max(0, y)));
+        return new ZoomTarget(
+                new Dimension(
+                        (int) (bounds.getWidth() * factor),
+                        (int) (bounds.getHeight() * factor)
+                ),
+                new Point(
+                        (int) (frame.startX * bounds.getWidth() * factor),
+                        Math.max(0, y)
+                )
+        );
     }
 
     /**

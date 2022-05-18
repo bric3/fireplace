@@ -433,7 +433,9 @@ public class FlameGraph<T> {
                 (Graphics2D) canvas.getGraphics(),
                 canvas.getBounds(),
                 viewport.getViewRect(),
-                frame
+                frame,
+                2,
+                0
         )).ifPresent(zoomTarget -> zoom(canvas, viewport, zoomTarget));
     }
 
