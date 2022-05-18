@@ -33,7 +33,7 @@ import java.util.function.Function;
  * @param <T> The type of the frame node (depends on the source of profiling data).
  * @see FlameGraph
  */
-public class FlameGraphPainter<T> {
+class FlameGraphPainter<T> {
 
     /**
      * The font used to display frame labels

@@ -956,11 +956,11 @@ public class FlameGraph<T> {
             this.addMouseMotionListener(mouseAdapter);
         }
 
-        public void setFlameGraphPainter(FlameGraphPainter<T> flameGraphPainter) {
+        void setFlameGraphPainter(FlameGraphPainter<T> flameGraphPainter) {
             this.flameGraphPainter = flameGraphPainter;
         }
 
-        public Optional<FlameGraphPainter<T>> getFlameGraphPainter() {
+        Optional<FlameGraphPainter<T>> getFlameGraphPainter() {
             return Optional.ofNullable(flameGraphPainter);
         }
 
