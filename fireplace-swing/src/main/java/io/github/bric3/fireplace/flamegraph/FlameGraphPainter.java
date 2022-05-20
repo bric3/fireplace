@@ -676,7 +676,7 @@ class FlameGraphPainter<T> {
     ) {
         var frameWidthX = frame.endX - frame.startX;
         var frameBoxHeight = getFrameBoxHeight(g2);
-        int y = frameBoxHeight * (Math.min(frame.stackDepth - contextBefore, 0));
+        int y = frameBoxHeight * (Math.max(frame.stackDepth - contextBefore, 0));
 
         /*
          * The new scale factor is
