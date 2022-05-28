@@ -9,7 +9,7 @@
 #
 
 [versions]
-flatlaf = "2.2"
+flatlaf = "2.3"
 darklaf = "3.0.0"
 graalvm = "22.1.0.1"
 junit-jupiter = "5.8.2"
