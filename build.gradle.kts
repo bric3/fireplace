@@ -14,6 +14,7 @@ fun properties(key: String, defaultValue: Any? = null) = (project.findProperty(k
 plugins {
     id("com.github.hierynomus.license") version "0.16.1"
     id("me.qoomon.git-versioning") version "6.1.1"
+    id("biz.aQute.bnd.builder") version "6.3.0" apply false
     `maven-publish`
 }
 
@@ -60,6 +61,7 @@ configure(fireplaceModules) {
     apply(plugin = "java-library") // needed to get the java component
     apply(plugin = "maven-publish")
     apply(plugin = "signing")
+    apply(plugin = "biz.aQute.bnd.builder")
 
     // configure<JavaPluginExtension> {
     //     withSourcesJar()
@@ -84,6 +86,21 @@ configure(fireplaceModules) {
         }
 
         val jar = named<Jar>("jar") {
+            bundle {
+                val version by archiveVersion
+                bnd(
+                    mapOf(
+                        "Bundle-License" to "https://www.mozilla.org/en-US/MPL/2.0/",
+                        "Bundle-Name" to project.name,
+                        // "Bundle-Description" to project.description,
+                        "-exportcontents" to listOf(
+                            "!io.github.bric3.fireplace.internal.*",
+                            "io.github.bric3.fireplace.*",
+                        ).joinToString(";"),
+                        "-removeheaders" to "Created-By"
+                    )
+                )
+            }
             manifest.attributes(
                 "Implementation-Title" to project.name,
                 "Implementation-Version" to project.version,
