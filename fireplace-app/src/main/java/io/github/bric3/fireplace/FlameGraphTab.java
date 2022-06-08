@@ -35,6 +35,7 @@ public class FlameGraphTab extends JPanel {
     private static final Palette defaultColorPalette = Palette.DATADOG;
     private static final JfrFrameColorMode defaultFrameColorMode = JfrFrameColorMode.BY_PACKAGE;
     private static final boolean defaultPaintFrameBorder = true;
+    private static final boolean defaultShowMinimap = true;
     private FlameGraph<Node> jfrFlameGraph;
     private Consumer<FlameGraph<Node>> dataApplier;
 
@@ -42,7 +43,7 @@ public class FlameGraphTab extends JPanel {
         super(new BorderLayout());
 
         jfrFlameGraph = new FlameGraph<>();
-        jfrFlameGraph.showMinimap(false);
+        jfrFlameGraph.showMinimap(defaultShowMinimap);
         jfrFlameGraph.configureCanvas(ToolTipManager.sharedInstance()::registerComponent);
         jfrFlameGraph.putClientProperty(FlameGraph.SHOW_STATS, true);
         // jfrFlameGraph.setTooltipComponentSupplier(BalloonToolTip::new);
@@ -76,7 +77,7 @@ public class FlameGraphTab extends JPanel {
         minimapToggle.addActionListener(e -> {
             jfrFlameGraph.showMinimap(minimapToggle.isSelected());
         });
-        minimapToggle.setSelected(defaultPaintFrameBorder);
+        minimapToggle.setSelected(defaultShowMinimap);
 
         var animateToggle = new JCheckBox("Animate");
         animateToggle.addActionListener(e -> {
@@ -94,7 +95,7 @@ public class FlameGraphTab extends JPanel {
 
         var timer = new Timer(2_000, e -> {
             jfrFlameGraph = new FlameGraph<>();
-            jfrFlameGraph.showMinimap(true);
+            jfrFlameGraph.showMinimap(defaultShowMinimap);
             jfrFlameGraph.configureCanvas(ToolTipManager.sharedInstance()::registerComponent);
             jfrFlameGraph.putClientProperty(FlameGraph.SHOW_STATS, true);
             jfrFlameGraph.setMinimapShadeColorSupplier(() -> Colors.isDarkMode() ? Colors.translucent_black_40 : Colors.translucent_white_80);
