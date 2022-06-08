@@ -46,6 +46,17 @@ public interface FrameRender<T> {
         private final Font highlightedPartialFrameLabelFont;
 
         /**
+         * The space in pixels between the frame label text and the frame's border.
+         */
+        private final int frameTextPadding = 2;
+
+        /**
+         * The size of the gap at the <strong>right</strong> and <strong>bottom</strong> of each frame.
+         */
+        public int frameGapWidth = 1;
+
+
+        /**
          * The color used to draw frames that are highlighted.
          */
         private final Color highlightedColor;
@@ -74,10 +85,34 @@ public interface FrameRender<T> {
         public Font getHighlightedPartialFrameLabelFont() {
             return highlightedPartialFrameLabelFont;
         }
+
+        public int getFrameTextPadding() {
+            return frameTextPadding;
+        }
+        
+        public int getFrameGapWidth() {
+            return frameGapWidth;
+        }
+
+        public int getFrameBoxHeight(Graphics2D g2) {
+            return g2.getFontMetrics(frameLabelFont).getAscent() + (frameTextPadding * 2) + frameGapWidth * 2;
+        }
+
+        public float getFrameBoxTextOffset(Graphics2D g2) {
+            return getFrameBoxHeight(g2) - (g2.getFontMetrics(frameLabelFont).getDescent() / 2f) - frameTextPadding - frameGapWidth;
+        }
+
+
     }
 
     Font getFrameLabelFont();
     Font getPartialFrameLabelFont();
     Font getHighlightedFrameLabelFont();
     Font getHighlightedPartialFrameLabelFont();
+
+    int getFrameTextPadding();
+    int getFrameGapWidth();
+
+    int getFrameBoxHeight(Graphics2D g2);
+    float getFrameBoxTextOffset(Graphics2D g2);
 }

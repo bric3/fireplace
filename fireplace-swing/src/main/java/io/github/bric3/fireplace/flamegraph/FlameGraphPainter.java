@@ -58,11 +58,11 @@ class FlameGraphPainter<T> {
     //  * visible.
     //  */
     // private Font highlightedPartialFrameLabelFont;
-
-    /**
-     * The color used to draw frames that are highlighted.
-     */
-    public Color highlightedColor = new Color(0xFFFFE771, true);
+    //
+    // /**
+    //  * The color used to draw frames that are highlighted.
+    //  */
+    // public Color highlightedColor = new Color(0xFFFFE771, true);
 
     /**
      * The color used for the gap between frames, if it is enabled.
@@ -75,10 +75,10 @@ class FlameGraphPainter<T> {
      */
     public boolean frameGapEnabled = true;
 
-    /**
-     * The size of the gap at the right and bottom of each frame.
-     */
-    public int frameGapWidth = 1;
+    // /**
+    //  * The size of the gap at the right and bottom of each frame.
+    //  */
+    // public int frameGapWidth = 1;
 
     /**
      * A flag that controls whether a frame is drawn around the frame that the mouse pointer
@@ -103,7 +103,7 @@ class FlameGraphPainter<T> {
 
     private final int depth;
     private int visibleDepth;
-    private final int textPadding = 2;
+    // private final int textPadding = 2;
 
     /**
      * The minimum width threshold for a frame to be rendered.
@@ -201,15 +201,6 @@ class FlameGraphPainter<T> {
     public void updateUI() {
     }
 
-    // TODO move this method with padding and gap to renderer ?
-    private int getFrameBoxHeight(Graphics2D g2) {
-        return g2.getFontMetrics(frameRenderer.getFrameLabelFont()).getAscent() + (textPadding * 2) + frameGapWidth * 2;
-    }
-
-    // TODO move this method with padding and gap to renderer ?
-    private float getFrameBoxTextOffset(Graphics2D g2) {
-        return getFrameBoxHeight(g2) - (g2.getFontMetrics(frameRenderer.getFrameLabelFont()).getDescent() / 2f) - textPadding - frameGapWidth;
-    }
 
     /**
      * Returns the height of the minimap for the specified width.
@@ -248,7 +239,7 @@ class FlameGraphPainter<T> {
             return new Dimension();
         }
 
-        return new Dimension(width + insets.left + insets.right, depth * getFrameBoxHeight(g2) + insets.top + insets.bottom);
+        return new Dimension(width + insets.left + insets.right, depth * frameRenderer.getFrameBoxHeight(g2) + insets.top + insets.bottom);
     }
 
     /**
@@ -285,7 +276,7 @@ class FlameGraphPainter<T> {
         long start = System.currentTimeMillis();
         Graphics2D g2d = (Graphics2D) g2.create();
         identifyDisplayScale(g2d);
-        var frameBoxHeight = minimapMode ? minimapFrameBoxHeight : getFrameBoxHeight(g2);
+        var frameBoxHeight = minimapMode ? minimapFrameBoxHeight : frameRenderer.getFrameBoxHeight(g2);
         var flameGraphWidth = minimapMode ? viewRect.getWidth() : bounds.getWidth();
         var frameRect = new Rectangle2D.Double(); // reusable rectangle
 
@@ -367,15 +358,16 @@ class FlameGraphPainter<T> {
                         "Draw time: " + (System.currentTimeMillis() - start) + " ms";
             var nowWidth = g2d.getFontMetrics(frameRenderer.getFrameLabelFont()).stringWidth(stats);
             g2d.setColor(Color.DARK_GRAY);
-            g2d.fillRect((int) (viewRect.getX() + viewRect.getWidth() - nowWidth - textPadding * 2),
+            var frameTextPadding = frameRenderer.getFrameTextPadding();
+            g2d.fillRect((int) (viewRect.getX() + viewRect.getWidth() - nowWidth - frameTextPadding * 2),
                          (int) (viewRect.getY() + viewRect.getHeight() - frameBoxHeight),
-                         nowWidth + textPadding * 2,
+                         nowWidth + frameTextPadding * 2,
                          frameBoxHeight);
 
             g2d.setColor(Color.YELLOW);
             g2d.drawString(stats,
-                           (int) (viewRect.getX() + viewRect.getWidth() - nowWidth - textPadding),
-                           (int) (viewRect.getY() + viewRect.getHeight() - textPadding));
+                           (int) (viewRect.getX() + viewRect.getWidth() - nowWidth - frameTextPadding),
+                           (int) (viewRect.getY() + viewRect.getHeight() - frameTextPadding));
         }
 
         g2d.dispose();
@@ -411,7 +403,7 @@ class FlameGraphPainter<T> {
         if (hoveredFrame == null || !paintHoveredFrameBorder) {
             return;
         }
-        var gapThickness = frameGapEnabled ? frameGapWidth : 0;
+        var gapThickness = frameGapEnabled ? frameRenderer.getFrameGapWidth() : 0;
 
         // DISCLAIMER: it happens that drawing perfectly aligned rect is very difficult with
         // Graphics2D.
@@ -503,7 +495,7 @@ class FlameGraphPainter<T> {
         var text = calculateFrameText(
                 g2,
                 labelFont,
-                paintableIntersection.getWidth() - textPadding * 2 - frameGapWidth * 2,
+                paintableIntersection.getWidth() - frameRenderer.getFrameTextPadding() * 2 - frameRenderer.getFrameGapWidth() * 2,
                 frame
         );
 
@@ -515,8 +507,8 @@ class FlameGraphPainter<T> {
         g2.setColor(Colors.foregroundColor(bgColor));
         g2.drawString(
                 text,
-                (float) (paintableIntersection.getX() + textPadding + frameBorderWidth),
-                (float) (frameRect.getY() + getFrameBoxTextOffset(g2))
+                (float) (paintableIntersection.getX() + frameRenderer.getFrameTextPadding() + frameBorderWidth),
+                (float) (frameRect.getY() + frameRenderer.getFrameBoxTextOffset(g2))
         );
     }
 
@@ -529,7 +521,7 @@ class FlameGraphPainter<T> {
     ) {
         var gapThickness = minimapMode ?
                            0 :
-                           frameGapEnabled ? frameGapWidth : 0;
+                           frameGapEnabled ? frameRenderer.getFrameGapWidth() : 0;
 
         var x = frameRect.getX();
         var y = frameRect.getY();
@@ -555,7 +547,10 @@ class FlameGraphPainter<T> {
             Rectangle2D bounds,
             FrameBox<T> frame
     ) {
-        var frameBoxHeight = getFrameBoxHeight(g2);
+        // TODO delegate to frame renderer ?
+
+        var frameBoxHeight = frameRenderer.getFrameBoxHeight(g2);
+        var frameGapWidth = frameRenderer.getFrameGapWidth();
 
         var rect = new Rectangle();
         rect.x = (int) (bounds.getWidth() * frame.startX) - frameGapWidth; // + internalPadding;
@@ -579,7 +574,7 @@ class FlameGraphPainter<T> {
             Rectangle2D bounds,
             Point point
     ) {
-        int depth = point.y / getFrameBoxHeight(g2);
+        int depth = point.y / frameRenderer.getFrameBoxHeight(g2);
         double xLocation = point.x / bounds.getWidth();
         double visibilityThreshold = frameWidthVisibilityThreshold / bounds.getWidth();
 
@@ -687,7 +682,7 @@ class FlameGraphPainter<T> {
             int contextLeftRight
     ) {
         var frameWidthX = frame.endX - frame.startX;
-        var frameBoxHeight = getFrameBoxHeight(g2);
+        var frameBoxHeight = frameRenderer.getFrameBoxHeight(g2);
         int y = frameBoxHeight * (Math.max(frame.stackDepth - contextBefore, 0));
 
         /*
