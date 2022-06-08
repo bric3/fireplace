@@ -31,6 +31,7 @@ public class JfrFrameNodeConverter {
                 model.getRoot(),
                 Node::getChildren,
                 Node::getCumulativeWeight,
+                n -> n.getChildren().stream().mapToDouble(Node::getCumulativeWeight).sum(),
                 0.0d,
                 1.0d,
                 0

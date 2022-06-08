@@ -115,6 +115,58 @@ public class FrameBox<T> {
             double startX,
             double endX,
             int depth) {
+        flattenAndCalculateCoordinate(
+                accumulator,
+                fromNode,
+                getChildren,
+                nodeWeight,
+                nodeWeight,
+                startX,
+                endX,
+                depth
+        );
+    }
+
+    /**
+     * Helper method that will flatten a tree by traversing it (DFS algorithm).
+     * <p>
+     * Example usage:
+     * <pre><code>
+     * var nodes = new ArrayList&lt;FrameBox&lt;Node&gt;&gt;();
+     *
+     * FrameBox.flattenAndCalculateCoordinate(
+     *         nodes,
+     *         model.getRoot(),
+     *         Node::getChildren,
+     *         Node::getCumulativeWeight,
+     *         0.0d,
+     *         1.0d,
+     *         0
+     * );
+     *
+     * flameGraph.setData(nodes, ...);
+     * </code></pre>
+     *
+     * @param <T>             The node type.
+     * @param accumulator     The flattened list of nodes.
+     * @param fromNode        Node to start from.
+     * @param getChildren     Get node children function.
+     * @param nodeWeight      The node weight function.
+     * @param totalNodeWeight
+     * @param startX          Start boundary on the X axis.
+     * @param endX            End boundary on the X axis.
+     * @param depth           The node depth.
+     */
+    public static <T> void flattenAndCalculateCoordinate(
+            List<FrameBox<T>> accumulator,
+            T fromNode,
+            Function<T, List<T>> getChildren,
+            ToDoubleFunction<T> nodeWeight,
+            ToDoubleFunction<T> totalNodeWeight,
+            double startX,
+            double endX,
+            int depth
+    ) {
         accumulator.add(new FrameBox<>(fromNode, startX, endX, depth));
 
         var children = getChildren.apply(fromNode);
@@ -124,7 +176,7 @@ public class FrameBox<T> {
 
         depth++;
         var parentWidth = endX - startX;
-        var totalWeight = nodeWeight.applyAsDouble(fromNode);
+        var totalWeight = totalNodeWeight.applyAsDouble(fromNode);
         for (var node : children) {
             var nodeWidth = (nodeWeight.applyAsDouble(node) / totalWeight) * parentWidth;
             endX = startX + nodeWidth;
