@@ -349,7 +349,8 @@ public class FlameGraph<T> {
         var flameGraphPainter = new FlameGraphPainter<>(
                 Objects.requireNonNull(frames),
                 Objects.requireNonNull(frameToString),
-                Objects.requireNonNull(frameColorFunction)
+                Objects.requireNonNull(frameColorFunction),
+                new FrameRender.DefaultFrameRender<>()
         );
         this.frames = Objects.requireNonNull(frames);
 
