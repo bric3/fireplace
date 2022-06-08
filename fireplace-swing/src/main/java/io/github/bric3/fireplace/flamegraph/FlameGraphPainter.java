@@ -34,42 +34,6 @@ import java.util.function.Function;
  * @see FlameGraph
  */
 class FlameGraphPainter<T> {
-
-    // /**
-    //  * The font used to display frame labels
-    //  */
-    // private Font frameLabelFont;
-    //
-    // /**
-    //  * If a frame is clipped, we'll shift the label to make it visible but show it with
-    //  * a modified (italicised by default) font to highlight that the frame is only partially
-    //  * visible.
-    //  */
-    // private Font partialFrameLabelFont;
-    //
-    // /**
-    //  * The font used to display frame labels
-    //  */
-    // private Font highlightedFrameLabelFont;
-    //
-    // /**
-    //  * If a frame is clipped, we'll shift the label to make it visible but show it with
-    //  * a modified (italicised by default) font to highlight that the frame is only partially
-    //  * visible.
-    //  */
-    // private Font highlightedPartialFrameLabelFont;
-    //
-    // /**
-    //  * The color used to draw frames that are highlighted.
-    //  */
-    // public Color highlightedColor = new Color(0xFFFFE771, true);
-
-    /**
-     * The color used for the gap between frames, if it is enabled.
-     * Normally the same color as the panel background.
-     */
-    public Color frameGapColor;
-
     /**
      * A flag that controls whether a gap is shown at the right and bottom of each frame.
      */
@@ -161,40 +125,7 @@ class FlameGraphPainter<T> {
         this.frameColorFunction = frameColorFunction;
         updateUI();
     }
-
-    // /**
-    //  * Returns the font used to display frame labels.
-    //  *
-    //  * @return The font used to display frame labels.
-    //  */
-    // public Font getFrameLabelFont() {
-    //     return this.frameLabelFont;
-    // }
-    //
-    // /**
-    //  * Sets the font used to display frame labels.  Internally an italicised version is also
-    //  * created for use in special cases.
-    //  *
-    //  * @param font the font ({@code null} not permitted).
-    //  */
-    // public void setFrameLabelFont(Font font) {
-    //     Objects.requireNonNull(font);
-    //     this.frameLabelFont = font;
-    //     this.partialFrameLabelFont = font.deriveFont(Font.ITALIC);
-    //     this.highlightedFrameLabelFont = font.deriveFont(Font.BOLD);
-    //     this.highlightedPartialFrameLabelFont = font.deriveFont(Font.ITALIC | Font.BOLD);
-    // }
-    //
-    // /**
-    //  * Sets the color used for highlighting frames.
-    //  *
-    //  * @param highlightedColor the highlight color.
-    //  */
-    // public void setHighlightedColor(Color highlightedColor) {
-    //     Objects.requireNonNull(highlightedColor);
-    //     this.highlightedColor = highlightedColor;
-    // }
-
+    
     /**
      * This method is used to resync colors when the LaF changes
      */
@@ -301,7 +232,6 @@ class FlameGraphPainter<T> {
                                      hoveredFrame == rootFrame,
                                      false,
                                      selectedFrame != null && rootFrame.stackDepth < selectedFrame.stackDepth),
-                        frameGapColor,
                         minimapMode
                 );
             }
@@ -338,7 +268,6 @@ class FlameGraphPainter<T> {
                                              frame.stackDepth < selectedFrame.stackDepth
                                              || frame.endX <= selectedFrame.startX
                                              || frame.startX >= selectedFrame.endX)),
-                        frameGapColor,
                         minimapMode
                 );
             }
@@ -474,7 +403,6 @@ class FlameGraphPainter<T> {
      * @param paintableIntersection the intersection between the frame rectangle and the visible region
      *                              (used to position the text label).
      * @param bgColor               the background color.
-     * @param gapColor              the gap color.
      * @param minimapMode           is the minimap in the process of being rendered?
      */
     private void paintFrame(
@@ -484,10 +412,9 @@ class FlameGraphPainter<T> {
             Rectangle2D paintableIntersection,
             Font labelFont,
             Color bgColor,
-            Color gapColor,
             boolean minimapMode
     ) {
-        paintFrameRectangle(g2, frameRect, bgColor, gapColor, minimapMode);
+        paintFrameRectangle(g2, frameRect, bgColor, minimapMode);
         if (minimapMode) {
             return;
         }
@@ -516,7 +443,6 @@ class FlameGraphPainter<T> {
             Graphics2D g2,
             Rectangle2D frameRect,
             Color bgColor,
-            Color frameGapColor,
             boolean minimapMode
     ) {
         var gapThickness = minimapMode ?
