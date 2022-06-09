@@ -28,17 +28,28 @@ import static io.github.bric3.fireplace.flamegraph.FrameRenderingFlags.isHighlig
 import static io.github.bric3.fireplace.flamegraph.FrameRenderingFlags.isHighlighting;
 import static io.github.bric3.fireplace.flamegraph.FrameRenderingFlags.isHovered;
 
+/**
+ * Strategy for choosing the colors of a frame.
+ *
+ * @param <T> The type of the frame node (depends on the source of profiling data).
+ */
 public interface FrameColorProvider<T> {
     class ColorModel {
         public Color background;
         public Color foreground;
 
-        public ColorModel(Color background, Color foreground) {
+        /**
+         * Data-structure that hold the computed colors for a frame.
+         *
+         * @param background The background color of the frame.
+         * @param foreground The foreground color of the frame.
+         */
+        ColorModel(Color background, Color foreground) {
             this.background = background;
             this.foreground = foreground;
         }
 
-        public ColorModel set(Color background, Color foreground) {
+        ColorModel set(Color background, Color foreground) {
             this.background = background;
             this.foreground = foreground;
             return this;
@@ -49,10 +60,22 @@ public interface FrameColorProvider<T> {
         }
     }
 
+    /**
+     * Returns the color model for the given <code>frame</code> according to the given <code>flags</code>.
+     *
+     * <p>
+     *     An implementation may choose to return the same instance of color model
+     *     for all frames to save allocations.
+     * </p>
+     *
+     * @param frame The frame
+     * @param flags The flags
+     * @return The color model for this frame
+     */
     ColorModel getColors(FrameBox<T> frame, int flags) ;
 
-    static <T> FrameColorProvider<T> defaultColorProvider(Function<FrameBox<T>, Color> frameColorFunction) {
-        Objects.requireNonNull(frameColorFunction, "frameColorFunction");
+    static <T> FrameColorProvider<T> defaultColorProvider(Function<FrameBox<T>, Color> frameBaseColorFunction) {
+        Objects.requireNonNull(frameBaseColorFunction, "frameColorFunction");
         return new FrameColorProvider<T>() {
             /**
              * The color used to draw frames that are highlighted.
@@ -63,7 +86,7 @@ public interface FrameColorProvider<T> {
 
             @Override
             public ColorModel getColors(FrameBox<T> frame, int flags) {
-                Color baseBackgroundColor = frameColorFunction.apply(frame);
+                Color baseBackgroundColor = frameBaseColorFunction.apply(frame);
                 Color backgroundColor = baseBackgroundColor;
 
                 if (isFocusing(flags) && !isFocusedFrame(flags)) {

@@ -21,6 +21,11 @@ import java.awt.*;
 import static io.github.bric3.fireplace.flamegraph.FrameRenderingFlags.isHighlightedFrame;
 import static io.github.bric3.fireplace.flamegraph.FrameRenderingFlags.isPartialFrame;
 
+/**
+ * Strategy for choosing the font of a frame.
+ *
+ * @param <T> The type of the frame node (depends on the source of profiling data).
+ */
 public interface FrameFontProvider<T> {
 
     /**
@@ -31,7 +36,7 @@ public interface FrameFontProvider<T> {
      * parameter is <code>null</code>. Possibly honoring the <code>flags</code>.
      * </p>
      *
-     * @param frame The frame to get the font for, can be null.
+     * @param frame The frame to get the font for, can be <code>null</code>.
      * @param flags The flags
      * @return The font to use for the frame and flags.
      */
