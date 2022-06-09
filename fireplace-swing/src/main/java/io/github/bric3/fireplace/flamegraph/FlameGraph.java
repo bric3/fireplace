@@ -21,4 +21,11 @@ package io.github.bric3.fireplace.flamegraph;
  * @param <T> The type of frame node
  */
 @Deprecated(forRemoval = true)
-public class FlameGraph<T> extends FlamegraphView<T> {}
+public class FlameGraph<T> extends FlamegraphView<T> {
+
+    @Deprecated(forRemoval = true)
+    public interface ZoomAction extends FlamegraphView.ZoomAction {}
+    
+    @Deprecated(forRemoval = true)
+    public interface HoveringListener<T> extends FlamegraphView.HoveringListener<T> {}
+}
