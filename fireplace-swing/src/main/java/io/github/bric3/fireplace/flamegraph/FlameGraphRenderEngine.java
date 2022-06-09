@@ -52,8 +52,7 @@ class FlameGraphRenderEngine<T> {
     public Color frameBorderColor = Colors.panelForeground;
 
     private final int depth;
-    private int
-            visibleDepth;
+    private int visibleDepth;
 
     /**
      * The minimum width threshold for a frame to be rendered.
@@ -80,7 +79,8 @@ class FlameGraphRenderEngine<T> {
      */
     protected boolean paintDetails = true;
     private Set<FrameBox<T>> toHighlight = Collections.emptySet();
-    private FrameRender<T> frameRenderer;
+    private final FrameRender<T> frameRenderer;
+    private final Font detailsFont = new Font(Font.SANS_SERIF, Font.PLAIN, 12);
 
     /**
      * Creates a new instance to render the specified list of frames.
@@ -197,20 +197,21 @@ class FlameGraphRenderEngine<T> {
             frameRect.y = frameBoxHeight * rootFrame.stackDepth;
             frameRect.height = frameBoxHeight;
 
-            var intersection = viewRect.createIntersection(frameRect);
-            if (!intersection.isEmpty()) {
+            var paintableIntersection = viewRect.createIntersection(frameRect);
+            if (!paintableIntersection.isEmpty()) {
                 frameRenderer.paintFrame(
                         g2d,
                         frameRect,
                         rootFrame,
-                        intersection,
-                        FrameRender.toFlags(
+                        paintableIntersection,
+                        FrameRenderingFlags.toFlags(
                                 minimapMode,
                                 false,
                                 false, // never make root part of highlighting
                                 hoveredFrame == rootFrame,
                                 selectedFrame != null,
-                                selectedFrame == rootFrame
+                                selectedFrame == rootFrame,
+                                frameRect.getX() == paintableIntersection.getX()
                         )
                 );
             }
@@ -231,8 +232,6 @@ class FlameGraphRenderEngine<T> {
             frameRect.height = frameBoxHeight;
 
             var paintableIntersection = viewRect.createIntersection(frameRect);
-
-
             if (!paintableIntersection.isEmpty()) {
                 frameRenderer.paintFrame(
                         g2d,
@@ -240,7 +239,7 @@ class FlameGraphRenderEngine<T> {
                         frame,
                         paintableIntersection,
                         // choose font depending on whether the left-side of the frame is clipped
-                        FrameRender.toFlags(
+                        FrameRenderingFlags.toFlags(
                                 minimapMode,
                                 !toHighlight.isEmpty(),
                                 toHighlight.contains(frame),
@@ -249,7 +248,8 @@ class FlameGraphRenderEngine<T> {
                                 (selectedFrame != null
                                  && frame.stackDepth >= selectedFrame.stackDepth
                                  && frame.startX >= selectedFrame.startX
-                                 && frame.endX <= selectedFrame.endX)
+                                 && frame.endX <= selectedFrame.endX),
+                                frameRect.getX() < paintableIntersection.getX()
                         )
                 );
             }
@@ -267,7 +267,7 @@ class FlameGraphRenderEngine<T> {
                         " Coordinate (" + viewRect.getX() + ", " + viewRect.getY() + ") " +
                         "size (" + viewRect.getWidth() + ", " + viewRect.getHeight() + "), " +
                         "Draw time: " + (System.currentTimeMillis() - start) + " ms";
-            var nowWidth = g2d.getFontMetrics(frameRenderer.getFrameLabelFont()).stringWidth(stats);
+            var nowWidth = g2d.getFontMetrics(detailsFont).stringWidth(stats);
             g2d.setColor(Color.DARK_GRAY);
             var frameTextPadding = frameRenderer.getFrameTextPadding();
             g2d.fillRect((int) (viewRect.getX() + viewRect.getWidth() - nowWidth - frameTextPadding * 2),

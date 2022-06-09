@@ -342,6 +342,7 @@ public class FlameGraph<T> {
      * @param frameColorFunction  the frame to background color function.
      * @param tooltipTextFunction the frame tooltip text function.
      */
+    @Deprecated(forRemoval = true)
     public void setConfigurationAndData(List<FrameBox<T>> frames,
                                         NodeDisplayStringProvider<T> frameToString,
                                         Function<FrameBox<T>, Color> frameColorFunction,
@@ -350,7 +351,8 @@ public class FlameGraph<T> {
                 Objects.requireNonNull(frames),
                 new FrameRender<>(
                         Objects.requireNonNull(frameToString),
-                        Objects.requireNonNull(frameColorFunction)
+                        Objects.requireNonNull(frameColorFunction),
+                        FrameFontProvider.defaultFontProvider()
                 )
         );
         this.frames = Objects.requireNonNull(frames);

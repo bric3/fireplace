@@ -23,6 +23,13 @@ import java.awt.*;
 import java.awt.geom.Rectangle2D;
 import java.util.function.Function;
 
+import static io.github.bric3.fireplace.flamegraph.FrameRenderingFlags.isFocusedFrame;
+import static io.github.bric3.fireplace.flamegraph.FrameRenderingFlags.isFocusing;
+import static io.github.bric3.fireplace.flamegraph.FrameRenderingFlags.isHighlightedFrame;
+import static io.github.bric3.fireplace.flamegraph.FrameRenderingFlags.isHighlighting;
+import static io.github.bric3.fireplace.flamegraph.FrameRenderingFlags.isHovered;
+import static io.github.bric3.fireplace.flamegraph.FrameRenderingFlags.isMinimapMode;
+
 /**
  * Single frame renderer.
  *
@@ -31,74 +38,9 @@ import java.util.function.Function;
  * @see FlameGraphRenderEngine
  */
 class FrameRender<T> {
-    public static int MINIMAP_MODE = 1;
-    public static int HIGHLIGHTING = 1 << 1;
-    public static int HIGHLIGHTED_FRAME = 1 << 2;
-    public static int HOVERED = 1 << 3;
-    public static int FOCUSING = 1 << 4;
-    public static int FOCUSED_FRAME = 1 << 5;
-
-    public static int toFlags(boolean minimapMode, boolean highlightingOn, boolean highlighted, boolean hovered, boolean focusing, boolean focusedFrame) {
-        return (minimapMode ? MINIMAP_MODE : 0)
-               | (highlightingOn ? HIGHLIGHTING : 0)
-               | (highlighted ? HIGHLIGHTED_FRAME : 0)
-               | (hovered ? HOVERED : 0)
-               | (focusing ? FOCUSING : 0)
-               | (focusedFrame ? FOCUSED_FRAME : 0);
-    }
-
-    public static boolean isMinimapMode(int flags) {
-        return (flags & MINIMAP_MODE) != 0;
-    }
-
-    public static boolean isHighlighting(int flags) {
-        return (flags & HIGHLIGHTING) != 0;
-    }
-
-    public static boolean isHighlightedFrame(int flags) {
-        return (flags & HIGHLIGHTED_FRAME) != 0;
-    }
-
-    public static boolean isHovered(int flags) {
-        return (flags & HOVERED) != 0;
-    }
-
-    public static boolean isFocusing(int flags) {
-        return (flags & FOCUSING) != 0;
-    }
-
-    public static boolean isFocusedFrame(int flags) {
-        return (flags & FOCUSED_FRAME) != 0;
-    }
-
-    
     private final NodeDisplayStringProvider<T> nodeToTextProvider;
     private Function<FrameBox<T>, Color> frameColorFunction;
-
-
-    /**
-     * The font used to display frame labels
-     */
-    private final Font frameLabelFont;
-
-    /**
-     * If a frame is clipped, we'll shift the label to make it visible but show it with
-     * a modified (italicised by default) font to highlight that the frame is only partially
-     * visible.
-     */
-    private final Font partialFrameLabelFont;
-
-    /**
-     * The font used to display frame labels
-     */
-    private final Font highlightedFrameLabelFont;
-
-    /**
-     * If a frame is clipped, we'll shift the label to make it visible but show it with
-     * a modified (italicised by default) font to highlight that the frame is only partially
-     * visible.
-     */
-    private final Font highlightedPartialFrameLabelFont;
+    private final FrameFontProvider<T> frameFontProvider;
 
     /**
      * The space in pixels between the frame label text and the frame's border.
@@ -128,34 +70,17 @@ class FrameRender<T> {
      */
     public FrameRender(
             NodeDisplayStringProvider<T> nodeToTextProvider,
-            Function<FrameBox<T>, Color> frameColorFunction
+            Function<FrameBox<T>, Color> frameColorFunction,
+            FrameFontProvider<T> frameFontProvider
     ) {
         this.nodeToTextProvider = nodeToTextProvider;
         this.frameColorFunction = frameColorFunction;
+        this.frameFontProvider = frameFontProvider;
 
-        this.frameLabelFont = new Font(Font.SANS_SERIF, Font.PLAIN, 12);
-        this.partialFrameLabelFont = new Font(Font.SANS_SERIF, Font.ITALIC, 12);
-        this.highlightedFrameLabelFont = new Font(Font.SANS_SERIF, Font.PLAIN | Font.BOLD, 12);
-        this.highlightedPartialFrameLabelFont = new Font(Font.SANS_SERIF, Font.ITALIC | Font.BOLD, 12);
+
         this.highlightedColor = new Color(0xFFFFE771, true);
     }
-
-    public Font getFrameLabelFont() {
-        return this.frameLabelFont;
-    }
-
-    public Font getPartialFrameLabelFont() {
-        return partialFrameLabelFont;
-    }
-
-    public Font getHighlightedFrameLabelFont() {
-        return highlightedFrameLabelFont;
-    }
-
-    public Font getHighlightedPartialFrameLabelFont() {
-        return highlightedPartialFrameLabelFont;
-    }
-
+    
     public int getFrameTextPadding() {
         return frameTextPadding;
     }
@@ -183,11 +108,11 @@ class FrameRender<T> {
     public Stroke frameBorderStroke = new BasicStroke(frameBorderWidth);
 
     public int getFrameBoxHeight(Graphics2D g2) {
-        return g2.getFontMetrics(frameLabelFont).getAscent() + (frameTextPadding * 2) + frameGapWidth * 2;
+        return g2.getFontMetrics(frameFontProvider.getFont(null, 0)).getAscent() + (frameTextPadding * 2) + frameGapWidth * 2;
     }
 
     public float getFrameBoxTextOffset(Graphics2D g2) {
-        return getFrameBoxHeight(g2) - (g2.getFontMetrics(frameLabelFont).getDescent() / 2f) - frameTextPadding - frameGapWidth;
+        return getFrameBoxHeight(g2) - (g2.getFontMetrics(frameFontProvider.getFont(null, 0)).getDescent() / 2f) - frameTextPadding - frameGapWidth;
     }
 
 
@@ -216,11 +141,11 @@ class FrameRender<T> {
             return;
         }
 
-        var labelFont = tweakLabelFont(frameRect, paintableIntersection, flags);
+        var frameFont = frameFontProvider.getFont(frame, flags);
 
         var text = calculateFrameText(
                 g2,
-                labelFont,
+                frameFont,
                 paintableIntersection.getWidth() - frameTextPadding * 2 - frameGapWidth * 2,
                 frame
         );
@@ -229,31 +154,13 @@ class FrameRender<T> {
             return;
         }
 
-        g2.setFont(labelFont);
+        g2.setFont(frameFont);
         g2.setColor(Colors.foregroundColor(bgColor));
         g2.drawString(
                 text,
                 (float) (paintableIntersection.getX() + frameTextPadding + frameBorderWidth),
                 (float) (frameRect.getY() + getFrameBoxTextOffset(g2))
         );
-    }
-
-    // TODO extract as strategy
-    private Font tweakLabelFont(
-            Rectangle2D frameRect,
-            Rectangle2D intersection,
-            int flags
-    ) {
-        if (isHighlightedFrame(flags)) {
-            return frameRect.getX() == intersection.getX() ?
-                   getHighlightedFrameLabelFont() :
-                   // when parent frame are larger than view port
-                   getHighlightedPartialFrameLabelFont();
-        }
-        return frameRect.getX() == intersection.getX() ?
-               getFrameLabelFont() :
-               // when parent frame are larger than view port
-               getPartialFrameLabelFont();
     }
 
     // TODO extract as strategy
