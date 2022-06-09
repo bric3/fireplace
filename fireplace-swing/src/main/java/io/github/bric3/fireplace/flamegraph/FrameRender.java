@@ -23,6 +23,13 @@ import java.awt.*;
 import java.awt.geom.Rectangle2D;
 import java.util.function.Function;
 
+/**
+ * Single frame renderer.
+ *
+ * @param <T> The type of the frame node (depends on the source of profiling data).
+ * @see FlameGraph
+ * @see FlameGraphRenderEngine
+ */
 class FrameRender<T> {
     public static int MINIMAP_MODE = 1;
     public static int HIGHLIGHTING = 1 << 1;

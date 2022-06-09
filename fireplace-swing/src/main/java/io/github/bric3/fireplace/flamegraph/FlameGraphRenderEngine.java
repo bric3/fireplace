@@ -23,15 +23,23 @@ import java.util.function.Consumer;
 
 /**
  * Engine that paint a flamegraph.
+ *
  * <p>
- * Note this class a some field that are public and non final; this allows
- * to quickly toy with this tool, use with caution, or not at all.
+ * This controls the global flamegraph rendering, and allow to
+ * the UI to ask where frames are.
+ * The rendering of a single frame is delegated to its {@link FrameRender}.
+ * </p>
+ *
+ * <p>
+ * Note this class have some field that are public and non final; this allows
+ * to quickly toy with this tool, use with caution, or better not at all.
  * </p>
  *
  * @param <T> The type of the frame node (depends on the source of profiling data).
  * @see FlameGraph
+ * @see FrameRender
  */
-class FlameGraphPainter<T> {
+class FlameGraphRenderEngine<T> {
     /**
      * A flag that controls whether a frame is drawn around the frame that the mouse pointer
      * hovers over.
@@ -44,7 +52,8 @@ class FlameGraphPainter<T> {
     public Color frameBorderColor = Colors.panelForeground;
 
     private final int depth;
-    private int visibleDepth;
+    private int
+            visibleDepth;
 
     /**
      * The minimum width threshold for a frame to be rendered.
@@ -79,7 +88,7 @@ class FlameGraphPainter<T> {
      * @param frames        the frames to be displayed.
      * @param frameRenderer a configured single frame renderer.
      */
-    public FlameGraphPainter(
+    public FlameGraphRenderEngine(
             List<FrameBox<T>> frames,
             FrameRender<T> frameRenderer
     ) {
@@ -210,7 +219,6 @@ class FlameGraphPainter<T> {
         // paint real flames
         for (int i = 1; i < frames.size(); i++) {
             var frame = frames.get(i);
-            // TODO Can we do cheaper checks like depth is outside range etc
 
             frameRect.x = (int) (flameGraphWidth * frame.startX); //+ internalPadding;
             frameRect.width = ((int) (flameGraphWidth * frame.endX)) - frameRect.x; //- internalPadding;

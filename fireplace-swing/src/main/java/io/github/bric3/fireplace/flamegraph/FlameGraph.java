@@ -62,7 +62,7 @@ import static java.lang.Boolean.TRUE;
  * </p>
  *
  * @param <T> The type of the node data.
- * @see FlameGraphPainter
+ * @see FlameGraphRenderEngine
  */
 public class FlameGraph<T> {
     /**
@@ -346,7 +346,7 @@ public class FlameGraph<T> {
                                         NodeDisplayStringProvider<T> frameToString,
                                         Function<FrameBox<T>, Color> frameColorFunction,
                                         Function<FrameBox<T>, String> tooltipTextFunction) {
-        var flameGraphPainter = new FlameGraphPainter<>(
+        var flameGraphPainter = new FlameGraphRenderEngine<>(
                 Objects.requireNonNull(frames),
                 new FrameRender<>(
                         Objects.requireNonNull(frameToString),
@@ -573,7 +573,7 @@ public class FlameGraph<T> {
                 hoveredFrameRectangle = null;
                 hoveredFrame = null;
                 canvas.getFlameGraphPainter()
-                      .ifPresent(FlameGraphPainter::stopHover);
+                      .ifPresent(FlameGraphRenderEngine::stopHover);
                 canvas.repaint();
                 if (hoveringListener != null) {
                     hoveringListener.onStopHover(e);
@@ -656,7 +656,7 @@ public class FlameGraph<T> {
 
         private Image minimap;
         private JToolTip toolTip;
-        private FlameGraphPainter<T> flameGraphPainter;
+        private FlameGraphRenderEngine<T> flameGraphRenderEngine;
         private Function<FrameBox<T>, String> tooltipToTextFunction;
         private Dimension flameGraphDimension;
         private int minimapWidth = 200;
@@ -677,8 +677,8 @@ public class FlameGraph<T> {
             this(null);
         }
 
-        public FlameGraphCanvas(FlameGraphPainter<T> flameGraphPainter) {
-            this.flameGraphPainter = flameGraphPainter;
+        public FlameGraphCanvas(FlameGraphRenderEngine<T> flameGraphRenderEngine) {
+            this.flameGraphRenderEngine = flameGraphRenderEngine;
         }
 
         /**
@@ -697,14 +697,14 @@ public class FlameGraph<T> {
             Dimension defaultDimension = super.getPreferredSize();
             defaultDimension = (defaultDimension == null) ? new Dimension(100, 50) : defaultDimension;
 
-            if (flameGraphPainter == null) {
+            if (flameGraphRenderEngine == null) {
                 return defaultDimension;
             }
 
             Insets insets = getInsets();
-            var flameGraphDimension = flameGraphPainter.computeFlameGraphDimension((Graphics2D) getGraphics(),
-                                                                                   getWidth(),
-                                                                                   insets
+            var flameGraphDimension = flameGraphRenderEngine.computeFlameGraphDimension((Graphics2D) getGraphics(),
+                                                                                        getWidth(),
+                                                                                        insets
             );
             defaultDimension.width = Math.max(defaultDimension.width, flameGraphDimension.width + insets.left + insets.right);
             defaultDimension.height = Math.max(defaultDimension.height, flameGraphDimension.height + insets.top + insets.bottom);
@@ -722,7 +722,7 @@ public class FlameGraph<T> {
             super.paintComponent(g);
             Graphics2D g2 = (Graphics2D) g.create();
             var visibleRect = getVisibleRect();
-            if (flameGraphPainter == null) {
+            if (flameGraphRenderEngine == null) {
                 String message = "No data to display";
                 Font font = g2.getFont();
                 // calculate center position
@@ -734,8 +734,8 @@ public class FlameGraph<T> {
                 return;
             }
 
-            flameGraphPainter.paintDetails = getClientProperty(SHOW_STATS) == TRUE;
-            flameGraphPainter.paint(g2, getBounds(), visibleRect);
+            flameGraphRenderEngine.paintDetails = getClientProperty(SHOW_STATS) == TRUE;
+            flameGraphRenderEngine.paint(g2, getBounds(), visibleRect);
             paintMinimap(g2, visibleRect);
             g2.dispose();
         }
@@ -831,13 +831,13 @@ public class FlameGraph<T> {
 
 
         private void triggerMinimapGeneration() {
-            if (!showMinimap || flameGraphPainter == null) {
+            if (!showMinimap || flameGraphRenderEngine == null) {
                 repaintMinimapArea();
                 return;
             }
 
             CompletableFuture.runAsync(() -> {
-                var height = flameGraphPainter.computeFlameGraphMinimapHeight(minimapWidth);
+                var height = flameGraphRenderEngine.computeFlameGraphMinimapHeight(minimapWidth);
                 if (height == 0) {
                     return;
                 }
@@ -851,7 +851,7 @@ public class FlameGraph<T> {
                 minimapGraphics.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
 
                 Rectangle bounds = new Rectangle(minimapWidth, height);
-                flameGraphPainter.paintMinimap(minimapGraphics, bounds);
+                flameGraphRenderEngine.paintMinimap(minimapGraphics, bounds);
                 minimapGraphics.dispose();
 
                 SwingUtilities.invokeLater(() -> this.setMinimapImage(minimapImage));
@@ -887,8 +887,8 @@ public class FlameGraph<T> {
                         return;
                     }
                     FlameGraphCanvas<T> canvas = FlameGraphCanvas.this;
-                    flameGraphPainter.getFrameAt((Graphics2D) canvas.getGraphics(), canvas.getBounds(), e.getPoint())
-                                     .ifPresent(frame -> selectedFrameConsumer.accept(frame, e));
+                    flameGraphRenderEngine.getFrameAt((Graphics2D) canvas.getGraphics(), canvas.getBounds(), e.getPoint())
+                                          .ifPresent(frame -> selectedFrameConsumer.accept(frame, e));
                 }
 
                 @Override
@@ -913,8 +913,8 @@ public class FlameGraph<T> {
                         return;
                     }
                     FlameGraphCanvas<T> canvas = FlameGraphCanvas.this;
-                    flameGraphPainter.getFrameAt((Graphics2D) canvas.getGraphics(), canvas.getBounds(), e.getPoint())
-                                     .ifPresent(frame -> popupConsumer.accept(frame, e));
+                    flameGraphRenderEngine.getFrameAt((Graphics2D) canvas.getGraphics(), canvas.getBounds(), e.getPoint())
+                                          .ifPresent(frame -> popupConsumer.accept(frame, e));
                 }
 
                 @Override
@@ -960,12 +960,12 @@ public class FlameGraph<T> {
             this.addMouseMotionListener(mouseAdapter);
         }
 
-        void setFlameGraphPainter(FlameGraphPainter<T> flameGraphPainter) {
-            this.flameGraphPainter = flameGraphPainter;
+        void setFlameGraphPainter(FlameGraphRenderEngine<T> flameGraphRenderEngine) {
+            this.flameGraphRenderEngine = flameGraphRenderEngine;
         }
 
-        Optional<FlameGraphPainter<T>> getFlameGraphPainter() {
-            return Optional.ofNullable(flameGraphPainter);
+        Optional<FlameGraphRenderEngine<T>> getFlameGraphPainter() {
+            return Optional.ofNullable(flameGraphRenderEngine);
         }
 
         public void setToolTipTextFunction(Function<FrameBox<T>, String> tooltipTextFunction) {
