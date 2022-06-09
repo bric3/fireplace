@@ -2,9 +2,9 @@ package io.github.bric3.fireplace;
 
 import io.github.bric3.fireplace.core.ui.Colors.Palette;
 import io.github.bric3.fireplace.flamegraph.ColorMapper;
-import io.github.bric3.fireplace.flamegraph.FlameGraph;
+import io.github.bric3.fireplace.flamegraph.FlamegraphView;
 import io.github.bric3.fireplace.flamegraph.FrameBox;
-import io.github.bric3.fireplace.flamegraph.NodeDisplayStringProvider;
+import io.github.bric3.fireplace.flamegraph.FrameTextsProvider;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.awt.SWT_AWT;
 import org.eclipse.swt.events.DisposeEvent;
@@ -46,7 +46,7 @@ import static java.util.stream.Collectors.toUnmodifiableList;
 public class FirePlaceSwtMain {
 
     private Shell shell;
-    private FlameGraph<Node> flameGraph;
+    private FlamegraphView<Node> flameGraph;
 
     public static void main(String[] args) {
         if (ProcessHandle.current().info().commandLine().stream().noneMatch(s -> s.contains("-XstartOnFirstThread")) &&
@@ -115,15 +115,15 @@ public class FirePlaceSwtMain {
         return shell;
     }
 
-    private FlameGraph<Node> createFlameGraph() {
-        var fg = new FlameGraph<Node>();
-        fg.putClientProperty(FlameGraph.SHOW_STATS, true);
+    private FlamegraphView<Node> createFlameGraph() {
+        var fg = new FlamegraphView<Node>();
+        fg.putClientProperty(FlamegraphView.SHOW_STATS, true);
 
 
         return fg;
     }
 
-    private void loadJfr(String[] args, Label text, FlameGraph<Node> fg) {
+    private void loadJfr(String[] args, Label text, FlamegraphView<Node> fg) {
         var jfrFiles = Arrays.stream(args)
                              .map(Path::of)
                              .filter(path -> {
@@ -171,8 +171,8 @@ public class FirePlaceSwtMain {
             SwingUtilities.invokeLater(() -> {
                 flameGraph.setConfigurationAndData(
                         flatFrameList,
-                        NodeDisplayStringProvider.of(
-                                (frame) -> {
+                        FrameTextsProvider.of(
+                                frame -> {
                                     if (frame.isRoot()) {
                                         var events = stacktraceTreeModel.getItems()
                                                                         .stream()
@@ -188,28 +188,6 @@ public class FirePlaceSwtMain {
                         ),
                         frame -> ColorMapper.ofObjectHashUsing(Palette.DATADOG.colors()).apply(frame.actualNode.getFrame().getMethod().getType().getPackage()),
                         frame -> ""
-                        // frame -> {
-                        //     if (frame.stackDepth == 0) {
-                        //         return "";
-                        //     }
-                        //
-                        //     var method = frame.actualNode.getFrame().getMethod();
-                        //     var desc = FormatToolkit.getHumanReadable(method,
-                        //                                               false,
-                        //                                               false,
-                        //                                               true,
-                        //                                               true,
-                        //                                               true,
-                        //                                               false,
-                        //                                               false);
-                        //
-                        //     return "<html>"
-                        //            + "<b>" + frame.actualNode.getFrame().getHumanReadableShortString() + "</b><br>"
-                        //            + desc + "<br><hr>"
-                        //            + frame.actualNode.getCumulativeWeight() + " " + frame.actualNode.getWeight() + "<br>"
-                        //            + "BCI: " + frame.actualNode.getFrame().getBCI() + " Line number: " + frame.actualNode.getFrame().getFrameLineNumber() + "<br>"
-                        //            + "</html>";
-                        // }
                 );
                 flameGraph.requestRepaint();
             });

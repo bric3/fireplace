@@ -12,8 +12,8 @@ package io.github.bric3.fireplace;
 import io.github.bric3.fireplace.core.ui.Colors;
 import io.github.bric3.fireplace.core.ui.Colors.Palette;
 import io.github.bric3.fireplace.flamegraph.ColorMapper;
-import io.github.bric3.fireplace.flamegraph.FlameGraph;
-import io.github.bric3.fireplace.flamegraph.NodeDisplayStringProvider;
+import io.github.bric3.fireplace.flamegraph.FlamegraphView;
+import io.github.bric3.fireplace.flamegraph.FrameTextsProvider;
 import io.github.bric3.fireplace.flamegraph.ZoomAnimation;
 import org.openjdk.jmc.common.util.FormatToolkit;
 import org.openjdk.jmc.flightrecorder.stacktrace.tree.Node;
@@ -36,20 +36,20 @@ public class FlameGraphTab extends JPanel {
     private static final JfrFrameColorMode defaultFrameColorMode = JfrFrameColorMode.BY_PACKAGE;
     private static final boolean defaultPaintFrameBorder = true;
     private static final boolean defaultShowMinimap = true;
-    private FlameGraph<Node> jfrFlameGraph;
-    private Consumer<FlameGraph<Node>> dataApplier;
+    private FlamegraphView<Node> jfrFlamegraphView;
+    private Consumer<FlamegraphView<Node>> dataApplier;
 
     public FlameGraphTab() {
         super(new BorderLayout());
 
-        jfrFlameGraph = new FlameGraph<>();
-        jfrFlameGraph.showMinimap(defaultShowMinimap);
-        jfrFlameGraph.configureCanvas(ToolTipManager.sharedInstance()::registerComponent);
-        jfrFlameGraph.putClientProperty(FlameGraph.SHOW_STATS, true);
+        jfrFlamegraphView = new FlamegraphView<>();
+        jfrFlamegraphView.showMinimap(defaultShowMinimap);
+        jfrFlamegraphView.configureCanvas(ToolTipManager.sharedInstance()::registerComponent);
+        jfrFlamegraphView.putClientProperty(FlamegraphView.SHOW_STATS, true);
         // jfrFlameGraph.setTooltipComponentSupplier(BalloonToolTip::new);
-        jfrFlameGraph.setMinimapShadeColorSupplier(() -> Colors.isDarkMode() ? Colors.translucent_black_40 : Colors.translucent_white_80);
+        jfrFlamegraphView.setMinimapShadeColorSupplier(() -> Colors.isDarkMode() ? Colors.translucent_black_40 : Colors.translucent_white_80);
         var zoomAnimation = new ZoomAnimation();
-        zoomAnimation.install(jfrFlameGraph);
+        zoomAnimation.install(jfrFlamegraphView);
 
         var colorPaletteJComboBox = new JComboBox<>(Palette.values());
         colorPaletteJComboBox.setSelectedItem(defaultColorPalette);
@@ -57,25 +57,25 @@ public class FlameGraphTab extends JPanel {
         colorModeJComboBox.setSelectedItem(defaultFrameColorMode);
 
         ActionListener updateColorSettingsListener = e -> {
-            jfrFlameGraph.setColorFunction(
+            jfrFlamegraphView.setColorFunction(
                     ((JfrFrameColorMode) colorModeJComboBox.getSelectedItem())
                             .colorMapperUsing(ColorMapper.ofObjectHashUsing(
                                     ((Palette) colorPaletteJComboBox.getSelectedItem()).colors())));
-            jfrFlameGraph.requestRepaint();
+            jfrFlamegraphView.requestRepaint();
         };
         colorPaletteJComboBox.addActionListener(updateColorSettingsListener);
         colorModeJComboBox.addActionListener(updateColorSettingsListener);
 
         var borderToggle = new JCheckBox("Border");
         borderToggle.addActionListener(e -> {
-            jfrFlameGraph.setFrameGapEnabled(borderToggle.isSelected());
-            jfrFlameGraph.requestRepaint();
+            jfrFlamegraphView.setFrameGapEnabled(borderToggle.isSelected());
+            jfrFlamegraphView.requestRepaint();
         });
         borderToggle.setSelected(defaultPaintFrameBorder);
 
         var minimapToggle = new JCheckBox("Minimap");
         minimapToggle.addActionListener(e -> {
-            jfrFlameGraph.showMinimap(minimapToggle.isSelected());
+            jfrFlamegraphView.showMinimap(minimapToggle.isSelected());
         });
         minimapToggle.setSelected(defaultShowMinimap);
 
@@ -88,26 +88,26 @@ public class FlameGraphTab extends JPanel {
 
         var wrapper = new JPanel(new BorderLayout());
         {
-            var component = jfrFlameGraph.component;
+            var component = jfrFlamegraphView.component;
             component.setBorder(null);
             wrapper.add(component);
         }
 
         var timer = new Timer(2_000, e -> {
-            jfrFlameGraph = new FlameGraph<>();
-            jfrFlameGraph.showMinimap(defaultShowMinimap);
-            jfrFlameGraph.configureCanvas(ToolTipManager.sharedInstance()::registerComponent);
-            jfrFlameGraph.putClientProperty(FlameGraph.SHOW_STATS, true);
-            jfrFlameGraph.setMinimapShadeColorSupplier(() -> Colors.isDarkMode() ? Colors.translucent_black_40 : Colors.translucent_white_80);
-            zoomAnimation.install(jfrFlameGraph);
+            jfrFlamegraphView = new FlamegraphView<>();
+            jfrFlamegraphView.showMinimap(defaultShowMinimap);
+            jfrFlamegraphView.configureCanvas(ToolTipManager.sharedInstance()::registerComponent);
+            jfrFlamegraphView.putClientProperty(FlamegraphView.SHOW_STATS, true);
+            jfrFlamegraphView.setMinimapShadeColorSupplier(() -> Colors.isDarkMode() ? Colors.translucent_black_40 : Colors.translucent_white_80);
+            zoomAnimation.install(jfrFlamegraphView);
             if (dataApplier != null) {
-                dataApplier.accept(jfrFlameGraph);
+                dataApplier.accept(jfrFlamegraphView);
             }
             updateColorSettingsListener.actionPerformed(null);
 
             wrapper.removeAll();
             {
-                var cmp = jfrFlameGraph.component;
+                var cmp = jfrFlamegraphView.component;
                 cmp.setBorder(null);
                 wrapper.add(cmp);
             }
@@ -128,21 +128,21 @@ public class FlameGraphTab extends JPanel {
 
         var resetZoom = new JButton("1:1");
         resetZoom.addActionListener(e -> {
-            jfrFlameGraph.resetZoom();
+            jfrFlamegraphView.resetZoom();
         });
 
         var searchField = new JTextField("");
         searchField.addActionListener(e -> {
             var searched = searchField.getText();
             if (searched.isEmpty()) {
-                jfrFlameGraph.highlightFrames(emptySet(), searched);
+                jfrFlamegraphView.highlightFrames(emptySet(), searched);
                 return;
             }
             CompletableFuture.runAsync(() -> {
                 try {
-                    var matches = jfrFlameGraph.getFrames()
-                                               .stream()
-                                               .filter(frame -> {
+                    var matches = jfrFlamegraphView.getFrames()
+                                                   .stream()
+                                                   .filter(frame -> {
                                                    var method = frame.actualNode.getFrame().getMethod();
                                                    return method.getMethodName().contains(searched)
                                                           || method.getType().getTypeName().contains(searched)
@@ -151,8 +151,8 @@ public class FlameGraphTab extends JPanel {
                                                           || method.getFormalDescriptor().replace('/', '.').contains(searched)
                                                            ;
                                                })
-                                               .collect(Collectors.toCollection(() -> Collections.newSetFromMap(new IdentityHashMap<>())));
-                    jfrFlameGraph.highlightFrames(matches, searched);
+                                                   .collect(Collectors.toCollection(() -> Collections.newSetFromMap(new IdentityHashMap<>())));
+                    jfrFlamegraphView.highlightFrames(matches, searched);
                 } catch (Exception ex) {
                     ex.printStackTrace();
                 }
@@ -183,15 +183,15 @@ public class FlameGraphTab extends JPanel {
 
     public void setStacktraceTreeModel(StacktraceTreeModel stacktraceTreeModel) {
         dataApplier = dataApplier(stacktraceTreeModel);
-        dataApplier.accept(jfrFlameGraph);
+        dataApplier.accept(jfrFlamegraphView);
     }
 
-    private Consumer<FlameGraph<Node>> dataApplier(StacktraceTreeModel stacktraceTreeModel) {
+    private Consumer<FlamegraphView<Node>> dataApplier(StacktraceTreeModel stacktraceTreeModel) {
         var flatFrameList = JfrFrameNodeConverter.convert(stacktraceTreeModel);
         return (flameGraph) -> flameGraph.setConfigurationAndData(
                 flatFrameList,
-                NodeDisplayStringProvider.of(
-                        (frame) -> {
+                FrameTextsProvider.of(
+                        frame -> {
                             if (frame.isRoot()) {
                                 var events = stacktraceTreeModel.getItems()
                                                                 .stream()

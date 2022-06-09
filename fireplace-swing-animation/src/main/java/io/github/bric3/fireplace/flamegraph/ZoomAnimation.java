@@ -9,8 +9,8 @@
  */
 package io.github.bric3.fireplace.flamegraph;
 
-import io.github.bric3.fireplace.flamegraph.FlameGraph.FlameGraphCanvas;
-import io.github.bric3.fireplace.flamegraph.FlameGraph.ZoomAction;
+import io.github.bric3.fireplace.flamegraph.FlamegraphView.FlameGraphCanvas;
+import io.github.bric3.fireplace.flamegraph.FlamegraphView.ZoomAction;
 import org.pushingpixels.radiance.animation.api.Timeline;
 import org.pushingpixels.radiance.animation.api.ease.Sine;
 import org.pushingpixels.radiance.animation.api.swing.EventDispatchThreadTimelineCallbackAdapter;
@@ -37,7 +37,7 @@ public class ZoomAnimation implements ZoomAction {
      */
     private boolean animateZoomTransitions = !Boolean.getBoolean(ZOOM_ANIMATION_DISABLED_KEY);
 
-    public <T> void install(final FlameGraph<T> flameGraph) {
+    public <T> void install(final FlamegraphView<T> flameGraph) {
         flameGraph.overrideZoomAction(this);
     }
 
