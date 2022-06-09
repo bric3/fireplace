@@ -13,6 +13,7 @@ import io.github.bric3.fireplace.core.ui.Colors;
 import io.github.bric3.fireplace.core.ui.Colors.Palette;
 import io.github.bric3.fireplace.flamegraph.ColorMapper;
 import io.github.bric3.fireplace.flamegraph.FlamegraphView;
+import io.github.bric3.fireplace.flamegraph.FrameFontProvider;
 import io.github.bric3.fireplace.flamegraph.FrameTextsProvider;
 import io.github.bric3.fireplace.flamegraph.ZoomAnimation;
 import org.openjdk.jmc.common.util.FormatToolkit;
@@ -57,10 +58,10 @@ public class FlameGraphTab extends JPanel {
         colorModeJComboBox.setSelectedItem(defaultFrameColorMode);
 
         ActionListener updateColorSettingsListener = e -> {
-            jfrFlamegraphView.setColorFunction(
-                    ((JfrFrameColorMode) colorModeJComboBox.getSelectedItem())
-                            .colorMapperUsing(ColorMapper.ofObjectHashUsing(
-                                    ((Palette) colorPaletteJComboBox.getSelectedItem()).colors())));
+            var frameBoxColorFunction = ((JfrFrameColorMode) colorModeJComboBox.getSelectedItem())
+                    .colorMapperUsing(ColorMapper.ofObjectHashUsing(
+                            ((Palette) colorPaletteJComboBox.getSelectedItem()).colors()));
+            jfrFlamegraphView.setFrameColorProvider(new DimmingFrameColorProvider<>(frameBoxColorFunction));
             jfrFlamegraphView.requestRepaint();
         };
         colorPaletteJComboBox.addActionListener(updateColorSettingsListener);
@@ -175,12 +176,7 @@ public class FlameGraphTab extends JPanel {
         add(controlPanel, BorderLayout.NORTH);
         add(wrapper, BorderLayout.CENTER);
     }
-
-    public FlameGraphTab(StacktraceTreeModel stacktraceTreeModel) {
-        this();
-        setStacktraceTreeModel(stacktraceTreeModel);
-    }
-
+    
     public void setStacktraceTreeModel(StacktraceTreeModel stacktraceTreeModel) {
         dataApplier = dataApplier(stacktraceTreeModel);
         dataApplier.accept(jfrFlamegraphView);
@@ -205,7 +201,8 @@ public class FlameGraphTab extends JPanel {
                         frame -> frame.isRoot() ? "" : FormatToolkit.getHumanReadable(frame.actualNode.getFrame().getMethod(), false, false, false, false, true, false),
                         frame -> frame.isRoot() ? "" : frame.actualNode.getFrame().getMethod().getMethodName()
                 ),
-                defaultFrameColorMode.colorMapperUsing(ColorMapper.ofObjectHashUsing(defaultColorPalette.colors())),
+                new DimmingFrameColorProvider(defaultFrameColorMode.colorMapperUsing(ColorMapper.ofObjectHashUsing(defaultColorPalette.colors()))),
+                FrameFontProvider.defaultFontProvider(),
                 frame -> {
                     if (frame.isRoot()) {
                         return "";

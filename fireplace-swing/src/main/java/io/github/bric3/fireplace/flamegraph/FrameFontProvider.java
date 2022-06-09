@@ -26,6 +26,7 @@ import static io.github.bric3.fireplace.flamegraph.FrameRenderingFlags.isPartial
  *
  * @param <T> The type of the frame node (depends on the source of profiling data).
  */
+@FunctionalInterface
 public interface FrameFontProvider<T> {
 
     /**
