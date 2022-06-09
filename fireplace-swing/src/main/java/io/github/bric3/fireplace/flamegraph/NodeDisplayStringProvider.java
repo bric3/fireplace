@@ -9,30 +9,23 @@
  */
 package io.github.bric3.fireplace.flamegraph;
 
-import io.github.bric3.fireplace.core.ui.StringClipper;
-
 import java.util.List;
 import java.util.function.Function;
 
-@FunctionalInterface
-public interface NodeDisplayStringProvider<T> {
-
-    List<Function<FrameBox<T>, String>> frameToTextCandidates();
-
+/**
+ * Backward compatibility class, use {@link FrameTextsProvider} instead.
+ * @param <T> The type of frame node
+ */
+@Deprecated(forRemoval = true)
+public interface NodeDisplayStringProvider<T> extends FrameTextsProvider<T> {
+    @Deprecated(forRemoval = true)
     static <T> NodeDisplayStringProvider<T> of(List<Function<FrameBox<T>, String>> frameToTextCandidates) {
         return () -> frameToTextCandidates;
     }
 
+    @Deprecated(forRemoval = true)
     @SafeVarargs
     static <T> NodeDisplayStringProvider<T> of(Function<FrameBox<T>, String>... frameToTextCandidates) {
         return of(List.of(frameToTextCandidates));
-    }
-
-    static <T> NodeDisplayStringProvider<T> empty() {
-        return of(List.of());
-    }
-
-    default StringClipper clipStrategy() {
-        return StringClipper.RIGHT;
     }
 }

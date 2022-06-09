@@ -36,10 +36,10 @@ import java.util.function.Consumer;
  * </p>
  *
  * @param <T> The type of the frame node (depends on the source of profiling data).
- * @see FlameGraph
+ * @see FlamegraphView
  * @see FrameRender
  */
-class FlameGraphRenderEngine<T> {
+class FlamegraphRenderEngine<T> {
     /**
      * A flag that controls whether a frame is drawn around the frame that the mouse pointer
      * hovers over.
@@ -75,7 +75,7 @@ class FlameGraphRenderEngine<T> {
     /**
      * A flag that controls the display of rendering info and statistics.
      *
-     * @see FlameGraph#SHOW_STATS
+     * @see FlamegraphView#SHOW_STATS
      */
     protected boolean paintDetails = true;
     private Set<FrameBox<T>> toHighlight = Collections.emptySet();
@@ -88,7 +88,7 @@ class FlameGraphRenderEngine<T> {
      * @param frames        the frames to be displayed.
      * @param frameRenderer a configured single frame renderer.
      */
-    public FlameGraphRenderEngine(
+    public FlamegraphRenderEngine(
             List<FrameBox<T>> frames,
             FrameRender<T> frameRenderer
     ) {

@@ -25,7 +25,7 @@ import java.util.function.ToDoubleFunction;
  * utility method.
  * </p>
  *
- * @see FlameGraph
+ * @see FlamegraphView
  */
 public class FrameBox<T> {
 

@@ -29,11 +29,11 @@ import static io.github.bric3.fireplace.flamegraph.FrameRenderingFlags.isMinimap
  * Single frame renderer.
  *
  * @param <T> The type of the frame node (depends on the source of profiling data).
- * @see FlameGraph
- * @see FlameGraphRenderEngine
+ * @see FlamegraphView
+ * @see FlamegraphRenderEngine
  */
 class FrameRender<T> {
-    private NodeDisplayStringProvider<T> nodeToTextProvider;
+    private FrameTextsProvider<T> frameTextsProvider;
     private FrameFontProvider<T> frameFontProvider;
     private FrameColorProvider<T> frameColorProvider;
 
@@ -53,16 +53,16 @@ class FrameRender<T> {
     private final int frameGapWidth = 1;
 
     /**
-     * @param nodeToTextProvider functions that create a label for a node
+     * @param frameTextsProvider functions that create a label for a node
      * @param frameFontProvider  provides a font given a frame and some flags
      * @param frameColorProvider provides foreground and background color given a frame and some flags
      */
     public FrameRender(
-            NodeDisplayStringProvider<T> nodeToTextProvider,
+            FrameTextsProvider<T> frameTextsProvider,
             FrameColorProvider<T> frameColorProvider,
             FrameFontProvider<T> frameFontProvider
     ) {
-        this.nodeToTextProvider = Objects.requireNonNull(nodeToTextProvider, "nodeToTextProvider");
+        this.frameTextsProvider = Objects.requireNonNull(frameTextsProvider, "nodeToTextProvider");
         this.frameColorProvider = Objects.requireNonNull(frameColorProvider, "frameColorProvider");
         this.frameFontProvider = Objects.requireNonNull(frameFontProvider, "frameFontProvider");
     }
@@ -180,7 +180,7 @@ class FrameRender<T> {
 
         // don't use stream to avoid allocations during painting
         var textCandidate = "";
-        for (Function<FrameBox<T>, String> nodeToTextCandidate : nodeToTextProvider.frameToTextCandidates()) {
+        for (Function<FrameBox<T>, String> nodeToTextCandidate : frameTextsProvider.frameToTextCandidates()) {
             textCandidate = nodeToTextCandidate.apply(frame);
             var textBounds = metrics.getStringBounds(textCandidate, g2);
             if (textBounds.getWidth() <= targetWidth) {
@@ -188,7 +188,7 @@ class FrameRender<T> {
             }
         }
         // only try clip the last candidate
-        textCandidate = nodeToTextProvider.clipStrategy().clipString(
+        textCandidate = frameTextsProvider.clipStrategy().clipString(
                 font,
                 metrics,
                 targetWidth,
@@ -203,8 +203,8 @@ class FrameRender<T> {
         return textCandidate;
     }
 
-    public void setNodeToTextProvider(NodeDisplayStringProvider<T> nodeToTextProvider) {
-        this.nodeToTextProvider = Objects.requireNonNull(nodeToTextProvider, "nodeToTextProvider");
+    public void setFrameTextsProvider(FrameTextsProvider<T> frameTextsProvider) {
+        this.frameTextsProvider = Objects.requireNonNull(frameTextsProvider, "frameTextsProvider");
     }
 
     public void setFrameFontProvider(FrameFontProvider<T> frameFontProvider) {
