@@ -198,10 +198,45 @@ public class FlameGraph<T> {
      *
      * @param frameColorFunction A function that takes a frame and returns a color.
      */
+    @Deprecated(forRemoval = true)
     public void setColorFunction(Function<FrameBox<T>, Color> frameColorFunction) {
-        Objects.requireNonNull(frameColorFunction);
+        setFrameColorProvider(FrameColorProvider.defaultColorProvider(frameColorFunction));
+    }
+
+    /**
+     * Replaces the frame colors provider.
+     *
+     * @param frameColorProvider A provider that takes a frame and returns its colors.
+     * @see FrameColorProvider
+     */
+    public void setFrameColorProvider(FrameColorProvider<T> frameColorProvider) {
         this.canvas.getFlameGraphPainter()
-                   .ifPresent(fgp -> fgp.getFrameRenderer().setFrameColorFunction(frameColorFunction));
+                   .ifPresent(fgp -> fgp.getFrameRenderer()
+                                        .setFrameColorProvider(frameColorProvider));
+    }
+
+    /**
+     * Replaces the frame font provider.
+     *
+     * @param frameFontProvider A provider that takes a frame and returns its font.
+     * @see FrameFontProvider
+     */
+    public void setFrameFontProvider(FrameFontProvider<T> frameFontProvider) {
+        this.canvas.getFlameGraphPainter()
+                   .ifPresent(fgp -> fgp.getFrameRenderer()
+                                        .setFrameFontProvider(frameFontProvider));
+    }
+
+    /**
+     * Replaces the frame to color provider.
+     *
+     * @param frameTextProvider A provider that takes a frame and returns its colors.
+     * @see NodeDisplayStringProvider
+     */
+    public void setFrameTextProvider(NodeDisplayStringProvider<T> frameTextProvider) {
+        this.canvas.getFlameGraphPainter()
+                   .ifPresent(fgp -> fgp.getFrameRenderer()
+                                        .setNodeToTextProvider(frameTextProvider));
     }
 
     /**
@@ -306,10 +341,12 @@ public class FlameGraph<T> {
      * @param tooltipTextFunction the frame tooltip text function.
      */
     @Deprecated(forRemoval = true)
-    public void setData(List<FrameBox<T>> frames,
-                        NodeDisplayStringProvider<T> frameToString,
-                        Function<T, Color> frameColorFunction,
-                        Function<FrameBox<T>, String> tooltipTextFunction) {
+    public void setData(
+            List<FrameBox<T>> frames,
+            NodeDisplayStringProvider<T> frameToString,
+            Function<T, Color> frameColorFunction,
+            Function<FrameBox<T>, String> tooltipTextFunction
+    ) {
         setConfigurationAndData(
                 frames,
                 frameToString,
@@ -343,21 +380,63 @@ public class FlameGraph<T> {
      * @param tooltipTextFunction the frame tooltip text function.
      */
     @Deprecated(forRemoval = true)
-    public void setConfigurationAndData(List<FrameBox<T>> frames,
-                                        NodeDisplayStringProvider<T> frameToString,
-                                        Function<FrameBox<T>, Color> frameColorFunction,
-                                        Function<FrameBox<T>, String> tooltipTextFunction) {
-        var flameGraphPainter = new FlameGraphRenderEngine<>(
-                Objects.requireNonNull(frames),
+    public void setConfigurationAndData(
+            List<FrameBox<T>> frames,
+            NodeDisplayStringProvider<T> frameToString,
+            Function<FrameBox<T>, Color> frameColorFunction,
+            Function<FrameBox<T>, String> tooltipTextFunction
+    ) {
+        setConfigurationAndData(
+                frames,
+                frameToString,
+                FrameColorProvider.defaultColorProvider(frameColorFunction),
+                FrameFontProvider.defaultFontProvider(),
+                tooltipTextFunction
+        );
+    }
+
+    /**
+     * Actually set the {@link FlameGraph} with typed data and configure how to use it.
+     * <p>
+     * It takes a list of {@link FrameBox} objects that wraps the actual data,
+     * which is referred to as <em>node</em>.
+     * </p>
+     * <p>
+     * In particular this function defines the behavior to access the typed data:
+     * <ul>
+     *     <li>Possible string candidates to display in frames, those are
+     *     selected based on the available space</li>
+     *     <li>The root node text to display, if something specific is relevant,
+     *     like the type of events, their number, etc.</li>
+     *     <li>The frame background color, this function can be replaced by
+     *     {@link #setColorFunction(Function)}, note that the foreground color
+     *     is chosen automatically</li>
+     *     <li>The tooltip text from the current node</li>
+     * </ul>
+     *
+     * @param frames              The {@code FrameBox} list to display.
+     * @param frameToString       function to display label in frames.
+     * @param frameColorFunction  the frame to background color function.
+     * @param tooltipTextFunction the frame tooltip text function.
+     */
+    public void setConfigurationAndData(
+            List<FrameBox<T>> frames,
+            NodeDisplayStringProvider<T> frameToString,
+            FrameColorProvider<T> frameColorFunction,
+            FrameFontProvider<T> frameFontProvider,
+            Function<FrameBox<T>, String> tooltipTextFunction
+    ) {
+        var flameGraphRenderEngine = new FlameGraphRenderEngine<>(
+                frames,
                 new FrameRender<>(
-                        Objects.requireNonNull(frameToString),
-                        Objects.requireNonNull(frameColorFunction),
-                        FrameFontProvider.defaultFontProvider()
+                        frameToString,
+                        frameColorFunction,
+                        frameFontProvider
                 )
         );
         this.frames = Objects.requireNonNull(frames);
 
-        canvas.setFlameGraphPainter(Objects.requireNonNull(flameGraphPainter));
+        canvas.setFlameGraphRenderEngine(Objects.requireNonNull(flameGraphRenderEngine));
         canvas.setToolTipTextFunction(Objects.requireNonNull(tooltipTextFunction));
         canvas.invalidate();
         canvas.repaint();
@@ -368,7 +447,7 @@ public class FlameGraph<T> {
      */
     public void clear() {
         frames = Collections.emptyList();
-        canvas.setFlameGraphPainter(null);
+        canvas.setFlameGraphRenderEngine(null);
         canvas.invalidate();
         canvas.repaint();
     }
@@ -962,7 +1041,7 @@ public class FlameGraph<T> {
             this.addMouseMotionListener(mouseAdapter);
         }
 
-        void setFlameGraphPainter(FlameGraphRenderEngine<T> flameGraphRenderEngine) {
+        void setFlameGraphRenderEngine(FlameGraphRenderEngine<T> flameGraphRenderEngine) {
             this.flameGraphRenderEngine = flameGraphRenderEngine;
         }
 

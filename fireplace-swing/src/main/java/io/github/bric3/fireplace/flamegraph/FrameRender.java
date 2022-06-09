@@ -16,18 +16,13 @@
 
 package io.github.bric3.fireplace.flamegraph;
 
-import io.github.bric3.fireplace.core.ui.Colors;
 import io.github.bric3.fireplace.core.ui.StringClipper;
 
 import java.awt.*;
 import java.awt.geom.Rectangle2D;
+import java.util.Objects;
 import java.util.function.Function;
 
-import static io.github.bric3.fireplace.flamegraph.FrameRenderingFlags.isFocusedFrame;
-import static io.github.bric3.fireplace.flamegraph.FrameRenderingFlags.isFocusing;
-import static io.github.bric3.fireplace.flamegraph.FrameRenderingFlags.isHighlightedFrame;
-import static io.github.bric3.fireplace.flamegraph.FrameRenderingFlags.isHighlighting;
-import static io.github.bric3.fireplace.flamegraph.FrameRenderingFlags.isHovered;
 import static io.github.bric3.fireplace.flamegraph.FrameRenderingFlags.isMinimapMode;
 
 /**
@@ -38,9 +33,9 @@ import static io.github.bric3.fireplace.flamegraph.FrameRenderingFlags.isMinimap
  * @see FlameGraphRenderEngine
  */
 class FrameRender<T> {
-    private final NodeDisplayStringProvider<T> nodeToTextProvider;
-    private Function<FrameBox<T>, Color> frameColorFunction;
-    private final FrameFontProvider<T> frameFontProvider;
+    private NodeDisplayStringProvider<T> nodeToTextProvider;
+    private FrameFontProvider<T> frameFontProvider;
+    private FrameColorProvider<T> frameColorProvider;
 
     /**
      * The space in pixels between the frame label text and the frame's border.
@@ -57,30 +52,21 @@ class FrameRender<T> {
      */
     private final int frameGapWidth = 1;
 
-
-    /**
-     * The color used to draw frames that are highlighted.
-     */
-    private final Color highlightedColor;
-
-
     /**
      * @param nodeToTextProvider functions that create a label for a node
-     * @param frameColorFunction a function that maps frames to color.
+     * @param frameFontProvider  provides a font given a frame and some flags
+     * @param frameColorProvider provides foreground and background color given a frame and some flags
      */
     public FrameRender(
             NodeDisplayStringProvider<T> nodeToTextProvider,
-            Function<FrameBox<T>, Color> frameColorFunction,
+            FrameColorProvider<T> frameColorProvider,
             FrameFontProvider<T> frameFontProvider
     ) {
-        this.nodeToTextProvider = nodeToTextProvider;
-        this.frameColorFunction = frameColorFunction;
-        this.frameFontProvider = frameFontProvider;
-
-
-        this.highlightedColor = new Color(0xFFFFE771, true);
+        this.nodeToTextProvider = Objects.requireNonNull(nodeToTextProvider, "nodeToTextProvider");
+        this.frameColorProvider = Objects.requireNonNull(frameColorProvider, "frameColorProvider");
+        this.frameFontProvider = Objects.requireNonNull(frameFontProvider, "frameFontProvider");
     }
-    
+
     public int getFrameTextPadding() {
         return frameTextPadding;
     }
@@ -115,7 +101,6 @@ class FrameRender<T> {
         return getFrameBoxHeight(g2) - (g2.getFontMetrics(frameFontProvider.getFont(null, 0)).getDescent() / 2f) - frameTextPadding - frameGapWidth;
     }
 
-
     /**
      * Paints the frame.
      *
@@ -134,9 +119,10 @@ class FrameRender<T> {
             int flags
     ) {
         boolean minimapMode = isMinimapMode(flags);
-        var bgColor = tweakBgColor(frameColorFunction.apply(frame), flags);
+        // var bgColor = tweakBgColor(frameColorFunction.apply(frame), flags);
+        var colorModel = frameColorProvider.getColors(frame, flags);
 
-        paintFrameRectangle(g2, frameRect, bgColor, minimapMode);
+        paintFrameRectangle(g2, frameRect, colorModel.background, minimapMode);
         if (minimapMode) {
             return;
         }
@@ -155,37 +141,13 @@ class FrameRender<T> {
         }
 
         g2.setFont(frameFont);
-        g2.setColor(Colors.foregroundColor(bgColor));
+        g2.setColor(colorModel.foreground);
         g2.drawString(
                 text,
                 (float) (paintableIntersection.getX() + frameTextPadding + frameBorderWidth),
                 (float) (frameRect.getY() + getFrameBoxTextOffset(g2))
         );
     }
-
-    // TODO extract as strategy
-    private Color tweakBgColor(
-            Color baseColor,
-            int flags
-    ) {
-        Color color = baseColor;
-        if (isFocusing(flags) && !isFocusedFrame(flags)) {
-            color = Colors.blend(baseColor, Colors.translucent_black_80);
-        }
-        if (isHighlighting(flags)) {
-            color = Colors.isDarkMode() ?
-                    Colors.blend(color, Colors.translucent_black_B0) :
-                    Colors.blend(color, Color.WHITE);
-            if (isHighlightedFrame(flags)) {
-                color = baseColor;
-            }
-        }
-        if (isHovered(flags)) {
-            color = Colors.blend(color, Colors.translucent_black_40);
-        }
-        return color;
-    }
-
 
     private void paintFrameRectangle(
             Graphics2D g2,
@@ -239,12 +201,17 @@ class FrameRender<T> {
             return null;
         }
         return textCandidate;
-
     }
 
+    public void setNodeToTextProvider(NodeDisplayStringProvider<T> nodeToTextProvider) {
+        this.nodeToTextProvider = Objects.requireNonNull(nodeToTextProvider, "nodeToTextProvider");
+    }
 
+    public void setFrameFontProvider(FrameFontProvider<T> frameFontProvider) {
+        this.frameFontProvider = Objects.requireNonNull(frameFontProvider, "frameFontProvider");
+    }
 
-    public void setFrameColorFunction(Function<FrameBox<T>, Color> frameColorFunction) {
-        this.frameColorFunction = frameColorFunction;
+    public void setFrameColorProvider(FrameColorProvider<T> frameColorProvider) {
+        this.frameColorProvider = Objects.requireNonNull(frameColorProvider, "frameColorProvider");
     }
 }

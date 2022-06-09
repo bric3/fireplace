@@ -92,9 +92,8 @@ class FlameGraphRenderEngine<T> {
             List<FrameBox<T>> frames,
             FrameRender<T> frameRenderer
     ) {
-        this.frameRenderer = frameRenderer;
-
-        this.frames = frames;
+        this.frameRenderer = Objects.requireNonNull(frameRenderer, "frameRenderer");
+        this.frames = Objects.requireNonNull(frames, "frames");
         this.depth = this.frames.stream().mapToInt(fb -> fb.stackDepth).max().orElse(0);
         visibleDepth = depth;
         updateUI();
