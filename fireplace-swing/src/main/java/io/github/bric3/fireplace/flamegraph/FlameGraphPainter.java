@@ -10,7 +10,6 @@
 package io.github.bric3.fireplace.flamegraph;
 
 import io.github.bric3.fireplace.core.ui.Colors;
-import io.github.bric3.fireplace.core.ui.StringClipper;
 
 import java.awt.*;
 import java.awt.geom.Rectangle2D;
@@ -21,7 +20,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
-import java.util.function.Function;
 
 /**
  * Engine that paint a flamegraph.
@@ -35,30 +33,10 @@ import java.util.function.Function;
  */
 class FlameGraphPainter<T> {
     /**
-     * A flag that controls whether a gap is shown at the right and bottom of each frame.
-     */
-    public boolean frameGapEnabled = true;
-
-    // /**
-    //  * The size of the gap at the right and bottom of each frame.
-    //  */
-    // public int frameGapWidth = 1;
-
-    /**
      * A flag that controls whether a frame is drawn around the frame that the mouse pointer
      * hovers over.
      */
     public boolean paintHoveredFrameBorder = true;
-
-    /**
-     * The width of the border drawn around the hovered frame.
-     */
-    public int frameBorderWidth = 1;
-
-    /**
-     * The stroke used to draw a border around the hovered frame.
-     */
-    public Stroke frameBorderStroke = new BasicStroke(frameBorderWidth);
 
     /**
      * The color used to draw a border around the hovered frame.
@@ -67,7 +45,6 @@ class FlameGraphPainter<T> {
 
     private final int depth;
     private int visibleDepth;
-    // private final int textPadding = 2;
 
     /**
      * The minimum width threshold for a frame to be rendered.
@@ -81,8 +58,6 @@ class FlameGraphPainter<T> {
     private double scaleY;
 
     private final List<FrameBox<T>> frames;
-    private final NodeDisplayStringProvider<T> nodeToTextProvider;
-    Function<FrameBox<T>, Color> frameColorFunction;
 
     /**
      * Internal padding with the component bounds.
@@ -101,37 +76,30 @@ class FlameGraphPainter<T> {
     /**
      * Creates a new instance to render the specified list of frames.
      *
-     * @param frames             the frames to be displayed.
-     * @param nodeToTextProvider functions that create a label for a node
-     * @param frameColorFunction a function that maps frames to colors.
+     * @param frames        the frames to be displayed.
+     * @param frameRenderer a configured single frame renderer.
      */
     public FlameGraphPainter(
             List<FrameBox<T>> frames,
-            NodeDisplayStringProvider<T> nodeToTextProvider,
-            Function<FrameBox<T>, Color> frameColorFunction,
             FrameRender<T> frameRenderer
     ) {
         this.frameRenderer = frameRenderer;
 
-        // this.frameLabelFont = new Font(Font.SANS_SERIF, Font.PLAIN, 12);
-        // this.partialFrameLabelFont = new Font(Font.SANS_SERIF, Font.ITALIC, 12);
-        // this.highlightedFrameLabelFont = new Font(Font.SANS_SERIF, Font.PLAIN | Font.BOLD, 12);
-        // this.highlightedPartialFrameLabelFont = new Font(Font.SANS_SERIF, Font.ITALIC | Font.BOLD, 12);
-
         this.frames = frames;
         this.depth = this.frames.stream().mapToInt(fb -> fb.stackDepth).max().orElse(0);
         visibleDepth = depth;
-        this.nodeToTextProvider = nodeToTextProvider;
-        this.frameColorFunction = frameColorFunction;
         updateUI();
     }
-    
+
     /**
      * This method is used to resync colors when the LaF changes
      */
     public void updateUI() {
     }
 
+    public FrameRender<T> getFrameRenderer() {
+        return frameRenderer;
+    }
 
     /**
      * Returns the height of the minimap for the specified width.
@@ -222,17 +190,19 @@ class FlameGraphPainter<T> {
 
             var intersection = viewRect.createIntersection(frameRect);
             if (!intersection.isEmpty()) {
-                paintFrame(
+                frameRenderer.paintFrame(
                         g2d,
                         frameRect,
                         rootFrame,
                         intersection,
-                        tweakLabelFont(frameRect, intersection, false),
-                        tweakBgColor(frameColorFunction.apply(rootFrame),
-                                     hoveredFrame == rootFrame,
-                                     false,
-                                     selectedFrame != null && rootFrame.stackDepth < selectedFrame.stackDepth),
-                        minimapMode
+                        FrameRender.toFlags(
+                                minimapMode,
+                                false,
+                                false, // never make root part of highlighting
+                                hoveredFrame == rootFrame,
+                                selectedFrame != null,
+                                selectedFrame == rootFrame
+                        )
                 );
             }
         }
@@ -253,22 +223,26 @@ class FlameGraphPainter<T> {
             frameRect.height = frameBoxHeight;
 
             var paintableIntersection = viewRect.createIntersection(frameRect);
+
+
             if (!paintableIntersection.isEmpty()) {
-                paintFrame(
+                frameRenderer.paintFrame(
                         g2d,
                         frameRect,
                         frame,
                         paintableIntersection,
                         // choose font depending on whether the left-side of the frame is clipped
-                        tweakLabelFont(frameRect, paintableIntersection, toHighlight.contains(frame)),
-                        tweakBgColor(frameColorFunction.apply(frame),
-                                     hoveredFrame == frame,
-                                     toHighlight.contains(frame),
-                                     selectedFrame != null && (
-                                             frame.stackDepth < selectedFrame.stackDepth
-                                             || frame.endX <= selectedFrame.startX
-                                             || frame.startX >= selectedFrame.endX)),
-                        minimapMode
+                        FrameRender.toFlags(
+                                minimapMode,
+                                !toHighlight.isEmpty(),
+                                toHighlight.contains(frame),
+                                hoveredFrame == frame,
+                                selectedFrame != null,
+                                (selectedFrame != null
+                                 && frame.stackDepth >= selectedFrame.stackDepth
+                                 && frame.startX >= selectedFrame.startX
+                                 && frame.endX <= selectedFrame.endX)
+                        )
                 );
             }
         }
@@ -302,26 +276,6 @@ class FlameGraphPainter<T> {
         g2d.dispose();
     }
 
-    // TODO move this method to renderer ?
-    private Font tweakLabelFont(
-            Rectangle2D rect,
-            Rectangle2D intersection,
-            boolean highlighted
-    ) {
-        if (highlighted) {
-            if (rect.getX() == intersection.getX()) {
-                return frameRenderer.getHighlightedFrameLabelFont();
-            } else {
-                return frameRenderer.getHighlightedPartialFrameLabelFont();
-            }
-        }
-        if (rect.getX() == intersection.getX()) {
-            return frameRenderer.getFrameLabelFont();
-        } else {
-            return frameRenderer.getPartialFrameLabelFont();
-        }
-    }
-
     private void paintHoveredFrameBorder(
             Graphics2D g2,
             Rectangle2D viewRect,
@@ -332,19 +286,21 @@ class FlameGraphPainter<T> {
         if (hoveredFrame == null || !paintHoveredFrameBorder) {
             return;
         }
-        var gapThickness = frameGapEnabled ? frameRenderer.getFrameGapWidth() : 0;
+        var gapThickness = frameRenderer.isDrawingFrameGap() ? frameRenderer.getFrameGapWidth() : 0;
 
-        // DISCLAIMER: it happens that drawing perfectly aligned rect is very difficult with
-        // Graphics2D.
-        // 1. I t may depend on the current Screen scale (Retina is 2, other monitors like 1x)
-        //    g2.getTransform().getScaleX() / getScaleY(), (so in pixels that would 1 / scale)
-        // 2. When drawing a rectangle, it seems that the current sun implementation draws
-        //    the line on 50% outside and 50% inside. I don;t know how to avoid that
-        //
-        // In some of my test what is ok on a retina is ugly on a 1.x monitor,
-        // adjusting the rectangle with the scale wasn't very pretty, as sometime
-        // the border starts inside the frame.
-        // Played with Area subtraction, but this wasn't successful.
+        /*
+         * DISCLAIMER: it happens that drawing perfectly aligned rect is very difficult with
+         * Graphics2D.
+         * 1. I t may depend on the current Screen scale (Retina is 2, other monitors like 1x)
+         *    g2.getTransform().getScaleX() / getScaleY(), (so in pixels that would 1 / scale)
+         * 2. When drawing a rectangle, it seems that the current sun implementation draws
+         *    the line on 50% outside and 50% inside. I don;t know how to avoid that
+         *
+         * In some of my test what is ok on a retina is ugly on a 1.x monitor,
+         * adjusting the rectangle with the scale wasn't very pretty, as sometime
+         * the border starts inside the frame.
+         * Played with Area subtraction, but this wasn't successful.
+         */
 
         var x = flameGraphWidth * hoveredFrame.startX;
         var y = frameBoxHeight * hoveredFrame.stackDepth;
@@ -370,93 +326,6 @@ class FlameGraphPainter<T> {
         var transform = g2.getTransform();
         scaleX = transform.getScaleX();
         scaleY = transform.getScaleY();
-    }
-
-    private Color tweakBgColor(
-            Color bgColor,
-            boolean hovered,
-            boolean highlighted,
-            boolean dimmed
-    ) {
-        Color color = bgColor;
-        if (dimmed) {
-            color = Colors.blend(bgColor, Colors.translucent_black_80);
-        }
-        if (!toHighlight.isEmpty()) {
-            color = Colors.isDarkMode() ? Colors.blend(color, Colors.translucent_black_B0) : Colors.blend(color, Color.WHITE);
-            if (highlighted) {
-                color = bgColor;
-            }
-        }
-        if (hovered) {
-            color = Colors.blend(color, Colors.translucent_black_40);
-        }
-        return color;
-    }
-
-    /**
-     * Paints the frame.
-     *
-     * @param g2                    the graphics target.
-     * @param frameRect             the frame region (may fall outside visible area).
-     * @param frame                 the frame to paint
-     * @param paintableIntersection the intersection between the frame rectangle and the visible region
-     *                              (used to position the text label).
-     * @param bgColor               the background color.
-     * @param minimapMode           is the minimap in the process of being rendered?
-     */
-    private void paintFrame(
-            Graphics2D g2,
-            Rectangle2D frameRect,
-            FrameBox<T> frame,
-            Rectangle2D paintableIntersection,
-            Font labelFont,
-            Color bgColor,
-            boolean minimapMode
-    ) {
-        paintFrameRectangle(g2, frameRect, bgColor, minimapMode);
-        if (minimapMode) {
-            return;
-        }
-
-        var text = calculateFrameText(
-                g2,
-                labelFont,
-                paintableIntersection.getWidth() - frameRenderer.getFrameTextPadding() * 2 - frameRenderer.getFrameGapWidth() * 2,
-                frame
-        );
-
-        if (text == null) {
-            return;
-        }
-
-        g2.setFont(labelFont);
-        g2.setColor(Colors.foregroundColor(bgColor));
-        g2.drawString(
-                text,
-                (float) (paintableIntersection.getX() + frameRenderer.getFrameTextPadding() + frameBorderWidth),
-                (float) (frameRect.getY() + frameRenderer.getFrameBoxTextOffset(g2))
-        );
-    }
-
-    private void paintFrameRectangle(
-            Graphics2D g2,
-            Rectangle2D frameRect,
-            Color bgColor,
-            boolean minimapMode
-    ) {
-        var gapThickness = minimapMode ?
-                           0 :
-                           frameGapEnabled ? frameRenderer.getFrameGapWidth() : 0;
-
-        var x = frameRect.getX();
-        var y = frameRect.getY();
-        var w = frameRect.getWidth() - gapThickness;
-        var h = frameRect.getHeight() - gapThickness;
-        frameRect.setRect(x, y, w, h);
-
-        g2.setColor(bgColor);
-        g2.fill(frameRect);
     }
 
     /**
@@ -639,40 +508,6 @@ class FlameGraphPainter<T> {
         hoveredFrame = null;
     }
 
-    // layout text
-    private String calculateFrameText(
-            Graphics2D g2,
-            Font font,
-            double targetWidth,
-            FrameBox<T> frame
-    ) {
-        var metrics = g2.getFontMetrics(font);
-
-        // don't use stream to avoid allocations during painting
-        var textCandidate = "";
-        for (Function<FrameBox<T>, String> nodeToTextCandidate : nodeToTextProvider.frameToTextCandidates()) {
-            textCandidate = nodeToTextCandidate.apply(frame);
-            var textBounds = metrics.getStringBounds(textCandidate, g2);
-            if (textBounds.getWidth() <= targetWidth) {
-                return textCandidate;
-            }
-        }
-        // only try clip the last candidate
-        textCandidate = nodeToTextProvider.clipStrategy().clipString(
-                font,
-                metrics,
-                targetWidth,
-                textCandidate,
-                StringClipper.LONG_TEXT_PLACEHOLDER
-        );
-        var textBounds = metrics.getStringBounds(textCandidate, g2);
-        if (textBounds.getWidth() > targetWidth || textCandidate.length() <= StringClipper.LONG_TEXT_PLACEHOLDER.length() + 1) {
-            // don't draw text, if too long or too short (like "r…")
-            return null;
-        }
-        return textCandidate;
-
-    }
 
     public void setHighlightFrames(Set<FrameBox<T>> toHighlight, String searchedText) {
         this.toHighlight = toHighlight;

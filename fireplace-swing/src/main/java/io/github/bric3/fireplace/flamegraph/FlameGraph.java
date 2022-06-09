@@ -201,7 +201,7 @@ public class FlameGraph<T> {
     public void setColorFunction(Function<FrameBox<T>, Color> frameColorFunction) {
         Objects.requireNonNull(frameColorFunction);
         this.canvas.getFlameGraphPainter()
-                   .ifPresent(fgp -> fgp.frameColorFunction = frameColorFunction);
+                   .ifPresent(fgp -> fgp.getFrameRenderer().setFrameColorFunction(frameColorFunction));
     }
 
     /**
@@ -211,7 +211,7 @@ public class FlameGraph<T> {
      */
     public void setFrameGapEnabled(boolean frameGapEnabled) {
         canvas.getFlameGraphPainter()
-              .ifPresent(fgp -> fgp.frameGapEnabled = frameGapEnabled);
+              .ifPresent(fgp -> fgp.getFrameRenderer().setDrawingFrameGap(frameGapEnabled));
     }
 
     /**
@@ -348,9 +348,10 @@ public class FlameGraph<T> {
                                         Function<FrameBox<T>, String> tooltipTextFunction) {
         var flameGraphPainter = new FlameGraphPainter<>(
                 Objects.requireNonNull(frames),
-                Objects.requireNonNull(frameToString),
-                Objects.requireNonNull(frameColorFunction),
-                new FrameRender.DefaultFrameRender<>()
+                new FrameRender<>(
+                        Objects.requireNonNull(frameToString),
+                        Objects.requireNonNull(frameColorFunction)
+                )
         );
         this.frames = Objects.requireNonNull(frames);
 
