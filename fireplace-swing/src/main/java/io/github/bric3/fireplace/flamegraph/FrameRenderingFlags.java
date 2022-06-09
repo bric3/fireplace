@@ -16,17 +16,66 @@
 
 package io.github.bric3.fireplace.flamegraph;
 
+import java.util.StringJoiner;
+
+/**
+ * Flags that can be used to alter some elements of the frame rendering.
+ *
+ * <p>
+ *     In particular these flags will be passed to strategies like {@link FrameFontProvider}.
+ *     <strong>Note these flags are currently incubating.</strong>
+ * </p>
+ *
+ *
+ * @see FrameFontProvider
+ */
 public abstract class FrameRenderingFlags {
+    /**
+     * Indicate the renderer is actually rendering a minimap.
+     */
     public static int MINIMAP_MODE = 1;
+
+    /**
+     * The renderer is currently highlighting some frames
+     */
     public static int HIGHLIGHTING = 1 << 1;
+
+    /**
+     * The renderer is currently rendering a highlighted frame.
+     */
     public static int HIGHLIGHTED_FRAME = 1 << 2;
+
+    /**
+     * The renderer is currently rendering a hovered frame
+     */
     public static int HOVERED = 1 << 3;
+
+    /**
+     * The renderer is currently focusing some frames (a "sub-flame")
+     */
     public static int FOCUSING = 1 << 4;
+
+    /**
+     * The renderer is currently rendering a focused frame.
+     */
     public static int FOCUSED_FRAME = 1 << 5;
+
+    /**
+     * The renderer is currently rendering a partial frame, e.g. it is larger
+     * that the painting area.
+     */
     public static int PARTIAL_FRAME = 1 << 6;
 
 
-    public static int toFlags(boolean minimapMode, boolean highlightingOn, boolean highlighted, boolean hovered, boolean focusing, boolean focusedFrame, boolean partialFrame) {
+    public static int toFlags(
+            boolean minimapMode,
+            boolean highlightingOn,
+            boolean highlighted,
+            boolean hovered,
+            boolean focusing,
+            boolean focusedFrame,
+            boolean partialFrame
+    ) {
         return (minimapMode ? MINIMAP_MODE : 0)
                | (highlightingOn ? HIGHLIGHTING : 0)
                | (highlighted ? HIGHLIGHTED_FRAME : 0)
@@ -34,6 +83,18 @@ public abstract class FrameRenderingFlags {
                | (focusing ? FOCUSING : 0)
                | (focusedFrame ? FOCUSED_FRAME : 0)
                | (partialFrame ? PARTIAL_FRAME : 0);
+    }
+
+    public static String toString(int flags) {
+        var sb = new StringJoiner(", ", "[", "]");
+        if ((flags & MINIMAP_MODE) != 0) sb.add("minimapMode");
+        if ((flags & HIGHLIGHTING) != 0) sb.add("highlighting");
+        if ((flags & HIGHLIGHTED_FRAME) != 0) sb.add("highlighted");
+        if ((flags & HOVERED) != 0) sb.add("hovered");
+        if ((flags & FOCUSING) != 0) sb.add("focusing");
+        if ((flags & FOCUSED_FRAME) != 0) sb.add("focused");
+        if ((flags & PARTIAL_FRAME) != 0) sb.add("partial");
+        return sb.toString();
     }
 
     public static boolean isMinimapMode(int flags) {
