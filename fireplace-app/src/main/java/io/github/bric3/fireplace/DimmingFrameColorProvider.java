@@ -49,7 +49,8 @@ class DimmingFrameColorProvider<T> implements FrameColorProvider<T> {
         Color backgroundColor;
         Color foreground;
 
-        if (isRootNode(frame)) {
+        var rootNode = isRootNode(frame);
+        if (rootNode) {
             backgroundColor = Colors.isDarkMode() ?
                               ROOT_NODE_DARK :
                               ROOT_NODE_LIGHT;
@@ -57,7 +58,7 @@ class DimmingFrameColorProvider<T> implements FrameColorProvider<T> {
             backgroundColor = baseColorFunction.apply(frame);
         }
 
-        if (shouldDim(flags)) {
+        if (!rootNode && shouldDim(flags)) {
             backgroundColor = cachedDim(backgroundColor);
             foreground = Colors.isDarkMode() ?
                          DIMMED_TEXT_DARK :

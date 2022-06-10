@@ -392,20 +392,31 @@ public class Colors {
         return new Color((int) r, (int) g, (int) b, (int) a);
     }
 
+    /**
+     * Dim the given color and returns a {@link #darkMode} aware color.
+     *
+     * @param color The color to dim
+     * @return The dimmed color ({@link #darkMode} aware)
+     * @see DarkLightColor
+     */
     public static Color dim(Color color) {
-        var hsl = rgbToHsl(color);
+        var hslLight = hslComponents(color);
+        var hslDark = Arrays.copyOf(hslLight, hslLight.length);
 
-        if (darkMode) {
-            // if color is grayish, keep the saturation, otherwise set it to 0.2
-            hsl[S] = hsl[S] < 0.1f ? hsl[S] : 0.2f;
-            hsl[L] = 0.2f;
-        } else {
-            // if color is grayish, keep the saturation, otherwise set it to 0.4
-            hsl[S] = hsl[S] < 0.2 ? hsl[S] : 0.4f;
-            hsl[L] = 0.93f;
-        }
+        // if (darkMode) {
+        // if color is grayish, keep the saturation, otherwise set it to 0.2
+        hslDark[S] = hslDark[S] < 0.1f ? hslDark[S] : 0.2f;
+        hslDark[L] = 0.2f;
+        // } else {
+        // if color is grayish, keep the saturation, otherwise set it to 0.4
+        hslLight[S] = hslLight[S] < 0.2 ? hslLight[S] : 0.4f;
+        hslLight[L] = 0.93f;
+        // }
 
-        return hslToRgb(hsl[0], hsl[1], hsl[2], color.getAlpha() / 255.0f);
+        return new DarkLightColor(
+                hsl(hslLight[0], hslLight[1], hslLight[2], color.getAlpha() / 255.0f),
+                hsl(hslDark[0], hslDark[1], hslDark[2], color.getAlpha() / 255.0f)
+        );
     }
 
 
@@ -417,7 +428,7 @@ public class Colors {
      * @param color The color to convert
      * @return an array containing the 3 HSL values.
      */
-    public static float[] rgbToHsl(Color color) {
+    public static float[] hslComponents(Color color) {
         float r = color.getRed() / 255.0f;
         float g = color.getGreen() / 255.0f;
         float b = color.getBlue() / 255.0f;
@@ -446,15 +457,16 @@ public class Colors {
 
     /**
      * Convert HSL values to a RGB Color.
-     *
+     * <p>
      * From <a href="https://github.com/d3/d3-color/blob/958249d3a17aaff499d2a9fc9a0f7b8b8e8a47c8/src/color.js">d3-colors</a>.
+     *
      * @param h     Hue is specified as degrees in the range 0 - 360.
      * @param s     Saturation is specified as a percentage in the range 1 - 100.
      * @param l     Luminance is specified as a percentage in the range 1 - 100.
      * @param alpha the alpha value between 0 - 1
      * @return the RGB Color object
      */
-    public static Color hslToRgb(float h, float s, float l, float alpha) {
+    public static Color hsl(float h, float s, float l, float alpha) {
         h = h % 360 + ((h < 0) ? 360 : 0);
         s = Float.isNaN(h) || Float.isNaN(s) ? 0 : s;
 
