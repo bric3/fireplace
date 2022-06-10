@@ -13,6 +13,7 @@ import io.github.bric3.fireplace.core.ui.Colors;
 import io.github.bric3.fireplace.core.ui.Colors.Palette;
 import io.github.bric3.fireplace.core.ui.DarkLightColor;
 import io.github.bric3.fireplace.flamegraph.ColorMapper;
+import io.github.bric3.fireplace.flamegraph.DimmingFrameColorProvider;
 import io.github.bric3.fireplace.flamegraph.FlamegraphView;
 import io.github.bric3.fireplace.flamegraph.FrameFontProvider;
 import io.github.bric3.fireplace.flamegraph.FrameTextsProvider;
