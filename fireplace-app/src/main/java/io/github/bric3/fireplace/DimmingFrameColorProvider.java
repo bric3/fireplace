@@ -28,6 +28,7 @@ import static io.github.bric3.fireplace.flamegraph.FrameRenderingFlags.isFocused
 import static io.github.bric3.fireplace.flamegraph.FrameRenderingFlags.isFocusing;
 import static io.github.bric3.fireplace.flamegraph.FrameRenderingFlags.isHighlightedFrame;
 import static io.github.bric3.fireplace.flamegraph.FrameRenderingFlags.isHighlighting;
+import static io.github.bric3.fireplace.flamegraph.FrameRenderingFlags.isMinimapMode;
 
 class DimmingFrameColorProvider<T> implements FrameColorProvider<T> {
     public static final Color DIMMED_TEXT_DARK = Colors.rgba(255, 255, 255, 0.51f);
@@ -58,7 +59,7 @@ class DimmingFrameColorProvider<T> implements FrameColorProvider<T> {
             backgroundColor = baseColorFunction.apply(frame);
         }
 
-        if (!rootNode && shouldDim(flags)) {
+        if (!rootNode && shouldDim(flags) && !isMinimapMode(flags)) {
             backgroundColor = cachedDim(backgroundColor);
             foreground = Colors.isDarkMode() ?
                          DIMMED_TEXT_DARK :
