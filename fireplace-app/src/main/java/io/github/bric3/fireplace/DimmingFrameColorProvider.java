@@ -32,7 +32,7 @@ import static io.github.bric3.fireplace.flamegraph.FrameRenderingFlags.isHighlig
 import static io.github.bric3.fireplace.flamegraph.FrameRenderingFlags.isHovered;
 import static io.github.bric3.fireplace.flamegraph.FrameRenderingFlags.isMinimapMode;
 
-class DimmingFrameColorProvider<T> implements FrameColorProvider<T> {
+public class DimmingFrameColorProvider<T> implements FrameColorProvider<T> {
     public static final Color DIMMED_TEXT = new DarkLightColor(
             Colors.rgba(28, 43, 52, 0.68f),
             Colors.rgba(255, 255, 255, 0.51f)
