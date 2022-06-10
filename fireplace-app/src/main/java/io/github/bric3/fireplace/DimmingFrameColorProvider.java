@@ -56,7 +56,7 @@ class DimmingFrameColorProvider<T> implements FrameColorProvider<T> {
         Color backgroundColor;
         Color foreground;
 
-        var rootNode = isRootNode(frame);
+        var rootNode = frame.isRoot();
         if (rootNode) {
             backgroundColor = ROOT_NODE;
         } else {
@@ -104,9 +104,5 @@ class DimmingFrameColorProvider<T> implements FrameColorProvider<T> {
 
     private Color cachedDim(Color color) {
         return dimmedColorCache.computeIfAbsent(color, Colors::dim);
-    }
-    
-    private boolean isRootNode(FrameBox<T> frame) {
-        return frame.stackDepth == 0;
     }
 }
