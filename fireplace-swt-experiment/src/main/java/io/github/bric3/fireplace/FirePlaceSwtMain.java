@@ -4,6 +4,8 @@ import io.github.bric3.fireplace.core.ui.Colors.Palette;
 import io.github.bric3.fireplace.flamegraph.ColorMapper;
 import io.github.bric3.fireplace.flamegraph.FlamegraphView;
 import io.github.bric3.fireplace.flamegraph.FrameBox;
+import io.github.bric3.fireplace.flamegraph.FrameColorProvider;
+import io.github.bric3.fireplace.flamegraph.FrameFontProvider;
 import io.github.bric3.fireplace.flamegraph.FrameTextsProvider;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.awt.SWT_AWT;
@@ -186,7 +188,10 @@ public class FirePlaceSwtMain {
                                 frame -> frame.isRoot() ? "" : FormatToolkit.getHumanReadable(frame.actualNode.getFrame().getMethod(), false, false, false, false, true, false),
                                 frame -> frame.isRoot() ? "" : frame.actualNode.getFrame().getMethod().getMethodName()
                         ),
-                        frame -> ColorMapper.ofObjectHashUsing(Palette.DATADOG.colors()).apply(frame.actualNode.getFrame().getMethod().getType().getPackage()),
+                        FrameColorProvider.defaultColorProvider(
+                                frame -> ColorMapper.ofObjectHashUsing(Palette.DATADOG.colors()).apply(frame.actualNode.getFrame().getMethod().getType().getPackage())
+                        ),
+                        FrameFontProvider.defaultFontProvider(),
                         frame -> ""
                 );
                 flameGraph.requestRepaint();

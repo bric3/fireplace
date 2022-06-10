@@ -42,8 +42,14 @@ public abstract class JScrollPaneWithButton {
         public int yGap;
         private final JPanel buttonContainer = new JPanel();
         private final Point currentMousePoint = new Point();
-        private final JButton button = new JButton(new UpArrowIcon(new Color(0xAA_3D_42_44, true),
-                                                                   new Color(0xAA_38_9F_D6, true))) {
+        private final JButton button = new JButton(new UpArrowIcon(new Color(0xAA3D4244, true),
+                                                                   new Color(0xAA389FD6, true))) {
+
+            private final Color ARMED_BUTTON_COLOR = new DarkLightColor(
+                    Color.darkGray,
+                    Color.lightGray
+            );
+
             @Override
             public void updateUI() {
                 super.updateUI();
@@ -62,7 +68,7 @@ public abstract class JScrollPaneWithButton {
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
                 if (getModel().isArmed()) {
-                    g2.setColor(Colors.isDarkMode() ? Color.lightGray : Color.darkGray);
+                    g2.setColor(ARMED_BUTTON_COLOR);
                 } else {
                     g2.setColor(UIManager.getColor("Button.background"));
                 }

@@ -26,6 +26,7 @@ import static io.github.bric3.fireplace.flamegraph.FrameRenderingFlags.isPartial
  *
  * @param <T> The type of the frame node (depends on the source of profiling data).
  */
+@FunctionalInterface
 public interface FrameFontProvider<T> {
 
     /**
@@ -47,35 +48,39 @@ public interface FrameFontProvider<T> {
             /**
              * The font used to display frame labels
              */
-            private final Font frameLabelFont = new Font(Font.SANS_SERIF, Font.PLAIN, 12);
+            private final Font regular = new Font(Font.SANS_SERIF, Font.PLAIN, 12);
 
             /**
              * If a frame is clipped, we'll shift the label to make it visible but show it with
              * a modified (italicised by default) font to highlight that the frame is only partially
              * visible.
              */
-            private final Font partialFrameLabelFont = new Font(Font.SANS_SERIF, Font.ITALIC, 12);
+            private final Font italic = new Font(Font.SANS_SERIF, Font.ITALIC, 12);
 
             /**
              * The font used to display frame labels
              */
-            private final Font highlightedFrameLabelFont = new Font(Font.SANS_SERIF, Font.PLAIN | Font.BOLD, 12);
+            private final Font bold = new Font(Font.SANS_SERIF, Font.PLAIN | Font.BOLD, 12);
 
             /**
              * If a frame is clipped, we'll shift the label to make it visible but show it with
              * a modified (italicised by default) font to highlight that the frame is only partially
              * visible.
              */
-            private final Font highlightedPartialFrameLabelFont = new Font(Font.SANS_SERIF, Font.ITALIC | Font.BOLD, 12);
+            private final Font italicBold = new Font(Font.SANS_SERIF, Font.ITALIC | Font.BOLD, 12);
 
             @Override
             public Font getFont(FrameBox<T> frame, int flags) {
+                if (frame != null && frame.isRoot()) {
+                    return bold;
+                }
+
                 if (isHighlightedFrame(flags)) {
                     // when parent frame are larger than view port
-                    return isPartialFrame(flags) ? highlightedPartialFrameLabelFont : highlightedFrameLabelFont;
+                    return isPartialFrame(flags) ? italicBold : bold;
                 }
                 // when parent frame are larger than view port
-                return isPartialFrame(flags) ? partialFrameLabelFont : frameLabelFont;
+                return isPartialFrame(flags) ? italic : regular;
             }
         };
     }

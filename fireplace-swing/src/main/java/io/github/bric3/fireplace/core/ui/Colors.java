@@ -20,6 +20,18 @@ import java.util.regex.Pattern;
  * Various color related utilities.
  */
 public class Colors {
+    /**
+     * Hue
+     */
+    public static final int H = 0;
+    /**
+     * Saturation
+     */
+    public static final int S = 1;
+    /**
+     * Luminance
+     */
+    public static final int L = 2;
     private static volatile boolean darkMode = false;
 
     /**
@@ -35,40 +47,64 @@ public class Colors {
      */
     public static final int DARK_PERCEIVED_BRIGHTNESS_THRESHOLD = gammaFunction(0.45);
 
-    /** Color BLACK with alpha 0xD0. */
+    /**
+     * Color BLACK with alpha 0xD0.
+     */
     public static Color translucent_black_D0 = new Color(0xD0000000, true);
 
-    /** Color BLACK with alpha 0xB0. */
+    /**
+     * Color BLACK with alpha 0xB0.
+     */
     public static Color translucent_black_B0 = new Color(0xB0000000, true);
 
-    /** Color BLACK with alpha 0x80. */
+    /**
+     * Color BLACK with alpha 0x80.
+     */
     public static Color translucent_black_80 = new Color(0x80000000, true);
 
-    /** Color BLACK with alpha 0x60. */
+    /**
+     * Color BLACK with alpha 0x60.
+     */
     public static Color translucent_black_60 = new Color(0x60000000, true);
 
-    /** Color BLACK with alpha 0x40. */
+    /**
+     * Color BLACK with alpha 0x40.
+     */
     public static Color translucent_black_40 = new Color(0x40000000, true);
 
-    /** Color BLACK with alpha 0x20. */
+    /**
+     * Color BLACK with alpha 0x20.
+     */
     public static Color translucent_black_20 = new Color(0x20000000, true);
 
-    /** Color WHITE with alpha 0xD0. */
+    /**
+     * Color WHITE with alpha 0xD0.
+     */
     public static Color translucent_white_D0 = new Color(0xD0FFFFFF, true);
 
-    /** Color WHITE with alpha 0xB0. */
+    /**
+     * Color WHITE with alpha 0xB0.
+     */
     public static Color translucent_white_B0 = new Color(0xB0FFFFFF, true);
 
-    /** Color WHITE with alpha 0x80. */
+    /**
+     * Color WHITE with alpha 0x80.
+     */
     public static Color translucent_white_80 = new Color(0x80FFFFFF, true);
 
-    /** Color WHITE with alpha 0x60. */
+    /**
+     * Color WHITE with alpha 0x60.
+     */
     public static Color translucent_white_60 = new Color(0x60FFFFFF, true);
 
-    /** Color WHITE with alpha 0x40. */
+    /**
+     * Color WHITE with alpha 0x40.
+     */
     public static Color translucent_white_40 = new Color(0x40FFFFFF, true);
 
-    /** Color WHITE with alpha 0x20. */
+    /**
+     * Color WHITE with alpha 0x20.
+     */
     public static Color translucent_white_20 = new Color(0x20FFFFFF, true);
 
     /**
@@ -175,7 +211,7 @@ public class Colors {
         ),
 
         /**
-         *  Light rainbow color palette.
+         * Light rainbow color palette.
          */
         LIGHT_BLUE_GREEN_ORANGE_RED(
                 /*blue*/ "#003565", "#004F99", "#1272CB", "#0084FF",
@@ -187,7 +223,7 @@ public class Colors {
         ),
 
         /**
-         *  Datadog color palette.
+         * Datadog color palette.
          */
         DATADOG(
                 new Color(0x3399CC),
@@ -213,7 +249,7 @@ public class Colors {
         ),
 
         /**
-         *  Pyroscope color palette.
+         * Pyroscope color palette.
          */
         PYROSCOPE(
                 new Color(0xDF8B53),
@@ -355,6 +391,112 @@ public class Colors {
 
         return new Color((int) r, (int) g, (int) b, (int) a);
     }
+
+    /**
+     * Dim the given color and returns a {@link #darkMode} aware color.
+     *
+     * @param color The color to dim
+     * @return The dimmed color ({@link #darkMode} aware)
+     * @see DarkLightColor
+     */
+    public static Color dim(Color color) {
+        var hslLight = hslComponents(color);
+        var hslDark = Arrays.copyOf(hslLight, hslLight.length);
+
+        // if (darkMode) {
+        // if color is grayish, keep the saturation, otherwise set it to 0.2
+        hslDark[S] = hslDark[S] < 0.1f ? hslDark[S] : 0.2f;
+        hslDark[L] = 0.2f;
+        // } else {
+        // if color is grayish, keep the saturation, otherwise set it to 0.4
+        hslLight[S] = hslLight[S] < 0.2 ? hslLight[S] : 0.4f;
+        hslLight[L] = 0.93f;
+        // }
+
+        return new DarkLightColor(
+                hsl(hslLight[0], hslLight[1], hslLight[2], color.getAlpha() / 255.0f),
+                hsl(hslDark[0], hslDark[1], hslDark[2], color.getAlpha() / 255.0f)
+        );
+    }
+
+
+    /**
+     * Convert an RGB Color to it corresponding HSL components.
+     * <p>
+     * From <a href="https://github.com/d3/d3-color/blob/958249d3a17aaff499d2a9fc9a0f7b8b8e8a47c8/src/color.js">d3-colors</a>.
+     *
+     * @param color The color to convert
+     * @return an array containing the 3 HSL values.
+     */
+    public static float[] hslComponents(Color color) {
+        float r = color.getRed() / 255.0f;
+        float g = color.getGreen() / 255.0f;
+        float b = color.getBlue() / 255.0f;
+
+        float min = Math.min(r, Math.min(g, b)),
+                max = Math.max(r, Math.max(g, b)),
+                h = 0f,
+                s = max - min,
+                l = (max + min) / 2;
+        if (s >= 0) {
+            if (r == max) {
+                h = (g - b) / s + ((g < b) ? 6 : 0);
+            } else if (g == max) {
+                h = (b - r) / s + 2;
+            } else {
+                h = (r - g) / s + 4;
+            }
+            s /= l < 0.5 ? max + min : 2 - max - min;
+            h *= 60;
+        } else {
+            s = ((l > 0) && (l < 1)) ? 0 : h;
+        }
+
+        return new float[]{h, s, l};
+    }
+
+    /**
+     * Convert HSL values to a RGB Color.
+     * <p>
+     * From <a href="https://github.com/d3/d3-color/blob/958249d3a17aaff499d2a9fc9a0f7b8b8e8a47c8/src/color.js">d3-colors</a>.
+     *
+     * @param h     Hue is specified as degrees in the range 0 - 360.
+     * @param s     Saturation is specified as a percentage in the range 1 - 100.
+     * @param l     Luminance is specified as a percentage in the range 1 - 100.
+     * @param alpha the alpha value between 0 - 1
+     * @return the RGB Color object
+     */
+    public static Color hsl(float h, float s, float l, float alpha) {
+        h = h % 360 + ((h < 0) ? 360 : 0);
+        s = Float.isNaN(h) || Float.isNaN(s) ? 0 : s;
+
+        float m2 = l + (l < 0.5 ? l : 1 - l) * s,
+                m1 = 2 * l - m2;
+
+        return new Color(
+                ((int) (alpha * 255)) << 24
+                | hueToRgb(h >= 240 ? h - 240 : h + 120, m1, m2) << 16
+                | hueToRgb(h, m1, m2) << 8
+                | hueToRgb(h < 120 ? h + 240 : h - 120, m1, m2)
+
+        );
+    }
+
+    /* From FvD 13.37, CSS Color Module Level 3 */
+    private static int hueToRgb(float h, float m1, float m2) {
+        return (int) (((h < 60) ? (m1 + (m2 - m1) * h / 60)
+                                : ((h < 180) ? m2
+                                             : ((h < 240) ? (m1 + (m2 - m1) * (240 - h) / 60)
+                                                          : m1
+                                   )
+                       )
+                      ) * 255);
+    }
+
+    public static Color rgba(int r, int g, int b, float a) {
+        return new Color(r, g, b, (int) (a * 255));
+    }
+
 
     /**
      * Utility method to print out the colors for the look and feel defaults.

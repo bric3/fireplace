@@ -33,6 +33,7 @@ import static io.github.bric3.fireplace.flamegraph.FrameRenderingFlags.isHovered
  *
  * @param <T> The type of the frame node (depends on the source of profiling data).
  */
+@FunctionalInterface
 public interface FrameColorProvider<T> {
     class ColorModel {
         public Color background;
@@ -44,12 +45,12 @@ public interface FrameColorProvider<T> {
          * @param background The background color of the frame.
          * @param foreground The foreground color of the frame.
          */
-        ColorModel(Color background, Color foreground) {
+        public ColorModel(Color background, Color foreground) {
             this.background = background;
             this.foreground = foreground;
         }
 
-        ColorModel set(Color background, Color foreground) {
+        public ColorModel set(Color background, Color foreground) {
             this.background = background;
             this.foreground = foreground;
             return this;
