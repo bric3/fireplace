@@ -34,8 +34,6 @@ package io.github.bric3.fireplace.flamegraph;
 
 import io.github.bric3.fireplace.core.ui.Colors;
 import io.github.bric3.fireplace.core.ui.DarkLightColor;
-import io.github.bric3.fireplace.flamegraph.FrameBox;
-import io.github.bric3.fireplace.flamegraph.FrameColorProvider;
 
 import java.awt.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -59,7 +57,8 @@ public class DimmingFrameColorProvider<T> implements FrameColorProvider<T> {
             new Color(0xff091222)
             );
     private final Function<FrameBox<T>, Color> baseColorFunction;
-    private final ColorModel reusableDataStructure = new ColorModel(null, null);
+    private final ColorModel reusedColorModelForMainCanvas = new ColorModel(null, null);
+    private final ColorModel reusedColorModelForMinimap = new ColorModel(null, null);
 
     private final ConcurrentHashMap<Color, Color> dimmedColorCache = new ConcurrentHashMap<>();
 
@@ -80,7 +79,12 @@ public class DimmingFrameColorProvider<T> implements FrameColorProvider<T> {
             backgroundColor = baseColorFunction.apply(frame);
         }
 
-        if (!rootNode && shouldDim(flags) && !isMinimapMode(flags)) {
+        if (isMinimapMode(flags)) {
+            // Since minimap rendering can happen in a separate thread, we need to use a separate instance
+            return reusedColorModelForMinimap.set(backgroundColor, null);
+        }
+
+        if (!rootNode && shouldDim(flags)) {
             backgroundColor = cachedDim(backgroundColor);
             foreground = DIMMED_TEXT;
         } else {
@@ -91,7 +95,7 @@ public class DimmingFrameColorProvider<T> implements FrameColorProvider<T> {
             backgroundColor = Colors.blend(backgroundColor, Colors.translucent_black_40);
         }
 
-        return reusableDataStructure.set(
+        return reusedColorModelForMainCanvas.set(
                 backgroundColor,
                 foreground
         );

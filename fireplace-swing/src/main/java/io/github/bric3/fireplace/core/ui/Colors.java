@@ -403,15 +403,18 @@ public class Colors {
         var hslLight = hslComponents(color);
         var hslDark = Arrays.copyOf(hslLight, hslLight.length);
 
-        // if (darkMode) {
-        // if color is grayish, keep the saturation, otherwise set it to 0.2
-        hslDark[S] = hslDark[S] < 0.1f ? hslDark[S] : 0.2f;
-        hslDark[L] = 0.2f;
-        // } else {
-        // if color is grayish, keep the saturation, otherwise set it to 0.4
-        hslLight[S] = hslLight[S] < 0.2 ? hslLight[S] : 0.4f;
-        hslLight[L] = 0.93f;
-        // }
+        {
+            // darkmode
+            // if color is grayish, keep the saturation, otherwise set it to 0.2
+            hslDark[S] = hslDark[S] < 0.1f ? hslDark[S] : 0.2f;
+            hslDark[L] = 0.2f;
+        }
+        {
+            // lightmode
+            // if color is grayish, keep the saturation, otherwise set it to 0.4
+            hslLight[S] = hslLight[S] < 0.2 ? hslLight[S] : 0.4f;
+            hslLight[L] = 0.93f;
+        }
 
         return new DarkLightColor(
                 hsl(hslLight[0], hslLight[1], hslLight[2], color.getAlpha() / 255.0f),
