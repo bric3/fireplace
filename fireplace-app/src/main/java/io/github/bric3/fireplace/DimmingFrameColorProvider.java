@@ -17,6 +17,7 @@
 package io.github.bric3.fireplace;
 
 import io.github.bric3.fireplace.core.ui.Colors;
+import io.github.bric3.fireplace.core.ui.DarkLightColor;
 import io.github.bric3.fireplace.flamegraph.FrameBox;
 import io.github.bric3.fireplace.flamegraph.FrameColorProvider;
 
@@ -31,10 +32,15 @@ import static io.github.bric3.fireplace.flamegraph.FrameRenderingFlags.isHighlig
 import static io.github.bric3.fireplace.flamegraph.FrameRenderingFlags.isMinimapMode;
 
 class DimmingFrameColorProvider<T> implements FrameColorProvider<T> {
-    public static final Color DIMMED_TEXT_DARK = Colors.rgba(255, 255, 255, 0.51f);
-    public static final Color DIMMED_TEXT_LIGHT = Colors.rgba(28, 43, 52, 0.68f);
-    public static final Color ROOT_NODE_LIGHT = new Color(0xffeaf6fc);
-    public static final Color ROOT_NODE_DARK = new Color(0xff091222);
+    public static final Color DIMMED_TEXT = new DarkLightColor(
+            Colors.rgba(28, 43, 52, 0.68f),
+            Colors.rgba(255, 255, 255, 0.51f)
+    );
+
+    public static final Color ROOT_NODE = new DarkLightColor(
+            new Color(0xffeaf6fc),
+            new Color(0xff091222)
+            );
     private final Function<FrameBox<T>, Color> baseColorFunction;
     private final ColorModel reusableDataStructure = new ColorModel(null, null);
 
@@ -52,18 +58,14 @@ class DimmingFrameColorProvider<T> implements FrameColorProvider<T> {
 
         var rootNode = isRootNode(frame);
         if (rootNode) {
-            backgroundColor = Colors.isDarkMode() ?
-                              ROOT_NODE_DARK :
-                              ROOT_NODE_LIGHT;
+            backgroundColor = ROOT_NODE;
         } else {
             backgroundColor = baseColorFunction.apply(frame);
         }
 
         if (!rootNode && shouldDim(flags) && !isMinimapMode(flags)) {
             backgroundColor = cachedDim(backgroundColor);
-            foreground = Colors.isDarkMode() ?
-                         DIMMED_TEXT_DARK :
-                         DIMMED_TEXT_LIGHT;
+            foreground = DIMMED_TEXT;
         } else {
             foreground = Colors.foregroundColor(backgroundColor);
         }

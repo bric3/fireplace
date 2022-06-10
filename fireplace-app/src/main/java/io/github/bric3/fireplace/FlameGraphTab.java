@@ -11,6 +11,7 @@ package io.github.bric3.fireplace;
 
 import io.github.bric3.fireplace.core.ui.Colors;
 import io.github.bric3.fireplace.core.ui.Colors.Palette;
+import io.github.bric3.fireplace.core.ui.DarkLightColor;
 import io.github.bric3.fireplace.flamegraph.ColorMapper;
 import io.github.bric3.fireplace.flamegraph.FlamegraphView;
 import io.github.bric3.fireplace.flamegraph.FrameFontProvider;
@@ -48,7 +49,8 @@ public class FlameGraphTab extends JPanel {
         jfrFlamegraphView.configureCanvas(ToolTipManager.sharedInstance()::registerComponent);
         jfrFlamegraphView.putClientProperty(FlamegraphView.SHOW_STATS, true);
         // jfrFlameGraph.setTooltipComponentSupplier(BalloonToolTip::new);
-        jfrFlamegraphView.setMinimapShadeColorSupplier(() -> Colors.isDarkMode() ? Colors.translucent_black_40 : Colors.translucent_white_80);
+        var minimapShade = new DarkLightColor(Colors.translucent_white_80, Colors.translucent_black_40);
+        jfrFlamegraphView.setMinimapShadeColorSupplier(() -> minimapShade);
         var zoomAnimation = new ZoomAnimation();
         zoomAnimation.install(jfrFlamegraphView);
 
@@ -99,7 +101,7 @@ public class FlameGraphTab extends JPanel {
             jfrFlamegraphView.showMinimap(defaultShowMinimap);
             jfrFlamegraphView.configureCanvas(ToolTipManager.sharedInstance()::registerComponent);
             jfrFlamegraphView.putClientProperty(FlamegraphView.SHOW_STATS, true);
-            jfrFlamegraphView.setMinimapShadeColorSupplier(() -> Colors.isDarkMode() ? Colors.translucent_black_40 : Colors.translucent_white_80);
+            jfrFlamegraphView.setMinimapShadeColorSupplier(() -> minimapShade);
             zoomAnimation.install(jfrFlamegraphView);
             if (dataApplier != null) {
                 dataApplier.accept(jfrFlamegraphView);
