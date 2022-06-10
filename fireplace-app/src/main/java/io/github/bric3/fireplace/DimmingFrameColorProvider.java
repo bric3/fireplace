@@ -29,6 +29,7 @@ import static io.github.bric3.fireplace.flamegraph.FrameRenderingFlags.isFocused
 import static io.github.bric3.fireplace.flamegraph.FrameRenderingFlags.isFocusing;
 import static io.github.bric3.fireplace.flamegraph.FrameRenderingFlags.isHighlightedFrame;
 import static io.github.bric3.fireplace.flamegraph.FrameRenderingFlags.isHighlighting;
+import static io.github.bric3.fireplace.flamegraph.FrameRenderingFlags.isHovered;
 import static io.github.bric3.fireplace.flamegraph.FrameRenderingFlags.isMinimapMode;
 
 class DimmingFrameColorProvider<T> implements FrameColorProvider<T> {
@@ -68,6 +69,10 @@ class DimmingFrameColorProvider<T> implements FrameColorProvider<T> {
             foreground = DIMMED_TEXT;
         } else {
             foreground = Colors.foregroundColor(backgroundColor);
+        }
+
+        if (isHovered(flags)) {
+            backgroundColor = Colors.blend(backgroundColor, Colors.translucent_black_40);
         }
 
         return reusableDataStructure.set(
