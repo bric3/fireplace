@@ -24,6 +24,8 @@ import java.awt.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 
+import static io.github.bric3.fireplace.flamegraph.FrameRenderingFlags.isFocusedFrame;
+import static io.github.bric3.fireplace.flamegraph.FrameRenderingFlags.isFocusing;
 import static io.github.bric3.fireplace.flamegraph.FrameRenderingFlags.isHighlightedFrame;
 import static io.github.bric3.fireplace.flamegraph.FrameRenderingFlags.isHighlighting;
 
@@ -55,7 +57,7 @@ class DimmingFrameColorProvider<T> implements FrameColorProvider<T> {
             backgroundColor = baseColorFunction.apply(frame);
         }
 
-        if (isDimmed(frame, flags)) {
+        if (shouldDim(flags)) {
             backgroundColor = cachedDim(backgroundColor);
             foreground = Colors.isDarkMode() ?
                          DIMMED_TEXT_DARK :
@@ -70,14 +72,36 @@ class DimmingFrameColorProvider<T> implements FrameColorProvider<T> {
         );
     }
 
+    /**
+     * Dim only if not highlighted or not focused
+     *
+     * - highlighting and not highlighted => dim
+     * - focusing and not focused => dim
+     * - highlighting and focusing
+     *    - highlighted => nope
+     *    - focusing => nope
+     */
+    private boolean shouldDim(int flags) {
+        var highlighting = isHighlighting(flags);
+        var highlightedFrame = isHighlightedFrame(flags);
+        var focusing = isFocusing(flags);
+        var focusedFrame = isFocusedFrame(flags);
+
+
+        var dimmedForHighlighting = highlighting && !highlightedFrame;
+        var dimmedForFocus = focusing && !focusedFrame;
+
+
+        return (dimmedForHighlighting || dimmedForFocus)
+               && !(highlighting
+                    && focusing
+                    && (highlightedFrame || focusedFrame));
+    }
+
     private Color cachedDim(Color color) {
         return dimmedColorCache.computeIfAbsent(color, Colors::dim);
     }
-
-    private boolean isDimmed(FrameBox<T> frame, int flags) {
-        return isHighlighting(flags) && !isHighlightedFrame(flags);
-    }
-
+    
     private boolean isRootNode(FrameBox<T> frame) {
         return frame.stackDepth == 0;
     }
