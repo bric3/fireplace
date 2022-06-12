@@ -115,7 +115,7 @@ class FlamegraphRenderEngine<T> {
      * @param thumbnailWidth the minimap width.
      * @return The height.
      */
-    public int computeFlameGraphMinimapHeight(int thumbnailWidth) {
+    public int computeFlamegraphMinimapHeight(int thumbnailWidth) {
         assert thumbnailWidth > 0 : "minimap width must be superior to 0";
 
         //        var visibleDepth = 0;
@@ -140,7 +140,7 @@ class FlamegraphRenderEngine<T> {
      * @param insets the insets.
      * @return The dimensions required to draw the whole fra
      */
-    public Dimension computeFlameGraphDimension(Graphics2D g2, int width, Insets insets) {
+    public Dimension computeFlamegraphDimension(Graphics2D g2, int width, Insets insets) {
         // as this method is invoked during layout, the dimension can be 0
         if (width == 0) {
             return new Dimension();

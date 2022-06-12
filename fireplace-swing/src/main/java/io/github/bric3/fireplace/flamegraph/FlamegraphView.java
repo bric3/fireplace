@@ -44,17 +44,18 @@ import static java.lang.Boolean.TRUE;
  * <p>
  * It can be used is as follows:
  * <pre><code>
- * FlameGraph&lt;MyNode&gt; flameGraph = new FlameGraph&lt;&gt;();
- * flameGraph.showMinimap(false);
- * flameGraph.setData(
+ * FlamegraphView&lt;MyNode&gt; flamegraphView = new FlamegraphView&lt;&gt;();
+ * flamegraphView.showMinimap(false);
+ * flamegraphView.setData(
  *     (FrameBox&lt;MyNode&gt;) listOfFrameBox(),   // list of frames
  *     List.of(n -&gt; n.stringRepresentation()),      // string representation candidates
  *     rootNode -&gt; rootNode.stringRepresentation(), // root node string representation
- *     frameToColorFunction,                        // color function
- *     frameToToolTipTextFunction                   // text tooltip function
+ *     frameColorProvider,                             // color the frame
+ *     frameFontProvider,                              // returns a given font for a frame
+ *     frameToToolTipTextFunction                      // text tooltip function
  * );
  *
- * panel.add(flameGraph.component);
+ * panel.add(flamegraphView.component);
  * </code></pre>
  * <p>
  * The created and <em>final</em> {@code component} is a composite that is based
@@ -66,7 +67,7 @@ import static java.lang.Boolean.TRUE;
  */
 public class FlamegraphView<T> {
     /**
-     * Internal key to get the FlameGraph from the component.
+     * Internal key to get the Flamegraph from the component.
      */
     private static final String OWNER_KEY = "flamegraphOwner";
     /**
@@ -74,7 +75,7 @@ public class FlamegraphView<T> {
      */
     public static String SHOW_STATS = "flamegraph.show_stats";
 
-    private final FlameGraphCanvas<T> canvas;
+    private final FlamegraphCanvas<T> canvas;
 
     /**
      * The final composite component that can display a flame graph.
@@ -85,7 +86,7 @@ public class FlamegraphView<T> {
      * Mouse input listener used to move the canvas over the JScrollPane
      * as well as trigger other bhavior on the canvas.
      */
-    private final FlameGraphMouseInputListener<T> listener;
+    private final FlamegraphMouseInputListener<T> listener;
 
     /**
      * The precomputed list of frames.
@@ -96,7 +97,7 @@ public class FlamegraphView<T> {
      * Represents a custom actions when zooming
      */
     public interface ZoomAction {
-        <T> boolean zoom(JViewport viewPort, final FlameGraphCanvas<T> canvas, ZoomTarget zoomTarget);
+        <T> boolean zoom(JViewport viewPort, final FlamegraphCanvas<T> canvas, ZoomTarget zoomTarget);
     }
 
     /**
@@ -111,13 +112,13 @@ public class FlamegraphView<T> {
     }
 
     /**
-     * Return the {@code FlameGraph} that created the passed component.
+     * Return the {@code Flamegraph} that created the passed component.
      * <p>
      * If this wasn't returned by a {@code FlaemGraph} then retunr empty.
      *
      * @param component the JComponent
      * @param <T>       The type of the node data.
-     * @return The {@code FlameGraph} instance that crated this JComponent or empty.
+     * @return The {@code Flamegraph} instance that crated this JComponent or empty.
      */
     @SuppressWarnings("unchecked")
     public static <T> Optional<FlamegraphView<T>> from(JComponent component) {
@@ -129,8 +130,8 @@ public class FlamegraphView<T> {
      * In order to use in Swing just access the {@link #component} field.
      */
     public FlamegraphView() {
-        canvas = new FlameGraphCanvas<>();
-        listener = new FlameGraphMouseInputListener<>(canvas);
+        canvas = new FlamegraphCanvas<>();
+        listener = new FlamegraphMouseInputListener<>(canvas);
         var scrollPane = new JScrollPane(canvas);
         var layeredScrollPane = JScrollPaneWithButton.create(
                 () -> {
@@ -210,7 +211,7 @@ public class FlamegraphView<T> {
      * @see FrameColorProvider
      */
     public void setFrameColorProvider(FrameColorProvider<T> frameColorProvider) {
-        this.canvas.getFlameGraphPainter()
+        this.canvas.getFlamegraphRenderEngine()
                    .ifPresent(fgp -> fgp.getFrameRenderer()
                                         .setFrameColorProvider(frameColorProvider));
     }
@@ -222,7 +223,7 @@ public class FlamegraphView<T> {
      * @see FrameFontProvider
      */
     public void setFrameFontProvider(FrameFontProvider<T> frameFontProvider) {
-        this.canvas.getFlameGraphPainter()
+        this.canvas.getFlamegraphRenderEngine()
                    .ifPresent(fgp -> fgp.getFrameRenderer()
                                         .setFrameFontProvider(frameFontProvider));
     }
@@ -234,7 +235,7 @@ public class FlamegraphView<T> {
      * @see FrameTextsProvider
      */
     public void setFrameTextsProvider(FrameTextsProvider<T> frameTextsProvider) {
-        this.canvas.getFlameGraphPainter()
+        this.canvas.getFlamegraphRenderEngine()
                    .ifPresent(fgp -> fgp.getFrameRenderer()
                                         .setFrameTextsProvider(frameTextsProvider));
     }
@@ -245,7 +246,7 @@ public class FlamegraphView<T> {
      * @param frameGapEnabled {@code true} to show a gap between frames, {@code false} otherwise.
      */
     public void setFrameGapEnabled(boolean frameGapEnabled) {
-        canvas.getFlameGraphPainter()
+        canvas.getFlamegraphRenderEngine()
               .ifPresent(fgp -> fgp.getFrameRenderer().setDrawingFrameGap(frameGapEnabled));
     }
 
@@ -426,7 +427,7 @@ public class FlamegraphView<T> {
             FrameFontProvider<T> frameFontProvider,
             Function<FrameBox<T>, String> tooltipTextFunction
     ) {
-        var flameGraphRenderEngine = new FlamegraphRenderEngine<>(
+        var flamegraphRenderEngine = new FlamegraphRenderEngine<>(
                 frames,
                 new FrameRender<>(
                         frameTextsProvider,
@@ -436,7 +437,7 @@ public class FlamegraphView<T> {
         );
         this.frames = Objects.requireNonNull(frames);
 
-        canvas.setFlameGraphRenderEngine(Objects.requireNonNull(flameGraphRenderEngine));
+        canvas.setFlamegraphRenderEngine(Objects.requireNonNull(flamegraphRenderEngine));
         canvas.setToolTipTextFunction(Objects.requireNonNull(tooltipTextFunction));
         canvas.invalidate();
         canvas.repaint();
@@ -447,7 +448,7 @@ public class FlamegraphView<T> {
      */
     public void clear() {
         frames = Collections.emptyList();
-        canvas.setFlameGraphRenderEngine(null);
+        canvas.setFlamegraphRenderEngine(null);
         canvas.invalidate();
         canvas.repaint();
     }
@@ -512,7 +513,7 @@ public class FlamegraphView<T> {
      */
     public void zoomTo(FrameBox<T> frame) {
         var viewport = (JViewport) canvas.getParent();
-        canvas.getFlameGraphPainter().map(fgp -> fgp.calculateZoomTargetFrame(
+        canvas.getFlamegraphRenderEngine().map(fgp -> fgp.calculateZoomTargetFrame(
                 (Graphics2D) canvas.getGraphics(),
                 canvas.getBounds(),
                 viewport.getViewRect(),
@@ -522,7 +523,7 @@ public class FlamegraphView<T> {
         )).ifPresent(zoomTarget -> zoom(canvas, viewport, zoomTarget));
     }
 
-    private static <T> void zoom(FlameGraphCanvas<T> canvas, JViewport viewPort, ZoomTarget zoomTarget) {
+    private static <T> void zoom(FlamegraphCanvas<T> canvas, JViewport viewPort, ZoomTarget zoomTarget) {
         if (canvas.zoomActionOverride == null || !canvas.zoomActionOverride.zoom(viewPort, canvas, zoomTarget)) {
             canvas.setSize(zoomTarget.bounds);
             viewPort.setViewPosition(zoomTarget.viewOffset);
@@ -547,7 +548,7 @@ public class FlamegraphView<T> {
     public void highlightFrames(Set<FrameBox<T>> framesToHighlight, String searched) {
         Objects.requireNonNull(framesToHighlight);
         Objects.requireNonNull(searched);
-        canvas.getFlameGraphPainter().ifPresent(painter ->
+        canvas.getFlamegraphRenderEngine().ifPresent(painter ->
                                                         painter.setHighlightFrames(framesToHighlight, searched)
         );
         canvas.repaint();
@@ -561,14 +562,14 @@ public class FlamegraphView<T> {
      *
      * @param <T>
      */
-    private static class FlameGraphMouseInputListener<T> implements MouseInputListener {
+    private static class FlamegraphMouseInputListener<T> implements MouseInputListener {
         private Point pressedPoint;
-        private final FlameGraphCanvas<T> canvas;
+        private final FlamegraphCanvas<T> canvas;
         private Rectangle hoveredFrameRectangle;
         private HoveringListener<T> hoveringListener;
         private FrameBox<T> hoveredFrame;
 
-        public FlameGraphMouseInputListener(FlameGraphCanvas<T> canvas) {
+        public FlamegraphMouseInputListener(FlamegraphCanvas<T> canvas) {
             this.canvas = canvas;
         }
 
@@ -625,7 +626,7 @@ public class FlamegraphView<T> {
 
             if (e.getClickCount() == 2) {
                 // find zoom target then do an animated transition
-                canvas.getFlameGraphPainter().flatMap(fgp -> fgp.calculateZoomTargetForFrameAt(
+                canvas.getFlamegraphRenderEngine().flatMap(fgp -> fgp.calculateZoomTargetForFrameAt(
                         (Graphics2D) viewPort.getView().getGraphics(),
                         canvas.getBounds(),
                         viewPort.getViewRect(),
@@ -634,7 +635,7 @@ public class FlamegraphView<T> {
                 return;
             }
 
-            canvas.getFlameGraphPainter()
+            canvas.getFlamegraphRenderEngine()
                   .ifPresent(fgp -> fgp.toggleSelectedFrameAt(
                           (Graphics2D) viewPort.getView().getGraphics(),
                           canvas.getBounds(),
@@ -653,7 +654,7 @@ public class FlamegraphView<T> {
             if ((e.getSource() instanceof JScrollPane)) {
                 hoveredFrameRectangle = null;
                 hoveredFrame = null;
-                canvas.getFlameGraphPainter()
+                canvas.getFlamegraphRenderEngine()
                       .ifPresent(FlamegraphRenderEngine::stopHover);
                 canvas.repaint();
                 if (hoveringListener != null) {
@@ -688,7 +689,7 @@ public class FlamegraphView<T> {
                 }
                 return;
             }
-            this.canvas.getFlameGraphPainter()
+            this.canvas.getFlamegraphRenderEngine()
                        .ifPresent(fgp -> {
                            var canvasGraphics = (Graphics2D) canvas.getGraphics();
                            fgp.getFrameAt(
@@ -733,13 +734,13 @@ public class FlamegraphView<T> {
         }
     }
 
-    static class FlameGraphCanvas<T> extends JPanel {
+    static class FlamegraphCanvas<T> extends JPanel {
 
         private Image minimap;
         private JToolTip toolTip;
-        private FlamegraphRenderEngine<T> flameGraphRenderEngine;
+        private FlamegraphRenderEngine<T> flamegraphRenderEngine;
         private Function<FrameBox<T>, String> tooltipToTextFunction;
-        private Dimension flameGraphDimension;
+        private Dimension flamegraphDimension;
         private int minimapWidth = 200;
         private int minimapHeight = 100;
         private int minimapInset = 10;
@@ -754,12 +755,12 @@ public class FlamegraphView<T> {
         private BiConsumer<FrameBox<T>, MouseEvent> selectedFrameConsumer;
 
 
-        public FlameGraphCanvas() {
+        public FlamegraphCanvas() {
             this(null);
         }
 
-        public FlameGraphCanvas(FlamegraphRenderEngine<T> flameGraphRenderEngine) {
-            this.flameGraphRenderEngine = flameGraphRenderEngine;
+        public FlamegraphCanvas(FlamegraphRenderEngine<T> flamegraphRenderEngine) {
+            this.flamegraphRenderEngine = flamegraphRenderEngine;
         }
 
         /**
@@ -768,9 +769,6 @@ public class FlamegraphView<T> {
         @Override
         public void updateUI() {
             super.updateUI();
-            // if (flameGraphPainter != null) {
-            //     flameGraphPainter.updateUI();
-            // }
         }
 
         @Override
@@ -778,23 +776,23 @@ public class FlamegraphView<T> {
             Dimension defaultDimension = super.getPreferredSize();
             defaultDimension = (defaultDimension == null) ? new Dimension(100, 50) : defaultDimension;
 
-            if (flameGraphRenderEngine == null) {
+            if (flamegraphRenderEngine == null) {
                 return defaultDimension;
             }
 
             Insets insets = getInsets();
-            var flameGraphDimension = flameGraphRenderEngine.computeFlameGraphDimension((Graphics2D) getGraphics(),
+            var flamegraphDimension = flamegraphRenderEngine.computeFlamegraphDimension((Graphics2D) getGraphics(),
                                                                                         getWidth(),
                                                                                         insets
             );
-            defaultDimension.width = Math.max(defaultDimension.width, flameGraphDimension.width + insets.left + insets.right);
-            defaultDimension.height = Math.max(defaultDimension.height, flameGraphDimension.height + insets.top + insets.bottom);
+            defaultDimension.width = Math.max(defaultDimension.width, flamegraphDimension.width + insets.left + insets.right);
+            defaultDimension.height = Math.max(defaultDimension.height, flamegraphDimension.height + insets.top + insets.bottom);
 
             // trigger minimap generation
-            if (!flameGraphDimension.equals(this.flameGraphDimension)) {
+            if (!flamegraphDimension.equals(this.flamegraphDimension)) {
                 triggerMinimapGeneration();
             }
-            this.flameGraphDimension = flameGraphDimension;
+            this.flamegraphDimension = flamegraphDimension;
             return defaultDimension;
         }
 
@@ -803,7 +801,7 @@ public class FlamegraphView<T> {
             super.paintComponent(g);
             Graphics2D g2 = (Graphics2D) g.create();
             var visibleRect = getVisibleRect();
-            if (flameGraphRenderEngine == null) {
+            if (flamegraphRenderEngine == null) {
                 String message = "No data to display";
                 Font font = g2.getFont();
                 // calculate center position
@@ -815,14 +813,14 @@ public class FlamegraphView<T> {
                 return;
             }
 
-            flameGraphRenderEngine.paintDetails = getClientProperty(SHOW_STATS) == TRUE;
-            flameGraphRenderEngine.paint(g2, getBounds(), visibleRect);
+            flamegraphRenderEngine.paintDetails = getClientProperty(SHOW_STATS) == TRUE;
+            flamegraphRenderEngine.paint(g2, getBounds(), visibleRect);
             paintMinimap(g2, visibleRect);
             g2.dispose();
         }
 
         private void paintMinimap(Graphics g, Rectangle visibleRect) {
-            if (flameGraphDimension != null && showMinimap && minimap != null) {
+            if (flamegraphDimension != null && showMinimap && minimap != null) {
                 var g2 = (Graphics2D) g.create(visibleRect.x + minimapLocation.x,
                                                visibleRect.y + visibleRect.height - minimapHeight - minimapLocation.y,
                                                minimapWidth + minimapInset * 2,
@@ -841,8 +839,8 @@ public class FlamegraphView<T> {
 
                 {
                     // Zoom zone
-                    double zoomZoneScaleX = (double) minimapWidth / flameGraphDimension.width;
-                    double zoomZoneScaleY = (double) minimapHeight / flameGraphDimension.height;
+                    double zoomZoneScaleX = (double) minimapWidth / flamegraphDimension.width;
+                    double zoomZoneScaleY = (double) minimapHeight / flamegraphDimension.height;
 
                     int x = (int) (visibleRect.x * zoomZoneScaleX);
                     int y = (int) (visibleRect.y * zoomZoneScaleY);
@@ -912,13 +910,13 @@ public class FlamegraphView<T> {
 
 
         private void triggerMinimapGeneration() {
-            if (!showMinimap || flameGraphRenderEngine == null) {
+            if (!showMinimap || flamegraphRenderEngine == null) {
                 repaintMinimapArea();
                 return;
             }
 
             CompletableFuture.runAsync(() -> {
-                var height = flameGraphRenderEngine.computeFlameGraphMinimapHeight(minimapWidth);
+                var height = flamegraphRenderEngine.computeFlamegraphMinimapHeight(minimapWidth);
                 if (height == 0) {
                     return;
                 }
@@ -932,7 +930,7 @@ public class FlamegraphView<T> {
                 minimapGraphics.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
 
                 Rectangle bounds = new Rectangle(minimapWidth, height);
-                flameGraphRenderEngine.paintMinimap(minimapGraphics, bounds);
+                flamegraphRenderEngine.paintMinimap(minimapGraphics, bounds);
                 minimapGraphics.dispose();
 
                 SwingUtilities.invokeLater(() -> this.setMinimapImage(minimapImage));
@@ -967,8 +965,8 @@ public class FlamegraphView<T> {
                     if (selectedFrameConsumer == null) {
                         return;
                     }
-                    FlameGraphCanvas<T> canvas = FlameGraphCanvas.this;
-                    flameGraphRenderEngine.getFrameAt((Graphics2D) canvas.getGraphics(), canvas.getBounds(), e.getPoint())
+                    FlamegraphCanvas<T> canvas = FlamegraphCanvas.this;
+                    flamegraphRenderEngine.getFrameAt((Graphics2D) canvas.getGraphics(), canvas.getBounds(), e.getPoint())
                                           .ifPresent(frame -> selectedFrameConsumer.accept(frame, e));
                 }
 
@@ -993,8 +991,8 @@ public class FlamegraphView<T> {
                     if (popupConsumer == null) {
                         return;
                     }
-                    FlameGraphCanvas<T> canvas = FlameGraphCanvas.this;
-                    flameGraphRenderEngine.getFrameAt((Graphics2D) canvas.getGraphics(), canvas.getBounds(), e.getPoint())
+                    FlamegraphCanvas<T> canvas = FlamegraphCanvas.this;
+                    flamegraphRenderEngine.getFrameAt((Graphics2D) canvas.getGraphics(), canvas.getBounds(), e.getPoint())
                                           .ifPresent(frame -> popupConsumer.accept(frame, e));
                 }
 
@@ -1006,19 +1004,19 @@ public class FlamegraphView<T> {
                 }
 
                 private void processMinimapMouseEvent(MouseEvent e) {
-                    if (flameGraphDimension == null) {
+                    if (flamegraphDimension == null) {
                         return;
                     }
 
                     var pt = e.getPoint();
-                    if (!(e.getComponent() instanceof FlamegraphView.FlameGraphCanvas)) {
+                    if (!(e.getComponent() instanceof FlamegraphView.FlamegraphCanvas)) {
                         return;
                     }
 
-                    var visibleRect = ((FlameGraphCanvas<?>) e.getComponent()).getVisibleRect();
+                    var visibleRect = ((FlamegraphCanvas<?>) e.getComponent()).getVisibleRect();
 
-                    double zoomZoneScaleX = (double) minimapWidth / flameGraphDimension.width;
-                    double zoomZoneScaleY = (double) minimapHeight / flameGraphDimension.height;
+                    double zoomZoneScaleX = (double) minimapWidth / flamegraphDimension.width;
+                    double zoomZoneScaleY = (double) minimapHeight / flamegraphDimension.height;
 
                     var h = (pt.x - (visibleRect.x + minimapLocation.x)) / zoomZoneScaleX;
                     var horizontalBarModel = scrollPane.getHorizontalScrollBar().getModel();
@@ -1041,12 +1039,12 @@ public class FlamegraphView<T> {
             this.addMouseMotionListener(mouseAdapter);
         }
 
-        void setFlameGraphRenderEngine(FlamegraphRenderEngine<T> flameGraphRenderEngine) {
-            this.flameGraphRenderEngine = flameGraphRenderEngine;
+        void setFlamegraphRenderEngine(FlamegraphRenderEngine<T> flamegraphRenderEngine) {
+            this.flamegraphRenderEngine = flamegraphRenderEngine;
         }
 
-        Optional<FlamegraphRenderEngine<T>> getFlameGraphPainter() {
-            return Optional.ofNullable(flameGraphRenderEngine);
+        Optional<FlamegraphRenderEngine<T>> getFlamegraphRenderEngine() {
+            return Optional.ofNullable(flamegraphRenderEngine);
         }
 
         public void setToolTipTextFunction(Function<FrameBox<T>, String> tooltipTextFunction) {
