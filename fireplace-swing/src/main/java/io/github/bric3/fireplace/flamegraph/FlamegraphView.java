@@ -549,7 +549,7 @@ public class FlamegraphView<T> {
         Objects.requireNonNull(framesToHighlight);
         Objects.requireNonNull(searched);
         canvas.getFlamegraphRenderEngine().ifPresent(painter ->
-                                                        painter.setHighlightFrames(framesToHighlight, searched)
+                                                             painter.setHighlightFrames(framesToHighlight, searched)
         );
         canvas.repaint();
     }
@@ -740,7 +740,7 @@ public class FlamegraphView<T> {
         private JToolTip toolTip;
         private FlamegraphRenderEngine<T> flamegraphRenderEngine;
         private Function<FrameBox<T>, String> tooltipToTextFunction;
-        private Dimension flamegraphDimension;
+        private final Dimension flamegraphDimension = new Dimension();
         private int minimapWidth = 200;
         private int minimapHeight = 100;
         private int minimapInset = 10;
@@ -781,18 +781,24 @@ public class FlamegraphView<T> {
             }
 
             Insets insets = getInsets();
-            var flamegraphDimension = flamegraphRenderEngine.computeFlamegraphDimension((Graphics2D) getGraphics(),
-                                                                                        getWidth(),
-                                                                                        insets
+            var flamegraphWidth = getWidth();
+            var flamegraphHeight = flamegraphRenderEngine.computeVisibleFlamegraphHeight(
+                    (Graphics2D) getGraphics(),
+                    flamegraphWidth,
+                    getVisibleRect().width,
+                    insets
             );
-            defaultDimension.width = Math.max(defaultDimension.width, flamegraphDimension.width + insets.left + insets.right);
-            defaultDimension.height = Math.max(defaultDimension.height, flamegraphDimension.height + insets.top + insets.bottom);
+            defaultDimension.width = Math.max(defaultDimension.width, flamegraphWidth + insets.left + insets.right);
+            defaultDimension.height = Math.max(defaultDimension.height, flamegraphHeight + insets.top + insets.bottom);
 
-            // trigger minimap generation
-            if (!flamegraphDimension.equals(this.flamegraphDimension)) {
+            // trigger minimap generation, when the flamegraph is zoomed, more
+            // frame become visible, and this may make the visible depth higher,
+            // this allows to update the minimap when more details are available.
+            if (flamegraphHeight != this.flamegraphDimension.height || flamegraphWidth != flamegraphDimension.width) {
                 triggerMinimapGeneration();
             }
-            this.flamegraphDimension = flamegraphDimension;
+            this.flamegraphDimension.height = flamegraphHeight;
+            this.flamegraphDimension.width = flamegraphWidth;
             return defaultDimension;
         }
 
@@ -916,7 +922,7 @@ public class FlamegraphView<T> {
             }
 
             CompletableFuture.runAsync(() -> {
-                var height = flamegraphRenderEngine.computeFlamegraphMinimapHeight(minimapWidth);
+                var height = flamegraphRenderEngine.computeVisibleFlamegraphMinimapHeight(minimapWidth);
                 if (height == 0) {
                     return;
                 }

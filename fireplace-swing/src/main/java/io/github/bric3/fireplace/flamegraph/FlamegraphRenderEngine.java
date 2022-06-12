@@ -115,7 +115,7 @@ class FlamegraphRenderEngine<T> {
      * @param thumbnailWidth the minimap width.
      * @return The height.
      */
-    public int computeFlamegraphMinimapHeight(int thumbnailWidth) {
+    public int computeVisibleFlamegraphMinimapHeight(int thumbnailWidth) {
         assert thumbnailWidth > 0 : "minimap width must be superior to 0";
 
         //        var visibleDepth = 0;
@@ -128,6 +128,10 @@ class FlamegraphRenderEngine<T> {
         //        }
         //        visibleDepth = Math.min(visibleDepth, depth);
 
+        // Somewhat it is a best effort to draw something that shows
+        // something representative. The canvas recompute this, if its
+        // size change so there's a chance the minimap can be updated
+        // with higher details (previously invisible frames)
         return visibleDepth * minimapFrameBoxHeight;
     }
 
@@ -135,18 +139,33 @@ class FlamegraphRenderEngine<T> {
      * Computes the dimensions of the flamegraph for the specified width (just the height needs calculating,
      * and this depends on the font metrics).
      *
-     * @param g2     the graphics target ({@code null} not permitted).
-     * @param width  the preferred width.
-     * @param insets the insets.
-     * @return The dimensions required to draw the whole fra
+     * @param g2           the graphics target ({@code null} not permitted).
+     * @param canvasWidth  the current canvas width
+     * @param visibleWidth the current visible rect
+     * @param insets       the insets.
+     * @return The height of the visible frames in this flamegraph
      */
-    public Dimension computeFlamegraphDimension(Graphics2D g2, int width, Insets insets) {
+    public int computeVisibleFlamegraphHeight(Graphics2D g2, int canvasWidth, int visibleWidth, Insets insets) {
         // as this method is invoked during layout, the dimension can be 0
-        if (width == 0) {
-            return new Dimension();
+        if (canvasWidth == 0) {
+            return 0;
         }
 
-        return new Dimension(width + insets.left + insets.right, depth * frameRenderer.getFrameBoxHeight(g2) + insets.top + insets.bottom);
+        var adjVisibleWidth = visibleWidth - insets.left - insets.right;
+        // compute the canvas height for the flamegraph width
+        if (canvasWidth != adjVisibleWidth) {
+            var visibleDepth = 0;
+            for (var frame : frames) {
+                if ((int) (canvasWidth * (frame.endX - frame.startX)) < frameWidthVisibilityThreshold) {
+                    continue;
+                }
+
+                visibleDepth = Math.max(visibleDepth, frame.stackDepth);
+            }
+            this.visibleDepth = Math.min(visibleDepth, depth);
+        }
+
+        return this.visibleDepth * frameRenderer.getFrameBoxHeight(g2);
     }
 
     /**
@@ -487,14 +506,7 @@ class FlamegraphRenderEngine<T> {
         var frameBoxHeight = frameRenderer.getFrameBoxHeight(g2);
         int y = frameBoxHeight * (Math.max(frame.stackDepth - contextBefore, 0));
 
-        /*
-         * The new scale factor is
-         *
-         *                viewRect.width
-         * factor = ----------------------------
-         *           frameWidthX * bounds.width
-         */
-        double factor = viewRect.getWidth() / (bounds.getWidth() * frameWidthX);
+        double factor = getScaleFactor(viewRect.getWidth(), bounds.getWidth(), frameWidthX);
         // Change offset to center the flame from this frame
         return new ZoomTarget(
                 new Dimension(
@@ -506,6 +518,21 @@ class FlamegraphRenderEngine<T> {
                         Math.max(0, y)
                 )
         );
+    }
+
+    /**
+     * Compute the scale factor (or zoom factor)
+     * <p>
+     * The new scale factor is
+     * <pre>
+     *
+     *                viewRect.width
+     * factor = ----------------------------
+     *           frameWidthX * bounds.width
+     * </pre>
+     */
+    private static double getScaleFactor(double visibleWidth, double canvasWidth, double frameWidthX) {
+        return visibleWidth / (canvasWidth * frameWidthX);
     }
 
     /**
