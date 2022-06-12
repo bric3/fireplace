@@ -57,7 +57,7 @@ class FlamegraphRenderEngine<T> {
     /**
      * The minimum width threshold for a frame to be rendered.
      */
-    protected int frameWidthVisibilityThreshold = 2;
+    protected double frameWidthVisibilityThreshold = 2d;
     private final int minimapFrameBoxHeight = 1;
 
     private FrameBox<T> hoveredFrame;
@@ -118,16 +118,6 @@ class FlamegraphRenderEngine<T> {
     public int computeVisibleFlamegraphMinimapHeight(int thumbnailWidth) {
         assert thumbnailWidth > 0 : "minimap width must be superior to 0";
 
-        //        var visibleDepth = 0;
-        //        for (var frame : frames) {
-        //            if (thumbnailWidth * (frame.endX - frame.startX) < 0.1 /* thumbnail visibility threshold */) {
-        //                continue;
-        //            }
-        //
-        //            visibleDepth = Math.max(visibleDepth, frame.stackDepth);
-        //        }
-        //        visibleDepth = Math.min(visibleDepth, depth);
-
         // Somewhat it is a best effort to draw something that shows
         // something representative. The canvas recompute this, if its
         // size change so there's a chance the minimap can be updated
@@ -156,7 +146,7 @@ class FlamegraphRenderEngine<T> {
         if (canvasWidth != adjVisibleWidth) {
             var visibleDepth = 0;
             for (var frame : frames) {
-                if ((int) (canvasWidth * (frame.endX - frame.startX)) < frameWidthVisibilityThreshold) {
+                if (canvasWidth * (frame.endX - frame.startX) < frameWidthVisibilityThreshold) {
                     continue;
                 }
 
