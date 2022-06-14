@@ -22,7 +22,7 @@ repositories {
 }
 
 dependencies {
-    implementation("org.eclipse.platform:org.eclipse.swt.cocoa.macosx.x86_64:3.119.0") {
+    implementation("org.eclipse.platform:org.eclipse.swt.cocoa.macosx.x86_64:3.120.0") {
         exclude(group = "org.eclipse.platform", module = "org.eclipse.swt")
     }
 
