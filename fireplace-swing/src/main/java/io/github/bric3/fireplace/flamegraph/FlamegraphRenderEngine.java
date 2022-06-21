@@ -422,6 +422,7 @@ class FlamegraphRenderEngine<T> {
     /**
      * Toggles the hover status of the frame
      *
+     * @param frame         the hovered frame, or null to clear old hover
      * @param g2            the graphics target ({@code null} not permitted).
      * @param bounds        the bounds in which the full flame graph is rendered ({@code null} not permitted).
      * @param hoverConsumer the function that is called to notify about the frame selection ({@code null} not permitted).
@@ -433,7 +434,7 @@ class FlamegraphRenderEngine<T> {
             Consumer<Rectangle> hoverConsumer
     ) {
         if (frame == null) {
-            stopHover();
+            stopHover(g2, bounds, hoverConsumer);
             return;
         }
         var oldHoveredFrame = hoveredFrame;
@@ -528,8 +529,12 @@ class FlamegraphRenderEngine<T> {
     /**
      * Clears the hovered frame (to indicate that no frame is hovered).
      */
-    public void stopHover() {
+    public void stopHover(Graphics2D g2, Rectangle2D bounds, Consumer<Rectangle> hoverConsumer) {
+        var oldHoveredFrame = hoveredFrame;
         hoveredFrame = null;
+        if (oldHoveredFrame != null) {
+            hoverConsumer.accept(getFrameRectangle(g2, bounds, oldHoveredFrame));
+        }
     }
 
 

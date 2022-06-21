@@ -661,7 +661,11 @@ public class FlamegraphView<T> {
                 hoveredFrameRectangle = null;
                 hoveredFrame = null;
                 canvas.getFlamegraphRenderEngine()
-                      .ifPresent(FlamegraphRenderEngine::stopHover);
+                      .ifPresent(fgp -> fgp.stopHover(
+                              (Graphics2D) canvas.getGraphics(),
+                              canvas.getBounds(),
+                              canvas::repaint
+                      ));
                 canvas.repaint();
                 if (hoveringListener != null) {
                     hoveringListener.onStopHover(e);
@@ -671,14 +675,10 @@ public class FlamegraphView<T> {
 
         @Override
         public void mouseMoved(MouseEvent e) {
-            var scrollPane = (JScrollPane) e.getComponent();
-            var viewPort = scrollPane.getViewport();
-            var canvas = (JComponent) viewPort.getView();
-
             var latestMouseLocation = MouseInfo.getPointerInfo().getLocation();
             SwingUtilities.convertPointFromScreen(latestMouseLocation, canvas);
 
-            if (this.canvas.isInsideMinimap(latestMouseLocation)) {
+            if (canvas.isInsideMinimap(latestMouseLocation)) {
                 if (hoveringListener != null) {
                     hoveringListener.onStopHover(e);
                 }
@@ -695,39 +695,47 @@ public class FlamegraphView<T> {
                 }
                 return;
             }
-            this.canvas.getFlamegraphRenderEngine()
-                       .ifPresent(fgp -> {
-                           var canvasGraphics = (Graphics2D) canvas.getGraphics();
-                           fgp.getFrameAt(
-                                      canvasGraphics,
-                                      this.canvas.getBounds(),
-                                      latestMouseLocation
-                              )
-                              .ifPresentOrElse(
-                                      frame -> {
-                                          fgp.hoverFrame(
-                                                  frame,
-                                                  canvasGraphics,
-                                                  this.canvas.getBounds(),
-                                                  this.canvas::repaint
-                                          );
-                                          this.canvas.setToolTipText(frame);
-                                          hoveredFrameRectangle = fgp.getFrameRectangle(canvasGraphics, this.canvas.getBounds(), frame);
-                                          hoveredFrame = frame;
-                                          if (hoveringListener != null) {
-                                              hoveringListener.onFrameHover(frame, hoveredFrameRectangle, e);
-                                          }
-                                      },
-                                      () -> {
-                                          fgp.stopHover();
-                                          hoveredFrameRectangle = null;
-                                          hoveredFrame = null;
-                                          if (hoveringListener != null) {
-                                              hoveringListener.onStopHover(e);
-                                          }
-                                      }
-                              );
-                       });
+            canvas.getFlamegraphRenderEngine()
+                  .ifPresent(fgp -> {
+                      var canvasGraphics = (Graphics2D) canvas.getGraphics();
+                      fgp.getFrameAt(
+                                 canvasGraphics,
+                                 canvas.getBounds(),
+                                 latestMouseLocation
+                         )
+                         .ifPresentOrElse(
+                                 frame -> {
+                                     fgp.hoverFrame(
+                                             frame,
+                                             canvasGraphics,
+                                             canvas.getBounds(),
+                                             canvas::repaint
+                                     );
+                                     canvas.setToolTipText(frame);
+                                     hoveredFrameRectangle = fgp.getFrameRectangle(
+                                             canvasGraphics,
+                                             canvas.getBounds(),
+                                             frame
+                                     );
+                                     hoveredFrame = frame;
+                                     if (hoveringListener != null) {
+                                         hoveringListener.onFrameHover(frame, hoveredFrameRectangle, e);
+                                     }
+                                 },
+                                 () -> {
+                                     fgp.stopHover(
+                                             canvasGraphics,
+                                             canvas.getBounds(),
+                                             canvas::repaint
+                                     );
+                                     hoveredFrameRectangle = null;
+                                     hoveredFrame = null;
+                                     if (hoveringListener != null) {
+                                         hoveringListener.onStopHover(e);
+                                     }
+                                 }
+                         );
+                  });
         }
 
         public void setHoveringListener(HoveringListener<T> hoveringListener) {
