@@ -86,7 +86,7 @@ public class FlamegraphView<T> {
      * Mouse input listener used to move the canvas over the JScrollPane
      * as well as trigger other bhavior on the canvas.
      */
-    private final FlamegraphMouseInputListener<T> listener;
+    private final FlamegraphScrollPaneMouseInputListener<T> listener;
 
     /**
      * The precomputed list of frames.
@@ -131,7 +131,7 @@ public class FlamegraphView<T> {
      */
     public FlamegraphView() {
         canvas = new FlamegraphCanvas<>();
-        listener = new FlamegraphMouseInputListener<>(canvas);
+        listener = new FlamegraphScrollPaneMouseInputListener<>(canvas);
         var scrollPane = new JScrollPane(canvas);
         var layeredScrollPane = JScrollPaneWithButton.create(
                 () -> {
@@ -562,14 +562,14 @@ public class FlamegraphView<T> {
      *
      * @param <T>
      */
-    private static class FlamegraphMouseInputListener<T> implements MouseInputListener {
+    private static class FlamegraphScrollPaneMouseInputListener<T> implements MouseInputListener {
         private Point pressedPoint;
         private final FlamegraphCanvas<T> canvas;
         private Rectangle hoveredFrameRectangle;
         private HoveringListener<T> hoveringListener;
         private FrameBox<T> hoveredFrame;
 
-        public FlamegraphMouseInputListener(FlamegraphCanvas<T> canvas) {
+        public FlamegraphScrollPaneMouseInputListener(FlamegraphCanvas<T> canvas) {
             this.canvas = canvas;
         }
 
@@ -588,13 +588,19 @@ public class FlamegraphView<T> {
                 viewPort.setViewPosition(new Point(Math.max(0, viewPortViewPosition.x - dx),
                                                    Math.max(0, viewPortViewPosition.y - dy)));
                 pressedPoint = e.getPoint();
+                e.consume();
             }
         }
 
         @Override
         public void mousePressed(MouseEvent e) {
             if (SwingUtilities.isLeftMouseButton(e)) {
-                this.pressedPoint = e.getPoint();
+                // don't drag canvas if the mouse was interacting within minimap
+                if (canvas.isInsideMinimap(SwingUtilities.convertPoint(e.getComponent(), e.getPoint(), canvas))) {
+                    pressedPoint = null;
+                    return;
+                }
+                pressedPoint = e.getPoint();
             }
         }
 
@@ -963,6 +969,8 @@ public class FlamegraphView<T> {
 
         public void linkListenerTo(JScrollPane scrollPane) {
             var mouseAdapter = new MouseInputAdapter() {
+                private Point pressedPoint;
+
                 @Override
                 public void mouseClicked(MouseEvent e) {
                     if (e.getClickCount() != 1 || e.getButton() != MouseEvent.BUTTON1) {
@@ -978,8 +986,14 @@ public class FlamegraphView<T> {
 
                 @Override
                 public void mousePressed(MouseEvent e) {
-                    if (isInsideMinimap(e.getPoint())) {
-                        processMinimapMouseEvent(e);
+                    if (SwingUtilities.isLeftMouseButton(e)) {
+                        if (isInsideMinimap(e.getPoint())) {
+                            processMinimapMouseEvent(e);
+                            pressedPoint = e.getPoint();
+                        } else {
+                            // don't trigger minimap behavior if the pressed point is outside the minimap
+                            pressedPoint = null;
+                        }
                         return;
                     }
                     handlePopup(e);
@@ -1004,7 +1018,7 @@ public class FlamegraphView<T> {
 
                 @Override
                 public void mouseDragged(MouseEvent e) {
-                    if (isInsideMinimap(e.getPoint())) {
+                    if (isInsideMinimap(e.getPoint()) && pressedPoint != null) {
                         processMinimapMouseEvent(e);
                     }
                 }
