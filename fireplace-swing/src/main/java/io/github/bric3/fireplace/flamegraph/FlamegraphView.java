@@ -818,6 +818,8 @@ public class FlamegraphView<T> {
 
         @Override
         protected void paintComponent(Graphics g) {
+            long start = System.currentTimeMillis();
+
             super.paintComponent(g);
             Graphics2D g2 = (Graphics2D) g.create();
             var visibleRect = getVisibleRect();
@@ -833,10 +835,37 @@ public class FlamegraphView<T> {
                 return;
             }
 
-            flamegraphRenderEngine.paintDetails = getClientProperty(SHOW_STATS) == TRUE;
             flamegraphRenderEngine.paint(g2, getBounds(), visibleRect);
             paintMinimap(g2, visibleRect);
+
+            paintDetails(start, g2);
             g2.dispose();
+        }
+
+        private void paintDetails(long start, Graphics2D g2) {
+            if (getClientProperty(SHOW_STATS) == TRUE) {
+                // timestamp
+                var viewRect = getVisibleRect();
+                var bounds = getBounds();
+                var zoomFactor = bounds.getWidth() / viewRect.getWidth();
+                var stats = "FrameGraph width " + bounds.getWidth() +
+                            " Zoom Factor " + zoomFactor +
+                            " Coordinate (" + viewRect.getX() + ", " + viewRect.getY() + ") " +
+                            "size (" + viewRect.getWidth() + ", " + viewRect.getHeight() + "), " +
+                            "Draw time: " + (System.currentTimeMillis() - start) + " ms";
+                var nowWidth = g2.getFontMetrics(getFont()).stringWidth(stats);
+                g2.setColor(Color.DARK_GRAY);
+                var frameTextPadding = 3;
+                g2.fillRect((int) (viewRect.getX() + viewRect.getWidth() - nowWidth - frameTextPadding * 2),
+                            (int) (viewRect.getY() + viewRect.getHeight() - 22),
+                             nowWidth + frameTextPadding * 2,
+                            22);
+
+                g2.setColor(Color.YELLOW);
+                g2.drawString(stats,
+                              (int) (viewRect.getX() + viewRect.getWidth() - nowWidth - frameTextPadding),
+                              (int) (viewRect.getY() + viewRect.getHeight() - frameTextPadding));
+            }
         }
 
         private void paintMinimap(Graphics g, Rectangle visibleRect) {

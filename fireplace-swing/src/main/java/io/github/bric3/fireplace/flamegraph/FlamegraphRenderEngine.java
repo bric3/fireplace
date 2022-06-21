@@ -72,15 +72,8 @@ class FlamegraphRenderEngine<T> {
      */
     private final int internalPadding = 2;
 
-    /**
-     * A flag that controls the display of rendering info and statistics.
-     *
-     * @see FlamegraphView#SHOW_STATS
-     */
-    protected boolean paintDetails = true;
     private Set<FrameBox<T>> toHighlight = Collections.emptySet();
     private final FrameRender<T> frameRenderer;
-    private final Font detailsFont = new Font(Font.SANS_SERIF, Font.PLAIN, 12);
 
     /**
      * Creates a new instance to render the specified list of frames.
@@ -189,7 +182,6 @@ class FlamegraphRenderEngine<T> {
         Objects.requireNonNull(g2);
         Objects.requireNonNull(bounds);
         Objects.requireNonNull(viewRect);
-        long start = System.currentTimeMillis();
         Graphics2D g2d = (Graphics2D) g2.create();
         identifyDisplayScale(g2d);
         var frameBoxHeight = minimapMode ? minimapFrameBoxHeight : frameRenderer.getFrameBoxHeight(g2);
@@ -266,29 +258,7 @@ class FlamegraphRenderEngine<T> {
         if (!minimapMode) {
             paintHoveredFrameBorder(g2d, viewRect, flameGraphWidth, frameBoxHeight, frameRect);
         }
-
-        if (!minimapMode && paintDetails) {
-            // timestamp
-            var zoomFactor = bounds.getWidth() / viewRect.getWidth();
-            var stats = "FrameGraph width " + flameGraphWidth +
-                        " Zoom Factor " + zoomFactor +
-                        " Coordinate (" + viewRect.getX() + ", " + viewRect.getY() + ") " +
-                        "size (" + viewRect.getWidth() + ", " + viewRect.getHeight() + "), " +
-                        "Draw time: " + (System.currentTimeMillis() - start) + " ms";
-            var nowWidth = g2d.getFontMetrics(detailsFont).stringWidth(stats);
-            g2d.setColor(Color.DARK_GRAY);
-            var frameTextPadding = frameRenderer.getFrameTextPadding();
-            g2d.fillRect((int) (viewRect.getX() + viewRect.getWidth() - nowWidth - frameTextPadding * 2),
-                         (int) (viewRect.getY() + viewRect.getHeight() - frameBoxHeight),
-                         nowWidth + frameTextPadding * 2,
-                         frameBoxHeight);
-
-            g2d.setColor(Color.YELLOW);
-            g2d.drawString(stats,
-                           (int) (viewRect.getX() + viewRect.getWidth() - nowWidth - frameTextPadding),
-                           (int) (viewRect.getY() + viewRect.getHeight() - frameTextPadding));
-        }
-
+        
         g2d.dispose();
     }
 
