@@ -318,10 +318,12 @@ class FlamegraphRenderEngine<T> {
      * Creates and returns the bounds for the specified frame, assuming that the whole flame graph is to
      * be rendered within the specified {@code bounds}.
      *
+     * This method includes the gap on each sides of the frame.
+     *
      * @param g2     the graphics target ({@code null} not permitted).
      * @param bounds the flame graph bounds ({@code null} not permitted)
      * @param frame  the frame ({@code null} not permitted)
-     * @return The bounds for the specified frame.
+     * @return The bounds for the specified frame (including the gap).
      */
     public Rectangle getFrameRectangle(
             Graphics2D g2,
@@ -329,6 +331,7 @@ class FlamegraphRenderEngine<T> {
             FrameBox<T> frame
     ) {
         // TODO delegate to frame renderer ?
+        // TODO get rectangle without gap ?
 
         var frameBoxHeight = frameRenderer.getFrameBoxHeight(g2);
         var frameGapWidth = frameRenderer.getFrameGapWidth();
@@ -470,6 +473,7 @@ class FlamegraphRenderEngine<T> {
         double factor = getScaleFactor(viewRect.getWidth(), bounds.getWidth(), frameWidthX);
         // Change offset to center the flame from this frame
         return new ZoomTarget(
+                factor,
                 new Dimension(
                         (int) (bounds.getWidth() * factor),
                         (int) (bounds.getHeight() * factor)

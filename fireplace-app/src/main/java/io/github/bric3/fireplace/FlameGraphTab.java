@@ -18,6 +18,7 @@ import io.github.bric3.fireplace.flamegraph.FlamegraphView;
 import io.github.bric3.fireplace.flamegraph.FrameFontProvider;
 import io.github.bric3.fireplace.flamegraph.FrameTextsProvider;
 import io.github.bric3.fireplace.flamegraph.ZoomAnimation;
+import io.github.bric3.fireplace.ui.BalloonToolTip;
 import org.openjdk.jmc.common.util.FormatToolkit;
 import org.openjdk.jmc.flightrecorder.stacktrace.tree.Node;
 import org.openjdk.jmc.flightrecorder.stacktrace.tree.StacktraceTreeModel;
@@ -49,7 +50,7 @@ public class FlameGraphTab extends JPanel {
         jfrFlamegraphView.showMinimap(defaultShowMinimap);
         jfrFlamegraphView.configureCanvas(ToolTipManager.sharedInstance()::registerComponent);
         jfrFlamegraphView.putClientProperty(FlamegraphView.SHOW_STATS, true);
-        // jfrFlameGraph.setTooltipComponentSupplier(BalloonToolTip::new);
+        jfrFlamegraphView.setTooltipComponentSupplier(BalloonToolTip::new);
         var minimapShade = new DarkLightColor(Colors.translucent_white_80, Colors.translucent_black_40);
         jfrFlamegraphView.setMinimapShadeColorSupplier(() -> minimapShade);
         var zoomAnimation = new ZoomAnimation();
@@ -147,14 +148,14 @@ public class FlameGraphTab extends JPanel {
                     var matches = jfrFlamegraphView.getFrames()
                                                    .stream()
                                                    .filter(frame -> {
-                                                   var method = frame.actualNode.getFrame().getMethod();
-                                                   return method.getMethodName().contains(searched)
-                                                          || method.getType().getTypeName().contains(searched)
-                                                          || (method.getType().getPackage().getName() != null && method.getType().getPackage().getName().contains(searched))
-                                                          || (method.getType().getPackage().getModule() != null && method.getType().getPackage().getModule().getName().contains(searched))
-                                                          || method.getFormalDescriptor().replace('/', '.').contains(searched)
-                                                           ;
-                                               })
+                                                       var method = frame.actualNode.getFrame().getMethod();
+                                                       return method.getMethodName().contains(searched)
+                                                              || method.getType().getTypeName().contains(searched)
+                                                              || (method.getType().getPackage().getName() != null && method.getType().getPackage().getName().contains(searched))
+                                                              || (method.getType().getPackage().getModule() != null && method.getType().getPackage().getModule().getName().contains(searched))
+                                                              || method.getFormalDescriptor().replace('/', '.').contains(searched)
+                                                               ;
+                                                   })
                                                    .collect(Collectors.toCollection(() -> Collections.newSetFromMap(new IdentityHashMap<>())));
                     jfrFlamegraphView.highlightFrames(matches, searched);
                 } catch (Exception ex) {
@@ -179,7 +180,7 @@ public class FlameGraphTab extends JPanel {
         add(controlPanel, BorderLayout.NORTH);
         add(wrapper, BorderLayout.CENTER);
     }
-    
+
     public void setStacktraceTreeModel(StacktraceTreeModel stacktraceTreeModel) {
         dataApplier = dataApplier(stacktraceTreeModel);
         dataApplier.accept(jfrFlamegraphView);
@@ -204,7 +205,7 @@ public class FlameGraphTab extends JPanel {
                         frame -> frame.isRoot() ? "" : FormatToolkit.getHumanReadable(frame.actualNode.getFrame().getMethod(), false, false, false, false, true, false),
                         frame -> frame.isRoot() ? "" : frame.actualNode.getFrame().getMethod().getMethodName()
                 ),
-                new DimmingFrameColorProvider(defaultFrameColorMode.colorMapperUsing(ColorMapper.ofObjectHashUsing(defaultColorPalette.colors()))),
+                new DimmingFrameColorProvider<>(defaultFrameColorMode.colorMapperUsing(ColorMapper.ofObjectHashUsing(defaultColorPalette.colors()))),
                 FrameFontProvider.defaultFontProvider(),
                 frame -> {
                     if (frame.isRoot()) {
@@ -226,6 +227,8 @@ public class FlameGraphTab extends JPanel {
                            + desc + "<br><hr>"
                            + frame.actualNode.getCumulativeWeight() + " " + frame.actualNode.getWeight() + "<br>"
                            + "BCI: " + frame.actualNode.getFrame().getBCI() + " Line number: " + frame.actualNode.getFrame().getFrameLineNumber() + "<br>"
+                           + frame.startX + ":" + frame.endX + "<br>"
+                           + "location: " + flameGraph.getFrameLocation(frame) + "<br>"
                            + "</html>";
                 }
         );
