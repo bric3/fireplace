@@ -23,7 +23,7 @@ import java.awt.*;
  */
 public class ZoomAnimation implements ZoomAction {
 
-    private static final long ZOOM_ANIMATION_DURATION = 400L;
+    private static final long ZOOM_ANIMATION_DURATION_MS = 400L;
 
     /**
      * A key for a system property that can be used to disable zoom animations.  Used to set the
@@ -69,14 +69,16 @@ public class ZoomAnimation implements ZoomAction {
         }
         int startW = canvas.getWidth();
         int startH = canvas.getHeight();
-        double deltaW = zoomTarget.bounds.width - startW;
-        double deltaH = zoomTarget.bounds.height - startH;
+        double startScale = canvas.getScale();
+        double deltaW = zoomTarget.canvasBounds.width - startW;
+        double deltaH = zoomTarget.canvasBounds.height - startH;
+        double deltaScale = zoomTarget.scaleFactor - startScale;
         int startX = viewPort.getViewPosition().x;
         int startY = viewPort.getViewPosition().y;
         double deltaX = zoomTarget.viewOffset.x - startX;
         double deltaY = zoomTarget.viewOffset.y - startY;
         Timeline.builder()
-                .setDuration(ZOOM_ANIMATION_DURATION)
+                .setDuration(ZOOM_ANIMATION_DURATION_MS)
                 .setEase(new Sine())
                 .addCallback(new EventDispatchThreadTimelineCallbackAdapter() {
                     @Override
@@ -84,18 +86,22 @@ public class ZoomAnimation implements ZoomAction {
                         if (newState.equals(Timeline.TimelineState.DONE)) {
                             // throw in a final update to the target position, because the last pulse
                             // might not have reached exactly timelinePosition = 1.0...
-                            canvas.setSize(zoomTarget.bounds);
+                            canvas.setScale(zoomTarget.scaleFactor);
+                            canvas.setSize(zoomTarget.canvasBounds);
                             viewPort.setViewPosition(zoomTarget.viewOffset);
                         }
                     }
 
                     @Override
                     public void onTimelinePulse(float durationFraction, float timelinePosition) {
+                        canvas.setScale(startScale + timelinePosition * deltaScale);
                         canvas.setSize(new Dimension((int) (startW + timelinePosition * deltaW), (int) (startH + timelinePosition * deltaH)));
                         Point pos = new Point(startX + (int) (timelinePosition * deltaX), startY + (int) (timelinePosition * deltaY));
                         viewPort.setViewPosition(pos);
                     }
-                }).build().playSkipping(3L);
+                })
+                .build()
+                .playSkipping(3L);
         return true;
     }
 }

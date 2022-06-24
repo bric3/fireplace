@@ -16,10 +16,14 @@ import javax.swing.*;
 import javax.swing.event.MouseInputAdapter;
 import javax.swing.event.MouseInputListener;
 import java.awt.*;
+import java.awt.event.ComponentAdapter;
+import java.awt.event.ComponentEvent;
 import java.awt.event.MouseEvent;
 import java.awt.geom.Area;
 import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
+import java.beans.PropertyChangeEvent;
+import java.beans.PropertyChangeListener;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
@@ -92,6 +96,13 @@ public class FlamegraphView<T> {
      * The precomputed list of frames.
      */
     private List<FrameBox<T>> frames;
+
+    // TODO remove ?
+    public Rectangle getFrameLocation(FrameBox<T> frame) {
+        return canvas.getFlamegraphRenderEngine()
+                     .map(fre -> fre.getFrameRectangle((Graphics2D) canvas.getGraphics(), canvas.getBounds(), frame))
+                     .orElseThrow();
+    }
 
     /**
      * Represents a custom actions when zooming
@@ -502,7 +513,7 @@ public class FlamegraphView<T> {
         zoom(
                 canvas,
                 (JViewport) canvas.getParent(),
-                new ZoomTarget(canvas.getVisibleRect().getSize(), new Point())
+                new ZoomTarget(ZoomTarget.SCALE_1, canvas.getVisibleRect().getSize(), new Point())
         );
     }
 
@@ -525,7 +536,8 @@ public class FlamegraphView<T> {
 
     private static <T> void zoom(FlamegraphCanvas<T> canvas, JViewport viewPort, ZoomTarget zoomTarget) {
         if (canvas.zoomActionOverride == null || !canvas.zoomActionOverride.zoom(viewPort, canvas, zoomTarget)) {
-            canvas.setSize(zoomTarget.bounds);
+            canvas.setScale(zoomTarget.scaleFactor);
+            canvas.setSize(zoomTarget.canvasBounds);
             viewPort.setViewPosition(zoomTarget.viewOffset);
         }
     }
@@ -767,10 +779,21 @@ public class FlamegraphView<T> {
         private ZoomAction zoomActionOverride;
         private BiConsumer<FrameBox<T>, MouseEvent> popupConsumer;
         private BiConsumer<FrameBox<T>, MouseEvent> selectedFrameConsumer;
+        private double scaleFactor = 1d;
+
+
 
 
         public FlamegraphCanvas() {
             this(null);
+
+            addPropertyChangeListener("scaleFactor", new PropertyChangeListener() {
+                @Override
+                public void propertyChange(PropertyChangeEvent evt) {
+
+                }
+            });
+
         }
 
         public FlamegraphCanvas(FlamegraphRenderEngine<T> flamegraphRenderEngine) {
@@ -786,6 +809,62 @@ public class FlamegraphView<T> {
         }
 
         @Override
+        public void addNotify() {
+            super.addNotify();
+            var parent = getParent();
+            if (parent instanceof JViewport) {;
+                parent.addComponentListener(new ComponentAdapter() {
+                    double oldVisibleWidth = 0;
+                    // int oldViewPositionX = 0;
+                    double oldFlamegraphWidth = 0;
+
+                    @Override
+                    public void componentResized(ComponentEvent e) {
+                        // var viewport = (JViewport) e.getComponent();
+                        // double oldVisibleWidth = this.oldVisibleWidth;
+                        // var viewRect = viewport.getViewRect();
+                        // this.oldVisibleWidth = viewRect.getWidth();
+                        // if (this.oldVisibleWidth == 0.0) {
+                        //     return;
+                        // }
+                        //
+                        //
+                        // var oldViewPosition = viewport.getViewPosition();
+                        // if (oldViewPosition.x == 0) {
+                        //     return;
+                        // }
+                        //
+                        // // var oldViewPositionX = this.oldViewPositionX;
+                        //
+                        //
+                        // // At this point this is still the old flamegraph dimension, ACTUALLY not always
+                        // // so we need to recalculate the future flamegraph dimension
+                        //
+                        // var oldFlamegraphWidth = this.oldFlamegraphWidth;
+                        // this.oldFlamegraphWidth = viewport.getViewSize().getWidth();
+                        // if (oldFlamegraphWidth == 0.0 || oldFlamegraphWidth == this.oldFlamegraphWidth) {
+                        //     return;
+                        // }
+                        //
+                        // var posXRatio = oldViewPosition.x / oldFlamegraphWidth;
+                        //
+                        // // var futureFlamegraphWidth = viewRect.getWidth() * scaleFactor;
+                        // var futureFlamegraphWidth = this.oldFlamegraphWidth;
+                        // var newPosX = (int) (futureFlamegraphWidth * posXRatio) - 2;
+                        //
+                        // // var coercedViewPositionX = newWidth * (oldViewPosition.x / oldVisibleWidth);;
+                        //
+                        // // if (newPosX != oldViewPosition.x) {
+                        // System.out.println("pos X : " + oldViewPosition.x + " => " + newPosX + " view visible width: " + viewRect.getWidth() + " fg width: " + oldFlamegraphWidth + " => " + futureFlamegraphWidth);
+                        // oldViewPosition.setLocation(newPosX, oldViewPosition.y);
+                        // SwingUtilities.invokeLater(() -> viewport.setViewPosition(oldViewPosition));
+                        // // }
+                    }
+                });
+            }
+        }
+
+        @Override
         public Dimension getPreferredSize() {
             Dimension defaultDimension = super.getPreferredSize();
             defaultDimension = (defaultDimension == null) ? new Dimension(100, 50) : defaultDimension;
@@ -796,10 +875,19 @@ public class FlamegraphView<T> {
 
             Insets insets = getInsets();
             var flamegraphWidth = getWidth();
+            var visibleRect = getVisibleRect();
+
+            // ensure scale factor between canvas and visible
+            // especially when the parent component is resized
+
+            var coercedFlameGraphWidth = visibleRect.width * scaleFactor;
+
+            System.out.println("visible rect: " + visibleRect.x + ":" + visibleRect.y + "," + visibleRect.width + ":" + visibleRect.height + ", canvas size: " + flamegraphWidth + ":" + getHeight() + ", scale: " + scaleFactor + ", coerced: " + Math.round(coercedFlameGraphWidth*100.0) / 100.0);
+            flamegraphWidth = (int) coercedFlameGraphWidth;
             var flamegraphHeight = flamegraphRenderEngine.computeVisibleFlamegraphHeight(
                     (Graphics2D) getGraphics(),
                     flamegraphWidth,
-                    getVisibleRect().width,
+                    visibleRect.width,
                     insets
             );
             defaultDimension.width = Math.max(defaultDimension.width, flamegraphWidth + insets.left + insets.right);
@@ -812,7 +900,26 @@ public class FlamegraphView<T> {
                 triggerMinimapGeneration();
             }
             this.flamegraphDimension.height = flamegraphHeight;
+            // var oldFlamegraphWidth =  this.flamegraphDimension.width;
             this.flamegraphDimension.width = flamegraphWidth;
+            // var newFlamegraphWidth = this.flamegraphDimension.width;
+
+            // SwingUtilities.invokeLater(() -> {
+            //     if (oldFlamegraphWidth == newFlamegraphWidth) {
+            //         return;
+            //     }
+            //     var posXRatio = visibleRect.x / oldFlamegraphWidth;
+            //
+            //     // var futureFlamegraphWidth = viewRect.getWidth() * scaleFactor;
+            //     var newPosX = (int) (newFlamegraphWidth * posXRatio) - 2;
+            //
+            //     System.out.println("pos X : " + visibleRect.x + " => " + newPosX + " fg width: " + oldFlamegraphWidth + " => " + newFlamegraphWidth);
+            //     var viewport = (JViewport) getParent();
+            //     var viewPosition = viewport.getViewPosition();
+            //     viewPosition.setLocation(newPosX, viewPosition.y);
+            //     viewport.setViewPosition(viewPosition);
+            //     // }
+            // });
             return defaultDimension;
         }
 
@@ -847,7 +954,7 @@ public class FlamegraphView<T> {
                 // timestamp
                 var viewRect = getVisibleRect();
                 var bounds = getBounds();
-                var zoomFactor = bounds.getWidth() / viewRect.getWidth();
+                var zoomFactor = Math.round((bounds.getWidth() / viewRect.getWidth()) / 100.0) * 100.0;
                 var stats = "FrameGraph width " + bounds.getWidth() +
                             " Zoom Factor " + zoomFactor +
                             " Coordinate (" + viewRect.getX() + ", " + viewRect.getY() + ") " +
@@ -1131,6 +1238,14 @@ public class FlamegraphView<T> {
 
         public void setSelectedFrameConsumer(BiConsumer<FrameBox<T>, MouseEvent> consumer) {
             this.selectedFrameConsumer = consumer;
+        }
+
+        public void setScale(double scaleFactor) {
+            this.scaleFactor = scaleFactor;
+        }
+
+        public double getScale() {
+            return scaleFactor;
         }
     }
 }

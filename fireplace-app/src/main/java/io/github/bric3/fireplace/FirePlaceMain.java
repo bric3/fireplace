@@ -110,7 +110,7 @@ public class FirePlaceMain {
             {
                 jTabbedPane.addTab(SYSTEM_PROPERTIES, JScrollPaneWithButton.create(() -> new JScrollPane(sysProps)));
                 jTabbedPane.addTab(NATIVE_LIBRARIES, JScrollPaneWithButton.create(() -> new JScrollPane(nativeLibs)));
-                jTabbedPane.addTab(ALLOCATIONS, allocationFlameGraphPanel);
+                // jTabbedPane.addTab(ALLOCATIONS, allocationFlameGraphPanel);
                 jTabbedPane.addTab(CPU, cpuFlameGraphPanel);
                 jTabbedPane.setTabPlacement(JTabbedPane.BOTTOM);
             }

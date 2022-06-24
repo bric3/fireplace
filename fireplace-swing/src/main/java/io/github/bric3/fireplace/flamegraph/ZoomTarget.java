@@ -17,23 +17,30 @@ import java.util.Objects;
  * Represents a target for zooming.
  */
 public class ZoomTarget {
+    /** The 1:1 scale */
+    public static final double SCALE_1 = 1d;
+
+    /** The scale factor for this zoom target */
+    public final double scaleFactor;
 
     /** The bounds required to draw the whole content. */
-    public Dimension bounds;
+    public final Dimension canvasBounds;
 
     /** The coordinates of the top-left corner of the frame that is the target of the zoom. */
-    public Point viewOffset;
+    public final Point viewOffset;
 
     /**
      * Creates a new zoom target.
      *
-     * @param bounds     the bounds.
-     * @param viewOffset the view offset.
+     * @param scaleFactor
+     * @param canvasBounds      the bounds.
+     * @param viewOffset  the view offset.
      */
-    public ZoomTarget(Dimension bounds, Point viewOffset) {
-        Objects.requireNonNull(bounds);
+    public ZoomTarget(double scaleFactor, Dimension canvasBounds, Point viewOffset) {
+        this.scaleFactor = scaleFactor;
+        Objects.requireNonNull(canvasBounds);
         Objects.requireNonNull(viewOffset);
-        this.bounds = bounds;
+        this.canvasBounds = canvasBounds;
         this.viewOffset = viewOffset;
     }
 
@@ -45,8 +52,8 @@ public class ZoomTarget {
     @Override
     public String toString() {
         return "ZoomTarget{" +
-                "bounds=" + bounds +
-                ", viewOffset=" + viewOffset +
-                '}';
+               "bounds=" + canvasBounds +
+               ", viewOffset=" + viewOffset +
+               '}';
     }
 }
