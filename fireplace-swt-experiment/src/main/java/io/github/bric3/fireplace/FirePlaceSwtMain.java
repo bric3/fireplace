@@ -11,6 +11,7 @@ import org.eclipse.swt.SWT;
 import org.eclipse.swt.awt.SWT_AWT;
 import org.eclipse.swt.events.DisposeEvent;
 import org.eclipse.swt.events.DisposeListener;
+import org.eclipse.swt.graphics.Point;
 import org.eclipse.swt.layout.FillLayout;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
@@ -32,6 +33,7 @@ import org.openjdk.jmc.flightrecorder.stacktrace.tree.Node;
 import org.openjdk.jmc.flightrecorder.stacktrace.tree.StacktraceTreeModel;
 
 import javax.swing.*;
+import java.awt.*;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
@@ -48,7 +50,7 @@ import static java.util.stream.Collectors.toUnmodifiableList;
 public class FirePlaceSwtMain {
 
     private Shell shell;
-    private FlamegraphView<Node> flameGraph;
+    private FlamegraphView<Node> flamegraph;
 
     public static void main(String[] args) {
         if (ProcessHandle.current().info().commandLine().stream().noneMatch(s -> s.contains("-XstartOnFirstThread")) &&
@@ -89,6 +91,7 @@ public class FirePlaceSwtMain {
             }
         });
         shell.setLayout(new FillLayout(SWT.VERTICAL));
+        shell.setSize(1000, 800);
 
         var parentComposite = new Composite(shell, SWT.CENTER);
         parentComposite.setLayout(new GridLayout(1, false));
@@ -98,21 +101,33 @@ public class FirePlaceSwtMain {
         label.pack();
 
         var swingComposite = new Composite(parentComposite, SWT.EMBEDDED | SWT.NO_BACKGROUND);
-        swingComposite.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
-        swingComposite.setLayout(new FillLayout());
+        swingComposite.setLayoutData(new GridData(GridData.FILL_BOTH));
+        // swingComposite.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
+        // swingComposite.setLayout(new GridLayout(1, false));
 
         var frame = SWT_AWT.new_Frame(swingComposite);
         // needed to properly terminate the app on close
-        swingComposite.addDisposeListener(e -> frame.removeNotify());
+        swingComposite.addDisposeListener(e -> {
+            // SwingUtilities.invokeLater(() -> {
+                try {
+                    frame.removeNotify();
+                } catch (Exception ignored) {}
+            // });
+        });
         SwingUtilities.invokeLater(() -> {
             JRootPane rootPane = new JRootPane();
-            flameGraph = createFlameGraph();
-            rootPane.getContentPane().add(flameGraph.component);
+            flamegraph = createFlameGraph();
+            rootPane.getContentPane().add(flamegraph.component);
 
-            frame.add(rootPane);
+            Panel panel = new Panel();
+            panel.setLayout(new BorderLayout());
+            panel.add(rootPane);
+            frame.add(panel);
+            frame.pack();
+            frame.setVisible(true);
         });
 
-        loadJfr(args, label, flameGraph);
+        loadJfr(args, label, swingComposite);
 
         return shell;
     }
@@ -125,7 +140,7 @@ public class FirePlaceSwtMain {
         return fg;
     }
 
-    private void loadJfr(String[] args, Label text, FlamegraphView<Node> fg) {
+    private void loadJfr(String[] args, Label text, Composite swingComposite) {
         var jfrFiles = Arrays.stream(args)
                              .map(Path::of)
                              .filter(path -> {
@@ -171,7 +186,7 @@ public class FirePlaceSwtMain {
             var flatFrameList = convert(stacktraceTreeModel);
 
             SwingUtilities.invokeLater(() -> {
-                flameGraph.setConfigurationAndData(
+                flamegraph.setConfigurationAndData(
                         flatFrameList,
                         FrameTextsProvider.of(
                                 frame -> {
@@ -194,7 +209,14 @@ public class FirePlaceSwtMain {
                         FrameFontProvider.defaultFontProvider(),
                         frame -> ""
                 );
-                flameGraph.requestRepaint();
+
+                // don't fix anything...
+                // the scroll bar don't show up
+                Display.getDefault().asyncExec(() -> {
+                    swingComposite.layout(true, true);
+                    // var swingCompositeSize = swingComposite.getSize();
+                    // flamegraph.component.setSize(swingCompositeSize.x, swingCompositeSize.y);
+                });
             });
         });
     }

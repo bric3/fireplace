@@ -439,8 +439,8 @@ public class FlamegraphView<T> {
 
         canvas.setFlamegraphRenderEngine(Objects.requireNonNull(flamegraphRenderEngine));
         canvas.setToolTipTextFunction(Objects.requireNonNull(tooltipTextFunction));
-        canvas.invalidate();
-        canvas.repaint();
+        component.invalidate();
+        component.repaint();
     }
 
     /**
@@ -449,8 +449,8 @@ public class FlamegraphView<T> {
     public void clear() {
         frames = Collections.emptyList();
         canvas.setFlamegraphRenderEngine(null);
-        canvas.invalidate();
-        canvas.repaint();
+        component.invalidate();
+        component.repaint();
     }
 
     public List<FrameBox<T>> getFrames() {
@@ -486,7 +486,8 @@ public class FlamegraphView<T> {
      * Triggers a repaint of the component.
      */
     public void requestRepaint() {
-        canvas.repaint();
+        component.invalidate();
+        component.repaint();
         canvas.triggerMinimapGeneration();
     }
 
