@@ -109,9 +109,9 @@ public class FirePlaceSwtMain {
         // needed to properly terminate the app on close
         swingComposite.addDisposeListener(e -> {
             // SwingUtilities.invokeLater(() -> {
-                try {
-                    frame.removeNotify();
-                } catch (Exception ignored) {}
+            try {
+                frame.removeNotify();
+            } catch (Exception ignored) {}
             // });
         });
         SwingUtilities.invokeLater(() -> {
@@ -209,13 +209,17 @@ public class FirePlaceSwtMain {
                         FrameFontProvider.defaultFontProvider(),
                         frame -> ""
                 );
+                // flamegraph.component.invalidate();
+                // flamegraph.component.repaint();
 
                 // don't fix anything...
                 // the scroll bar don't show up
                 Display.getDefault().asyncExec(() -> {
                     swingComposite.layout(true, true);
-                    // var swingCompositeSize = swingComposite.getSize();
-                    // flamegraph.component.setSize(swingCompositeSize.x, swingCompositeSize.y);
+
+                    // do not work either
+                    var swingCompositeSize = swingComposite.getSize();
+                    SwingUtilities.invokeLater(() -> flamegraph.component.setSize(swingCompositeSize.x, swingCompositeSize.y));
                 });
             });
         });
