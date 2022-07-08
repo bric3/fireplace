@@ -9,7 +9,6 @@
  */
 package io.github.bric3.fireplace;
 
-import com.formdev.flatlaf.util.SystemInfo;
 import io.github.bric3.fireplace.core.ui.JScrollPaneWithButton;
 import io.github.bric3.fireplace.ui.FrameResizeLabel;
 import io.github.bric3.fireplace.ui.HudPanel;
@@ -19,8 +18,6 @@ import io.github.bric3.fireplace.ui.debug.CheckThreadViolationRepaintManager;
 import io.github.bric3.fireplace.ui.debug.EventDispatchThreadHangMonitor;
 
 import javax.swing.*;
-import javax.swing.border.Border;
-import javax.swing.border.CompoundBorder;
 import java.awt.*;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
@@ -161,6 +158,4 @@ public class FirePlaceMain {
             frame.setVisible(true);
         });
     }
-
-
 }

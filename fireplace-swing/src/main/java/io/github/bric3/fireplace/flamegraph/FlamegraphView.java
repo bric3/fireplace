@@ -106,7 +106,9 @@ public class FlamegraphView<T> {
      * @param <T> The type of the node data.
      */
     public interface HoveringListener<T> {
-        void onStopHover(MouseEvent e);
+        default void onStopHover(MouseEvent e) {}
+
+        ;
 
         void onFrameHover(FrameBox<T> frame, Rectangle hoveredFrameRectangle, MouseEvent e);
     }
@@ -858,7 +860,7 @@ public class FlamegraphView<T> {
                 var frameTextPadding = 3;
                 g2.fillRect((int) (viewRect.getX() + viewRect.getWidth() - nowWidth - frameTextPadding * 2),
                             (int) (viewRect.getY() + viewRect.getHeight() - 22),
-                             nowWidth + frameTextPadding * 2,
+                            nowWidth + frameTextPadding * 2,
                             22);
 
                 g2.setColor(Color.YELLOW);
