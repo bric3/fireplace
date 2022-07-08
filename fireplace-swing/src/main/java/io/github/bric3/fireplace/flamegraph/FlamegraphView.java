@@ -155,36 +155,35 @@ public class FlamegraphView<T> {
                 }
         );
 
-        component = wrap(scrollPane, layeredScrollPane);
+        component = wrap(layeredScrollPane, bg -> {
+            scrollPane.setBorder(null);
+            scrollPane.setBackground(bg);
+            scrollPane.getVerticalScrollBar().setBackground(bg);
+            scrollPane.getHorizontalScrollBar().setBackground(bg);
+            canvas.setBackground(bg);
+        });
     }
 
     /**
      * Murky workaround to propagate the background color to the canvas
      * since JLayer is final.
      */
-    private JPanel wrap(JScrollPane scrollPane, JLayer<JScrollPane> layeredScrollPane) {
+    private JPanel wrap(JComponent owner, final Consumer<Color> configureBorderAndBackground) {
         var wrapper = new JPanel(new BorderLayout()) {
             @Override
             public void updateUI() {
                 super.updateUI();
-                scrollPane.setBorder(null);
-                scrollPane.getVerticalScrollBar().setBackground(getBackground());
-                scrollPane.getHorizontalScrollBar().setBackground(getBackground());
-                canvas.setBackground(getBackground());
+                configureBorderAndBackground.accept(getBackground());
             }
 
             @Override
             public void setBackground(Color bg) {
                 super.setBackground(bg);
-                scrollPane.setBorder(null);
-                scrollPane.setBackground(bg);
-                scrollPane.getVerticalScrollBar().setBackground(bg);
-                scrollPane.getHorizontalScrollBar().setBackground(bg);
-                canvas.setBackground(bg);
+                configureBorderAndBackground.accept(bg);
             }
         };
         wrapper.setBorder(null);
-        wrapper.add(layeredScrollPane);
+        wrapper.add(owner);
         wrapper.putClientProperty(OWNER_KEY, this);
         return wrapper;
     }
@@ -441,7 +440,8 @@ public class FlamegraphView<T> {
 
         canvas.setFlamegraphRenderEngine(Objects.requireNonNull(flamegraphRenderEngine));
         canvas.setToolTipTextFunction(Objects.requireNonNull(tooltipTextFunction));
-        canvas.invalidate();
+
+        canvas.revalidate();
         canvas.repaint();
     }
 
@@ -789,11 +789,10 @@ public class FlamegraphView<T> {
 
         @Override
         public Dimension getPreferredSize() {
-            Dimension defaultDimension = super.getPreferredSize();
-            defaultDimension = (defaultDimension == null) ? new Dimension(100, 50) : defaultDimension;
-
+            var preferredSize = new Dimension(10, 10);
             if (flamegraphRenderEngine == null) {
-                return defaultDimension;
+                super.setPreferredSize(preferredSize);
+                return preferredSize;
             }
 
             Insets insets = getInsets();
@@ -804,8 +803,8 @@ public class FlamegraphView<T> {
                     getVisibleRect().width,
                     insets
             );
-            defaultDimension.width = Math.max(defaultDimension.width, flamegraphWidth + insets.left + insets.right);
-            defaultDimension.height = Math.max(defaultDimension.height, flamegraphHeight + insets.top + insets.bottom);
+            preferredSize.width = Math.max(preferredSize.width, flamegraphWidth + insets.left + insets.right);
+            preferredSize.height = Math.max(preferredSize.height, flamegraphHeight + insets.top + insets.bottom);
 
             // trigger minimap generation, when the flamegraph is zoomed, more
             // frame become visible, and this may make the visible depth higher,
@@ -815,7 +814,9 @@ public class FlamegraphView<T> {
             }
             this.flamegraphDimension.height = flamegraphHeight;
             this.flamegraphDimension.width = flamegraphWidth;
-            return defaultDimension;
+
+            super.setPreferredSize(preferredSize);
+            return preferredSize;
         }
 
         @Override

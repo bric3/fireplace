@@ -43,7 +43,6 @@ import org.openjdk.jmc.flightrecorder.stacktrace.tree.StacktraceTreeModel;
 
 import javax.swing.*;
 import java.awt.*;
-import java.awt.event.MouseEvent;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
@@ -107,11 +106,7 @@ public class FirePlaceSwtMain {
         label.pack();
 
         var embeddingComposite = new Composite(parentComposite, SWT.EMBEDDED | SWT.NO_BACKGROUND);
-        // enbeddingComposite.setLayoutData(new GridData(GridData.FILL_BOTH));
-        embeddingComposite.setLayout(new GridLayout(1, false));
-        embeddingComposite.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
-        // swingComposite.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
-        // swingComposite.setLayout(new GridLayout(1, false));
+        embeddingComposite.setLayoutData(new GridData(GridData.FILL_BOTH));
 
         var tooltip = new StyledToolTip(embeddingComposite, org.eclipse.jface.window.ToolTip.NO_RECREATE, true);
         tooltip.setPopupDelay(500);
@@ -131,17 +126,14 @@ public class FirePlaceSwtMain {
             } catch (Exception ignored) {}
             // });
         });
+        // flamegraph
         SwingUtilities.invokeLater(() -> {
-            JRootPane rootPane = new JRootPane();
             flamegraph = createFlameGraph(embeddingComposite, tooltip);
-            rootPane.getContentPane().add(flamegraph.component);
+            flamegraph.showMinimap(false);
 
-            Panel panel = new Panel();
-            panel.setLayout(new BorderLayout());
-            panel.add(rootPane);
+            var panel = new Panel(new BorderLayout());
+            panel.add(flamegraph.component);
             frame.add(panel);
-            frame.pack();
-            frame.setVisible(true);
         });
 
         loadJfr(args, label, embeddingComposite);
@@ -154,68 +146,66 @@ public class FirePlaceSwtMain {
         fg.putClientProperty(FlamegraphView.SHOW_STATS, true);
 
 
-        fg.setHoveringListener(new FlamegraphView.HoveringListener<Node>() {
-            public void onFrameHover(FrameBox<Node> frameBox, Rectangle frameRect, MouseEvent mouseEvent) {
-                // This code knows too much about Flamegraph but given tooltips
-                // will probably evolve it may be too early to refactor it
-                var scrollPane = (JScrollPane) mouseEvent.getComponent();
-                var canvas = scrollPane.getViewport().getView();
+        fg.setHoveringListener((frameBox, frameRect, mouseEvent) -> {
+            // This code knows too much about Flamegraph but given tooltips
+            // will probably evolve it may be too early to refactor it
+            var scrollPane = (JScrollPane) mouseEvent.getComponent();
+            var canvas = scrollPane.getViewport().getView();
 
-                var pointOnCanvas = SwingUtilities.convertPoint(scrollPane, mouseEvent.getPoint(), canvas);
-                pointOnCanvas.y = frameRect.y + frameRect.height;
-                var componentPoint = SwingUtilities.convertPoint(canvas, pointOnCanvas, fg.component);
+            var pointOnCanvas = SwingUtilities.convertPoint(scrollPane, mouseEvent.getPoint(), canvas);
+            pointOnCanvas.y = frameRect.y + frameRect.height;
+            var componentPoint = SwingUtilities.convertPoint(canvas, pointOnCanvas, fg.component);
 
-                if (frameBox.isRoot()) {
-                    return;
-                }
-
-
-                var method = frameBox.actualNode.getFrame().getMethod();
-
-                StringBuilder sb = new StringBuilder();
-                sb.append("<form><p>");
-                sb.append("<b>");
-                sb.append(frameBox.actualNode.getFrame().getHumanReadableShortString());
-                sb.append("</b><br/>");
-
-                var packageName = method.getType().getPackage();
-                if (packageName != null) {
-                    sb.append(packageName);
-                    sb.append("<br/>");
-                }
-                sb.append("<hr/>Weight: ");
-                sb.append(frameBox.actualNode.getCumulativeWeight());
-                sb.append("<br/>");
-                sb.append("Type: ");
-                sb.append(frameBox.actualNode.getFrame().getType());
-                sb.append("<br/>");
-
-                Integer bci = frameBox.actualNode.getFrame().getBCI();
-                if (bci != null) {
-                    sb.append("BCI: ");
-                    sb.append(bci);
-                    sb.append("<br/>");
-                }
-                Integer frameLineNumber = frameBox.actualNode.getFrame().getFrameLineNumber();
-                if (frameLineNumber != null) {
-                    sb.append("Line number: ");
-                    sb.append(frameLineNumber);
-                    sb.append("<br/>");
-                }
-                sb.append("</p></form>");
-                var text = sb.toString();
-
-                Display.getDefault().asyncExec(() -> {
-                    var control = Display.getDefault().getCursorControl();
-
-                    if (Objects.equals(owner, control)) {
-                        tooltip.setText(text);
-
-                        tooltip.hide();
-                        tooltip.show(new org.eclipse.swt.graphics.Point(componentPoint.x, componentPoint.y));
-                    }
-                });
+            if (frameBox.isRoot()) {
+                return;
             }
+
+
+            var method = frameBox.actualNode.getFrame().getMethod();
+
+            StringBuilder sb = new StringBuilder();
+            sb.append("<form><p>");
+            sb.append("<b>");
+            sb.append(frameBox.actualNode.getFrame().getHumanReadableShortString());
+            sb.append("</b><br/>");
+
+            var packageName = method.getType().getPackage();
+            if (packageName != null) {
+                sb.append(packageName);
+                sb.append("<br/>");
+            }
+            sb.append("<hr/>Weight: ");
+            sb.append(frameBox.actualNode.getCumulativeWeight());
+            sb.append("<br/>");
+            sb.append("Type: ");
+            sb.append(frameBox.actualNode.getFrame().getType());
+            sb.append("<br/>");
+
+            Integer bci = frameBox.actualNode.getFrame().getBCI();
+            if (bci != null) {
+                sb.append("BCI: ");
+                sb.append(bci);
+                sb.append("<br/>");
+            }
+            Integer frameLineNumber = frameBox.actualNode.getFrame().getFrameLineNumber();
+            if (frameLineNumber != null) {
+                sb.append("Line number: ");
+                sb.append(frameLineNumber);
+                sb.append("<br/>");
+            }
+            sb.append("</p></form>");
+            var text = sb.toString();
+
+            Display.getDefault().asyncExec(() -> {
+                var control = Display.getDefault().getCursorControl();
+
+                if (Objects.equals(owner, control)) {
+                    tooltip.setText(text);
+
+                    tooltip.hide();
+                    tooltip.show(new org.eclipse.swt.graphics.Point(componentPoint.x, componentPoint.y));
+                }
+            });
         });
 
         return fg;
@@ -290,8 +280,6 @@ public class FirePlaceSwtMain {
                         FrameFontProvider.defaultFontProvider(),
                         frame -> /* Tooltips is handled by SWT / JFACE code */ ""
                 );
-                // flamegraph.component.invalidate();
-                // flamegraph.component.repaint();
 
                 // don't fix anything...
                 // the scroll bar don't show up
