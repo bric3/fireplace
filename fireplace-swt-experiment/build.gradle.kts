@@ -34,8 +34,13 @@ configurations.all {
                 else -> throw GradleException("Unsupported OS: $os")
             }
 
+            val archId = when (arch) {
+                "x86_64", "amd64" -> "x86_64"
+                else -> throw GradleException("Unsupported architecture: $arch")
+            }
+
             substitute(module("org.eclipse.platform:org.eclipse.swt.\${osgi.platform}"))
-                .using(module("org.eclipse.platform:org.eclipse.swt.$osId.$arch:3.120.0"))
+                .using(module("org.eclipse.platform:org.eclipse.swt.$osId.$archId:3.120.0"))
                 .because("The maven property '\${osgi.platform}' that appear in the artifact coordinate is not handled by Gradle, it is required to replace the dependency")
         }
     }
