@@ -20,7 +20,6 @@ import java.awt.event.MouseEvent;
 import java.awt.geom.Area;
 import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
-import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -91,7 +90,7 @@ public class FlamegraphView<T> {
     /**
      * The precomputed list of frames.
      */
-    private List<FrameBox<T>> frames;
+    private FrameModel<T> framesModel;
 
     /**
      * Represents a custom actions when zooming
@@ -341,6 +340,7 @@ public class FlamegraphView<T> {
      * @param frameColorFunction  the frame to background color function.
      * @param tooltipTextFunction the frame tooltip text function.
      */
+    @Deprecated(forRemoval = true)
     public void setConfigurationAndData(
             List<FrameBox<T>> frames,
             FrameTextsProvider<T> frameTextsProvider,
@@ -348,15 +348,63 @@ public class FlamegraphView<T> {
             FrameFontProvider<T> frameFontProvider,
             Function<FrameBox<T>, String> tooltipTextFunction
     ) {
+        this.framesModel = new FrameModel<>(frames);
         var flamegraphRenderEngine = new FlamegraphRenderEngine<>(
-                frames,
+                framesModel,
                 new FrameRender<>(
                         frameTextsProvider,
                         frameColorFunction,
                         frameFontProvider
                 )
         );
-        this.frames = Objects.requireNonNull(frames);
+
+        canvas.setFlamegraphRenderEngine(Objects.requireNonNull(flamegraphRenderEngine));
+        canvas.setToolTipTextFunction(Objects.requireNonNull(tooltipTextFunction));
+
+        canvas.revalidate();
+        canvas.repaint();
+    }
+
+    /**
+     * Actually set the {@link FlamegraphView} with typed data and configure how to use it.
+     * <p>
+     * It takes a list of {@link FrameBox} objects that wraps the actual data,
+     * which is referred to as <em>node</em>.
+     * </p>
+     * <p>
+     * In particular this function defines the behavior to access the typed data:
+     * <ul>
+     *     <li>Possible string candidates to display in frames, those are
+     *     selected based on the available space</li>
+     *     <li>The root node text to display, if something specific is relevant,
+     *     like the type of events, their number, etc.</li>
+     *     <li>The frame background color, this function can be replaced by
+     *     {@link #setColorFunction(Function)}, note that the foreground color
+     *     is chosen automatically</li>
+     *     <li>The tooltip text from the current node</li>
+     * </ul>
+     *
+     * @param frameModel          The {@code FrameBox} list to display.
+     * @param frameTextsProvider  function to display label in frames.
+     * @param frameColorFunction  the frame to background color function.
+     * @param tooltipTextFunction the frame tooltip text function.
+     */
+    public void setConfigurationAndData(
+            FrameModel<T> frameModel,
+            FrameTextsProvider<T> frameTextsProvider,
+            FrameColorProvider<T> frameColorFunction,
+            FrameFontProvider<T> frameFontProvider,
+            Function<FrameBox<T>, String> tooltipTextFunction
+    ) {
+        framesModel = Objects.requireNonNull(frameModel);
+        var flamegraphRenderEngine = new FlamegraphRenderEngine<>(
+                framesModel,
+                new FrameRender<>(
+                        frameTextsProvider,
+                        frameColorFunction,
+                        frameFontProvider
+                )
+        );
 
         canvas.setFlamegraphRenderEngine(Objects.requireNonNull(flamegraphRenderEngine));
         canvas.setToolTipTextFunction(Objects.requireNonNull(tooltipTextFunction));
@@ -369,14 +417,18 @@ public class FlamegraphView<T> {
      * Clear all data.
      */
     public void clear() {
-        frames = Collections.emptyList();
+        framesModel = FrameModel.empty();
         canvas.setFlamegraphRenderEngine(null);
         canvas.invalidate();
         canvas.repaint();
     }
 
+    public FrameModel<T> getFrameModel() {
+        return framesModel;
+    }
+
     public List<FrameBox<T>> getFrames() {
-        return frames;
+        return framesModel.frames;
     }
 
     /**
@@ -540,9 +592,7 @@ public class FlamegraphView<T> {
             var viewPort = scrollPane.getViewport();
 
             // this seems to enable key navigation
-            if ((e.getComponent() instanceof JScrollPane)) {
-                e.getComponent().requestFocus();
-            }
+            scrollPane.requestFocus();
 
             var latestMouseLocation = MouseInfo.getPointerInfo().getLocation();
             SwingUtilities.convertPointFromScreen(latestMouseLocation, canvas);

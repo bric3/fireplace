@@ -16,6 +16,7 @@ import io.github.bric3.fireplace.flamegraph.ColorMapper;
 import io.github.bric3.fireplace.flamegraph.DimmingFrameColorProvider;
 import io.github.bric3.fireplace.flamegraph.FlamegraphView;
 import io.github.bric3.fireplace.flamegraph.FrameFontProvider;
+import io.github.bric3.fireplace.flamegraph.FrameModel;
 import io.github.bric3.fireplace.flamegraph.FrameTextsProvider;
 import io.github.bric3.fireplace.flamegraph.ZoomAnimation;
 import io.github.bric3.fireplace.ui.BalloonToolTip;
@@ -30,6 +31,7 @@ import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.util.Collections;
 import java.util.IdentityHashMap;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
@@ -211,7 +213,10 @@ public class FlameGraphTab extends JPanel {
     private Consumer<FlamegraphView<Node>> dataApplier(StacktraceTreeModel stacktraceTreeModel) {
         var flatFrameList = JfrFrameNodeConverter.convert(stacktraceTreeModel);
         return (flameGraph) -> flameGraph.setConfigurationAndData(
-                flatFrameList,
+                new FrameModel<>(
+                        (a, b) -> Objects.equals(a.actualNode.getFrame(), b.actualNode.getFrame()),
+                        flatFrameList
+                ),
                 FrameTextsProvider.of(
                         frame -> {
                             if (frame.isRoot()) {

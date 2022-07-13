@@ -44,6 +44,7 @@ import static io.github.bric3.fireplace.flamegraph.FrameRenderingFlags.isFocusin
 import static io.github.bric3.fireplace.flamegraph.FrameRenderingFlags.isHighlightedFrame;
 import static io.github.bric3.fireplace.flamegraph.FrameRenderingFlags.isHighlighting;
 import static io.github.bric3.fireplace.flamegraph.FrameRenderingFlags.isHovered;
+import static io.github.bric3.fireplace.flamegraph.FrameRenderingFlags.isHoveredSibling;
 import static io.github.bric3.fireplace.flamegraph.FrameRenderingFlags.isMinimapMode;
 
 public class DimmingFrameColorProvider<T> implements FrameColorProvider<T> {
@@ -52,10 +53,15 @@ public class DimmingFrameColorProvider<T> implements FrameColorProvider<T> {
             Colors.rgba(255, 255, 255, 0.51f)
     );
 
+    public static final Color HOVERED_NODE = new DarkLightColor(
+            new Color(0xFFE0C268, true),
+            new Color(0xD0E0C268, true)
+    );
+
     public static final Color ROOT_NODE = new DarkLightColor(
-            new Color(0xffeaf6fc),
-            new Color(0xff091222)
-            );
+            new Color(0xFFEAF6FC),
+            new Color(0xFF091222)
+    );
     private final Function<FrameBox<T>, Color> baseColorFunction;
     private final ColorModel reusedColorModelForMainCanvas = new ColorModel(null, null);
     private final ColorModel reusedColorModelForMinimap = new ColorModel(null, null);
@@ -91,8 +97,9 @@ public class DimmingFrameColorProvider<T> implements FrameColorProvider<T> {
             foreground = Colors.foregroundColor(backgroundColor);
         }
 
-        if (isHovered(flags)) {
-            backgroundColor = Colors.blend(backgroundColor, Colors.translucent_black_40);
+        if (isHovered(flags) || isHoveredSibling(flags)) {
+            backgroundColor = Colors.blend(backgroundColor, HOVERED_NODE);
+            foreground = Colors.foregroundColor(backgroundColor);
         }
 
         return reusedColorModelForMainCanvas.set(
@@ -103,12 +110,12 @@ public class DimmingFrameColorProvider<T> implements FrameColorProvider<T> {
 
     /**
      * Dim only if not highlighted or not focused
-     *
+     * <p>
      * - highlighting and not highlighted => dim
      * - focusing and not focused => dim
      * - highlighting and focusing
-     *    - highlighted => nope
-     *    - focusing => nope
+     * - highlighted => nope
+     * - focusing => nope
      */
     private boolean shouldDim(int flags) {
         var highlighting = isHighlighting(flags);
