@@ -21,17 +21,21 @@ import java.util.regex.Pattern;
  */
 public class Colors {
     /**
-     * Hue
+     * Hue value position
+     *
+     * @see #hslComponents(Color)
      */
     public static final int H = 0;
     /**
-     * Saturation
+     * Saturation value position
      */
     public static final int S = 1;
     /**
-     * Luminance
+     * Luminance value position
+     *
+     * @see #hslComponents(Color)
      */
-    public static final int L = 2;
+    private static final int L = 2;
     private static volatile boolean darkMode = false;
 
     /**
@@ -117,7 +121,7 @@ public class Colors {
     public static Color panelForeground = UIManager.getColor("Panel.foreground");
 
     /**
-     * Refresh the colors when the LaF changes
+     * Refresh the colors, usually done when the LaF changes.
      */
     public static void refreshColors() {
         panelBackground = UIManager.getColor("Panel.background");
@@ -417,14 +421,14 @@ public class Colors {
         }
 
         return new DarkLightColor(
-                hsl(hslLight[0], hslLight[1], hslLight[2], color.getAlpha() / 255.0f),
-                hsl(hslDark[0], hslDark[1], hslDark[2], color.getAlpha() / 255.0f)
+                hsl(hslLight[H], hslLight[S], hslLight[L], color.getAlpha() / 255.0f),
+                hsl(hslDark[H], hslDark[S], hslDark[L], color.getAlpha() / 255.0f)
         );
     }
 
 
     /**
-     * Convert an RGB Color to it corresponding HSL components.
+     * Convert an RGB Color to its corresponding HSL components.
      * <p>
      * From <a href="https://github.com/d3/d3-color/blob/958249d3a17aaff499d2a9fc9a0f7b8b8e8a47c8/src/color.js">d3-colors</a>.
      *
