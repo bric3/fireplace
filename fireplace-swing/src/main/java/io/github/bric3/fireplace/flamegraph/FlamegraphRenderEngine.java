@@ -75,6 +75,7 @@ class FlamegraphRenderEngine<T> {
     private Set<FrameBox<T>> toHighlight = Collections.emptySet();
     private Set<FrameBox<T>> hoveredSiblingFrames = Collections.emptySet();
     private final FrameRender<T> frameRenderer;
+    private boolean showHoveredSiblings;
 
     /**
      * Creates a new instance to render the specified list of frames.
@@ -246,7 +247,7 @@ class FlamegraphRenderEngine<T> {
                                 !toHighlight.isEmpty(),
                                 toHighlight.contains(frame),
                                 hoveredFrame == frame,
-                                hoveredSiblingFrames.contains(frame),
+                                hoveredFrame != frame && hoveredSiblingFrames.contains(frame),
                                 selectedFrame != null,
                                 (selectedFrame != null
                                  && frame.stackDepth >= selectedFrame.stackDepth
@@ -411,20 +412,25 @@ class FlamegraphRenderEngine<T> {
             return;
         }
         var oldHoveredFrame = hoveredFrame;
+        if (frame == oldHoveredFrame) {
+            return;
+        }
         var oldHoveredSiblingFrames = hoveredSiblingFrames;
         hoveredFrame = frame;
         hoveredSiblingFrames = getSiblingFrames(frame);
         if (hoverConsumer != null) {
-            // hoverConsumer.accept(getFrameRectangle(g2, bounds, frame));
             hoveredSiblingFrames.forEach(hovered -> hoverConsumer.accept(getFrameRectangle(g2, bounds, hovered)));
             if (oldHoveredFrame != null) {
-                // hoverConsumer.accept(getFrameRectangle(g2, bounds, oldHoveredFrame));
                 oldHoveredSiblingFrames.forEach(hovered -> hoverConsumer.accept(getFrameRectangle(g2, bounds, hovered)));
             }
         }
     }
 
     private Set<FrameBox<T>> getSiblingFrames(FrameBox<T> frame) {
+        if (!showHoveredSiblings) {
+            return Set.of(frame);
+        }
+
         return frameModel.frames.stream()
                                 .filter(node -> frameModel.frameEquality.equal(node, frame))
                                 .collect(Collectors.toSet());
@@ -518,7 +524,6 @@ class FlamegraphRenderEngine<T> {
         hoveredFrame = null;
         hoveredSiblingFrames = Collections.emptySet();
         if (oldHoveredFrame != null) {
-            // hoverConsumer.accept(getFrameRectangle(g2, bounds, oldHoveredFrame));
             oldHoveredSiblingFrame.forEach(hovered -> hoverConsumer.accept(getFrameRectangle(g2, bounds, hovered)));
         }
     }
@@ -526,5 +531,13 @@ class FlamegraphRenderEngine<T> {
 
     public void setHighlightFrames(Set<FrameBox<T>> toHighlight, String searchedText) {
         this.toHighlight = toHighlight;
+    }
+
+    public void setShowHoveredSiblings(boolean showHoveredSiblings) {
+        this.showHoveredSiblings = showHoveredSiblings;
+    }
+
+    public boolean isShowHoveredSiblings() {
+        return showHoveredSiblings;
     }
 }

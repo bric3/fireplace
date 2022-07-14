@@ -265,7 +265,17 @@ public class FlamegraphView<T> {
      *
      * @param showMinimap {@code true} to show the minimap, {@code false} otherwise.
      */
+    @Deprecated(forRemoval = true)
     public void showMinimap(boolean showMinimap) {
+        setShowMinimap(showMinimap);
+    }
+
+    /**
+     * Sets a flag that controls whether the minimap is visible.
+     *
+     * @param showMinimap {@code true} to show the minimap, {@code false} otherwise.
+     */
+    public void setShowMinimap(boolean showMinimap) {
         canvas.showMinimap(showMinimap);
     }
 
@@ -276,6 +286,25 @@ public class FlamegraphView<T> {
      */
     public boolean isShowMinimap() {
         return canvas.isShowMinimap();
+    }
+
+    /**
+     * Sets a flag that controls whether the siblings of the hovered frame are highlighted.
+     *
+     * @param showHoveredSiblings {@code true} to show the siblings of the hovered frame, {@code false} otherwise.
+     */
+    public void setShowHoveredSiblings(boolean showHoveredSiblings) {
+        canvas.getFlamegraphRenderEngine()
+              .ifPresent(fre -> fre.setShowHoveredSiblings(showHoveredSiblings));
+    }
+
+    /**
+     * Whether the siblings of the hovered frame are highlighted.
+     *
+     * @return {@code true} if the siblings of the hovered frame are highlighted, {@code false} otherwise.
+     */
+    public boolean isShowHoveredSiblings() {
+        return canvas.getFlamegraphRenderEngine().map(FlamegraphRenderEngine::isShowHoveredSiblings).orElse(false);
     }
 
     /**
