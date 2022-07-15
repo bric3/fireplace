@@ -14,12 +14,12 @@ import io.github.bric3.fireplace.core.ui.Colors;
 import java.awt.*;
 import java.awt.geom.Rectangle2D;
 import java.util.Collections;
-import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 /**
  * Engine that paint a flamegraph.
@@ -65,7 +65,7 @@ class FlamegraphRenderEngine<T> {
     private double scaleX;
     private double scaleY;
 
-    private final List<FrameBox<T>> frames;
+    private final FrameModel<T> frameModel;
 
     /**
      * Internal padding with the component bounds.
@@ -73,21 +73,23 @@ class FlamegraphRenderEngine<T> {
     private final int internalPadding = 2;
 
     private Set<FrameBox<T>> toHighlight = Collections.emptySet();
+    private Set<FrameBox<T>> hoveredSiblingFrames = Collections.emptySet();
     private final FrameRender<T> frameRenderer;
+    private boolean showHoveredSiblings = true;
 
     /**
      * Creates a new instance to render the specified list of frames.
      *
-     * @param frames        the frames to be displayed.
+     * @param frameModel    the frames to be displayed.
      * @param frameRenderer a configured single frame renderer.
      */
     public FlamegraphRenderEngine(
-            List<FrameBox<T>> frames,
+            FrameModel<T> frameModel,
             FrameRender<T> frameRenderer
     ) {
         this.frameRenderer = Objects.requireNonNull(frameRenderer, "frameRenderer");
-        this.frames = Objects.requireNonNull(frames, "frames");
-        this.depth = this.frames.stream().mapToInt(fb -> fb.stackDepth).max().orElse(0);
+        this.frameModel = Objects.requireNonNull(frameModel, "frameMocdel");
+        this.depth = this.frameModel.frames.stream().mapToInt(fb -> fb.stackDepth).max().orElse(0);
         visibleDepth = depth;
         updateUI();
     }
@@ -138,7 +140,7 @@ class FlamegraphRenderEngine<T> {
         // compute the canvas height for the flamegraph width
         if (canvasWidth != adjVisibleWidth) {
             var visibleDepth = 0;
-            for (var frame : frames) {
+            for (var frame : frameModel.frames) {
                 if (canvasWidth * (frame.endX - frame.startX) < frameWidthVisibilityThreshold) {
                     continue;
                 }
@@ -188,7 +190,7 @@ class FlamegraphRenderEngine<T> {
         var flameGraphWidth = minimapMode ? viewRect.getWidth() : bounds.getWidth();
         var frameRect = new Rectangle2D.Double(); // reusable rectangle
 
-
+        var frames = frameModel.frames;
         // paint root
         {
             var rootFrame = frames.get(0);
@@ -209,6 +211,7 @@ class FlamegraphRenderEngine<T> {
                                 false,
                                 false, // never make root part of highlighting
                                 hoveredFrame == rootFrame,
+                                false,
                                 selectedFrame != null,
                                 selectedFrame == rootFrame,
                                 frameRect.getX() == paintableIntersection.getX()
@@ -244,6 +247,7 @@ class FlamegraphRenderEngine<T> {
                                 !toHighlight.isEmpty(),
                                 toHighlight.contains(frame),
                                 hoveredFrame == frame,
+                                hoveredFrame != frame && hoveredSiblingFrames.contains(frame),
                                 selectedFrame != null,
                                 (selectedFrame != null
                                  && frame.stackDepth >= selectedFrame.stackDepth
@@ -258,7 +262,7 @@ class FlamegraphRenderEngine<T> {
         if (!minimapMode) {
             paintHoveredFrameBorder(g2d, viewRect, flameGraphWidth, frameBoxHeight, frameRect);
         }
-        
+
         g2d.dispose();
     }
 
@@ -359,12 +363,12 @@ class FlamegraphRenderEngine<T> {
         double xLocation = point.x / bounds.getWidth();
         double visibilityThreshold = frameWidthVisibilityThreshold / bounds.getWidth();
 
-        return frames.stream()
-                     .filter(node -> node.stackDepth == depth
-                                     && node.startX <= xLocation
-                                     && xLocation <= node.endX
-                                     && visibilityThreshold < node.endX - node.startX)
-                     .findFirst();
+        return frameModel.frames.stream()
+                                .filter(node -> node.stackDepth == depth
+                                                && node.startX <= xLocation
+                                                && xLocation <= node.endX
+                                                && visibilityThreshold < node.endX - node.startX)
+                                .findFirst();
     }
 
     /**
@@ -408,13 +412,28 @@ class FlamegraphRenderEngine<T> {
             return;
         }
         var oldHoveredFrame = hoveredFrame;
+        if (frame == oldHoveredFrame) {
+            return;
+        }
+        var oldHoveredSiblingFrames = hoveredSiblingFrames;
         hoveredFrame = frame;
+        hoveredSiblingFrames = getSiblingFrames(frame);
         if (hoverConsumer != null) {
-            hoverConsumer.accept(getFrameRectangle(g2, bounds, frame));
+            hoveredSiblingFrames.forEach(hovered -> hoverConsumer.accept(getFrameRectangle(g2, bounds, hovered)));
             if (oldHoveredFrame != null) {
-                hoverConsumer.accept(getFrameRectangle(g2, bounds, oldHoveredFrame));
+                oldHoveredSiblingFrames.forEach(hovered -> hoverConsumer.accept(getFrameRectangle(g2, bounds, hovered)));
             }
         }
+    }
+
+    private Set<FrameBox<T>> getSiblingFrames(FrameBox<T> frame) {
+        if (!showHoveredSiblings) {
+            return Set.of(frame);
+        }
+
+        return frameModel.frames.stream()
+                                .filter(node -> frameModel.frameEquality.equal(node, frame))
+                                .collect(Collectors.toSet());
     }
 
     /**
@@ -501,14 +520,24 @@ class FlamegraphRenderEngine<T> {
      */
     public void stopHover(Graphics2D g2, Rectangle2D bounds, Consumer<Rectangle> hoverConsumer) {
         var oldHoveredFrame = hoveredFrame;
+        var oldHoveredSiblingFrame = hoveredSiblingFrames;
         hoveredFrame = null;
+        hoveredSiblingFrames = Collections.emptySet();
         if (oldHoveredFrame != null) {
-            hoverConsumer.accept(getFrameRectangle(g2, bounds, oldHoveredFrame));
+            oldHoveredSiblingFrame.forEach(hovered -> hoverConsumer.accept(getFrameRectangle(g2, bounds, hovered)));
         }
     }
 
 
     public void setHighlightFrames(Set<FrameBox<T>> toHighlight, String searchedText) {
         this.toHighlight = toHighlight;
+    }
+
+    public void setShowHoveredSiblings(boolean showHoveredSiblings) {
+        this.showHoveredSiblings = showHoveredSiblings;
+    }
+
+    public boolean isShowHoveredSiblings() {
+        return showHoveredSiblings;
     }
 }

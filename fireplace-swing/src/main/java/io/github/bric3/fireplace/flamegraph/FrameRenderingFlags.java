@@ -51,20 +51,25 @@ public abstract class FrameRenderingFlags {
     public static int HOVERED = 1 << 3;
 
     /**
+     * The renderer is currently rendering the sibling of a hovered frame
+     */
+    public static int HOVERED_SIBLING = 1 << 4;
+
+    /**
      * The renderer is currently focusing some frames (a "sub-flame")
      */
-    public static int FOCUSING = 1 << 4;
+    public static int FOCUSING = 1 << 5;
 
     /**
      * The renderer is currently rendering a focused frame.
      */
-    public static int FOCUSED_FRAME = 1 << 5;
+    public static int FOCUSED_FRAME = 1 << 6;
 
     /**
      * The renderer is currently rendering a partial frame, e.g. it is larger
      * that the painting area.
      */
-    public static int PARTIAL_FRAME = 1 << 6;
+    public static int PARTIAL_FRAME = 1 << 7;
 
 
     public static int toFlags(
@@ -72,6 +77,7 @@ public abstract class FrameRenderingFlags {
             boolean highlightingOn,
             boolean highlighted,
             boolean hovered,
+            boolean hoveredSibling,
             boolean focusing,
             boolean focusedFrame,
             boolean partialFrame
@@ -80,6 +86,7 @@ public abstract class FrameRenderingFlags {
                | (highlightingOn ? HIGHLIGHTING : 0)
                | (highlighted ? HIGHLIGHTED_FRAME : 0)
                | (hovered ? HOVERED : 0)
+               | (hoveredSibling ? HOVERED_SIBLING : 0)
                | (focusing ? FOCUSING : 0)
                | (focusedFrame ? FOCUSED_FRAME : 0)
                | (partialFrame ? PARTIAL_FRAME : 0);
@@ -91,6 +98,7 @@ public abstract class FrameRenderingFlags {
         if ((flags & HIGHLIGHTING) != 0) sb.add("highlighting");
         if ((flags & HIGHLIGHTED_FRAME) != 0) sb.add("highlighted");
         if ((flags & HOVERED) != 0) sb.add("hovered");
+        if ((flags & HOVERED_SIBLING) != 0) sb.add("hovered sibling");
         if ((flags & FOCUSING) != 0) sb.add("focusing");
         if ((flags & FOCUSED_FRAME) != 0) sb.add("focused");
         if ((flags & PARTIAL_FRAME) != 0) sb.add("partial");
@@ -111,6 +119,10 @@ public abstract class FrameRenderingFlags {
 
     public static boolean isHovered(int flags) {
         return (flags & HOVERED) != 0;
+    }
+
+    public static boolean isHoveredSibling(int flags) {
+        return (flags & HOVERED_SIBLING) != 0;
     }
 
     public static boolean isFocusing(int flags) {

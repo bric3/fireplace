@@ -36,6 +36,7 @@ import io.github.bric3.fireplace.core.ui.Colors;
 import io.github.bric3.fireplace.core.ui.DarkLightColor;
 
 import java.awt.*;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 
@@ -44,39 +45,76 @@ import static io.github.bric3.fireplace.flamegraph.FrameRenderingFlags.isFocusin
 import static io.github.bric3.fireplace.flamegraph.FrameRenderingFlags.isHighlightedFrame;
 import static io.github.bric3.fireplace.flamegraph.FrameRenderingFlags.isHighlighting;
 import static io.github.bric3.fireplace.flamegraph.FrameRenderingFlags.isHovered;
+import static io.github.bric3.fireplace.flamegraph.FrameRenderingFlags.isHoveredSibling;
 import static io.github.bric3.fireplace.flamegraph.FrameRenderingFlags.isMinimapMode;
 
+/**
+ * Frame color provider that supports frame dimming and hovering.
+ *
+ * <p>
+ * This frame color provider is responsible for computing the color of a frame.
+ * It uses the actual frame and passes it to a basic <em>color function</em>
+ * that will apply the actual base background color to the frame.
+ * </p>
+ *
+ * <p>
+ * Then this base color can be altered or changed depending on the frame's
+ * flags.
+ * </p>
+ *
+ * @param <T> The actual type of frame.
+ */
 public class DimmingFrameColorProvider<T> implements FrameColorProvider<T> {
-    public static final Color DIMMED_TEXT = new DarkLightColor(
+    public static final Color DIMMED_TEXT_COLOR = new DarkLightColor(
             Colors.rgba(28, 43, 52, 0.68f),
             Colors.rgba(255, 255, 255, 0.51f)
     );
 
-    public static final Color ROOT_NODE = new DarkLightColor(
-            new Color(0xffeaf6fc),
-            new Color(0xff091222)
-            );
+    public static final Color ROOT_BACKGROUND_COLOR = new DarkLightColor(
+            new Color(0xFFEAF6FC),
+            new Color(0xFF091222)
+    );
     private final Function<FrameBox<T>, Color> baseColorFunction;
+
+    /**
+     * Single instance to avoid too many allocations, only for the main canvas.
+     */
     private final ColorModel reusedColorModelForMainCanvas = new ColorModel(null, null);
+
+    /**
+     * Single instance to avoid too many allocations, only for the minimap.
+     * Since the minimap generation happens on a different thread, it is necessary
+     * to have a separate instance.
+     */
     private final ColorModel reusedColorModelForMinimap = new ColorModel(null, null);
 
     private final ConcurrentHashMap<Color, Color> dimmedColorCache = new ConcurrentHashMap<>();
 
+    private Color rootBackGroundColor = ROOT_BACKGROUND_COLOR;
+    private Color dimmedTextColor = DIMMED_TEXT_COLOR;
+
+    /**
+     * Builds a basic frame color provider.
+     *
+     * @param baseColorFunction The color function that provides the frame's color.
+     * @see #withRootBackgroundColor(Color)
+     * @see #withDimmedTextColor(Color)
+     */
     public DimmingFrameColorProvider(Function<FrameBox<T>, Color> baseColorFunction) {
         this.baseColorFunction = baseColorFunction;
     }
 
-
     @Override
     public ColorModel getColors(FrameBox<T> frame, int flags) {
         Color backgroundColor;
+        Color baseBackgroundColor;
         Color foreground;
 
         var rootNode = frame.isRoot();
         if (rootNode) {
-            backgroundColor = ROOT_NODE;
+            baseBackgroundColor = backgroundColor = rootBackGroundColor;
         } else {
-            backgroundColor = baseColorFunction.apply(frame);
+            baseBackgroundColor = backgroundColor = baseColorFunction.apply(frame);
         }
 
         if (isMinimapMode(flags)) {
@@ -85,14 +123,20 @@ public class DimmingFrameColorProvider<T> implements FrameColorProvider<T> {
         }
 
         if (!rootNode && shouldDim(flags)) {
-            backgroundColor = cachedDim(backgroundColor);
-            foreground = DIMMED_TEXT;
+            backgroundColor = dimmedBackground(backgroundColor);
+            foreground = dimmedTextColor;
         } else {
             foreground = Colors.foregroundColor(backgroundColor);
         }
 
         if (isHovered(flags)) {
-            backgroundColor = Colors.blend(backgroundColor, Colors.translucent_black_40);
+            backgroundColor = hoverBackground(baseBackgroundColor);
+            foreground = Colors.foregroundColor(backgroundColor);
+        }
+
+        if (isHoveredSibling(flags)) {
+            backgroundColor = hoverSiblingBackground(baseBackgroundColor);
+            foreground = Colors.foregroundColor(backgroundColor);
         }
 
         return reusedColorModelForMainCanvas.set(
@@ -102,13 +146,45 @@ public class DimmingFrameColorProvider<T> implements FrameColorProvider<T> {
     }
 
     /**
-     * Dim only if not highlighted or not focused
+     * Compute the background color for a hovered frame.
      *
+     * @param backgroundColor The background color of the frame to alter.
+     * @return The hovered background color.
+     */
+    private Color hoverBackground(Color backgroundColor) {
+        return Colors.isDarkMode() ?
+               Colors.brighter(backgroundColor, 1.1f, 0.95f) :
+               Colors.darker(backgroundColor, 1.25f);
+    }
+
+    /**
+     * Compute the background color for a hovered sibling frame.
+     *
+     * @param backgroundColor The background color of the frame to alter.
+     * @return The hovered background color.
+     */
+    private Color hoverSiblingBackground(Color backgroundColor) {
+        return hoverBackground(backgroundColor);
+    }
+
+    /**
+     * Dims the background color.
+     *
+     * @param backgroundColor The background color to dim.
+     * @return The dimmed color.
+     */
+    protected Color dimmedBackground(Color backgroundColor) {
+        return cachedDim(backgroundColor);
+    }
+
+    /**
+     * Dim only if not highlighted or not focused
+     * <p>
      * - highlighting and not highlighted => dim
      * - focusing and not focused => dim
      * - highlighting and focusing
-     *    - highlighted => nope
-     *    - focusing => nope
+     * - highlighted => nope
+     * - focusing => nope
      */
     private boolean shouldDim(int flags) {
         var highlighting = isHighlighting(flags);
@@ -129,5 +205,15 @@ public class DimmingFrameColorProvider<T> implements FrameColorProvider<T> {
 
     private Color cachedDim(Color color) {
         return dimmedColorCache.computeIfAbsent(color, Colors::dim);
+    }
+
+    public DimmingFrameColorProvider<T> withRootBackgroundColor(Color rootBackgroundColor) {
+        this.rootBackGroundColor = Objects.requireNonNull(rootBackgroundColor);
+        return this;
+    }
+
+    public DimmingFrameColorProvider<T> withDimmedTextColor(Color dimmedTextColor) {
+        this.dimmedTextColor = Objects.requireNonNull(dimmedTextColor);
+        return this;
     }
 }
