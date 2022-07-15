@@ -183,7 +183,12 @@ class FrameRender<T> {
 
         // don't use stream to avoid allocations during painting
         var textCandidate = frame.isRoot() ? frameModel.title : "";
-        if (!frame.isRoot()) {
+        if (frame.isRoot()) {
+            var textBounds = metrics.getStringBounds(textCandidate, g2);
+            if (textBounds.getWidth() <= targetWidth) {
+                return textCandidate;
+            }
+        } else {
             for (Function<FrameBox<T>, String> nodeToTextCandidate : frameTextsProvider.frameToTextCandidates()) {
                 textCandidate = nodeToTextCandidate.apply(frame);
                 var textBounds = metrics.getStringBounds(textCandidate, g2);
