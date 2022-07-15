@@ -21,21 +21,30 @@ import java.util.regex.Pattern;
  */
 public class Colors {
     /**
-     * Hue value position
+     * Hue value position, in HSLA components.
      *
-     * @see #hslComponents(Color)
+     * @see #hslaComponents(Color)
      */
     public static final int H = 0;
     /**
-     * Saturation value position
+     * Saturation value position, in HSLA components.
+     *
+     * @see #hslaComponents(Color)
      */
     public static final int S = 1;
     /**
-     * Luminance value position
+     * Luminance value position, in HSLA components.
      *
-     * @see #hslComponents(Color)
+     * @see #hslaComponents(Color)
      */
-    private static final int L = 2;
+    public static final int L = 2;
+
+    /**
+     * Alpha value position, in HSLA components.
+     *
+     * @see #hslaComponents(Color)
+     */
+    public static final int ALPHA = 3;
     private static volatile boolean darkMode = false;
 
     /**
@@ -291,9 +300,7 @@ public class Colors {
                             .map(s -> s.charAt(0) == '#' ? s : "#" + s)
                             .map(Color::decode)
                             .toArray(Color[]::new);
-            if (palette.length == 0) {
-                throw new IllegalArgumentException("Invalid color palette: " + Arrays.toString(hexacodes));
-            }
+            checkThat(palette.length == 0, "Invalid color palette: " + Arrays.toString(hexacodes));
         }
 
         Palette(Color... palette) {
@@ -404,47 +411,52 @@ public class Colors {
      * @see DarkLightColor
      */
     public static Color dim(Color color) {
-        var hslLight = hslComponents(color);
-        var hslDark = Arrays.copyOf(hslLight, hslLight.length);
+        var hslaLight = hslaComponents(color);
+        var hslaDark = Arrays.copyOf(hslaLight, hslaLight.length);
 
         {
             // darkmode
             // if color is grayish, keep the saturation, otherwise set it to 0.2
-            hslDark[S] = hslDark[S] < 0.1f ? hslDark[S] : 0.2f;
-            hslDark[L] = 0.2f;
+            hslaDark[S] = hslaDark[S] < 0.1f ? hslaDark[S] : 0.2f;
+            hslaDark[L] = 0.2f;
         }
         {
             // lightmode
             // if color is grayish, keep the saturation, otherwise set it to 0.4
-            hslLight[S] = hslLight[S] < 0.2 ? hslLight[S] : 0.4f;
-            hslLight[L] = 0.93f;
+            hslaLight[S] = hslaLight[S] < 0.2 ? hslaLight[S] : 0.4f;
+            hslaLight[L] = 0.93f;
         }
 
         return new DarkLightColor(
-                hsl(hslLight[H], hslLight[S], hslLight[L], color.getAlpha() / 255.0f),
-                hsl(hslDark[H], hslDark[S], hslDark[L], color.getAlpha() / 255.0f)
+                hsla(hslaLight[H], hslaLight[S], hslaLight[L], hslaLight[ALPHA]),
+                hsla(hslaDark[H], hslaDark[S], hslaDark[L], hslaDark[ALPHA])
         );
     }
 
 
     /**
-     * Convert an RGB Color to its corresponding HSL components.
+     * Convert an RGB Color to its corresponding HSL components and alpha channel.
      * <p>
      * From <a href="https://github.com/d3/d3-color/blob/958249d3a17aaff499d2a9fc9a0f7b8b8e8a47c8/src/color.js">d3-colors</a>.
      *
      * @param color The color to convert
-     * @return an array containing the 3 HSL values.
+     * @return an array containing the 3 HSL values, and the alpha channel.
+     * @see #H
+     * @see #S
+     * @see #L
+     * @see #ALPHA
      */
-    public static float[] hslComponents(Color color) {
+    public static float[] hslaComponents(Color color) {
         float r = color.getRed() / 255.0f;
         float g = color.getGreen() / 255.0f;
         float b = color.getBlue() / 255.0f;
+        float alpha = color.getAlpha() / 255.0f;
 
-        float min = Math.min(r, Math.min(g, b)),
-                max = Math.max(r, Math.max(g, b)),
-                h = 0f,
-                s = max - min,
-                l = (max + min) / 2;
+        float min = Math.min(r, Math.min(g, b));
+        float max = Math.max(r, Math.max(g, b));
+        float h = 0f;
+        float s = max - min;
+        float l = (max + min) / 2;
         if (s >= 0) {
             if (r == max) {
                 h = (g - b) / s + ((g < b) ? 6 : 0);
@@ -459,26 +471,30 @@ public class Colors {
             s = ((l > 0) && (l < 1)) ? 0 : h;
         }
 
-        return new float[]{h, s, l};
+        return new float[]{h, s, l, alpha};
     }
 
     /**
-     * Convert HSL values to a RGB Color.
+     * Convert HSL values (with alpha channel) to an RGB Color.
      * <p>
      * From <a href="https://github.com/d3/d3-color/blob/958249d3a17aaff499d2a9fc9a0f7b8b8e8a47c8/src/color.js">d3-colors</a>.
      *
-     * @param h     Hue is specified as degrees in the range 0 - 360.
-     * @param s     Saturation is specified as a percentage in the range 1 - 100.
-     * @param l     Luminance is specified as a percentage in the range 1 - 100.
-     * @param alpha the alpha value between 0 - 1
+     * @param h     Hue is specified as degrees in the range [0; 360].
+     * @param s     Saturation is specified as a percentage in the range [0; 1].
+     * @param l     Luminance is specified as a percentage in the range [0; 1].
+     * @param alpha the alpha value between [0; 1]
      * @return the RGB Color object
      */
-    public static Color hsl(float h, float s, float l, float alpha) {
+    public static Color hsla(float h, float s, float l, float alpha) {
         h = h % 360 + ((h < 0) ? 360 : 0);
         s = Float.isNaN(h) || Float.isNaN(s) ? 0 : s;
 
-        float m2 = l + (l < 0.5 ? l : 1 - l) * s,
-                m1 = 2 * l - m2;
+        checkThat(s < 0.0f || s > 1.0f, "Saturation [0; 1], actual: " + s);
+        checkThat(l < 0.0f || l > 1.0f, "Luminance [0; 1], actual: " + l);
+        checkThat(alpha < 0.0f || alpha > 1.0f, "Alpha [0; 1], actual: " + alpha);
+
+        float m2 = l + (l < 0.5 ? l : 1 - l) * s;
+        float m1 = 2 * l - m2;
 
         return new Color(
                 ((int) (alpha * 255)) << 24
@@ -504,6 +520,11 @@ public class Colors {
         return new Color(r, g, b, (int) (a * 255));
     }
 
+    private static void checkThat(boolean invalid, String message) {
+        if (invalid) {
+            throw new IllegalArgumentException(message);
+        }
+    }
 
     /**
      * Utility method to print out the colors for the look and feel defaults.
