@@ -377,21 +377,13 @@ public class FlamegraphView<T> {
             FrameFontProvider<T> frameFontProvider,
             Function<FrameBox<T>, String> tooltipTextFunction
     ) {
-        this.framesModel = new FrameModel<>(frames);
-        var flamegraphRenderEngine = new FlamegraphRenderEngine<>(
-                framesModel,
-                new FrameRender<>(
-                        frameTextsProvider,
-                        frameColorFunction,
-                        frameFontProvider
-                )
+        setConfigurationAndData(
+                new FrameModel<T>(frames),
+                frameTextsProvider,
+                frameColorFunction,
+                frameFontProvider,
+                tooltipTextFunction
         );
-
-        canvas.setFlamegraphRenderEngine(Objects.requireNonNull(flamegraphRenderEngine));
-        canvas.setToolTipTextFunction(Objects.requireNonNull(tooltipTextFunction));
-
-        canvas.revalidate();
-        canvas.repaint();
     }
 
     /**
@@ -427,13 +419,12 @@ public class FlamegraphView<T> {
     ) {
         framesModel = Objects.requireNonNull(frameModel);
         var flamegraphRenderEngine = new FlamegraphRenderEngine<>(
-                framesModel,
                 new FrameRender<>(
                         frameTextsProvider,
                         frameColorFunction,
                         frameFontProvider
                 )
-        );
+        ).init(frameModel);
 
         canvas.setFlamegraphRenderEngine(Objects.requireNonNull(flamegraphRenderEngine));
         canvas.setToolTipTextFunction(Objects.requireNonNull(tooltipTextFunction));
@@ -447,6 +438,9 @@ public class FlamegraphView<T> {
      */
     public void clear() {
         framesModel = FrameModel.empty();
+
+        canvas.getFlamegraphRenderEngine()
+              .ifPresent(FlamegraphRenderEngine::reset);
         canvas.setFlamegraphRenderEngine(null);
         canvas.invalidate();
         canvas.repaint();

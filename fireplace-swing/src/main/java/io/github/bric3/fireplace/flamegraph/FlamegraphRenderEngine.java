@@ -19,6 +19,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 /**
@@ -41,6 +42,16 @@ import java.util.stream.Collectors;
  */
 class FlamegraphRenderEngine<T> {
     /**
+     * Internal padding with the component bounds.
+     */
+    private final int internalPadding = 2;
+    private final int minimapFrameBoxHeight = 1;
+    /**
+     * The minimum width threshold for a frame to be rendered.
+     */
+    private final double frameWidthVisibilityThreshold = 2d;
+
+    /**
      * A flag that controls whether a frame is drawn around the frame that the mouse pointer
      * hovers over.
      */
@@ -49,59 +60,69 @@ class FlamegraphRenderEngine<T> {
     /**
      * The color used to draw a border around the hovered frame.
      */
-    public Color frameBorderColor = Colors.panelForeground;
-
-    private final int depth;
-    private int visibleDepth;
+    public Supplier<Color> frameBorderColor = () -> Colors.panelForeground;
 
     /**
-     * The minimum width threshold for a frame to be rendered.
+     * A flag that controls whether siblings of hovered frames are also rendered
+     * as <em>hovered</em>.
      */
-    protected double frameWidthVisibilityThreshold = 2d;
-    private final int minimapFrameBoxHeight = 1;
+    private boolean showHoveredSiblings = true;
+
+
+    private final FrameRender<T> frameRenderer;
 
     private FrameBox<T> hoveredFrame;
     private FrameBox<T> selectedFrame;
-    private double scaleX;
-    private double scaleY;
 
-    private final FrameModel<T> frameModel;
-
-    /**
-     * Internal padding with the component bounds.
-     */
-    private final int internalPadding = 2;
 
     private Set<FrameBox<T>> toHighlight = Collections.emptySet();
     private Set<FrameBox<T>> hoveredSiblingFrames = Collections.emptySet();
-    private final FrameRender<T> frameRenderer;
-    private boolean showHoveredSiblings = true;
+
+
+    private FrameModel<T> frameModel;
+    private int depth;
+    private int visibleDepth;
+
 
     /**
-     * Creates a new instance to render the specified list of frames.
+     * Creates a new instance of the flame graph render.
      *
-     * @param frameModel    the frames to be displayed.
+     * <p>
+     * To render frames, the render <strong>must</strong> be initialized
+     * first with the {@link #init(FrameModel)} method.
+     * </p>
+     *
      * @param frameRenderer a configured single frame renderer.
+     * @see #init(FrameModel)
      */
-    public FlamegraphRenderEngine(
-            FrameModel<T> frameModel,
-            FrameRender<T> frameRenderer
-    ) {
+    public FlamegraphRenderEngine(FrameRender<T> frameRenderer) {
         this.frameRenderer = Objects.requireNonNull(frameRenderer, "frameRenderer");
-        this.frameModel = Objects.requireNonNull(frameModel, "frameMocdel");
-        this.depth = this.frameModel.frames.stream().mapToInt(fb -> fb.stackDepth).max().orElse(0);
-        visibleDepth = depth;
-        updateUI();
+        reset();
     }
 
     /**
-     * This method is used to resync colors when the LaF changes
+     * Initializes the render with the given frame model.
+     *
+     * @param frameModel the frames to be displayed.
+     * @see #reset()
      */
-    public void updateUI() {
+    public FlamegraphRenderEngine<T> init(FrameModel<T> frameModel) {
+        this.frameModel = Objects.requireNonNull(frameModel, "frameMocdel");
+        this.depth = frameModel.frames.stream().mapToInt(fb -> fb.stackDepth).max().orElse(0);
+        visibleDepth = depth;
+        return this;
     }
 
-    public FrameRender<T> getFrameRenderer() {
-        return frameRenderer;
+    /**
+     * The inverse operation of {@link #init(FrameModel)}.
+     *
+     * @see #init(FrameModel)
+     */
+    public FlamegraphRenderEngine<T> reset() {
+        this.frameModel = FrameModel.empty();
+        this.depth = 1;
+        visibleDepth = 1;
+        return this;
     }
 
     /**
@@ -111,6 +132,7 @@ class FlamegraphRenderEngine<T> {
      * @return The height.
      */
     public int computeVisibleFlamegraphMinimapHeight(int thumbnailWidth) {
+        checkReady();
         assert thumbnailWidth > 0 : "minimap width must be superior to 0";
 
         // Somewhat it is a best effort to draw something that shows
@@ -130,7 +152,14 @@ class FlamegraphRenderEngine<T> {
      * @param insets       the insets.
      * @return The height of the visible frames in this flamegraph
      */
-    public int computeVisibleFlamegraphHeight(Graphics2D g2, int canvasWidth, int visibleWidth, Insets insets) {
+    public int computeVisibleFlamegraphHeight(
+            Graphics2D g2,
+            int canvasWidth,
+            int visibleWidth,
+            Insets insets
+    ) {
+        checkReady();
+
         // as this method is invoked during layout, the dimension can be 0
         if (canvasWidth == 0) {
             return 0;
@@ -181,6 +210,8 @@ class FlamegraphRenderEngine<T> {
             Rectangle2D viewRect,
             boolean minimapMode
     ) {
+        checkReady();
+
         Objects.requireNonNull(g2);
         Objects.requireNonNull(bounds);
         Objects.requireNonNull(viewRect);
@@ -266,6 +297,10 @@ class FlamegraphRenderEngine<T> {
         g2d.dispose();
     }
 
+    private void checkReady() {
+        assert frameModel != null : "The flamegraph is not initialized, call init(FrameModel) first";
+    }
+
     private void paintHoveredFrameBorder(
             Graphics2D g2,
             Rectangle2D viewRect,
@@ -304,7 +339,7 @@ class FlamegraphRenderEngine<T> {
 
         if (viewRect.intersects(frameRect)) {
             g2.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);
-            g2.setColor(frameBorderColor);
+            g2.setColor(frameBorderColor.get());
             // TODO use floor / ceil ?
             g2.drawRect((int) x, (int) y, (int) w, (int) h);
         }
@@ -314,8 +349,8 @@ class FlamegraphRenderEngine<T> {
         // if > 1 we're on a HiDPI display
         // https://github.com/libgdx/libgdx/commit/2bc16a08961dd303afe2d1c8df96a50d8cd639db
         var transform = g2.getTransform();
-        scaleX = transform.getScaleX();
-        scaleY = transform.getScaleY();
+        var scaleX = transform.getScaleX();
+        var scaleY = transform.getScaleY();
     }
 
     /**
@@ -332,6 +367,7 @@ class FlamegraphRenderEngine<T> {
             Rectangle2D bounds,
             FrameBox<T> frame
     ) {
+        checkReady();
         // TODO delegate to frame renderer ?
 
         var frameBoxHeight = frameRenderer.getFrameBoxHeight(g2);
@@ -359,6 +395,8 @@ class FlamegraphRenderEngine<T> {
             Rectangle2D bounds,
             Point point
     ) {
+        checkReady();
+
         int depth = point.y / frameRenderer.getFrameBoxHeight(g2);
         double xLocation = point.x / bounds.getWidth();
         double visibilityThreshold = frameWidthVisibilityThreshold / bounds.getWidth();
@@ -407,6 +445,8 @@ class FlamegraphRenderEngine<T> {
             Rectangle2D bounds,
             Consumer<Rectangle> hoverConsumer
     ) {
+        checkReady();
+
         if (frame == null) {
             stopHover(g2, bounds, hoverConsumer);
             return;
@@ -423,6 +463,21 @@ class FlamegraphRenderEngine<T> {
             if (oldHoveredFrame != null) {
                 oldHoveredSiblingFrames.forEach(hovered -> hoverConsumer.accept(getFrameRectangle(g2, bounds, hovered)));
             }
+        }
+    }
+
+    /**
+     * Clears the hovered frame (to indicate that no frame is hovered).
+     */
+    public void stopHover(Graphics2D g2, Rectangle2D bounds, Consumer<Rectangle> hoverConsumer) {
+        checkReady();
+
+        var oldHoveredFrame = hoveredFrame;
+        var oldHoveredSiblingFrame = hoveredSiblingFrames;
+        hoveredFrame = null;
+        hoveredSiblingFrames = Collections.emptySet();
+        if (oldHoveredFrame != null) {
+            oldHoveredSiblingFrame.forEach(hovered -> hoverConsumer.accept(getFrameRectangle(g2, bounds, hovered)));
         }
     }
 
@@ -453,6 +508,8 @@ class FlamegraphRenderEngine<T> {
             Rectangle2D viewRect,
             Point point
     ) {
+        checkReady();
+
         return getFrameAt(g2, bounds, point).map(frame -> {
             this.selectedFrame = frame;
 
@@ -482,6 +539,8 @@ class FlamegraphRenderEngine<T> {
             int contextBefore,
             int contextLeftRight
     ) {
+        checkReady();
+
         var frameWidthX = frame.endX - frame.startX;
         var frameBoxHeight = frameRenderer.getFrameBoxHeight(g2);
         int y = frameBoxHeight * (Math.max(frame.stackDepth - contextBefore, 0));
@@ -515,22 +574,8 @@ class FlamegraphRenderEngine<T> {
         return visibleWidth / (canvasWidth * frameWidthX);
     }
 
-    /**
-     * Clears the hovered frame (to indicate that no frame is hovered).
-     */
-    public void stopHover(Graphics2D g2, Rectangle2D bounds, Consumer<Rectangle> hoverConsumer) {
-        var oldHoveredFrame = hoveredFrame;
-        var oldHoveredSiblingFrame = hoveredSiblingFrames;
-        hoveredFrame = null;
-        hoveredSiblingFrames = Collections.emptySet();
-        if (oldHoveredFrame != null) {
-            oldHoveredSiblingFrame.forEach(hovered -> hoverConsumer.accept(getFrameRectangle(g2, bounds, hovered)));
-        }
-    }
-
-
     public void setHighlightFrames(Set<FrameBox<T>> toHighlight, String searchedText) {
-        this.toHighlight = toHighlight;
+        this.toHighlight = Objects.requireNonNull(toHighlight);
     }
 
     public void setShowHoveredSiblings(boolean showHoveredSiblings) {
@@ -539,5 +584,9 @@ class FlamegraphRenderEngine<T> {
 
     public boolean isShowHoveredSiblings() {
         return showHoveredSiblings;
+    }
+
+    public FrameRender<T> getFrameRenderer() {
+        return frameRenderer;
     }
 }
