@@ -197,9 +197,9 @@ public class FlameGraphTab extends JPanel {
                 FrameFontProvider.defaultFontProvider()
         );
         flamegraphView.setTooltipTextFunction(
-                frame -> {
+                (frameModel, frame) -> {
                     if (frame.isRoot()) {
-                        return "";
+                        return frameModel.description;
                     }
 
                     var method = frame.actualNode.getFrame().getMethod();
@@ -261,7 +261,7 @@ public class FlameGraphTab extends JPanel {
                     title,
                     (a, b) -> Objects.equals(a.actualNode.getFrame(), b.actualNode.getFrame()),
                     flatFrameList
-            ));
+            ).withDescription(title));
         };
     }
 }

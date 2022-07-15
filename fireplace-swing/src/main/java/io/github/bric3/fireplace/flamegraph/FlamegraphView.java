@@ -26,6 +26,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiConsumer;
+import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -44,17 +45,26 @@ import static java.lang.Boolean.TRUE;
  * It can be used is as follows:
  * <pre><code>
  * FlamegraphView&lt;MyNode&gt; flamegraphView = new FlamegraphView&lt;&gt;();
- * flamegraphView.showMinimap(false);
- * flamegraphView.setData(
- *     (FrameBox&lt;MyNode&gt;) listOfFrameBox(),   // list of frames
- *     List.of(n -&gt; n.stringRepresentation()),      // string representation candidates
- *     rootNode -&gt; rootNode.stringRepresentation(), // root node string representation
+ * flamegraphView.setShowMinimap(false);
+ * flamegraphView.setRenderConfiguration(
+ *     frameTextProvider,                              // string representation candidates
  *     frameColorProvider,                             // color the frame
  *     frameFontProvider,                              // returns a given font for a frame
+ * );
+ * flamegraphView.setTooltipTextFunction(
  *     frameToToolTipTextFunction                      // text tooltip function
  * );
  *
  * panel.add(flamegraphView.component);
+ *
+ * // then later
+ * flamegraphView.setModel(
+ *      new FrameModel(
+ *          "title",                                   // title of the flamegraph, used in root node
+ *          frameEqualityFunction,                     // equality function for frames, used for sibling detection
+ *          (FrameBox&lt;MyNode&gt;) listOfFrameBox()  // list of frames
+ *      )
+ * )
  * </code></pre>
  * <p>
  * The created and <em>final</em> {@code component} is a composite that is based
@@ -131,9 +141,11 @@ public class FlamegraphView<T> {
      * In order to use in Swing just access the {@link #component} field.
      */
     public FlamegraphView() {
-        canvas = new FlamegraphCanvas<>();
+        canvas = new FlamegraphCanvas<>(this);
+        canvas.putClientProperty(OWNER_KEY, this);
         listener = new FlamegraphScrollPaneMouseInputListener<>(canvas);
         var scrollPane = new JScrollPane(canvas);
+        scrollPane.putClientProperty(OWNER_KEY, this);
         var layeredScrollPane = JScrollPaneWithButton.create(
                 () -> {
 
@@ -428,7 +440,8 @@ public class FlamegraphView<T> {
         ).init(frameModel);
 
         canvas.setFlamegraphRenderEngine(Objects.requireNonNull(flamegraphRenderEngine));
-        canvas.setToolTipTextFunction(Objects.requireNonNull(tooltipTextFunction));
+        Objects.requireNonNull(tooltipTextFunction);
+        canvas.setToolTipTextFunction((__, frame) -> tooltipTextFunction.apply(frame));
 
         canvas.revalidate();
         canvas.repaint();
@@ -503,7 +516,7 @@ public class FlamegraphView<T> {
      *
      * @param tooltipTextFunction The frame tooltip text function.
      */
-    public void setTooltipTextFunction(Function<FrameBox<T>, String> tooltipTextFunction) {
+    public void setTooltipTextFunction(BiFunction<FrameModel<T>, FrameBox<T>, String> tooltipTextFunction) {
         canvas.setToolTipTextFunction(Objects.requireNonNull(tooltipTextFunction));
     }
 
@@ -822,7 +835,7 @@ public class FlamegraphView<T> {
         private Image minimap;
         private JToolTip toolTip;
         private FlamegraphRenderEngine<T> flamegraphRenderEngine;
-        private Function<FrameBox<T>, String> tooltipToTextFunction;
+        private BiFunction<FrameModel<T>, FrameBox<T>, String> tooltipToTextFunction;
         private final Dimension flamegraphDimension = new Dimension();
         private int minimapWidth = 200;
         private int minimapHeight = 100;
@@ -836,14 +849,11 @@ public class FlamegraphView<T> {
         private ZoomAction zoomActionOverride;
         private BiConsumer<FrameBox<T>, MouseEvent> popupConsumer;
         private BiConsumer<FrameBox<T>, MouseEvent> selectedFrameConsumer;
+        private FlamegraphView<T> flamegraphView;
 
 
-        public FlamegraphCanvas() {
-            this(null);
-        }
-
-        public FlamegraphCanvas(FlamegraphRenderEngine<T> flamegraphRenderEngine) {
-            this.flamegraphRenderEngine = flamegraphRenderEngine;
+        public FlamegraphCanvas(FlamegraphView<T> flamegraphView) {
+            this.flamegraphView = flamegraphView;
         }
 
         /**
@@ -1011,7 +1021,7 @@ public class FlamegraphView<T> {
             if (tooltipToTextFunction == null) {
                 return;
             }
-            setToolTipText(tooltipToTextFunction.apply(frame));
+            setToolTipText(tooltipToTextFunction.apply(flamegraphView.framesModel, frame));
         }
 
         @Override
@@ -1174,7 +1184,7 @@ public class FlamegraphView<T> {
             return Optional.ofNullable(flamegraphRenderEngine);
         }
 
-        public void setToolTipTextFunction(Function<FrameBox<T>, String> tooltipTextFunction) {
+        public void setToolTipTextFunction(BiFunction<FrameModel<T>, FrameBox<T>, String> tooltipTextFunction) {
             this.tooltipToTextFunction = tooltipTextFunction;
         }
 
