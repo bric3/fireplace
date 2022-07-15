@@ -107,7 +107,7 @@ class FlamegraphRenderEngine<T> {
      * @see #reset()
      */
     public FlamegraphRenderEngine<T> init(FrameModel<T> frameModel) {
-        this.frameModel = Objects.requireNonNull(frameModel, "frameMocdel");
+        this.frameModel = Objects.requireNonNull(frameModel, "frameModel");
         this.depth = frameModel.frames.stream().mapToInt(fb -> fb.stackDepth).max().orElse(0);
         visibleDepth = depth;
         return this;
@@ -211,6 +211,9 @@ class FlamegraphRenderEngine<T> {
             boolean minimapMode
     ) {
         checkReady();
+        if (frameModel.frames.isEmpty()) {
+            return;
+        }
 
         Objects.requireNonNull(g2);
         Objects.requireNonNull(bounds);
@@ -234,6 +237,7 @@ class FlamegraphRenderEngine<T> {
             if (!paintableIntersection.isEmpty()) {
                 frameRenderer.paintFrame(
                         g2d,
+                        frameModel,
                         frameRect,
                         rootFrame,
                         paintableIntersection,
@@ -269,6 +273,7 @@ class FlamegraphRenderEngine<T> {
             if (!paintableIntersection.isEmpty()) {
                 frameRenderer.paintFrame(
                         g2d,
+                        frameModel,
                         frameRect,
                         frame,
                         paintableIntersection,

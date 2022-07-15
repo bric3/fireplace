@@ -50,8 +50,8 @@ public class FlameGraphTab extends JPanel {
     public FlameGraphTab() {
         super(new BorderLayout());
 
-        jfrFlamegraphView = new FlamegraphView<>();
-        jfrFlamegraphView.showMinimap(defaultShowMinimap);
+        jfrFlamegraphView = getJfrFlamegraphView();
+        jfrFlamegraphView.setShowMinimap(defaultShowMinimap);
         jfrFlamegraphView.configureCanvas(FlameGraphTab::registerToolTips);
         jfrFlamegraphView.putClientProperty(FlamegraphView.SHOW_STATS, true);
         jfrFlamegraphView.setTooltipComponentSupplier(BalloonToolTip::new);
@@ -84,7 +84,7 @@ public class FlameGraphTab extends JPanel {
 
         var minimapToggle = new JCheckBox("Minimap");
         minimapToggle.addActionListener(e -> {
-            jfrFlamegraphView.showMinimap(minimapToggle.isSelected());
+            jfrFlamegraphView.setShowMinimap(minimapToggle.isSelected());
         });
         minimapToggle.setSelected(defaultShowMinimap);
 
@@ -103,8 +103,8 @@ public class FlameGraphTab extends JPanel {
         }
 
         var timer = new Timer(2_000, e -> {
-            jfrFlamegraphView = new FlamegraphView<>();
-            jfrFlamegraphView.showMinimap(defaultShowMinimap);
+            jfrFlamegraphView = getJfrFlamegraphView();
+            jfrFlamegraphView.setShowMinimap(defaultShowMinimap);
             jfrFlamegraphView.configureCanvas(FlameGraphTab::registerToolTips);
             jfrFlamegraphView.putClientProperty(FlamegraphView.SHOW_STATS, true);
             jfrFlamegraphView.setMinimapShadeColorSupplier(() -> minimapShade);
@@ -185,6 +185,45 @@ public class FlameGraphTab extends JPanel {
         add(wrapper, BorderLayout.CENTER);
     }
 
+    private static FlamegraphView<Node> getJfrFlamegraphView() {
+        var flamegraphView = new FlamegraphView<Node>();
+        flamegraphView.setRenderConfiguration(
+                FrameTextsProvider.of(
+                        frame -> frame.isRoot() ? "root" : frame.actualNode.getFrame().getHumanReadableShortString(),
+                        frame -> frame.isRoot() ? "" : FormatToolkit.getHumanReadable(frame.actualNode.getFrame().getMethod(), false, false, false, false, true, false),
+                        frame -> frame.isRoot() ? "" : frame.actualNode.getFrame().getMethod().getMethodName()
+                ),
+                new DimmingFrameColorProvider<>(defaultFrameColorMode.colorMapperUsing(ColorMapper.ofObjectHashUsing(defaultColorPalette.colors()))),
+                FrameFontProvider.defaultFontProvider()
+        );
+        flamegraphView.setTooltipTextFunction(
+                frame -> {
+                    if (frame.isRoot()) {
+                        return "";
+                    }
+
+                    var method = frame.actualNode.getFrame().getMethod();
+                    var desc = FormatToolkit.getHumanReadable(method,
+                                                              false,
+                                                              false,
+                                                              true,
+                                                              true,
+                                                              true,
+                                                              false,
+                                                              false);
+
+                    return "<html>"
+                           + "<b>" + frame.actualNode.getFrame().getHumanReadableShortString() + "</b><br>"
+                           + desc + "<br><hr>"
+                           + frame.actualNode.getCumulativeWeight() + " " + frame.actualNode.getWeight() + "<br>"
+                           + "BCI: " + frame.actualNode.getFrame().getBCI() + " Line number: " + frame.actualNode.getFrame().getFrameLineNumber() + "<br>"
+                           + "</html>";
+                }
+        );
+
+        return flamegraphView;
+    }
+
     private static void registerToolTips(JComponent component) {
         int defaultInitialDelay = ToolTipManager.sharedInstance().getInitialDelay();
         int defaultDismissDelay = ToolTipManager.sharedInstance().getDismissDelay();
@@ -212,50 +251,17 @@ public class FlameGraphTab extends JPanel {
 
     private Consumer<FlamegraphView<Node>> dataApplier(StacktraceTreeModel stacktraceTreeModel) {
         var flatFrameList = JfrFrameNodeConverter.convert(stacktraceTreeModel);
-        return (flameGraph) -> flameGraph.setConfigurationAndData(
-                new FrameModel<>(
-                        (a, b) -> Objects.equals(a.actualNode.getFrame(), b.actualNode.getFrame()),
-                        flatFrameList
-                ),
-                FrameTextsProvider.of(
-                        frame -> {
-                            if (frame.isRoot()) {
-                                var events = stacktraceTreeModel.getItems()
-                                                                .stream()
-                                                                .map(iItems -> iItems.getType().getIdentifier())
-                                                                .collect(joining(", "));
-                                return "all (" + events + ")";
-                            } else {
-                                return frame.actualNode.getFrame().getHumanReadableShortString();
-                            }
-                        },
-                        frame -> frame.isRoot() ? "" : FormatToolkit.getHumanReadable(frame.actualNode.getFrame().getMethod(), false, false, false, false, true, false),
-                        frame -> frame.isRoot() ? "" : frame.actualNode.getFrame().getMethod().getMethodName()
-                ),
-                new DimmingFrameColorProvider<>(defaultFrameColorMode.colorMapperUsing(ColorMapper.ofObjectHashUsing(defaultColorPalette.colors()))),
-                FrameFontProvider.defaultFontProvider(),
-                frame -> {
-                    if (frame.isRoot()) {
-                        return "";
-                    }
+        var title = stacktraceTreeModel.getItems()
+                                       .stream()
+                                       .map(iItems -> iItems.getType().getIdentifier())
+                                       .collect(joining(", ", "all (", ")"));
 
-                    var method = frame.actualNode.getFrame().getMethod();
-                    var desc = FormatToolkit.getHumanReadable(method,
-                                                              false,
-                                                              false,
-                                                              true,
-                                                              true,
-                                                              true,
-                                                              false,
-                                                              false);
-
-                    return "<html>"
-                           + "<b>" + frame.actualNode.getFrame().getHumanReadableShortString() + "</b><br>"
-                           + desc + "<br><hr>"
-                           + frame.actualNode.getCumulativeWeight() + " " + frame.actualNode.getWeight() + "<br>"
-                           + "BCI: " + frame.actualNode.getFrame().getBCI() + " Line number: " + frame.actualNode.getFrame().getFrameLineNumber() + "<br>"
-                           + "</html>";
-                }
-        );
+        return (flameGraph) -> {
+            flameGraph.setModel(new FrameModel<>(
+                    title,
+                    (a, b) -> Objects.equals(a.actualNode.getFrame(), b.actualNode.getFrame()),
+                    flatFrameList
+            ));
+        };
     }
 }

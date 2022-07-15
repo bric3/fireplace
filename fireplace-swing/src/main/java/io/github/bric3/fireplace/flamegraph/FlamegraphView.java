@@ -90,7 +90,7 @@ public class FlamegraphView<T> {
     /**
      * The precomputed list of frames.
      */
-    private FrameModel<T> framesModel;
+    private FrameModel<T> framesModel = FrameModel.empty();
 
     /**
      * Represents a custom actions when zooming
@@ -388,9 +388,9 @@ public class FlamegraphView<T> {
 
     /**
      * Actually set the {@link FlamegraphView} with typed data and configure how to use it.
+     *
      * <p>
-     * It takes a list of {@link FrameBox} objects that wraps the actual data,
-     * which is referred to as <em>node</em>.
+     * It takes a {@link FrameModel} object that wraps the actual data.
      * </p>
      * <p>
      * In particular this function defines the behavior to access the typed data:
@@ -406,10 +406,11 @@ public class FlamegraphView<T> {
      * </ul>
      *
      * @param frameModel          The {@code FrameBox} list to display.
-     * @param frameTextsProvider  function to display label in frames.
-     * @param frameColorFunction  the frame to background color function.
-     * @param tooltipTextFunction the frame tooltip text function.
+     * @param frameTextsProvider  The function to display label in frames.
+     * @param frameColorFunction  The frame to background color function.
+     * @param tooltipTextFunction The frame tooltip text function.
      */
+    @Deprecated(forRemoval = true)
     public void setConfigurationAndData(
             FrameModel<T> frameModel,
             FrameTextsProvider<T> frameTextsProvider,
@@ -431,6 +432,79 @@ public class FlamegraphView<T> {
 
         canvas.revalidate();
         canvas.repaint();
+    }
+
+    /**
+     * Sets the {@link FrameModel}.
+     *
+     * <p>
+     * It takes a {@link FrameModel} object that wraps the actual data.
+     * </p>
+     *
+     * @param frameModel The {@code FrameBox} list to display.
+     */
+    public void setModel(FrameModel<T> frameModel) {
+        framesModel = Objects.requireNonNull(frameModel);
+        canvas.getFlamegraphRenderEngine().ifPresent(fre -> fre.init(frameModel));
+
+        canvas.revalidate();
+        canvas.repaint();
+    }
+
+    /**
+     * Configures the rendering of {@link FlamegraphView}.
+     *
+     * <p>
+     * When this method is invoked after a model has been set this request
+     * a new repaint.
+     * </p>
+     *
+     * <p>
+     * In particular this function defines the behavior to access the typed data:
+     * <ul>
+     *     <li>Possible string candidates to display in frames, those are
+     *     selected based on the available space</li>
+     *     <li>The root node text to display, if something specific is relevant,
+     *     like the type of events, their number, etc.</li>
+     *     <li>The frame background color, this function can be replaced by
+     *     {@link #setColorFunction(Function)}, note that the foreground color
+     *     is chosen automatically</li>
+     * </ul>
+     *
+     * @param frameTextsProvider The function to display label in frames.
+     * @param frameColorFunction The frame to background color function.
+     * @param frameFontProvider  The frame font provider.
+     */
+    public void setRenderConfiguration(
+            FrameTextsProvider<T> frameTextsProvider,
+            FrameColorProvider<T> frameColorFunction,
+            FrameFontProvider<T> frameFontProvider
+    ) {
+        var flamegraphRenderEngine = new FlamegraphRenderEngine<>(
+                new FrameRender<>(
+                        frameTextsProvider,
+                        frameColorFunction,
+                        frameFontProvider
+                )
+        ).init(framesModel);
+
+        canvas.setFlamegraphRenderEngine(Objects.requireNonNull(flamegraphRenderEngine));
+
+        canvas.revalidate();
+        canvas.repaint();
+    }
+
+    /**
+     * Configures the tooltip text of {@link FlamegraphView}.
+     *
+     * <p>
+     * This is only useful when actually using swing tool tips.
+     * </p>
+     *
+     * @param tooltipTextFunction The frame tooltip text function.
+     */
+    public void setTooltipTextFunction(Function<FrameBox<T>, String> tooltipTextFunction) {
+        canvas.setToolTipTextFunction(Objects.requireNonNull(tooltipTextFunction));
     }
 
     /**

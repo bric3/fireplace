@@ -28,8 +28,10 @@ import java.util.Objects;
  */
 public class FrameModel<T> {
     public static final FrameModel<?> EMPTY = new FrameModel<>(Collections.emptyList());
-    List<FrameBox<T>> frames;
-    FrameEquality<T> frameEquality;
+
+    public final String title;
+    public final List<FrameBox<T>> frames;
+    public final FrameEquality<T> frameEquality;
 
     /**
      * Creates model of the flamegraph frames.
@@ -45,7 +47,7 @@ public class FrameModel<T> {
      * @param frames The list of {@code FrameBox} objects.
      */
     public FrameModel(List<FrameBox<T>> frames) {
-        this((a, b) -> Objects.equals(a.actualNode, b.actualNode), frames);
+        this("", (a, b) -> Objects.equals(a.actualNode, b.actualNode), frames);
     }
 
     /**
@@ -58,7 +60,12 @@ public class FrameModel<T> {
      * @param frameEquality Custom equality code for the actual node object {@code T}.
      * @param frames        The list of {@code FrameBox} objects.
      */
-    public FrameModel(FrameEquality<T> frameEquality, List<FrameBox<T>> frames) {
+    public FrameModel(
+            String title,
+            FrameEquality<T> frameEquality,
+            List<FrameBox<T>> frames
+    ) {
+        this.title = Objects.requireNonNull(title, "title");
         this.frames = Objects.requireNonNull(frames, "frames");
         this.frameEquality = Objects.requireNonNull(frameEquality, "frameEquality");
     }

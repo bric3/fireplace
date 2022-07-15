@@ -111,8 +111,9 @@ class FrameRender<T> {
      *                              (used to position the text label).
      * @param flags                 The rendering flags (minimap, selection, hovered, highlight).
      */
-    public void paintFrame(
+    void paintFrame(
             Graphics2D g2,
+            FrameModel<T> frameModel,
             Rectangle2D frameRect,
             FrameBox<T> frame,
             Rectangle2D paintableIntersection,
@@ -133,6 +134,7 @@ class FrameRender<T> {
                 g2,
                 frameFont,
                 paintableIntersection.getWidth() - frameTextPadding * 2 - frameGapWidth * 2,
+                frameModel,
                 frame
         );
 
@@ -174,17 +176,20 @@ class FrameRender<T> {
             Graphics2D g2,
             Font font,
             double targetWidth,
+            FrameModel<T> frameModel,
             FrameBox<T> frame
     ) {
         var metrics = g2.getFontMetrics(font);
 
         // don't use stream to avoid allocations during painting
-        var textCandidate = "";
-        for (Function<FrameBox<T>, String> nodeToTextCandidate : frameTextsProvider.frameToTextCandidates()) {
-            textCandidate = nodeToTextCandidate.apply(frame);
-            var textBounds = metrics.getStringBounds(textCandidate, g2);
-            if (textBounds.getWidth() <= targetWidth) {
-                return textCandidate;
+        var textCandidate = frame.isRoot() ? frameModel.title : "";
+        if (!frame.isRoot()) {
+            for (Function<FrameBox<T>, String> nodeToTextCandidate : frameTextsProvider.frameToTextCandidates()) {
+                textCandidate = nodeToTextCandidate.apply(frame);
+                var textBounds = metrics.getStringBounds(textCandidate, g2);
+                if (textBounds.getWidth() <= targetWidth) {
+                    return textCandidate;
+                }
             }
         }
         // only try clip the last candidate
