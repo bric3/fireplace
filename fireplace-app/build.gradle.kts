@@ -73,6 +73,7 @@ tasks.withType<JavaExec>().configureEach {
     group = "class-with-main"
     classpath(sourceSets.main.get().runtimeClasspath)
 
+    jvmArgs("-ea")
     // Need to set the toolchain https://github.com/gradle/gradle/issues/16791
     // javaLauncher.set(javaToolchains.launcherFor(java.toolchain))  // Project toolchain
 
