@@ -433,6 +433,104 @@ public class Colors {
         );
     }
 
+    private static final float DARKER_FACTOR = 0.7f;
+    private static final float BRIGHTER_FACTOR = 1 / DARKER_FACTOR;
+
+    /**
+     * Brighten a color by lowering the luminance.
+     *
+     * <p>
+     * This differs from {@link Color#brighter()} as it computes
+     * the value in the HSL space, also this method takes a {@code factor},
+     * which is similar to applying {@link Color#brighter()} multiple times,
+     * but without creating new objects.
+     * </p>
+     *
+     * @param color The color to brighten.
+     * @param k     The factor, min value 0.
+     * @return The brightened color.
+     * @see #darker(Color, float)
+     */
+    public static Color brighter(Color color, float k) {
+        return brighter(color, k, 1f);
+    }
+
+    /**
+     * Brighten a color by lowering the luminance.
+     *
+     * <p>
+     * This differs from {@link Color#brighter()} as it computes
+     * the value in the HSL space, also this method takes a {@code factor},
+     * which is similar to applying {@link Color#brighter()} multiple times,
+     * but without creating new objects.
+     * </p>
+     *
+     * @param color        The color to brighten.
+     * @param k            The factor, min value 0.
+     * @param maxLuminance The higher bound for the luminance [0; 1].
+     * @return The brightened color.
+     * @see #darker(Color, float, float)
+     */
+    public static Color brighter(Color color, float k, float maxLuminance) {
+        checkThat(k < 0, "k must be positive");
+        checkThat(maxLuminance < 0 || maxLuminance > 1, "maxLuminance [0; 1], actual: " + maxLuminance);
+        double factor = k == 0f ? BRIGHTER_FACTOR : Math.pow(BRIGHTER_FACTOR, k);
+        var hsla = hslaComponents(color);
+        return hsla(
+                hsla[H],
+                hsla[S],
+                Math.min((float) (hsla[L] * factor), maxLuminance),
+                hsla[ALPHA]
+        );
+    }
+
+    /**
+     * Darken a color by lowering the luminance.
+     *
+     * <p>
+     * This differs from {@link Color#darker()} as it computes
+     * the value in the HSL space, also this method takes a {@code factor},
+     * which is similar to applying {@link Color#darker()}multiple times,
+     * but without creating new objects.
+     * </p>
+     *
+     * @param color The color to darken.
+     * @param k     The factor, min value 0.
+     * @return The darkened color.
+     * @see #brighter(Color, float)
+     */
+    public static Color darker(Color color, float k) {
+        return darker(color, k, 0f);
+    }
+
+    /**
+     * Darken a color by lowering the luminance.
+     *
+     * <p>
+     * This differs from {@link Color#darker()} as it computes
+     * the value in the HSL space, also this method takes a {@code factor},
+     * which is similar to applying {@link Color#darker()}multiple times,
+     * but without creating new objects.
+     * </p>
+     *
+     * @param color        The color to darken.
+     * @param k            The factor, min value 0.
+     * @param minLuminance The lower bound for the luminance [0; 1].
+     * @return The darkened color.
+     * @see #brighter(Color, float, float)
+     */
+    public static Color darker(Color color, float k, float minLuminance) {
+        checkThat(k < 0, "k must be positive");
+        checkThat(minLuminance < 0 || minLuminance > 1, "maxLuminance [0; 1], actual: " + minLuminance);
+        double factor = k == 0f ? DARKER_FACTOR : Math.pow(DARKER_FACTOR, k);
+        var hsla = hslaComponents(color);
+        return hsla(
+                hsla[H],
+                hsla[S],
+                Math.max((float) (hsla[L] * factor), minLuminance),
+                hsla[ALPHA]
+        );
+    }
 
     /**
      * Convert an RGB Color to its corresponding HSL components and alpha channel.

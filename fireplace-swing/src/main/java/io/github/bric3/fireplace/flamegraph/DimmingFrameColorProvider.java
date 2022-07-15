@@ -70,11 +70,6 @@ public class DimmingFrameColorProvider<T> implements FrameColorProvider<T> {
             Colors.rgba(255, 255, 255, 0.51f)
     );
 
-    public static final Color HOVERED_BACKGROUND_COLOR = new DarkLightColor(
-            new Color(0xFFE0C268, true),
-            new Color(0xD0E0C268, true)
-    );
-
     public static final Color ROOT_BACKGROUND_COLOR = new DarkLightColor(
             new Color(0xFFEAF6FC),
             new Color(0xFF091222)
@@ -97,7 +92,6 @@ public class DimmingFrameColorProvider<T> implements FrameColorProvider<T> {
 
     private Color rootBackGroundColor = ROOT_BACKGROUND_COLOR;
     private Color dimmedTextColor = DIMMED_TEXT_COLOR;
-    private Color hoveredBackgroundColor = HOVERED_BACKGROUND_COLOR;
 
     /**
      * Builds a basic frame color provider.
@@ -105,7 +99,6 @@ public class DimmingFrameColorProvider<T> implements FrameColorProvider<T> {
      * @param baseColorFunction The color function that provides the frame's color.
      * @see #withRootBackgroundColor(Color)
      * @see #withDimmedTextColor(Color)
-     * @see #withHoveredBackgroundColor(Color)
      */
     public DimmingFrameColorProvider(Function<FrameBox<T>, Color> baseColorFunction) {
         this.baseColorFunction = baseColorFunction;
@@ -114,13 +107,14 @@ public class DimmingFrameColorProvider<T> implements FrameColorProvider<T> {
     @Override
     public ColorModel getColors(FrameBox<T> frame, int flags) {
         Color backgroundColor;
+        Color baseBackgroundColor;
         Color foreground;
 
         var rootNode = frame.isRoot();
         if (rootNode) {
-            backgroundColor = rootBackGroundColor;
+            baseBackgroundColor = backgroundColor = rootBackGroundColor;
         } else {
-            backgroundColor = baseColorFunction.apply(frame);
+            baseBackgroundColor = backgroundColor = baseColorFunction.apply(frame);
         }
 
         if (isMinimapMode(flags)) {
@@ -136,12 +130,12 @@ public class DimmingFrameColorProvider<T> implements FrameColorProvider<T> {
         }
 
         if (isHovered(flags)) {
-            backgroundColor = hoverBackground(backgroundColor);
+            backgroundColor = hoverBackground(baseBackgroundColor);
             foreground = Colors.foregroundColor(backgroundColor);
         }
 
         if (isHoveredSibling(flags)) {
-            backgroundColor = hoverSiblingBackground(backgroundColor);
+            backgroundColor = hoverSiblingBackground(baseBackgroundColor);
             foreground = Colors.foregroundColor(backgroundColor);
         }
 
@@ -158,7 +152,9 @@ public class DimmingFrameColorProvider<T> implements FrameColorProvider<T> {
      * @return The hovered background color.
      */
     private Color hoverBackground(Color backgroundColor) {
-        return Colors.blend(backgroundColor, hoveredBackgroundColor);
+        return Colors.isDarkMode() ?
+               Colors.brighter(backgroundColor, 1.1f, 0.95f) :
+               Colors.darker(backgroundColor, 1.25f);
     }
 
     /**
@@ -168,7 +164,7 @@ public class DimmingFrameColorProvider<T> implements FrameColorProvider<T> {
      * @return The hovered background color.
      */
     private Color hoverSiblingBackground(Color backgroundColor) {
-        return Colors.blend(backgroundColor, hoveredBackgroundColor);
+        return hoverBackground(backgroundColor);
     }
 
     /**
@@ -218,11 +214,6 @@ public class DimmingFrameColorProvider<T> implements FrameColorProvider<T> {
 
     public DimmingFrameColorProvider<T> withDimmedTextColor(Color dimmedTextColor) {
         this.dimmedTextColor = Objects.requireNonNull(dimmedTextColor);
-        return this;
-    }
-
-    public DimmingFrameColorProvider<T> withHoveredBackgroundColor(Color hoveredBackgroundColor) {
-        this.hoveredBackgroundColor = Objects.requireNonNull(hoveredBackgroundColor);
         return this;
     }
 }
