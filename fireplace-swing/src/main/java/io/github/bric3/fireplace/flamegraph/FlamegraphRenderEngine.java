@@ -75,7 +75,7 @@ class FlamegraphRenderEngine<T> {
     private Set<FrameBox<T>> toHighlight = Collections.emptySet();
     private Set<FrameBox<T>> hoveredSiblingFrames = Collections.emptySet();
     private final FrameRender<T> frameRenderer;
-    private boolean showHoveredSiblings;
+    private boolean showHoveredSiblings = true;
 
     /**
      * Creates a new instance to render the specified list of frames.
