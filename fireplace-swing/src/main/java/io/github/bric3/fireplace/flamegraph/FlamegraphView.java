@@ -93,7 +93,7 @@ public class FlamegraphView<T> {
 
     /**
      * Mouse input listener used to move the canvas over the JScrollPane
-     * as well as trigger other bhavior on the canvas.
+     * as well as trigger other behavior on the canvas.
      */
     private final FlamegraphScrollPaneMouseInputListener<T> listener;
 
@@ -114,10 +114,42 @@ public class FlamegraphView<T> {
      *
      * @param <T> The type of the node data.
      */
+    public interface HoverListener<T> {
+        default void onStopHover(FrameBox<T> previousHoveredFrame, Rectangle prevHoveredFrameRectangle, MouseEvent e) {}
+
+        void onFrameHover(FrameBox<T> frame, Rectangle hoveredFrameRectangle, MouseEvent e);
+
+        /**
+         * Utility method to get a point from a mouse event with the vertical coordinate set to
+         * the given frame rectangle.
+         *
+         * @param frameRect  The frame rectangle.
+         * @param mouseEvent The mouse event, event is expected to come from
+         *                   {@link HoverListener} methods.
+         * @return The point
+         */
+        static Point getPointLeveledToFrameDepth(MouseEvent mouseEvent, Rectangle frameRect) {
+            var scrollPane = (JScrollPane) mouseEvent.getComponent();
+            var canvas = scrollPane.getViewport().getView();
+
+            var ownerFg = FlamegraphView.from(scrollPane)
+                                        .orElseThrow(() -> new IllegalStateException("Cannot find FlamegraphView owner"));
+
+            // SwingUtilities.convertRectangle()
+            var pointOnCanvas = SwingUtilities.convertPoint(scrollPane, mouseEvent.getPoint(), canvas);
+            pointOnCanvas.y = frameRect.y;
+            return SwingUtilities.convertPoint(canvas, pointOnCanvas, ownerFg.component);
+        }
+    }
+
+    /**
+     * Represents a custom actions when zooming
+     *
+     * @param <T> The type of the node data.
+     */
+    @Deprecated(forRemoval = true)
     public interface HoveringListener<T> {
         default void onStopHover(MouseEvent e) {}
-
-        ;
 
         void onFrameHover(FrameBox<T> frame, Rectangle hoveredFrameRectangle, MouseEvent e);
     }
@@ -353,8 +385,28 @@ public class FlamegraphView<T> {
      *
      * @param hoverListener the listener ({@code null} permitted).
      */
+    @Deprecated(forRemoval = true)
     public void setHoveringListener(HoveringListener<T> hoverListener) {
-        listener.setHoveringListener(hoverListener);
+        setHoverListener(new HoverListener<T>() {
+            @Override
+            public void onStopHover(FrameBox<T> prevHoveredFrame, Rectangle prevHoveredFrameRectangle, MouseEvent e) {
+                hoverListener.onStopHover(e);
+            }
+
+            @Override
+            public void onFrameHover(FrameBox<T> frame, Rectangle hoveredFrameRectangle, MouseEvent e) {
+                hoverListener.onFrameHover(frame, hoveredFrameRectangle, e);
+            }
+        });
+    }
+
+    /**
+     * Sets a listener that will be called when the mouse hovers a frame, or when it stops hovering.
+     *
+     * @param hoverListener the listener ({@code null} permitted).
+     */
+    public void setHoverListener(HoverListener<T> hoverListener) {
+        listener.setHoverListener(hoverListener);
     }
 
     /**
@@ -650,7 +702,7 @@ public class FlamegraphView<T> {
         private Point pressedPoint;
         private final FlamegraphCanvas<T> canvas;
         private Rectangle hoveredFrameRectangle;
-        private HoveringListener<T> hoveringListener;
+        private HoverListener<T> hoverListener;
         private FrameBox<T> hoveredFrame;
 
         public FlamegraphScrollPaneMouseInputListener(FlamegraphCanvas<T> canvas) {
@@ -749,8 +801,8 @@ public class FlamegraphView<T> {
                               canvas::repaint
                       ));
                 canvas.repaint();
-                if (hoveringListener != null) {
-                    hoveringListener.onStopHover(e);
+                if (hoverListener != null) {
+                    hoverListener.onStopHover(hoveredFrame, hoveredFrameRectangle, e);
                 }
             }
         }
@@ -761,8 +813,8 @@ public class FlamegraphView<T> {
             SwingUtilities.convertPointFromScreen(latestMouseLocation, canvas);
 
             if (canvas.isInsideMinimap(latestMouseLocation)) {
-                if (hoveringListener != null) {
-                    hoveringListener.onStopHover(e);
+                if (hoverListener != null) {
+                    hoverListener.onStopHover(hoveredFrame, hoveredFrameRectangle, e);
                 }
                 // bail out
                 return;
@@ -772,8 +824,8 @@ public class FlamegraphView<T> {
             if (hoveredFrameRectangle != null && hoveredFrameRectangle.contains(latestMouseLocation)) {
                 // still hovering the same frame, avoid unnecessary work
                 // and reuse what we got before
-                if (hoveringListener != null) {
-                    hoveringListener.onFrameHover(hoveredFrame, hoveredFrameRectangle, e);
+                if (hoverListener != null) {
+                    hoverListener.onFrameHover(hoveredFrame, hoveredFrameRectangle, e);
                 }
                 return;
             }
@@ -800,8 +852,8 @@ public class FlamegraphView<T> {
                                              frame
                                      );
                                      hoveredFrame = frame;
-                                     if (hoveringListener != null) {
-                                         hoveringListener.onFrameHover(frame, hoveredFrameRectangle, e);
+                                     if (hoverListener != null) {
+                                         hoverListener.onFrameHover(frame, hoveredFrameRectangle, e);
                                      }
                                  },
                                  () -> {
@@ -810,18 +862,20 @@ public class FlamegraphView<T> {
                                              canvas.getBounds(),
                                              canvas::repaint
                                      );
+                                     var prevHoveredFrameRectangle = hoveredFrameRectangle;
+                                     var prevHoveredFrame = hoveredFrame;
                                      hoveredFrameRectangle = null;
                                      hoveredFrame = null;
-                                     if (hoveringListener != null) {
-                                         hoveringListener.onStopHover(e);
+                                     if (hoverListener != null) {
+                                         hoverListener.onStopHover(prevHoveredFrame, prevHoveredFrameRectangle, e);
                                      }
                                  }
                          );
                   });
         }
 
-        public void setHoveringListener(HoveringListener<T> hoveringListener) {
-            this.hoveringListener = hoveringListener;
+        public void setHoverListener(HoverListener<T> hoveringListener) {
+            this.hoverListener = hoveringListener;
         }
 
         public void install(JScrollPane sp) {
