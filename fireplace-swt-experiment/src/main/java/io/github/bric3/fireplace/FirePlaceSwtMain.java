@@ -162,17 +162,11 @@ public class FirePlaceSwtMain {
                 ),
                 FrameFontProvider.defaultFontProvider()
         );
-        // no tooltips as this is handled by SWT / JFACE code
 
-        fg.setHoveringListener((frameBox, frameRect, mouseEvent) -> {
-            // This code knows too much about Flamegraph but given tooltips
-            // will probably evolve it may be too early to refactor it
-            var scrollPane = (JScrollPane) mouseEvent.getComponent();
-            var canvas = scrollPane.getViewport().getView();
-
-            var pointOnCanvas = SwingUtilities.convertPoint(scrollPane, mouseEvent.getPoint(), canvas);
-            pointOnCanvas.y = frameRect.y + frameRect.height;
-            var componentPoint = SwingUtilities.convertPoint(canvas, pointOnCanvas, fg.component);
+        // no tooltips as this is handled by SWT / JFACE code below
+        fg.setHoverListener((frameBox, frameRect, mouseEvent) -> {
+            var toolTipTarget = FlamegraphView.HoverListener.getPointLeveledToFrameDepth(mouseEvent, frameRect);
+            toolTipTarget.y += frameRect.height;
 
             if (frameBox.isRoot()) {
                 return;
@@ -221,7 +215,7 @@ public class FirePlaceSwtMain {
                     tooltip.setText(text);
 
                     tooltip.hide();
-                    tooltip.show(new org.eclipse.swt.graphics.Point(componentPoint.x, componentPoint.y));
+                    tooltip.show(new org.eclipse.swt.graphics.Point(toolTipTarget.x, toolTipTarget.y));
                 }
             });
         });
