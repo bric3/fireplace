@@ -484,7 +484,7 @@ public class FlamegraphView<T> {
     ) {
         framesModel = Objects.requireNonNull(frameModel);
         var flamegraphRenderEngine = new FlamegraphRenderEngine<>(
-                new FrameRender<>(
+                new FrameRenderer<>(
                         frameTextsProvider,
                         frameColorFunction,
                         frameFontProvider
@@ -546,7 +546,7 @@ public class FlamegraphView<T> {
             FrameFontProvider<T> frameFontProvider
     ) {
         var flamegraphRenderEngine = new FlamegraphRenderEngine<>(
-                new FrameRender<>(
+                new FrameRenderer<>(
                         frameTextsProvider,
                         frameColorFunction,
                         frameFontProvider

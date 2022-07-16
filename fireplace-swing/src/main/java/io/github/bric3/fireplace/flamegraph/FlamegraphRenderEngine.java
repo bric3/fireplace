@@ -28,7 +28,7 @@ import java.util.stream.Collectors;
  * <p>
  * This controls the global flamegraph rendering, and allow to
  * the UI to ask where frames are.
- * The rendering of a single frame is delegated to its {@link FrameRender}.
+ * The rendering of a single frame is delegated to its {@link FrameRenderer}.
  * </p>
  *
  * <p>
@@ -38,7 +38,7 @@ import java.util.stream.Collectors;
  *
  * @param <T> The type of the frame node (depends on the source of profiling data).
  * @see FlamegraphView
- * @see FrameRender
+ * @see FrameRenderer
  */
 class FlamegraphRenderEngine<T> {
     /**
@@ -69,7 +69,7 @@ class FlamegraphRenderEngine<T> {
     private boolean showHoveredSiblings = true;
 
 
-    private final FrameRender<T> frameRenderer;
+    private final FrameRenderer<T> frameRenderer;
 
     private FrameBox<T> hoveredFrame;
     private FrameBox<T> selectedFrame;
@@ -95,7 +95,7 @@ class FlamegraphRenderEngine<T> {
      * @param frameRenderer a configured single frame renderer.
      * @see #init(FrameModel)
      */
-    public FlamegraphRenderEngine(FrameRender<T> frameRenderer) {
+    public FlamegraphRenderEngine(FrameRenderer<T> frameRenderer) {
         this.frameRenderer = Objects.requireNonNull(frameRenderer, "frameRenderer");
         reset();
     }
@@ -591,7 +591,7 @@ class FlamegraphRenderEngine<T> {
         return showHoveredSiblings;
     }
 
-    public FrameRender<T> getFrameRenderer() {
+    public FrameRenderer<T> getFrameRenderer() {
         return frameRenderer;
     }
 }

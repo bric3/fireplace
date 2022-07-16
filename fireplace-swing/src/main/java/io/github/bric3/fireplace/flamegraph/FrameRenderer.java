@@ -32,7 +32,7 @@ import static io.github.bric3.fireplace.flamegraph.FrameRenderingFlags.isMinimap
  * @see FlamegraphView
  * @see FlamegraphRenderEngine
  */
-class FrameRender<T> {
+class FrameRenderer<T> {
     private FrameTextsProvider<T> frameTextsProvider;
     private FrameFontProvider<T> frameFontProvider;
     private FrameColorProvider<T> frameColorProvider;
@@ -57,7 +57,7 @@ class FrameRender<T> {
      * @param frameFontProvider  provides a font given a frame and some flags
      * @param frameColorProvider provides foreground and background color given a frame and some flags
      */
-    public FrameRender(
+    public FrameRenderer(
             FrameTextsProvider<T> frameTextsProvider,
             FrameColorProvider<T> frameColorProvider,
             FrameFontProvider<T> frameFontProvider
@@ -183,7 +183,7 @@ class FrameRender<T> {
 
         // don't use stream to avoid allocations during painting
         var textCandidate = frame.isRoot() ? frameModel.title : "";
-        if (frame.isRoot()) {
+        if (frame.isRoot() && !textCandidate.isBlank()) {
             var textBounds = metrics.getStringBounds(textCandidate, g2);
             if (textBounds.getWidth() <= targetWidth) {
                 return textCandidate;
