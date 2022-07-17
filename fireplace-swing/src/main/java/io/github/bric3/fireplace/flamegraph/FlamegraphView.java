@@ -26,6 +26,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiConsumer;
+import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -44,17 +45,26 @@ import static java.lang.Boolean.TRUE;
  * It can be used is as follows:
  * <pre><code>
  * FlamegraphView&lt;MyNode&gt; flamegraphView = new FlamegraphView&lt;&gt;();
- * flamegraphView.showMinimap(false);
- * flamegraphView.setData(
- *     (FrameBox&lt;MyNode&gt;) listOfFrameBox(),   // list of frames
- *     List.of(n -&gt; n.stringRepresentation()),      // string representation candidates
- *     rootNode -&gt; rootNode.stringRepresentation(), // root node string representation
+ * flamegraphView.setShowMinimap(false);
+ * flamegraphView.setRenderConfiguration(
+ *     frameTextProvider,                              // string representation candidates
  *     frameColorProvider,                             // color the frame
  *     frameFontProvider,                              // returns a given font for a frame
+ * );
+ * flamegraphView.setTooltipTextFunction(
  *     frameToToolTipTextFunction                      // text tooltip function
  * );
  *
  * panel.add(flamegraphView.component);
+ *
+ * // then later
+ * flamegraphView.setModel(
+ *      new FrameModel(
+ *          "title",                                   // title of the flamegraph, used in root node
+ *          frameEqualityFunction,                     // equality function for frames, used for sibling detection
+ *          (FrameBox&lt;MyNode&gt;) listOfFrameBox()  // list of frames
+ *      )
+ * )
  * </code></pre>
  * <p>
  * The created and <em>final</em> {@code component} is a composite that is based
@@ -83,14 +93,14 @@ public class FlamegraphView<T> {
 
     /**
      * Mouse input listener used to move the canvas over the JScrollPane
-     * as well as trigger other bhavior on the canvas.
+     * as well as trigger other behavior on the canvas.
      */
     private final FlamegraphScrollPaneMouseInputListener<T> listener;
 
     /**
      * The precomputed list of frames.
      */
-    private FrameModel<T> framesModel;
+    private FrameModel<T> framesModel = FrameModel.empty();
 
     /**
      * Represents a custom actions when zooming
@@ -104,10 +114,42 @@ public class FlamegraphView<T> {
      *
      * @param <T> The type of the node data.
      */
+    public interface HoverListener<T> {
+        default void onStopHover(FrameBox<T> previousHoveredFrame, Rectangle prevHoveredFrameRectangle, MouseEvent e) {}
+
+        void onFrameHover(FrameBox<T> frame, Rectangle hoveredFrameRectangle, MouseEvent e);
+
+        /**
+         * Utility method to get a point from a mouse event with the vertical coordinate set to
+         * the given frame rectangle.
+         *
+         * @param frameRect  The frame rectangle.
+         * @param mouseEvent The mouse event, event is expected to come from
+         *                   {@link HoverListener} methods.
+         * @return The point
+         */
+        static Point getPointLeveledToFrameDepth(MouseEvent mouseEvent, Rectangle frameRect) {
+            var scrollPane = (JScrollPane) mouseEvent.getComponent();
+            var canvas = scrollPane.getViewport().getView();
+
+            var ownerFg = FlamegraphView.from(scrollPane)
+                                        .orElseThrow(() -> new IllegalStateException("Cannot find FlamegraphView owner"));
+
+            // SwingUtilities.convertRectangle()
+            var pointOnCanvas = SwingUtilities.convertPoint(scrollPane, mouseEvent.getPoint(), canvas);
+            pointOnCanvas.y = frameRect.y;
+            return SwingUtilities.convertPoint(canvas, pointOnCanvas, ownerFg.component);
+        }
+    }
+
+    /**
+     * Represents a custom actions when zooming
+     *
+     * @param <T> The type of the node data.
+     */
+    @Deprecated(forRemoval = true)
     public interface HoveringListener<T> {
         default void onStopHover(MouseEvent e) {}
-
-        ;
 
         void onFrameHover(FrameBox<T> frame, Rectangle hoveredFrameRectangle, MouseEvent e);
     }
@@ -131,9 +173,11 @@ public class FlamegraphView<T> {
      * In order to use in Swing just access the {@link #component} field.
      */
     public FlamegraphView() {
-        canvas = new FlamegraphCanvas<>();
+        canvas = new FlamegraphCanvas<>(this);
+        canvas.putClientProperty(OWNER_KEY, this);
         listener = new FlamegraphScrollPaneMouseInputListener<>(canvas);
         var scrollPane = new JScrollPane(canvas);
+        scrollPane.putClientProperty(OWNER_KEY, this);
         var layeredScrollPane = JScrollPaneWithButton.create(
                 () -> {
 
@@ -341,8 +385,28 @@ public class FlamegraphView<T> {
      *
      * @param hoverListener the listener ({@code null} permitted).
      */
+    @Deprecated(forRemoval = true)
     public void setHoveringListener(HoveringListener<T> hoverListener) {
-        listener.setHoveringListener(hoverListener);
+        setHoverListener(new HoverListener<T>() {
+            @Override
+            public void onStopHover(FrameBox<T> prevHoveredFrame, Rectangle prevHoveredFrameRectangle, MouseEvent e) {
+                hoverListener.onStopHover(e);
+            }
+
+            @Override
+            public void onFrameHover(FrameBox<T> frame, Rectangle hoveredFrameRectangle, MouseEvent e) {
+                hoverListener.onFrameHover(frame, hoveredFrameRectangle, e);
+            }
+        });
+    }
+
+    /**
+     * Sets a listener that will be called when the mouse hovers a frame, or when it stops hovering.
+     *
+     * @param hoverListener the listener ({@code null} permitted).
+     */
+    public void setHoverListener(HoverListener<T> hoverListener) {
+        listener.setHoverListener(hoverListener);
     }
 
     /**
@@ -377,28 +441,20 @@ public class FlamegraphView<T> {
             FrameFontProvider<T> frameFontProvider,
             Function<FrameBox<T>, String> tooltipTextFunction
     ) {
-        this.framesModel = new FrameModel<>(frames);
-        var flamegraphRenderEngine = new FlamegraphRenderEngine<>(
-                framesModel,
-                new FrameRender<>(
-                        frameTextsProvider,
-                        frameColorFunction,
-                        frameFontProvider
-                )
+        setConfigurationAndData(
+                new FrameModel<T>(frames),
+                frameTextsProvider,
+                frameColorFunction,
+                frameFontProvider,
+                tooltipTextFunction
         );
-
-        canvas.setFlamegraphRenderEngine(Objects.requireNonNull(flamegraphRenderEngine));
-        canvas.setToolTipTextFunction(Objects.requireNonNull(tooltipTextFunction));
-
-        canvas.revalidate();
-        canvas.repaint();
     }
 
     /**
      * Actually set the {@link FlamegraphView} with typed data and configure how to use it.
+     *
      * <p>
-     * It takes a list of {@link FrameBox} objects that wraps the actual data,
-     * which is referred to as <em>node</em>.
+     * It takes a {@link FrameModel} object that wraps the actual data.
      * </p>
      * <p>
      * In particular this function defines the behavior to access the typed data:
@@ -414,10 +470,11 @@ public class FlamegraphView<T> {
      * </ul>
      *
      * @param frameModel          The {@code FrameBox} list to display.
-     * @param frameTextsProvider  function to display label in frames.
-     * @param frameColorFunction  the frame to background color function.
-     * @param tooltipTextFunction the frame tooltip text function.
+     * @param frameTextsProvider  The function to display label in frames.
+     * @param frameColorFunction  The frame to background color function.
+     * @param tooltipTextFunction The frame tooltip text function.
      */
+    @Deprecated(forRemoval = true)
     public void setConfigurationAndData(
             FrameModel<T> frameModel,
             FrameTextsProvider<T> frameTextsProvider,
@@ -427,19 +484,92 @@ public class FlamegraphView<T> {
     ) {
         framesModel = Objects.requireNonNull(frameModel);
         var flamegraphRenderEngine = new FlamegraphRenderEngine<>(
-                framesModel,
-                new FrameRender<>(
+                new FrameRenderer<>(
                         frameTextsProvider,
                         frameColorFunction,
                         frameFontProvider
                 )
-        );
+        ).init(frameModel);
 
         canvas.setFlamegraphRenderEngine(Objects.requireNonNull(flamegraphRenderEngine));
-        canvas.setToolTipTextFunction(Objects.requireNonNull(tooltipTextFunction));
+        Objects.requireNonNull(tooltipTextFunction);
+        canvas.setToolTipTextFunction((__, frame) -> tooltipTextFunction.apply(frame));
 
         canvas.revalidate();
         canvas.repaint();
+    }
+
+    /**
+     * Sets the {@link FrameModel}.
+     *
+     * <p>
+     * It takes a {@link FrameModel} object that wraps the actual data.
+     * </p>
+     *
+     * @param frameModel The {@code FrameBox} list to display.
+     */
+    public void setModel(FrameModel<T> frameModel) {
+        framesModel = Objects.requireNonNull(frameModel);
+        canvas.getFlamegraphRenderEngine().ifPresent(fre -> fre.init(frameModel));
+
+        canvas.revalidate();
+        canvas.repaint();
+    }
+
+    /**
+     * Configures the rendering of {@link FlamegraphView}.
+     *
+     * <p>
+     * When this method is invoked after a model has been set this request
+     * a new repaint.
+     * </p>
+     *
+     * <p>
+     * In particular this function defines the behavior to access the typed data:
+     * <ul>
+     *     <li>Possible string candidates to display in frames, those are
+     *     selected based on the available space</li>
+     *     <li>The root node text to display, if something specific is relevant,
+     *     like the type of events, their number, etc.</li>
+     *     <li>The frame background color, this function can be replaced by
+     *     {@link #setColorFunction(Function)}, note that the foreground color
+     *     is chosen automatically</li>
+     * </ul>
+     *
+     * @param frameTextsProvider The function to display label in frames.
+     * @param frameColorFunction The frame to background color function.
+     * @param frameFontProvider  The frame font provider.
+     */
+    public void setRenderConfiguration(
+            FrameTextsProvider<T> frameTextsProvider,
+            FrameColorProvider<T> frameColorFunction,
+            FrameFontProvider<T> frameFontProvider
+    ) {
+        var flamegraphRenderEngine = new FlamegraphRenderEngine<>(
+                new FrameRenderer<>(
+                        frameTextsProvider,
+                        frameColorFunction,
+                        frameFontProvider
+                )
+        ).init(framesModel);
+
+        canvas.setFlamegraphRenderEngine(Objects.requireNonNull(flamegraphRenderEngine));
+
+        canvas.revalidate();
+        canvas.repaint();
+    }
+
+    /**
+     * Configures the tooltip text of {@link FlamegraphView}.
+     *
+     * <p>
+     * This is only useful when actually using swing tool tips.
+     * </p>
+     *
+     * @param tooltipTextFunction The frame tooltip text function.
+     */
+    public void setTooltipTextFunction(BiFunction<FrameModel<T>, FrameBox<T>, String> tooltipTextFunction) {
+        canvas.setToolTipTextFunction(Objects.requireNonNull(tooltipTextFunction));
     }
 
     /**
@@ -447,6 +577,9 @@ public class FlamegraphView<T> {
      */
     public void clear() {
         framesModel = FrameModel.empty();
+
+        canvas.getFlamegraphRenderEngine()
+              .ifPresent(FlamegraphRenderEngine::reset);
         canvas.setFlamegraphRenderEngine(null);
         canvas.invalidate();
         canvas.repaint();
@@ -569,7 +702,7 @@ public class FlamegraphView<T> {
         private Point pressedPoint;
         private final FlamegraphCanvas<T> canvas;
         private Rectangle hoveredFrameRectangle;
-        private HoveringListener<T> hoveringListener;
+        private HoverListener<T> hoverListener;
         private FrameBox<T> hoveredFrame;
 
         public FlamegraphScrollPaneMouseInputListener(FlamegraphCanvas<T> canvas) {
@@ -668,8 +801,8 @@ public class FlamegraphView<T> {
                               canvas::repaint
                       ));
                 canvas.repaint();
-                if (hoveringListener != null) {
-                    hoveringListener.onStopHover(e);
+                if (hoverListener != null) {
+                    hoverListener.onStopHover(hoveredFrame, hoveredFrameRectangle, e);
                 }
             }
         }
@@ -680,8 +813,8 @@ public class FlamegraphView<T> {
             SwingUtilities.convertPointFromScreen(latestMouseLocation, canvas);
 
             if (canvas.isInsideMinimap(latestMouseLocation)) {
-                if (hoveringListener != null) {
-                    hoveringListener.onStopHover(e);
+                if (hoverListener != null) {
+                    hoverListener.onStopHover(hoveredFrame, hoveredFrameRectangle, e);
                 }
                 // bail out
                 return;
@@ -691,8 +824,8 @@ public class FlamegraphView<T> {
             if (hoveredFrameRectangle != null && hoveredFrameRectangle.contains(latestMouseLocation)) {
                 // still hovering the same frame, avoid unnecessary work
                 // and reuse what we got before
-                if (hoveringListener != null) {
-                    hoveringListener.onFrameHover(hoveredFrame, hoveredFrameRectangle, e);
+                if (hoverListener != null) {
+                    hoverListener.onFrameHover(hoveredFrame, hoveredFrameRectangle, e);
                 }
                 return;
             }
@@ -719,8 +852,8 @@ public class FlamegraphView<T> {
                                              frame
                                      );
                                      hoveredFrame = frame;
-                                     if (hoveringListener != null) {
-                                         hoveringListener.onFrameHover(frame, hoveredFrameRectangle, e);
+                                     if (hoverListener != null) {
+                                         hoverListener.onFrameHover(frame, hoveredFrameRectangle, e);
                                      }
                                  },
                                  () -> {
@@ -729,18 +862,20 @@ public class FlamegraphView<T> {
                                              canvas.getBounds(),
                                              canvas::repaint
                                      );
+                                     var prevHoveredFrameRectangle = hoveredFrameRectangle;
+                                     var prevHoveredFrame = hoveredFrame;
                                      hoveredFrameRectangle = null;
                                      hoveredFrame = null;
-                                     if (hoveringListener != null) {
-                                         hoveringListener.onStopHover(e);
+                                     if (hoverListener != null) {
+                                         hoverListener.onStopHover(prevHoveredFrame, prevHoveredFrameRectangle, e);
                                      }
                                  }
                          );
                   });
         }
 
-        public void setHoveringListener(HoveringListener<T> hoveringListener) {
-            this.hoveringListener = hoveringListener;
+        public void setHoverListener(HoverListener<T> hoveringListener) {
+            this.hoverListener = hoveringListener;
         }
 
         public void install(JScrollPane sp) {
@@ -754,7 +889,7 @@ public class FlamegraphView<T> {
         private Image minimap;
         private JToolTip toolTip;
         private FlamegraphRenderEngine<T> flamegraphRenderEngine;
-        private Function<FrameBox<T>, String> tooltipToTextFunction;
+        private BiFunction<FrameModel<T>, FrameBox<T>, String> tooltipToTextFunction;
         private final Dimension flamegraphDimension = new Dimension();
         private int minimapWidth = 200;
         private int minimapHeight = 100;
@@ -768,14 +903,11 @@ public class FlamegraphView<T> {
         private ZoomAction zoomActionOverride;
         private BiConsumer<FrameBox<T>, MouseEvent> popupConsumer;
         private BiConsumer<FrameBox<T>, MouseEvent> selectedFrameConsumer;
+        private FlamegraphView<T> flamegraphView;
 
 
-        public FlamegraphCanvas() {
-            this(null);
-        }
-
-        public FlamegraphCanvas(FlamegraphRenderEngine<T> flamegraphRenderEngine) {
-            this.flamegraphRenderEngine = flamegraphRenderEngine;
+        public FlamegraphCanvas(FlamegraphView<T> flamegraphView) {
+            this.flamegraphView = flamegraphView;
         }
 
         /**
@@ -943,7 +1075,7 @@ public class FlamegraphView<T> {
             if (tooltipToTextFunction == null) {
                 return;
             }
-            setToolTipText(tooltipToTextFunction.apply(frame));
+            setToolTipText(tooltipToTextFunction.apply(flamegraphView.framesModel, frame));
         }
 
         @Override
@@ -1106,7 +1238,7 @@ public class FlamegraphView<T> {
             return Optional.ofNullable(flamegraphRenderEngine);
         }
 
-        public void setToolTipTextFunction(Function<FrameBox<T>, String> tooltipTextFunction) {
+        public void setToolTipTextFunction(BiFunction<FrameModel<T>, FrameBox<T>, String> tooltipTextFunction) {
             this.tooltipToTextFunction = tooltipTextFunction;
         }
 

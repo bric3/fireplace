@@ -32,7 +32,7 @@ import static io.github.bric3.fireplace.flamegraph.FrameRenderingFlags.isMinimap
  * @see FlamegraphView
  * @see FlamegraphRenderEngine
  */
-class FrameRender<T> {
+class FrameRenderer<T> {
     private FrameTextsProvider<T> frameTextsProvider;
     private FrameFontProvider<T> frameFontProvider;
     private FrameColorProvider<T> frameColorProvider;
@@ -57,7 +57,7 @@ class FrameRender<T> {
      * @param frameFontProvider  provides a font given a frame and some flags
      * @param frameColorProvider provides foreground and background color given a frame and some flags
      */
-    public FrameRender(
+    public FrameRenderer(
             FrameTextsProvider<T> frameTextsProvider,
             FrameColorProvider<T> frameColorProvider,
             FrameFontProvider<T> frameFontProvider
@@ -111,8 +111,9 @@ class FrameRender<T> {
      *                              (used to position the text label).
      * @param flags                 The rendering flags (minimap, selection, hovered, highlight).
      */
-    public void paintFrame(
+    void paintFrame(
             Graphics2D g2,
+            FrameModel<T> frameModel,
             Rectangle2D frameRect,
             FrameBox<T> frame,
             Rectangle2D paintableIntersection,
@@ -133,6 +134,7 @@ class FrameRender<T> {
                 g2,
                 frameFont,
                 paintableIntersection.getWidth() - frameTextPadding * 2 - frameGapWidth * 2,
+                frameModel,
                 frame
         );
 
@@ -174,17 +176,25 @@ class FrameRender<T> {
             Graphics2D g2,
             Font font,
             double targetWidth,
+            FrameModel<T> frameModel,
             FrameBox<T> frame
     ) {
         var metrics = g2.getFontMetrics(font);
 
         // don't use stream to avoid allocations during painting
-        var textCandidate = "";
-        for (Function<FrameBox<T>, String> nodeToTextCandidate : frameTextsProvider.frameToTextCandidates()) {
-            textCandidate = nodeToTextCandidate.apply(frame);
+        var textCandidate = frame.isRoot() ? frameModel.title : "";
+        if (frame.isRoot() && !textCandidate.isBlank()) {
             var textBounds = metrics.getStringBounds(textCandidate, g2);
             if (textBounds.getWidth() <= targetWidth) {
                 return textCandidate;
+            }
+        } else {
+            for (Function<FrameBox<T>, String> nodeToTextCandidate : frameTextsProvider.frameToTextCandidates()) {
+                textCandidate = nodeToTextCandidate.apply(frame);
+                var textBounds = metrics.getStringBounds(textCandidate, g2);
+                if (textBounds.getWidth() <= targetWidth) {
+                    return textCandidate;
+                }
             }
         }
         // only try clip the last candidate

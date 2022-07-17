@@ -28,8 +28,11 @@ import java.util.Objects;
  */
 public class FrameModel<T> {
     public static final FrameModel<?> EMPTY = new FrameModel<>(Collections.emptyList());
-    List<FrameBox<T>> frames;
-    FrameEquality<T> frameEquality;
+
+    public final String title;
+    public final List<FrameBox<T>> frames;
+    public final FrameEquality<T> frameEquality;
+    public String description;
 
     /**
      * Creates model of the flamegraph frames.
@@ -45,7 +48,7 @@ public class FrameModel<T> {
      * @param frames The list of {@code FrameBox} objects.
      */
     public FrameModel(List<FrameBox<T>> frames) {
-        this((a, b) -> Objects.equals(a.actualNode, b.actualNode), frames);
+        this("", (a, b) -> Objects.equals(a.actualNode, b.actualNode), frames);
     }
 
     /**
@@ -58,7 +61,12 @@ public class FrameModel<T> {
      * @param frameEquality Custom equality code for the actual node object {@code T}.
      * @param frames        The list of {@code FrameBox} objects.
      */
-    public FrameModel(FrameEquality<T> frameEquality, List<FrameBox<T>> frames) {
+    public FrameModel(
+            String title,
+            FrameEquality<T> frameEquality,
+            List<FrameBox<T>> frames
+    ) {
+        this.title = Objects.requireNonNull(title, "title");
         this.frames = Objects.requireNonNull(frames, "frames");
         this.frameEquality = Objects.requireNonNull(frameEquality, "frameEquality");
     }
@@ -75,5 +83,19 @@ public class FrameModel<T> {
      */
     public interface FrameEquality<T> {
         boolean equal(FrameBox<T> a, FrameBox<T> b);
+    }
+
+    /**
+     * Text that describes the flamegraph.
+     *
+     * <p>Tooltip function could access that to render a specific tooltip
+     * on the root node.</p>
+     *
+     * @param description The text that describes the flamegraph.
+     * @return this
+     */
+    public FrameModel<T> withDescription(String description) {
+        this.description = Objects.requireNonNull(description, "description");
+        return this;
     }
 }
