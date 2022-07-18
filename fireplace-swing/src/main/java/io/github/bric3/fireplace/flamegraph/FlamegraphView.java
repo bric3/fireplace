@@ -580,7 +580,6 @@ public class FlamegraphView<T> {
 
         canvas.getFlamegraphRenderEngine()
               .ifPresent(FlamegraphRenderEngine::reset);
-        canvas.setFlamegraphRenderEngine(null);
         canvas.invalidate();
         canvas.repaint();
     }
