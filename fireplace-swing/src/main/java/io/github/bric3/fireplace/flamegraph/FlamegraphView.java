@@ -903,6 +903,7 @@ public class FlamegraphView<T> {
         private BiConsumer<FrameBox<T>, MouseEvent> popupConsumer;
         private BiConsumer<FrameBox<T>, MouseEvent> selectedFrameConsumer;
         private FlamegraphView<T> flamegraphView;
+        private long lastDrawTime;
 
 
         public FlamegraphCanvas(FlamegraphView<T> flamegraphView) {
@@ -971,13 +972,13 @@ public class FlamegraphView<T> {
             flamegraphRenderEngine.paint(g2, getBounds(), visibleRect);
             paintMinimap(g2, visibleRect);
 
-            paintDetails(start, g2);
+            lastDrawTime = System.currentTimeMillis() - start;
+            paintDetails(g2);
             g2.dispose();
         }
 
-        private void paintDetails(long start, Graphics2D g2) {
+        private void paintDetails(Graphics2D g2) {
             if (getClientProperty(SHOW_STATS) == TRUE) {
-                // timestamp
                 var viewRect = getVisibleRect();
                 var bounds = getBounds();
                 var zoomFactor = bounds.getWidth() / viewRect.getWidth();
@@ -985,19 +986,24 @@ public class FlamegraphView<T> {
                             " Zoom Factor " + zoomFactor +
                             " Coordinate (" + viewRect.getX() + ", " + viewRect.getY() + ") " +
                             "size (" + viewRect.getWidth() + ", " + viewRect.getHeight() + "), " +
-                            "Draw time: " + (System.currentTimeMillis() - start) + " ms";
-                var nowWidth = g2.getFontMetrics(getFont()).stringWidth(stats);
-                g2.setColor(Color.DARK_GRAY);
+                            "Draw time: " + lastDrawTime + " ms";
                 var frameTextPadding = 3;
-                g2.fillRect((int) (viewRect.getX() + viewRect.getWidth() - nowWidth - frameTextPadding * 2),
-                            (int) (viewRect.getY() + viewRect.getHeight() - 22),
-                            nowWidth + frameTextPadding * 2,
-                            22);
 
+                var w = viewRect.getWidth();
+                var h = 22;
+                var x = viewRect.getX();
+                var y = viewRect.getY() + viewRect.getHeight() - h;
+
+
+                g2.setColor(Color.DARK_GRAY);
+                g2.fillRect((int) x, (int) y, (int) w, h);
                 g2.setColor(Color.YELLOW);
-                g2.drawString(stats,
-                              (int) (viewRect.getX() + viewRect.getWidth() - nowWidth - frameTextPadding),
-                              (int) (viewRect.getY() + viewRect.getHeight() - frameTextPadding));
+                g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+                g2.drawString(
+                        stats,
+                        (int) (viewRect.getX() + frameTextPadding),
+                        (int) (viewRect.getY() + viewRect.getHeight() - frameTextPadding)
+                );
             }
         }
 

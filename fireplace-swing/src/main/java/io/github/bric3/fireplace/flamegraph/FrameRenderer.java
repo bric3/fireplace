@@ -138,12 +138,13 @@ class FrameRenderer<T> {
                 frame
         );
 
-        if (text == null) {
+        if (text == null || text.isEmpty()) {
             return;
         }
 
         g2.setFont(frameFont);
         g2.setColor(colorModel.foreground);
+        g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
         g2.drawString(
                 text,
                 (float) (paintableIntersection.getX() + frameTextPadding + frameBorderWidth),
