@@ -60,18 +60,18 @@ public class ZoomAnimation implements ZoomAction {
     }
 
     @Override
-    public boolean zoom(ZoomableComponent canvas, ZoomTarget zoomTarget) {
+    public boolean zoom(ZoomableComponent zoomableComponent, ZoomTarget zoomTarget) {
         System.getLogger(FlamegraphCanvas.class.getName()).log(System.Logger.Level.DEBUG, () -> "zoom to " + zoomTarget);
         if (!isAnimateZoomTransitions()) {
             return false;
         }
-        int startW = canvas.getWidth();
-        int startH = canvas.getHeight();
+        int startW = zoomableComponent.getWidth();
+        int startH = zoomableComponent.getHeight();
         double deltaW = zoomTarget.width - startW;
         double deltaH = zoomTarget.height - startH;
 
-        int startX = canvas.getLocation().x;
-        int startY = canvas.getLocation().y;
+        int startX = zoomableComponent.getLocation().x;
+        int startY = zoomableComponent.getLocation().y;
         double deltaX = zoomTarget.x - startX;
         double deltaY = zoomTarget.y - startY;
 
@@ -85,13 +85,13 @@ public class ZoomAnimation implements ZoomAction {
                         if (newState.equals(Timeline.TimelineState.DONE)) {
                             // throw in a final update to the target position, because the last pulse
                             // might not have reached exactly timelinePosition = 1.0...
-                            canvas.zoom(zoomTarget);
+                            zoomableComponent.zoom(zoomTarget);
                         }
                     }
 
                     @Override
                     public void onTimelinePulse(float durationFraction, float timelinePosition) {
-                        canvas.zoom(new ZoomTarget(
+                        zoomableComponent.zoom(new ZoomTarget(
                                 startX + (int) (timelinePosition * deltaX),
                                 startY + (int) (timelinePosition * deltaY),
                                 (int) (startW + timelinePosition * deltaW),

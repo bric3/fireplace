@@ -102,24 +102,62 @@ public class FlamegraphView<T> {
      */
     private FrameModel<T> framesModel = FrameModel.empty();
 
+    /**
+     * Display mode for this stack-frame tree.
+     */
     public enum Mode {
         FLAMEGRAPH, ICICLEGRAPH
     }
 
     /**
-     * Represents a custom actions when zooming
+     * Represents a custom action when zooming.
      */
     public interface ZoomAction {
-        boolean zoom(ZoomableComponent canvas, ZoomTarget zoomTarget);
+        /**
+         * Called when the zoom action is triggered.
+         *
+         * <p>
+         *     Typical implementation will use the passed {@code zoomTarget}, and
+         *     invoke {@link ZoomableComponent#zoom(ZoomTarget)}. These implementation
+         *     could for example compute intermediate zoom target in order to produce
+         *     an animation.
+         * </p>
+         *
+         * @param zoomableComponent The canvas to zoom on.
+         * @param zoomTarget the zoom target.
+         * @return Whether zooming has been performed.
+         */
+        boolean zoom(ZoomableComponent zoomableComponent, ZoomTarget zoomTarget);
     }
 
+    /**
+     * Represents a zoomable JComponent.
+     */
     public interface ZoomableComponent {
+        /**
+         * Actually perform the zooming operation on the component.
+         *
+         * <p>
+         *     This likely involves revalidation and repainting of the component.
+         * </p>
+         *
+         * @param zoomTarget The zoom target.
+         */
         void zoom(ZoomTarget zoomTarget);
 
+        /**
+         * @return the width of the component.
+         */
         int getWidth();
 
+        /**
+         * @return the height of the component
+         */
         int getHeight();
 
+        /**
+         * @return the location of the component in the parent container.
+         */
         Point getLocation();
     }
 
@@ -365,10 +403,20 @@ public class FlamegraphView<T> {
         return canvas.getFlamegraphRenderEngine().map(FlamegraphRenderEngine::isShowHoveredSiblings).orElse(false);
     }
 
+    /**
+     * Sets the display mode, either {@link Mode#FLAMEGRAPH} or {@link Mode#ICICLEGRAPH}.
+     *
+     * @param mode The display mode.
+     */
     public void setMode(FlamegraphView.Mode mode) {
         canvas.setMode(mode);
     }
 
+    /**
+     * Returns the current display mode.
+     *
+     * @return the current display mode.
+     */
     public FlamegraphView.Mode getMode() {
         return canvas.getMode();
     }
