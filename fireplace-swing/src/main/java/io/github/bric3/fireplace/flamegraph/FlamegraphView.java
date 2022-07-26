@@ -117,7 +117,9 @@ public class FlamegraphView<T> {
         void zoom(ZoomTarget zoomTarget);
 
         int getWidth();
+
         int getHeight();
+
         Point getLocation();
     }
 
@@ -674,6 +676,18 @@ public class FlamegraphView<T> {
     }
 
     private static <T> void zoom(FlamegraphCanvas<T> canvas, ZoomTarget zoomTarget) {
+        // adjust zoom target location for horizontal scrollbar height if canvas bigger than viewRect
+        if (canvas.getMode() == Mode.FLAMEGRAPH) {
+            var visibleRect = canvas.getVisibleRect();
+            JViewport viewPort = (JViewport) SwingUtilities.getUnwrappedParent(canvas);
+            var scrollPane = (JScrollPane) viewPort.getParent();
+
+            var hsb = scrollPane.getHorizontalScrollBar();
+            if (!hsb.isVisible() && visibleRect.getWidth() < zoomTarget.getWidth()) {
+                zoomTarget.y -= hsb.getPreferredSize().height;
+            }
+        }
+
         if (canvas.zoomActionOverride == null || !canvas.zoomActionOverride.zoom(canvas, zoomTarget)) {
             canvas.zoom(zoomTarget);
         }
@@ -1004,21 +1018,21 @@ public class FlamegraphView<T> {
                 var bounds = getBounds();
                 var zoomFactor = bounds.getWidth() / viewRect.getWidth();
                 var stats =
-                        "Canvas width " + bounds.getWidth() +
-                        " Zoom Factor " + zoomFactor +
-                        " Coordinate (" + viewRect.getX() + ", " + viewRect.getY() + ") " +
+                        "Canvas (" + bounds.getWidth() + ", " + bounds.getHeight() + ") " +
+                        "Zoom Factor " + zoomFactor + " " +
+                        "Coordinate (" + viewRect.getX() + ", " + viewRect.getY() + ") " +
                         "View (" + viewRect.getWidth() + ", " + viewRect.getHeight() + "), " +
-                        "Visible " + flamegraphRenderEngine.getVisibleDepth() +
-                        " Draw time: " + lastDrawTime + " ms";
+                        "Visible " + flamegraphRenderEngine.getVisibleDepth() + " " +
+                        "Draw time: " + lastDrawTime + " ms";
                 var frameTextPadding = 3;
 
                 var w = viewRect.getWidth();
-                var h = 22;
+                var h = 16;
                 var x = viewRect.getX();
                 var y = getMode() == Mode.ICICLEGRAPH ? viewRect.getY() + viewRect.getHeight() - h : viewRect.getY();
 
 
-                g2.setColor(Color.DARK_GRAY);
+                g2.setColor(new Color(0xa4404040, true));
                 g2.fillRect((int) x, (int) y, (int) w, h);
                 g2.setColor(Color.YELLOW);
                 g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
@@ -1301,7 +1315,7 @@ public class FlamegraphView<T> {
             // is changed, which triggers a layout, which calls this method.
             // But in doing so this method overrides the correct zoomed frame location,
             // this hacky flag prevents this from happening.
-            if(skipSetDefaultViewLocationOnZoom) {
+            if (skipSetDefaultViewLocationOnZoom) {
                 skipSetDefaultViewLocationOnZoom = false;
                 return;
             }
@@ -1339,6 +1353,7 @@ public class FlamegraphView<T> {
             // to correctly place the canvas for iciclegraph or flamegraph
             // TODO restore animation
             setSize(getVisibleRect().getSize());
+            revalidate(); // make sure revalidation is called to correctly reset the view location
         }
 
         @Override

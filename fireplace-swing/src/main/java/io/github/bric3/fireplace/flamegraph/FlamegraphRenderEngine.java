@@ -539,6 +539,7 @@ class FlamegraphRenderEngine<T> {
         checkReady();
 
         return getFrameAt(g2, bounds, point).map(frame -> {
+            // TODO refactor to make frame selection explicit, possibly via toggleSelectedFrameAt
             this.selectedFrame = frame;
 
             return calculateZoomTargetFrame(g2, bounds, viewRect, frame, 0, 0);
@@ -572,7 +573,7 @@ class FlamegraphRenderEngine<T> {
         var frameWidthX = frame.endX - frame.startX;
         var frameBoxHeight = frameRenderer.getFrameBoxHeight(g2);
 
-        double factor = getScaleFactor(viewRect.getWidth(), bounds.getWidth(), frameWidthX);
+        var factor = getScaleFactor(viewRect.getWidth(), bounds.getWidth(), frameWidthX);
         // Change offset to center the flame from this frame
         var newCanvasWidth = (int) (bounds.getWidth() * factor);
         var newCanvasHeight = computeVisibleFlamegraphHeight(
@@ -582,8 +583,17 @@ class FlamegraphRenderEngine<T> {
                 new Insets(0, 0, 0, 0)
         );
 
-        var newDimension = new Rectangle2D.Double(bounds.getX(), bounds.getY(), newCanvasWidth, newCanvasHeight);
-        int frameY = computeFrameRectY(newDimension, frameBoxHeight, Math.max(frame.stackDepth - contextBefore, 0));
+        var newDimension = new Rectangle2D.Double(
+                bounds.getX(),
+                bounds.getY(),
+                newCanvasWidth,
+                newCanvasHeight
+        );
+        var frameY = computeFrameRectY(
+                newDimension,
+                frameBoxHeight,
+                Math.max(frame.stackDepth - contextBefore, 0)
+        );
         var viewLocationY = icicle ?
                             Math.max(0, frameY) :
                             Math.min(
@@ -591,7 +601,6 @@ class FlamegraphRenderEngine<T> {
                                     (int) (frameY + frameBoxHeight - viewRect.getHeight())
                             );
 
-        // TODO adjust for hsb (and vsb) ?
         return new ZoomTarget(
                 - (int) (frame.startX * newCanvasWidth),
                 - viewLocationY,
