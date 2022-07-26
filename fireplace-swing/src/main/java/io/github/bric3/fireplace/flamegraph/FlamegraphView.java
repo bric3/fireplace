@@ -102,6 +102,10 @@ public class FlamegraphView<T> {
      */
     private FrameModel<T> framesModel = FrameModel.empty();
 
+    public enum Mode {
+        FLAMEGRAPH, ICICLEGRAPH
+    }
+
     /**
      * Represents a custom actions when zooming
      */
@@ -157,7 +161,7 @@ public class FlamegraphView<T> {
     /**
      * Return the {@code Flamegraph} that created the passed component.
      * <p>
-     * If this wasn't returned by a {@code FlaemGraph} then retunr empty.
+     * If this wasn't returned by a {@code Flamegraph} then return empty.
      *
      * @param component the JComponent
      * @param <T>       The type of the node data.
@@ -351,6 +355,14 @@ public class FlamegraphView<T> {
         return canvas.getFlamegraphRenderEngine().map(FlamegraphRenderEngine::isShowHoveredSiblings).orElse(false);
     }
 
+    public void setMode(FlamegraphView.Mode mode) {
+        canvas.setMode(mode);
+    }
+
+    public FlamegraphView.Mode getMode() {
+        return canvas.getMode();
+    }
+
     /**
      * Replaces the default tooltip component.
      *
@@ -387,7 +399,7 @@ public class FlamegraphView<T> {
      */
     @Deprecated(forRemoval = true)
     public void setHoveringListener(HoveringListener<T> hoverListener) {
-        setHoverListener(new HoverListener<T>() {
+        setHoverListener(new HoverListener<>() {
             @Override
             public void onStopHover(FrameBox<T> prevHoveredFrame, Rectangle prevHoveredFrameRectangle, MouseEvent e) {
                 hoverListener.onStopHover(e);
@@ -442,7 +454,7 @@ public class FlamegraphView<T> {
             Function<FrameBox<T>, String> tooltipTextFunction
     ) {
         setConfigurationAndData(
-                new FrameModel<T>(frames),
+                new FrameModel<>(frames),
                 frameTextsProvider,
                 frameColorFunction,
                 frameFontProvider,
@@ -634,15 +646,11 @@ public class FlamegraphView<T> {
      * Reset the zoom to 1:1.
      */
     public void resetZoom() {
-        zoom(
-                canvas,
-                (JViewport) canvas.getParent(),
-                new ZoomTarget(canvas.getVisibleRect().getSize(), new Point())
-        );
+        canvas.resetZoom();
     }
 
     /**
-     * Programmtic zoom to the specified frame.
+     * Programmatic zoom to the specified frame.
      *
      * @param frame The frame to zoom to.
      */
@@ -660,8 +668,7 @@ public class FlamegraphView<T> {
 
     private static <T> void zoom(FlamegraphCanvas<T> canvas, JViewport viewPort, ZoomTarget zoomTarget) {
         if (canvas.zoomActionOverride == null || !canvas.zoomActionOverride.zoom(viewPort, canvas, zoomTarget)) {
-            canvas.setSize(zoomTarget.bounds);
-            viewPort.setViewPosition(zoomTarget.viewOffset);
+            canvas.zoom(zoomTarget);
         }
     }
 
@@ -683,14 +690,13 @@ public class FlamegraphView<T> {
     public void highlightFrames(Set<FrameBox<T>> framesToHighlight, String searched) {
         Objects.requireNonNull(framesToHighlight);
         Objects.requireNonNull(searched);
-        canvas.getFlamegraphRenderEngine().ifPresent(painter ->
-                                                             painter.setHighlightFrames(framesToHighlight, searched)
-        );
+        canvas.getFlamegraphRenderEngine()
+              .ifPresent(painter -> painter.setHighlightFrames(framesToHighlight, searched));
         canvas.repaint();
     }
 
     /**
-     * The internal mouse listener that is attached to the scrollpane.
+     * The internal mouse listener that is attached to the scrollPane.
      * <p>
      * This listener will be responsible to trigger some behaviors on the canvas itself.
      * </p>
@@ -902,8 +908,10 @@ public class FlamegraphView<T> {
         private ZoomAction zoomActionOverride;
         private BiConsumer<FrameBox<T>, MouseEvent> popupConsumer;
         private BiConsumer<FrameBox<T>, MouseEvent> selectedFrameConsumer;
-        private FlamegraphView<T> flamegraphView;
+        private final FlamegraphView<T> flamegraphView;
         private long lastDrawTime;
+
+        private boolean skipSetDefaultViewLocationOnZoom = false;
 
 
         public FlamegraphCanvas(FlamegraphView<T> flamegraphView) {
@@ -916,6 +924,12 @@ public class FlamegraphView<T> {
         @Override
         public void updateUI() {
             super.updateUI();
+        }
+
+        @Override
+        public void doLayout() {
+            super.doLayout();
+            setDefaultViewLocation(getMode());
         }
 
         @Override
@@ -982,17 +996,19 @@ public class FlamegraphView<T> {
                 var viewRect = getVisibleRect();
                 var bounds = getBounds();
                 var zoomFactor = bounds.getWidth() / viewRect.getWidth();
-                var stats = "FrameGraph width " + bounds.getWidth() +
-                            " Zoom Factor " + zoomFactor +
-                            " Coordinate (" + viewRect.getX() + ", " + viewRect.getY() + ") " +
-                            "size (" + viewRect.getWidth() + ", " + viewRect.getHeight() + "), " +
-                            "Draw time: " + lastDrawTime + " ms";
+                var stats =
+                        "Canvas width " + bounds.getWidth() +
+                        " Zoom Factor " + zoomFactor +
+                        " Coordinate (" + viewRect.getX() + ", " + viewRect.getY() + ") " +
+                        "View (" + viewRect.getWidth() + ", " + viewRect.getHeight() + "), " +
+                        "Visible " + flamegraphRenderEngine.getVisibleDepth() +
+                        " Draw time: " + lastDrawTime + " ms";
                 var frameTextPadding = 3;
 
                 var w = viewRect.getWidth();
                 var h = 22;
                 var x = viewRect.getX();
-                var y = viewRect.getY() + viewRect.getHeight() - h;
+                var y = getMode() == Mode.ICICLEGRAPH ? viewRect.getY() + viewRect.getHeight() - h : viewRect.getY();
 
 
                 g2.setColor(Color.DARK_GRAY);
@@ -1001,8 +1017,8 @@ public class FlamegraphView<T> {
                 g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
                 g2.drawString(
                         stats,
-                        (int) (viewRect.getX() + frameTextPadding),
-                        (int) (viewRect.getY() + viewRect.getHeight() - frameTextPadding)
+                        (int) (x + frameTextPadding),
+                        (int) (y + h - frameTextPadding)
                 );
             }
         }
@@ -1264,12 +1280,67 @@ public class FlamegraphView<T> {
             return showMinimap;
         }
 
+        public void setMode(Mode mode) {
+            getFlamegraphRenderEngine().ifPresent(fre -> fre.setIcicle(Mode.ICICLEGRAPH == mode));
+            revalidate();
+        }
+
+        public FlamegraphView.Mode getMode() {
+            return getFlamegraphRenderEngine().map(fre -> fre.isIcicle() ? Mode.ICICLEGRAPH : Mode.FLAMEGRAPH).get();
+        }
+
+        private void setDefaultViewLocation(Mode mode) {
+            // This code is invoked by doLayout, but when zooming the size of the canvas
+            // is changed, which triggers a layout, which calls this method.
+            // But in doing so this method overrides the correct zoomed frame location,
+            // this hacky flag prevents this from happening.
+            if(skipSetDefaultViewLocationOnZoom) {
+                skipSetDefaultViewLocationOnZoom = false;
+                return;
+            }
+            var parent = getParent();
+            if (parent instanceof JViewport) {
+                var viewPort = (JViewport) parent;
+                switch (mode) {
+                    case ICICLEGRAPH:
+                        viewPort.setViewPosition(new Point(
+                                0,
+                                0
+                        ));
+                        break;
+                    case FLAMEGRAPH:
+                        viewPort.setViewPosition(new Point(
+                                0,
+                                getBounds().height - viewPort.getHeight()
+                        ));
+                        break;
+                }
+            }
+        }
+
         public void setPopupConsumer(BiConsumer<FrameBox<T>, MouseEvent> consumer) {
             this.popupConsumer = consumer;
         }
 
         public void setSelectedFrameConsumer(BiConsumer<FrameBox<T>, MouseEvent> consumer) {
             this.selectedFrameConsumer = consumer;
+        }
+
+        public void resetZoom() {
+            // Setting size has the effect of calling revalidation
+            // which will trigger a layout, that calls updateViewLocation
+            // to correctly place the canvas for iciclegraph or flamegraph
+            setSize(getVisibleRect().getSize());
+        }
+
+        public void zoom(ZoomTarget zoomTarget) {
+            // hacky way to prevent the view from jumping back to original position
+            // when zooming.
+            // Indeed, changing the size triggers a revalidation, which triggers a layout,
+            // which is overridden to place the canvas at the correct location depending
+            // on the graph type.
+            this.skipSetDefaultViewLocationOnZoom = true;
+            setBounds(zoomTarget);
         }
     }
 }
