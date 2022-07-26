@@ -9,7 +9,7 @@
  */
 package io.github.bric3.fireplace;
 
-import io.github.bric3.fireplace.core.ui.JScrollPaneWithButton;
+import io.github.bric3.fireplace.core.ui.JScrollPaneWithBackButton;
 import io.github.bric3.fireplace.ui.FrameResizeLabel;
 import io.github.bric3.fireplace.ui.HudPanel;
 import io.github.bric3.fireplace.ui.TitleBar;
@@ -105,8 +105,8 @@ public class FirePlaceMain {
             }
             var jTabbedPane = new JTabbedPane();
             {
-                jTabbedPane.addTab(SYSTEM_PROPERTIES, JScrollPaneWithButton.create(() -> new JScrollPane(sysProps)));
-                jTabbedPane.addTab(NATIVE_LIBRARIES, JScrollPaneWithButton.create(() -> new JScrollPane(nativeLibs)));
+                jTabbedPane.addTab(SYSTEM_PROPERTIES, JScrollPaneWithBackButton.create(() -> new JScrollPane(sysProps)));
+                jTabbedPane.addTab(NATIVE_LIBRARIES, JScrollPaneWithBackButton.create(() -> new JScrollPane(nativeLibs)));
                 jTabbedPane.addTab(ALLOCATIONS, allocationFlameGraphPanel);
                 jTabbedPane.addTab(CPU, cpuFlameGraphPanel);
                 jTabbedPane.setTabPlacement(JTabbedPane.BOTTOM);

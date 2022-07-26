@@ -9,7 +9,7 @@
  */
 package io.github.bric3.fireplace.flamegraph;
 
-import io.github.bric3.fireplace.core.ui.JScrollPaneWithButton;
+import io.github.bric3.fireplace.core.ui.JScrollPaneWithBackButton;
 import io.github.bric3.fireplace.core.ui.MouseInputListenerWorkaroundForToolTipEnabledComponent;
 
 import javax.swing.*;
@@ -95,7 +95,7 @@ public class FlamegraphView<T> {
      * Mouse input listener used to move the canvas over the JScrollPane
      * as well as trigger other behavior on the canvas.
      */
-    private final FlamegraphScrollPaneMouseInputListener<T> listener;
+    private final FlamegraphScrollPaneMouseInputListener<T> scrollPaneListener;
 
     /**
      * The precomputed list of frames.
@@ -227,10 +227,10 @@ public class FlamegraphView<T> {
     public FlamegraphView() {
         canvas = new FlamegraphCanvas<>(this);
         canvas.putClientProperty(OWNER_KEY, this);
-        listener = new FlamegraphScrollPaneMouseInputListener<>(canvas);
+        scrollPaneListener = new FlamegraphScrollPaneMouseInputListener<>(canvas);
         var scrollPane = new JScrollPane(canvas);
         scrollPane.putClientProperty(OWNER_KEY, this);
-        var layeredScrollPane = JScrollPaneWithButton.create(
+        var layeredScrollPane = JScrollPaneWithBackButton.create(
                 () -> {
 
                     // Code to tweak the actions
@@ -242,13 +242,21 @@ public class FlamegraphView<T> {
 
                     scrollPane.getVerticalScrollBar().setUnitIncrement(16);
                     scrollPane.getHorizontalScrollBar().setUnitIncrement(16);
-                    listener.install(scrollPane);
+                    scrollPaneListener.install(scrollPane);
                     new MouseInputListenerWorkaroundForToolTipEnabledComponent(scrollPane).install(canvas);
                     canvas.linkListenerTo(scrollPane);
 
                     return scrollPane;
                 }
         );
+        canvas.addPropertyChangeListener(FlamegraphCanvas.GRAPH_MODE, evt -> {
+            var mode = (Mode) evt.getNewValue();
+            layeredScrollPane.firePropertyChange(
+                    JScrollPaneWithBackButton.BACK_TO_DIRECTION,
+                    -1,
+                    mode == Mode.ICICLEGRAPH ? SwingConstants.NORTH : SwingConstants.SOUTH
+            );
+        });
 
         component = wrap(layeredScrollPane, bg -> {
             scrollPane.setBorder(null);
@@ -476,7 +484,7 @@ public class FlamegraphView<T> {
      * @param hoverListener the listener ({@code null} permitted).
      */
     public void setHoverListener(HoverListener<T> hoverListener) {
-        listener.setHoverListener(hoverListener);
+        scrollPaneListener.setHoverListener(hoverListener);
     }
 
     /**
@@ -960,6 +968,7 @@ public class FlamegraphView<T> {
 
     static class FlamegraphCanvas<T> extends JPanel implements ZoomableComponent {
 
+        public static final String GRAPH_MODE = "mode";
         private Image minimap;
         private JToolTip toolTip;
         private FlamegraphRenderEngine<T> flamegraphRenderEngine;
@@ -1341,8 +1350,12 @@ public class FlamegraphView<T> {
         }
 
         public void showMinimap(boolean showMinimap) {
+            if (this.showMinimap == showMinimap) {
+                return;
+            }
             this.showMinimap = showMinimap;
             triggerMinimapGeneration();
+            firePropertyChange("minimap", !showMinimap, showMinimap);
         }
 
         public boolean isShowMinimap() {
@@ -1350,8 +1363,14 @@ public class FlamegraphView<T> {
         }
 
         public void setMode(Mode mode) {
+            var oldMode = getMode();
+            if(oldMode == mode) {
+                return;
+            }
+            
             getFlamegraphRenderEngine().ifPresent(fre -> fre.setIcicle(Mode.ICICLEGRAPH == mode));
             resetZoom();
+            firePropertyChange(GRAPH_MODE, oldMode, mode);
         }
 
         public FlamegraphView.Mode getMode() {

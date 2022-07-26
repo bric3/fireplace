@@ -20,9 +20,10 @@ import java.util.function.Supplier;
  * Builds a JLayer over a JScrollPane that displays a button that go back
  * on top of the scroll pane.
  */
-public abstract class JScrollPaneWithButton {
+public abstract class JScrollPaneWithBackButton {
+    public static final String BACK_TO_DIRECTION = "backToDirection";
 
-    private JScrollPaneWithButton() {
+    private JScrollPaneWithBackButton() {
         // no need to instantiate this class
     }
 
@@ -33,8 +34,17 @@ public abstract class JScrollPaneWithButton {
      * @return a JLayer over the scroll pane.
      */
     public static JLayer<JScrollPane> create(Supplier<JScrollPane> scrollPaneSupplier) {
-        return new JLayer<>(scrollPaneSupplier.get(),
-                            new ScrollBackToTopLayerUI(15, 15));
+        var layer = new JLayer<>(
+                scrollPaneSupplier.get(),
+                new ScrollBackToTopLayerUI(15, 15)
+        );
+
+        layer.addPropertyChangeListener(BACK_TO_DIRECTION, evt -> {
+            var direction = (int) evt.getNewValue();
+            ((ScrollBackToTopLayerUI) layer.getUI()).setDirection(direction);
+            layer.repaint();
+        });
+        return layer;
     }
 
     private static class ScrollBackToTopLayerUI extends LayerUI<JScrollPane> {
@@ -42,8 +52,11 @@ public abstract class JScrollPaneWithButton {
         public int yGap;
         private final JPanel buttonContainer = new JPanel();
         private final Point currentMousePoint = new Point();
-        private final JButton button = new JButton(new UpArrowIcon(new Color(0xAA3D4244, true),
-                                                                   new Color(0xAA389FD6, true))) {
+        private final UpArrowIcon buttonIcon = new UpArrowIcon(
+                new Color(0xAA3D4244, true),
+                new Color(0xAA389FD6, true)
+        );
+        private final JButton button = new JButton(buttonIcon) {
 
             private final Color ARMED_BUTTON_COLOR = new DarkLightColor(
                     Color.darkGray,
@@ -73,17 +86,18 @@ public abstract class JScrollPaneWithButton {
                     g2.setColor(UIManager.getColor("Button.background"));
                 }
 
-                g2.fillOval(2, 2, getWidth() - 1 - 4, getHeight() - 1 - 4);
+                g2.fillOval(1, 1, getWidth() - 1 - 3, getHeight() - 1 - 3);
                 super.paintComponent(g2);
             }
 
             protected void paintBorder(Graphics g) {
                 g.setColor(UIManager.getColor("Button.borderColor"));
-                g.drawOval(2, 2, getWidth() - 1 - 4, getHeight() - 1 - 4);
+                g.drawOval(1, 1, getWidth() - 1 - 3, getHeight() - 1 - 3);
             }
         };
         private final Rectangle buttonRect = new Rectangle(button.getPreferredSize());
         private Cursor componentCursor;
+        private int direction = SwingConstants.NORTH;
 
         public ScrollBackToTopLayerUI() {
             this(10, 10);
@@ -107,9 +121,20 @@ public abstract class JScrollPaneWithButton {
             if (layer instanceof JLayer) {
                 var scrollPane = (JScrollPane) ((JLayer<?>) layer).getView();
                 updateButtonRect(scrollPane);
-                if (scrollPane.getViewport().getViewRect().y > 0) {
-                    button.getModel().setRollover(buttonRect.contains(currentMousePoint));
-                    SwingUtilities.paintComponent(g, button, buttonContainer, buttonRect);
+
+                switch (direction) {
+                    case SwingConstants.NORTH:
+                        if (scrollPane.getViewport().getViewRect().y > 0) {
+                            button.getModel().setRollover(buttonRect.contains(currentMousePoint));
+                            SwingUtilities.paintComponent(g, button, buttonContainer, buttonRect);
+                        }
+                        break;
+                    case SwingConstants.SOUTH:
+                        if (scrollPane.getViewport().getViewRect().y < scrollPane.getViewport().getViewSize().getHeight() - scrollPane.getViewport().getViewRect().height) {
+                            button.getModel().setRollover(buttonRect.contains(currentMousePoint));
+                            SwingUtilities.paintComponent(g, button, buttonContainer, buttonRect);
+                        }
+                        break;
                 }
             }
         }
@@ -139,7 +164,7 @@ public abstract class JScrollPaneWithButton {
         @Override
         protected void processMouseEvent(MouseEvent e, JLayer<? extends JScrollPane> layer) {
             var scroll = layer.getView();
-            var r = scroll.getViewport().getViewRect();
+            var viewRect = scroll.getViewport().getViewRect();
             var p = SwingUtilities.convertPoint(e.getComponent(), e.getPoint(), scroll);
             currentMousePoint.setLocation(p);
             int id = e.getID();
@@ -147,7 +172,7 @@ public abstract class JScrollPaneWithButton {
                 if (buttonRect.contains(currentMousePoint)) {
                     scrollBackToTop(layer.getView());
                 }
-            } else if (id == MouseEvent.MOUSE_PRESSED && r.y > 0 && buttonRect.contains(currentMousePoint)) {
+            } else if (id == MouseEvent.MOUSE_PRESSED && viewRect.y > 0 && buttonRect.contains(currentMousePoint)) {
                 e.consume();
             }
         }
@@ -173,27 +198,41 @@ public abstract class JScrollPaneWithButton {
 
         private void scrollBackToTop(JScrollPane scrollPane) {
             var viewport = scrollPane.getViewport();
-            var scrollViewClient = (JComponent) viewport.getView();
-            var current = viewport.getViewRect();
+            var view = (JComponent) viewport.getView();
+            var currentViewRect = viewport.getViewRect();
 
             new Timer(20, e -> {
                 Timer animator = (Timer) e.getSource();
-                if (0 < current.y && animator.isRunning()) {
-                    current.y -= Math.max(1, current.y / 2);
-                    //                viewport.scrollRectToVisible(current);
-                    scrollViewClient.scrollRectToVisible(current);
+                if (direction == SwingConstants.NORTH
+                    && 0 < currentViewRect.y
+                    && animator.isRunning()
+                ) {
+                    currentViewRect.y -= Math.max(1, currentViewRect.y / 2);
+                    view.scrollRectToVisible(currentViewRect);
+                } else if (direction == SwingConstants.SOUTH
+                           && (view.getHeight() - currentViewRect.height) > currentViewRect.y
+                           && animator.isRunning()
+                ) {
+                    currentViewRect.y += Math.max(1, currentViewRect.y / 2);
+                    view.scrollRectToVisible(currentViewRect);
                 } else {
                     animator.stop();
                 }
             }).start();
         }
 
+        public void setDirection(int direction) {
+            this.direction = direction;
+            buttonIcon.setDirection(direction);
+        }
     }
 
     private static class UpArrowIcon implements Icon {
         private final Color arrowColor;
         private final Color rolloverColor;
         private final int size;
+        private int direction = SwingConstants.NORTH;
+        ;
 
         public UpArrowIcon(Color arrowColor, Color rolloverColor) {
             this.arrowColor = arrowColor;
@@ -205,7 +244,7 @@ public abstract class JScrollPaneWithButton {
         public void paintIcon(Component c, Graphics g, int x, int y) {
             var g2 = (Graphics2D) g.create();
             g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-            g2.translate(x, y);
+            g2.translate(x - 1, y);
 
             if (c instanceof AbstractButton && ((AbstractButton) c).getModel().isRollover()) {
                 g2.setPaint(rolloverColor);
@@ -221,9 +260,18 @@ public abstract class JScrollPaneWithButton {
             g2.setStroke(new BasicStroke(w2 / 4f));
 
             Path2D p = new Path2D.Float();
-            p.moveTo(w2 - tw, h2 + th);
-            p.lineTo(w2, h2 - th);
-            p.lineTo(w2 + tw, h2 + th);
+            switch (direction) {
+                case SwingConstants.NORTH:
+                    p.moveTo(w2 - tw, h2 + th);
+                    p.lineTo(w2, h2 - th);
+                    p.lineTo(w2 + tw, h2 + th);
+                    break;
+                case SwingConstants.SOUTH:
+                    p.moveTo(w2 - tw, h2 - th);
+                    p.lineTo(w2, h2 + th);
+                    p.lineTo(w2 + tw, h2 - th);
+                    break;
+            }
 
             g2.draw(p);
             g2.dispose();
@@ -237,6 +285,10 @@ public abstract class JScrollPaneWithButton {
         @Override
         public int getIconHeight() {
             return size;
+        }
+
+        public void setDirection(int direction) {
+            this.direction = direction;
         }
     }
 }
