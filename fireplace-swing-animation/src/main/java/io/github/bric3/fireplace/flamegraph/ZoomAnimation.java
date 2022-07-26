@@ -11,12 +11,10 @@ package io.github.bric3.fireplace.flamegraph;
 
 import io.github.bric3.fireplace.flamegraph.FlamegraphView.FlamegraphCanvas;
 import io.github.bric3.fireplace.flamegraph.FlamegraphView.ZoomAction;
+import io.github.bric3.fireplace.flamegraph.FlamegraphView.ZoomableComponent;
 import org.pushingpixels.radiance.animation.api.Timeline;
 import org.pushingpixels.radiance.animation.api.ease.Sine;
 import org.pushingpixels.radiance.animation.api.swing.EventDispatchThreadTimelineCallbackAdapter;
-
-import javax.swing.*;
-import java.awt.*;
 
 /**
  * A zoom action that incorporates animation using <a href="https://github.com/kirill-grouchnikov/radiance/blob/sunshine/docs/animation/animation.md">Radiance Animation</a>
@@ -62,7 +60,7 @@ public class ZoomAnimation implements ZoomAction {
     }
 
     @Override
-    public <T> boolean zoom(JViewport viewPort, FlamegraphCanvas<T> canvas, ZoomTarget zoomTarget) {
+    public boolean zoom(ZoomableComponent canvas, ZoomTarget zoomTarget) {
         System.getLogger(FlamegraphCanvas.class.getName()).log(System.Logger.Level.DEBUG, () -> "zoom to " + zoomTarget);
         if (!isAnimateZoomTransitions()) {
             return false;

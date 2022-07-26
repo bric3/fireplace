@@ -110,7 +110,15 @@ public class FlamegraphView<T> {
      * Represents a custom actions when zooming
      */
     public interface ZoomAction {
-        <T> boolean zoom(JViewport viewPort, final FlamegraphCanvas<T> canvas, ZoomTarget zoomTarget);
+        boolean zoom(ZoomableComponent canvas, ZoomTarget zoomTarget);
+    }
+
+    public interface ZoomableComponent {
+        void zoom(ZoomTarget zoomTarget);
+
+        int getWidth();
+        int getHeight();
+        Point getLocation();
     }
 
     /**
@@ -655,19 +663,18 @@ public class FlamegraphView<T> {
      * @param frame The frame to zoom to.
      */
     public void zoomTo(FrameBox<T> frame) {
-        var viewport = (JViewport) canvas.getParent();
         canvas.getFlamegraphRenderEngine().map(fgp -> fgp.calculateZoomTargetFrame(
                 (Graphics2D) canvas.getGraphics(),
                 canvas.getBounds(),
-                viewport.getViewRect(),
+                canvas.getVisibleRect(),
                 frame,
                 2,
                 0
-        )).ifPresent(zoomTarget -> zoom(canvas, viewport, zoomTarget));
+        )).ifPresent(zoomTarget -> zoom(canvas, zoomTarget));
     }
 
-    private static <T> void zoom(FlamegraphCanvas<T> canvas, JViewport viewPort, ZoomTarget zoomTarget) {
-        if (canvas.zoomActionOverride == null || !canvas.zoomActionOverride.zoom(viewPort, canvas, zoomTarget)) {
+    private static <T> void zoom(FlamegraphCanvas<T> canvas, ZoomTarget zoomTarget) {
+        if (canvas.zoomActionOverride == null || !canvas.zoomActionOverride.zoom(canvas, zoomTarget)) {
             canvas.zoom(zoomTarget);
         }
     }
@@ -772,11 +779,11 @@ public class FlamegraphView<T> {
             if (e.getClickCount() == 2) {
                 // find zoom target then do an animated transition
                 canvas.getFlamegraphRenderEngine().flatMap(fgp -> fgp.calculateZoomTargetForFrameAt(
-                        (Graphics2D) viewPort.getView().getGraphics(),
+                        (Graphics2D) canvas.getGraphics(),
                         canvas.getBounds(),
-                        viewPort.getViewRect(),
+                        canvas.getVisibleRect(),
                         latestMouseLocation
-                )).ifPresent(zoomTarget -> zoom(canvas, viewPort, zoomTarget));
+                )).ifPresent(zoomTarget -> zoom(canvas, zoomTarget));
                 return;
             }
 
@@ -889,7 +896,7 @@ public class FlamegraphView<T> {
         }
     }
 
-    static class FlamegraphCanvas<T> extends JPanel {
+    static class FlamegraphCanvas<T> extends JPanel implements ZoomableComponent {
 
         private Image minimap;
         private JToolTip toolTip;
@@ -1330,9 +1337,11 @@ public class FlamegraphView<T> {
             // Setting size has the effect of calling revalidation
             // which will trigger a layout, that calls updateViewLocation
             // to correctly place the canvas for iciclegraph or flamegraph
+            // TODO restore animation
             setSize(getVisibleRect().getSize());
         }
 
+        @Override
         public void zoom(ZoomTarget zoomTarget) {
             // hacky way to prevent the view from jumping back to original position
             // when zooming.
