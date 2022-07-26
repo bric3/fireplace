@@ -41,10 +41,6 @@ import java.util.stream.Collectors;
  * @see FrameRenderer
  */
 class FlamegraphRenderEngine<T> {
-    /**
-     * Internal padding with the component bounds.
-     */
-    private final int internalPadding = 2;
     private final int minimapFrameBoxHeight = 1;
     /**
      * The minimum width threshold for a frame to be rendered.
@@ -81,7 +77,14 @@ class FlamegraphRenderEngine<T> {
 
     private FrameModel<T> frameModel;
     private int depth;
+
+    public int getVisibleDepth() {
+        return visibleDepth;
+    }
+
     private int visibleDepth;
+
+    private boolean icicle = true;
 
 
     /**
@@ -228,9 +231,11 @@ class FlamegraphRenderEngine<T> {
         // paint root
         {
             var rootFrame = frames.get(0);
+
+            int internalPadding = 0; // Remove ?
             frameRect.x = (int) (flameGraphWidth * rootFrame.startX) + internalPadding;
             frameRect.width = ((int) (flameGraphWidth * rootFrame.endX)) - frameRect.x - internalPadding;
-            frameRect.y = frameBoxHeight * rootFrame.stackDepth;
+            frameRect.y = computeFrameRectY(bounds, frameBoxHeight, rootFrame.stackDepth);
             frameRect.height = frameBoxHeight;
 
             var paintableIntersection = viewRect.createIntersection(frameRect);
@@ -266,7 +271,7 @@ class FlamegraphRenderEngine<T> {
                 continue;
             }
 
-            frameRect.y = frameBoxHeight * frame.stackDepth;
+            frameRect.y = computeFrameRectY(bounds, frameBoxHeight, frame.stackDepth);
             frameRect.height = frameBoxHeight;
 
             var paintableIntersection = viewRect.createIntersection(frameRect);
@@ -296,10 +301,20 @@ class FlamegraphRenderEngine<T> {
         }
 
         if (!minimapMode) {
-            paintHoveredFrameBorder(g2d, viewRect, flameGraphWidth, frameBoxHeight, frameRect);
+            paintHoveredFrameBorder(g2d, bounds, viewRect, flameGraphWidth, frameBoxHeight, frameRect);
         }
 
         g2d.dispose();
+    }
+
+    private int computeFrameRectY(Rectangle2D bounds, int frameBoxHeight, int stackDepth) {
+        if (icicle) {
+            return frameBoxHeight * stackDepth;
+        }
+
+        var flamegraphHeight = bounds.getHeight();
+
+        return (int) (flamegraphHeight - frameBoxHeight) - (frameBoxHeight * stackDepth);
     }
 
     private void checkReady() {
@@ -308,6 +323,7 @@ class FlamegraphRenderEngine<T> {
 
     private void paintHoveredFrameBorder(
             Graphics2D g2,
+            Rectangle2D bounds,
             Rectangle2D viewRect,
             double flameGraphWidth,
             int frameBoxHeight,
@@ -333,7 +349,7 @@ class FlamegraphRenderEngine<T> {
          */
 
         var x = flameGraphWidth * hoveredFrame.startX;
-        var y = frameBoxHeight * hoveredFrame.stackDepth;
+        var y = computeFrameRectY(bounds, frameBoxHeight, hoveredFrame.stackDepth);
         var w = (flameGraphWidth * hoveredFrame.endX) - x - gapThickness;
         var h = frameBoxHeight - gapThickness;
         frameRect.setRect(x, y, w, h);
@@ -381,7 +397,7 @@ class FlamegraphRenderEngine<T> {
         var rect = new Rectangle();
         rect.x = (int) (bounds.getWidth() * frame.startX) - frameGapWidth; // + internalPadding;
         rect.width = (int) (bounds.getWidth() * frame.endX) - rect.x + 2 * frameGapWidth; // - internalPadding;
-        rect.y = frameBoxHeight * frame.stackDepth - frameGapWidth;
+        rect.y = computeFrameRectY(bounds, frameBoxHeight, frame.stackDepth) - frameGapWidth;
         rect.height = frameBoxHeight + 2 * frameGapWidth;
         return rect;
     }
@@ -402,7 +418,7 @@ class FlamegraphRenderEngine<T> {
     ) {
         checkReady();
 
-        int depth = point.y / frameRenderer.getFrameBoxHeight(g2);
+        int depth = computeFrameDepth(g2, bounds, point);
         double xLocation = point.x / bounds.getWidth();
         double visibilityThreshold = frameWidthVisibilityThreshold / bounds.getWidth();
 
@@ -412,6 +428,13 @@ class FlamegraphRenderEngine<T> {
                                                 && xLocation <= node.endX
                                                 && visibilityThreshold < node.endX - node.startX)
                                 .findFirst();
+    }
+
+    private int computeFrameDepth(Graphics2D g2, Rectangle2D bounds, Point point) {
+        if (icicle) {
+            return point.y / frameRenderer.getFrameBoxHeight(g2);
+        }
+        return (int) ((bounds.getHeight() - point.y)) / frameRenderer.getFrameBoxHeight(g2);
     }
 
     /**
@@ -516,6 +539,7 @@ class FlamegraphRenderEngine<T> {
         checkReady();
 
         return getFrameAt(g2, bounds, point).map(frame -> {
+            // TODO refactor to make frame selection explicit, possibly via toggleSelectedFrameAt
             this.selectedFrame = frame;
 
             return calculateZoomTargetFrame(g2, bounds, viewRect, frame, 0, 0);
@@ -548,19 +572,40 @@ class FlamegraphRenderEngine<T> {
 
         var frameWidthX = frame.endX - frame.startX;
         var frameBoxHeight = frameRenderer.getFrameBoxHeight(g2);
-        int y = frameBoxHeight * (Math.max(frame.stackDepth - contextBefore, 0));
 
-        double factor = getScaleFactor(viewRect.getWidth(), bounds.getWidth(), frameWidthX);
+        var factor = getScaleFactor(viewRect.getWidth(), bounds.getWidth(), frameWidthX);
         // Change offset to center the flame from this frame
+        var newCanvasWidth = (int) (bounds.getWidth() * factor);
+        var newCanvasHeight = computeVisibleFlamegraphHeight(
+                g2,
+                newCanvasWidth,
+                (int) viewRect.getWidth(),
+                new Insets(0, 0, 0, 0)
+        );
+
+        var newDimension = new Rectangle2D.Double(
+                bounds.getX(),
+                bounds.getY(),
+                newCanvasWidth,
+                newCanvasHeight
+        );
+        var frameY = computeFrameRectY(
+                newDimension,
+                frameBoxHeight,
+                Math.max(frame.stackDepth - contextBefore, 0)
+        );
+        var viewLocationY = icicle ?
+                            Math.max(0, frameY) :
+                            Math.min(
+                                    (int) (newCanvasHeight - viewRect.getHeight()),
+                                    (int) (frameY + frameBoxHeight - viewRect.getHeight())
+                            );
+
         return new ZoomTarget(
-                new Dimension(
-                        (int) (bounds.getWidth() * factor),
-                        (int) (bounds.getHeight() * factor)
-                ),
-                new Point(
-                        (int) (frame.startX * bounds.getWidth() * factor),
-                        Math.max(0, y)
-                )
+                - (int) (frame.startX * newCanvasWidth),
+                - viewLocationY,
+                newCanvasWidth,
+                newCanvasHeight
         );
     }
 
@@ -593,5 +638,13 @@ class FlamegraphRenderEngine<T> {
 
     public FrameRenderer<T> getFrameRenderer() {
         return frameRenderer;
+    }
+
+    public void setIcicle(boolean icicle) {
+        this.icicle = icicle;
+    }
+
+    public boolean isIcicle() {
+        return icicle;
     }
 }

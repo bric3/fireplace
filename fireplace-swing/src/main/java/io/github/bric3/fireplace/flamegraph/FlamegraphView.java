@@ -9,7 +9,7 @@
  */
 package io.github.bric3.fireplace.flamegraph;
 
-import io.github.bric3.fireplace.core.ui.JScrollPaneWithButton;
+import io.github.bric3.fireplace.core.ui.JScrollPaneWithBackButton;
 import io.github.bric3.fireplace.core.ui.MouseInputListenerWorkaroundForToolTipEnabledComponent;
 
 import javax.swing.*;
@@ -95,7 +95,7 @@ public class FlamegraphView<T> {
      * Mouse input listener used to move the canvas over the JScrollPane
      * as well as trigger other behavior on the canvas.
      */
-    private final FlamegraphScrollPaneMouseInputListener<T> listener;
+    private final FlamegraphScrollPaneMouseInputListener<T> scrollPaneListener;
 
     /**
      * The precomputed list of frames.
@@ -103,10 +103,62 @@ public class FlamegraphView<T> {
     private FrameModel<T> framesModel = FrameModel.empty();
 
     /**
-     * Represents a custom actions when zooming
+     * Display mode for this stack-frame tree.
+     */
+    public enum Mode {
+        FLAMEGRAPH, ICICLEGRAPH
+    }
+
+    /**
+     * Represents a custom action when zooming.
      */
     public interface ZoomAction {
-        <T> boolean zoom(JViewport viewPort, final FlamegraphCanvas<T> canvas, ZoomTarget zoomTarget);
+        /**
+         * Called when the zoom action is triggered.
+         *
+         * <p>
+         *     Typical implementation will use the passed {@code zoomTarget}, and
+         *     invoke {@link ZoomableComponent#zoom(ZoomTarget)}. These implementation
+         *     could for example compute intermediate zoom target in order to produce
+         *     an animation.
+         * </p>
+         *
+         * @param zoomableComponent The canvas to zoom on.
+         * @param zoomTarget the zoom target.
+         * @return Whether zooming has been performed.
+         */
+        boolean zoom(ZoomableComponent zoomableComponent, ZoomTarget zoomTarget);
+    }
+
+    /**
+     * Represents a zoomable JComponent.
+     */
+    public interface ZoomableComponent {
+        /**
+         * Actually perform the zooming operation on the component.
+         *
+         * <p>
+         *     This likely involves revalidation and repainting of the component.
+         * </p>
+         *
+         * @param zoomTarget The zoom target.
+         */
+        void zoom(ZoomTarget zoomTarget);
+
+        /**
+         * @return the width of the component.
+         */
+        int getWidth();
+
+        /**
+         * @return the height of the component
+         */
+        int getHeight();
+
+        /**
+         * @return the location of the component in the parent container.
+         */
+        Point getLocation();
     }
 
     /**
@@ -157,7 +209,7 @@ public class FlamegraphView<T> {
     /**
      * Return the {@code Flamegraph} that created the passed component.
      * <p>
-     * If this wasn't returned by a {@code FlaemGraph} then retunr empty.
+     * If this wasn't returned by a {@code Flamegraph} then return empty.
      *
      * @param component the JComponent
      * @param <T>       The type of the node data.
@@ -175,10 +227,10 @@ public class FlamegraphView<T> {
     public FlamegraphView() {
         canvas = new FlamegraphCanvas<>(this);
         canvas.putClientProperty(OWNER_KEY, this);
-        listener = new FlamegraphScrollPaneMouseInputListener<>(canvas);
+        scrollPaneListener = new FlamegraphScrollPaneMouseInputListener<>(canvas);
         var scrollPane = new JScrollPane(canvas);
         scrollPane.putClientProperty(OWNER_KEY, this);
-        var layeredScrollPane = JScrollPaneWithButton.create(
+        var layeredScrollPane = JScrollPaneWithBackButton.create(
                 () -> {
 
                     // Code to tweak the actions
@@ -190,13 +242,21 @@ public class FlamegraphView<T> {
 
                     scrollPane.getVerticalScrollBar().setUnitIncrement(16);
                     scrollPane.getHorizontalScrollBar().setUnitIncrement(16);
-                    listener.install(scrollPane);
+                    scrollPaneListener.install(scrollPane);
                     new MouseInputListenerWorkaroundForToolTipEnabledComponent(scrollPane).install(canvas);
                     canvas.linkListenerTo(scrollPane);
 
                     return scrollPane;
                 }
         );
+        canvas.addPropertyChangeListener(FlamegraphCanvas.GRAPH_MODE, evt -> {
+            var mode = (Mode) evt.getNewValue();
+            layeredScrollPane.firePropertyChange(
+                    JScrollPaneWithBackButton.BACK_TO_DIRECTION,
+                    -1,
+                    mode == Mode.ICICLEGRAPH ? SwingConstants.NORTH : SwingConstants.SOUTH
+            );
+        });
 
         component = wrap(layeredScrollPane, bg -> {
             scrollPane.setBorder(null);
@@ -352,6 +412,24 @@ public class FlamegraphView<T> {
     }
 
     /**
+     * Sets the display mode, either {@link Mode#FLAMEGRAPH} or {@link Mode#ICICLEGRAPH}.
+     *
+     * @param mode The display mode.
+     */
+    public void setMode(FlamegraphView.Mode mode) {
+        canvas.setMode(mode);
+    }
+
+    /**
+     * Returns the current display mode.
+     *
+     * @return the current display mode.
+     */
+    public FlamegraphView.Mode getMode() {
+        return canvas.getMode();
+    }
+
+    /**
      * Replaces the default tooltip component.
      *
      * @param tooltipComponentSupplier The tooltip component supplier.
@@ -387,7 +465,7 @@ public class FlamegraphView<T> {
      */
     @Deprecated(forRemoval = true)
     public void setHoveringListener(HoveringListener<T> hoverListener) {
-        setHoverListener(new HoverListener<T>() {
+        setHoverListener(new HoverListener<>() {
             @Override
             public void onStopHover(FrameBox<T> prevHoveredFrame, Rectangle prevHoveredFrameRectangle, MouseEvent e) {
                 hoverListener.onStopHover(e);
@@ -406,7 +484,7 @@ public class FlamegraphView<T> {
      * @param hoverListener the listener ({@code null} permitted).
      */
     public void setHoverListener(HoverListener<T> hoverListener) {
-        listener.setHoverListener(hoverListener);
+        scrollPaneListener.setHoverListener(hoverListener);
     }
 
     /**
@@ -442,7 +520,7 @@ public class FlamegraphView<T> {
             Function<FrameBox<T>, String> tooltipTextFunction
     ) {
         setConfigurationAndData(
-                new FrameModel<T>(frames),
+                new FrameModel<>(frames),
                 frameTextsProvider,
                 frameColorFunction,
                 frameFontProvider,
@@ -634,34 +712,40 @@ public class FlamegraphView<T> {
      * Reset the zoom to 1:1.
      */
     public void resetZoom() {
-        zoom(
-                canvas,
-                (JViewport) canvas.getParent(),
-                new ZoomTarget(canvas.getVisibleRect().getSize(), new Point())
-        );
+        canvas.resetZoom();
     }
 
     /**
-     * Programmtic zoom to the specified frame.
+     * Programmatic zoom to the specified frame.
      *
      * @param frame The frame to zoom to.
      */
     public void zoomTo(FrameBox<T> frame) {
-        var viewport = (JViewport) canvas.getParent();
         canvas.getFlamegraphRenderEngine().map(fgp -> fgp.calculateZoomTargetFrame(
                 (Graphics2D) canvas.getGraphics(),
                 canvas.getBounds(),
-                viewport.getViewRect(),
+                canvas.getVisibleRect(),
                 frame,
                 2,
                 0
-        )).ifPresent(zoomTarget -> zoom(canvas, viewport, zoomTarget));
+        )).ifPresent(zoomTarget -> zoom(canvas, zoomTarget));
     }
 
-    private static <T> void zoom(FlamegraphCanvas<T> canvas, JViewport viewPort, ZoomTarget zoomTarget) {
-        if (canvas.zoomActionOverride == null || !canvas.zoomActionOverride.zoom(viewPort, canvas, zoomTarget)) {
-            canvas.setSize(zoomTarget.bounds);
-            viewPort.setViewPosition(zoomTarget.viewOffset);
+    private static <T> void zoom(FlamegraphCanvas<T> canvas, ZoomTarget zoomTarget) {
+        // adjust zoom target location for horizontal scrollbar height if canvas bigger than viewRect
+        if (canvas.getMode() == Mode.FLAMEGRAPH) {
+            var visibleRect = canvas.getVisibleRect();
+            JViewport viewPort = (JViewport) SwingUtilities.getUnwrappedParent(canvas);
+            var scrollPane = (JScrollPane) viewPort.getParent();
+
+            var hsb = scrollPane.getHorizontalScrollBar();
+            if (!hsb.isVisible() && visibleRect.getWidth() < zoomTarget.getWidth()) {
+                zoomTarget.y -= hsb.getPreferredSize().height;
+            }
+        }
+
+        if (canvas.zoomActionOverride == null || !canvas.zoomActionOverride.zoom(canvas, zoomTarget)) {
+            canvas.zoom(zoomTarget);
         }
     }
 
@@ -683,14 +767,13 @@ public class FlamegraphView<T> {
     public void highlightFrames(Set<FrameBox<T>> framesToHighlight, String searched) {
         Objects.requireNonNull(framesToHighlight);
         Objects.requireNonNull(searched);
-        canvas.getFlamegraphRenderEngine().ifPresent(painter ->
-                                                             painter.setHighlightFrames(framesToHighlight, searched)
-        );
+        canvas.getFlamegraphRenderEngine()
+              .ifPresent(painter -> painter.setHighlightFrames(framesToHighlight, searched));
         canvas.repaint();
     }
 
     /**
-     * The internal mouse listener that is attached to the scrollpane.
+     * The internal mouse listener that is attached to the scrollPane.
      * <p>
      * This listener will be responsible to trigger some behaviors on the canvas itself.
      * </p>
@@ -766,11 +849,11 @@ public class FlamegraphView<T> {
             if (e.getClickCount() == 2) {
                 // find zoom target then do an animated transition
                 canvas.getFlamegraphRenderEngine().flatMap(fgp -> fgp.calculateZoomTargetForFrameAt(
-                        (Graphics2D) viewPort.getView().getGraphics(),
+                        (Graphics2D) canvas.getGraphics(),
                         canvas.getBounds(),
-                        viewPort.getViewRect(),
+                        canvas.getVisibleRect(),
                         latestMouseLocation
-                )).ifPresent(zoomTarget -> zoom(canvas, viewPort, zoomTarget));
+                )).ifPresent(zoomTarget -> zoom(canvas, zoomTarget));
                 return;
             }
 
@@ -883,8 +966,9 @@ public class FlamegraphView<T> {
         }
     }
 
-    static class FlamegraphCanvas<T> extends JPanel {
+    static class FlamegraphCanvas<T> extends JPanel implements ZoomableComponent {
 
+        public static final String GRAPH_MODE = "mode";
         private Image minimap;
         private JToolTip toolTip;
         private FlamegraphRenderEngine<T> flamegraphRenderEngine;
@@ -902,8 +986,10 @@ public class FlamegraphView<T> {
         private ZoomAction zoomActionOverride;
         private BiConsumer<FrameBox<T>, MouseEvent> popupConsumer;
         private BiConsumer<FrameBox<T>, MouseEvent> selectedFrameConsumer;
-        private FlamegraphView<T> flamegraphView;
+        private final FlamegraphView<T> flamegraphView;
         private long lastDrawTime;
+
+        private boolean skipSetDefaultViewLocationOnZoom = false;
 
 
         public FlamegraphCanvas(FlamegraphView<T> flamegraphView) {
@@ -916,6 +1002,12 @@ public class FlamegraphView<T> {
         @Override
         public void updateUI() {
             super.updateUI();
+        }
+
+        @Override
+        public void doLayout() {
+            super.doLayout();
+            setDefaultViewLocation(getMode());
         }
 
         @Override
@@ -982,27 +1074,29 @@ public class FlamegraphView<T> {
                 var viewRect = getVisibleRect();
                 var bounds = getBounds();
                 var zoomFactor = bounds.getWidth() / viewRect.getWidth();
-                var stats = "FrameGraph width " + bounds.getWidth() +
-                            " Zoom Factor " + zoomFactor +
-                            " Coordinate (" + viewRect.getX() + ", " + viewRect.getY() + ") " +
-                            "size (" + viewRect.getWidth() + ", " + viewRect.getHeight() + "), " +
-                            "Draw time: " + lastDrawTime + " ms";
+                var stats =
+                        "Canvas (" + bounds.getWidth() + ", " + bounds.getHeight() + ") " +
+                        "Zoom Factor " + zoomFactor + " " +
+                        "Coordinate (" + viewRect.getX() + ", " + viewRect.getY() + ") " +
+                        "View (" + viewRect.getWidth() + ", " + viewRect.getHeight() + "), " +
+                        "Visible " + flamegraphRenderEngine.getVisibleDepth() + " " +
+                        "Draw time: " + lastDrawTime + " ms";
                 var frameTextPadding = 3;
 
                 var w = viewRect.getWidth();
-                var h = 22;
+                var h = 16;
                 var x = viewRect.getX();
-                var y = viewRect.getY() + viewRect.getHeight() - h;
+                var y = getMode() == Mode.ICICLEGRAPH ? viewRect.getY() + viewRect.getHeight() - h : viewRect.getY();
 
 
-                g2.setColor(Color.DARK_GRAY);
+                g2.setColor(new Color(0xa4404040, true));
                 g2.fillRect((int) x, (int) y, (int) w, h);
                 g2.setColor(Color.YELLOW);
                 g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
                 g2.drawString(
                         stats,
-                        (int) (viewRect.getX() + frameTextPadding),
-                        (int) (viewRect.getY() + viewRect.getHeight() - frameTextPadding)
+                        (int) (x + frameTextPadding),
+                        (int) (y + h - frameTextPadding)
                 );
             }
         }
@@ -1256,12 +1350,60 @@ public class FlamegraphView<T> {
         }
 
         public void showMinimap(boolean showMinimap) {
+            if (this.showMinimap == showMinimap) {
+                return;
+            }
             this.showMinimap = showMinimap;
             triggerMinimapGeneration();
+            firePropertyChange("minimap", !showMinimap, showMinimap);
         }
 
         public boolean isShowMinimap() {
             return showMinimap;
+        }
+
+        public void setMode(Mode mode) {
+            var oldMode = getMode();
+            if(oldMode == mode) {
+                return;
+            }
+            
+            getFlamegraphRenderEngine().ifPresent(fre -> fre.setIcicle(Mode.ICICLEGRAPH == mode));
+            resetZoom();
+            firePropertyChange(GRAPH_MODE, oldMode, mode);
+        }
+
+        public FlamegraphView.Mode getMode() {
+            return getFlamegraphRenderEngine().map(fre -> fre.isIcicle() ? Mode.ICICLEGRAPH : Mode.FLAMEGRAPH).get();
+        }
+
+        private void setDefaultViewLocation(Mode mode) {
+            // This code is invoked by doLayout, but when zooming the size of the canvas
+            // is changed, which triggers a layout, which calls this method.
+            // But in doing so this method overrides the correct zoomed frame location,
+            // this hacky flag prevents this from happening.
+            if (skipSetDefaultViewLocationOnZoom) {
+                skipSetDefaultViewLocationOnZoom = false;
+                return;
+            }
+            var parent = getParent();
+            if (parent instanceof JViewport) {
+                var viewPort = (JViewport) parent;
+                switch (mode) {
+                    case ICICLEGRAPH:
+                        viewPort.setViewPosition(new Point(
+                                0,
+                                0
+                        ));
+                        break;
+                    case FLAMEGRAPH:
+                        viewPort.setViewPosition(new Point(
+                                0,
+                                getBounds().height - viewPort.getHeight()
+                        ));
+                        break;
+                }
+            }
         }
 
         public void setPopupConsumer(BiConsumer<FrameBox<T>, MouseEvent> consumer) {
@@ -1270,6 +1412,26 @@ public class FlamegraphView<T> {
 
         public void setSelectedFrameConsumer(BiConsumer<FrameBox<T>, MouseEvent> consumer) {
             this.selectedFrameConsumer = consumer;
+        }
+
+        public void resetZoom() {
+            // Setting size has the effect of calling revalidation
+            // which will trigger a layout, that calls updateViewLocation
+            // to correctly place the canvas for iciclegraph or flamegraph
+            // TODO restore animation
+            setSize(getVisibleRect().getSize());
+            revalidate(); // make sure revalidation is called to correctly reset the view location
+        }
+
+        @Override
+        public void zoom(ZoomTarget zoomTarget) {
+            // hacky way to prevent the view from jumping back to original position
+            // when zooming.
+            // Indeed, changing the size triggers a revalidation, which triggers a layout,
+            // which is overridden to place the canvas at the correct location depending
+            // on the graph type.
+            this.skipSetDefaultViewLocationOnZoom = true;
+            setBounds(zoomTarget);
         }
     }
 }

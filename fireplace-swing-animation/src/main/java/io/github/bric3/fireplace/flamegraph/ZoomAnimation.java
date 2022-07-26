@@ -11,12 +11,10 @@ package io.github.bric3.fireplace.flamegraph;
 
 import io.github.bric3.fireplace.flamegraph.FlamegraphView.FlamegraphCanvas;
 import io.github.bric3.fireplace.flamegraph.FlamegraphView.ZoomAction;
+import io.github.bric3.fireplace.flamegraph.FlamegraphView.ZoomableComponent;
 import org.pushingpixels.radiance.animation.api.Timeline;
 import org.pushingpixels.radiance.animation.api.ease.Sine;
 import org.pushingpixels.radiance.animation.api.swing.EventDispatchThreadTimelineCallbackAdapter;
-
-import javax.swing.*;
-import java.awt.*;
 
 /**
  * A zoom action that incorporates animation using <a href="https://github.com/kirill-grouchnikov/radiance/blob/sunshine/docs/animation/animation.md">Radiance Animation</a>
@@ -62,19 +60,22 @@ public class ZoomAnimation implements ZoomAction {
     }
 
     @Override
-    public <T> boolean zoom(JViewport viewPort, FlamegraphCanvas<T> canvas, ZoomTarget zoomTarget) {
+    public boolean zoom(ZoomableComponent zoomableComponent, ZoomTarget zoomTarget) {
         System.getLogger(FlamegraphCanvas.class.getName()).log(System.Logger.Level.DEBUG, () -> "zoom to " + zoomTarget);
         if (!isAnimateZoomTransitions()) {
             return false;
         }
-        int startW = canvas.getWidth();
-        int startH = canvas.getHeight();
-        double deltaW = zoomTarget.bounds.width - startW;
-        double deltaH = zoomTarget.bounds.height - startH;
-        int startX = viewPort.getViewPosition().x;
-        int startY = viewPort.getViewPosition().y;
-        double deltaX = zoomTarget.viewOffset.x - startX;
-        double deltaY = zoomTarget.viewOffset.y - startY;
+        int startW = zoomableComponent.getWidth();
+        int startH = zoomableComponent.getHeight();
+        double deltaW = zoomTarget.width - startW;
+        double deltaH = zoomTarget.height - startH;
+
+        int startX = zoomableComponent.getLocation().x;
+        int startY = zoomableComponent.getLocation().y;
+        double deltaX = zoomTarget.x - startX;
+        double deltaY = zoomTarget.y - startY;
+
+
         Timeline.builder()
                 .setDuration(ZOOM_ANIMATION_DURATION)
                 .setEase(new Sine())
@@ -84,18 +85,22 @@ public class ZoomAnimation implements ZoomAction {
                         if (newState.equals(Timeline.TimelineState.DONE)) {
                             // throw in a final update to the target position, because the last pulse
                             // might not have reached exactly timelinePosition = 1.0...
-                            canvas.setSize(zoomTarget.bounds);
-                            viewPort.setViewPosition(zoomTarget.viewOffset);
+                            zoomableComponent.zoom(zoomTarget);
                         }
                     }
 
                     @Override
                     public void onTimelinePulse(float durationFraction, float timelinePosition) {
-                        canvas.setSize(new Dimension((int) (startW + timelinePosition * deltaW), (int) (startH + timelinePosition * deltaH)));
-                        Point pos = new Point(startX + (int) (timelinePosition * deltaX), startY + (int) (timelinePosition * deltaY));
-                        viewPort.setViewPosition(pos);
+                        zoomableComponent.zoom(new ZoomTarget(
+                                startX + (int) (timelinePosition * deltaX),
+                                startY + (int) (timelinePosition * deltaY),
+                                (int) (startW + timelinePosition * deltaW),
+                                (int) (startH + timelinePosition * deltaH)
+                        ));
                     }
-                }).build().playSkipping(3L);
+                })
+                .build()
+                .playSkipping(3L);
         return true;
     }
 }
