@@ -84,7 +84,7 @@ class FlamegraphRenderEngine<T> {
 
     private int visibleDepth;
 
-    private boolean icicle = false;
+    private boolean icicle = true;
 
 
     /**

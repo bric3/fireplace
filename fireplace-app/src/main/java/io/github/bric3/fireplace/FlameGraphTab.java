@@ -44,6 +44,7 @@ public class FlameGraphTab extends JPanel {
     private static final JfrFrameColorMode defaultFrameColorMode = JfrFrameColorMode.BY_PACKAGE;
     private static final boolean defaultPaintFrameBorder = true;
     private static final boolean defaultShowMinimap = true;
+    private static final boolean defaultIcicleMode = true;
     private FlamegraphView<Node> jfrFlamegraphView;
     private Consumer<FlamegraphView<Node>> dataApplier;
 
@@ -75,12 +76,19 @@ public class FlameGraphTab extends JPanel {
         colorPaletteJComboBox.addActionListener(updateColorSettingsListener);
         colorModeJComboBox.addActionListener(updateColorSettingsListener);
 
-        var borderToggle = new JCheckBox("Border");
-        borderToggle.addActionListener(e -> {
-            jfrFlamegraphView.setFrameGapEnabled(borderToggle.isSelected());
+        var gapToggle = new JCheckBox("Gap");
+        gapToggle.addActionListener(e -> {
+            jfrFlamegraphView.setFrameGapEnabled(gapToggle.isSelected());
             jfrFlamegraphView.requestRepaint();
         });
-        borderToggle.setSelected(defaultPaintFrameBorder);
+        gapToggle.setSelected(defaultPaintFrameBorder);
+
+        var icicleModeToggle = new JCheckBox("Icicle");
+        icicleModeToggle.addActionListener(e -> {
+            jfrFlamegraphView.setMode(icicleModeToggle.isSelected() ? FlamegraphView.Mode.ICICLEGRAPH : FlamegraphView.Mode.FLAMEGRAPH);
+            jfrFlamegraphView.requestRepaint();
+        });
+        icicleModeToggle.setSelected(defaultIcicleMode);
 
         var minimapToggle = new JCheckBox("Minimap");
         minimapToggle.addActionListener(e -> {
@@ -105,6 +113,9 @@ public class FlameGraphTab extends JPanel {
         var timer = new Timer(2_000, e -> {
             jfrFlamegraphView = getJfrFlamegraphView();
             jfrFlamegraphView.setShowMinimap(defaultShowMinimap);
+            minimapToggle.setSelected(defaultShowMinimap);
+            jfrFlamegraphView.setMode(defaultIcicleMode ? FlamegraphView.Mode.ICICLEGRAPH : FlamegraphView.Mode.FLAMEGRAPH);
+            icicleModeToggle.setSelected(defaultIcicleMode);
             jfrFlamegraphView.configureCanvas(FlameGraphTab::registerToolTips);
             jfrFlamegraphView.putClientProperty(FlamegraphView.SHOW_STATS, true);
             jfrFlamegraphView.setMinimapShadeColorSupplier(() -> minimapShade);
@@ -173,7 +184,8 @@ public class FlameGraphTab extends JPanel {
         controlPanel.setLayout(new BoxLayout(controlPanel, BoxLayout.X_AXIS));
         controlPanel.add(colorPaletteJComboBox);
         controlPanel.add(colorModeJComboBox);
-        controlPanel.add(borderToggle);
+        controlPanel.add(gapToggle);
+        controlPanel.add(icicleModeToggle);
         controlPanel.add(animateToggle);
         controlPanel.add(minimapToggle);
         controlPanel.add(refreshToggle);

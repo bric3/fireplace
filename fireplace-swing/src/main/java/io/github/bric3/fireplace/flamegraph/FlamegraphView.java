@@ -1303,7 +1303,7 @@ public class FlamegraphView<T> {
 
         public void setMode(Mode mode) {
             getFlamegraphRenderEngine().ifPresent(fre -> fre.setIcicle(Mode.ICICLEGRAPH == mode));
-            revalidate();
+            resetZoom();
         }
 
         public FlamegraphView.Mode getMode() {
