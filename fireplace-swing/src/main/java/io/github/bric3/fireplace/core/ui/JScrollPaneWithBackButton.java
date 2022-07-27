@@ -171,6 +171,7 @@ public abstract class JScrollPaneWithBackButton {
             if (id == MouseEvent.MOUSE_CLICKED) {
                 if (buttonRect.contains(currentMousePoint)) {
                     scrollBackToTop(layer.getView());
+                    e.consume();
                 }
             } else if (id == MouseEvent.MOUSE_PRESSED && viewRect.y > 0 && buttonRect.contains(currentMousePoint)) {
                 e.consume();
