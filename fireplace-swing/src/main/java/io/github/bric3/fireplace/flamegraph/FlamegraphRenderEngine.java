@@ -573,9 +573,9 @@ class FlamegraphRenderEngine<T> {
         var frameWidthX = frame.endX - frame.startX;
         var frameBoxHeight = frameRenderer.getFrameBoxHeight(g2);
 
-        var factor = getScaleFactor(viewRect.getWidth(), bounds.getWidth(), frameWidthX);
+        var scaleFactor = getScaleFactor(viewRect.getWidth(), bounds.getWidth(), frameWidthX);
         // Change offset to center the flame from this frame
-        var newCanvasWidth = (int) (bounds.getWidth() * factor);
+        var newCanvasWidth = (int) (bounds.getWidth() * scaleFactor);
         var newCanvasHeight = computeVisibleFlamegraphHeight(
                 g2,
                 newCanvasWidth,
@@ -605,7 +605,8 @@ class FlamegraphRenderEngine<T> {
                 - (int) (frame.startX * newCanvasWidth),
                 - viewLocationY,
                 newCanvasWidth,
-                newCanvasHeight
+                newCanvasHeight,
+                scaleFactor
         );
     }
 

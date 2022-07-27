@@ -21,7 +21,7 @@ import org.pushingpixels.radiance.animation.api.swing.EventDispatchThreadTimelin
  */
 public class ZoomAnimation implements ZoomAction {
 
-    private static final long ZOOM_ANIMATION_DURATION = 400L;
+    private static final long ZOOM_ANIMATION_DURATION_MS = 400L;
 
     /**
      * A key for a system property that can be used to disable zoom animations.  Used to set the
@@ -75,9 +75,11 @@ public class ZoomAnimation implements ZoomAction {
         double deltaX = zoomTarget.x - startX;
         double deltaY = zoomTarget.y - startY;
 
+        double startScale = zoomableComponent.getScale();
+        double deltaScale = zoomTarget.scaleFactor - startScale;
 
         Timeline.builder()
-                .setDuration(ZOOM_ANIMATION_DURATION)
+                .setDuration(ZOOM_ANIMATION_DURATION_MS)
                 .setEase(new Sine())
                 .addCallback(new EventDispatchThreadTimelineCallbackAdapter() {
                     @Override
@@ -95,7 +97,8 @@ public class ZoomAnimation implements ZoomAction {
                                 startX + (int) (timelinePosition * deltaX),
                                 startY + (int) (timelinePosition * deltaY),
                                 (int) (startW + timelinePosition * deltaW),
-                                (int) (startH + timelinePosition * deltaH)
+                                (int) (startH + timelinePosition * deltaH),
+                                startScale + timelinePosition * deltaScale
                         ));
                     }
                 })

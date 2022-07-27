@@ -18,29 +18,15 @@ import java.util.Objects;
  */
 public class ZoomTarget extends Rectangle {
 
-    // /** The bounds required to draw the whole content. */
-    // public Dimension dimension;
+    /** The 1:1 scale */
+    public static final double SCALE_1 = 1d;
 
-    // /** The coordinates of the top-left corner of the frame that is the target of the zoom. */
-    // public Point viewOffset;
-    
-    // public Rectangle bounds;
-    //
-    // /**
-    //  * Creates a new zoom target.
-    //  *
-    //  * @param bounds The target canvas bounds.
-    //  * @param dimension  the bounds.
-    //  * @param viewOffset the view offset.
-    //  */
-    // public ZoomTarget(Rectangle bounds, Dimension dimension, Point viewOffset) {
-    //     this.bounds = Objects.requireNonNull(bounds);
-    //     this.dimension = Objects.requireNonNull(dimension);
-    //     this.viewOffset = Objects.requireNonNull(viewOffset);
-    // }
+    /** The scale factor for this zoom target */
+    public double scaleFactor;
 
-    public ZoomTarget(int x, int y, int width, int height) {
+    public ZoomTarget(int x, int y, int width, int height, double scaleFactor) {
         super(x, y, width, height);
+        this.scaleFactor = scaleFactor;
     }
 
     /**
@@ -48,7 +34,18 @@ public class ZoomTarget extends Rectangle {
      *
      * @param bounds The target canvas bounds.
      */
-    public ZoomTarget(Rectangle bounds) {
-        super(Objects.requireNonNull(bounds));
+    public ZoomTarget(Rectangle bounds, double scaleFactor) {
+        this(bounds.x, bounds.y, bounds.width, bounds.height, scaleFactor);
+    }
+
+    @Override
+    public String toString() {
+        return "ZoomTarget{" +
+               "x=" + x +
+               ", y=" + y +
+               ", width=" + width +
+               ", height=" + height +
+               ", scaleFactor=" + scaleFactor +
+               '}';
     }
 }

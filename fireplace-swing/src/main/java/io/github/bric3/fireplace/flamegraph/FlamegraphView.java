@@ -159,6 +159,8 @@ public class FlamegraphView<T> {
          * @return the location of the component in the parent container.
          */
         Point getLocation();
+
+        double getScale();
     }
 
     /**
@@ -988,6 +990,7 @@ public class FlamegraphView<T> {
         private BiConsumer<FrameBox<T>, MouseEvent> selectedFrameConsumer;
         private final FlamegraphView<T> flamegraphView;
         private long lastDrawTime;
+        private double scaleFactor = ZoomTarget.SCALE_1;
 
         private boolean skipSetDefaultViewLocationOnZoom = false;
 
@@ -1017,13 +1020,29 @@ public class FlamegraphView<T> {
                 super.setPreferredSize(preferredSize);
                 return preferredSize;
             }
-
+            // TODO remove insets
             Insets insets = getInsets();
-            var flamegraphWidth = getWidth();
+
+            // var vsb = ((JScrollPane) getParent().getParent()).getVerticalScrollBar();
+            //
+            // var flamegraphWidth = getWidth();
+            // var visibleWidth = getVisibleRect().width;
+            // System.out.println("visibleWidth: " + visibleWidth + " flamegraphWidth: " + flamegraphWidth + " vsb visible: " + vsb.isVisible());
+
+            var visibleRect = getVisibleRect();
+
+            // ensure scale factor between canvas and visible
+            // especially when the parent component is resized
+
+            var coercedFlameGraphWidth = visibleRect.width * scaleFactor;
+
+            var flamegraphWidth = (int) coercedFlameGraphWidth;
+            System.out.println("visible rect: [" + visibleRect.x + ":" + visibleRect.y + "," + visibleRect.width + ":" + visibleRect.height + "], canvas: " + getWidth() + ":" + getHeight() + ", scale: " + scaleFactor + ", coerced: " + Math.round(coercedFlameGraphWidth*100.0) / 100.0);
+
             var flamegraphHeight = flamegraphRenderEngine.computeVisibleFlamegraphHeight(
                     (Graphics2D) getGraphics(),
                     flamegraphWidth,
-                    getVisibleRect().width,
+                    visibleRect.width,
                     insets
             );
             preferredSize.width = Math.max(preferredSize.width, flamegraphWidth + insets.left + insets.right);
@@ -1377,6 +1396,16 @@ public class FlamegraphView<T> {
             return getFlamegraphRenderEngine().map(fre -> fre.isIcicle() ? Mode.ICICLEGRAPH : Mode.FLAMEGRAPH).get();
         }
 
+        public void setScale(double scaleFactor) {
+            var oldScale = this.scaleFactor;
+            this.scaleFactor = scaleFactor;
+            firePropertyChange("scale", oldScale, scaleFactor);
+        }
+
+        public double getScale() {
+            return scaleFactor;
+        }
+
         private void setDefaultViewLocation(Mode mode) {
             // This code is invoked by doLayout, but when zooming the size of the canvas
             // is changed, which triggers a layout, which calls this method.
@@ -1419,6 +1448,7 @@ public class FlamegraphView<T> {
             // which will trigger a layout, that calls updateViewLocation
             // to correctly place the canvas for iciclegraph or flamegraph
             // TODO restore animation
+            setScale(ZoomTarget.SCALE_1);
             setSize(getVisibleRect().getSize());
             revalidate(); // make sure revalidation is called to correctly reset the view location
         }
@@ -1432,6 +1462,7 @@ public class FlamegraphView<T> {
             // on the graph type.
             this.skipSetDefaultViewLocationOnZoom = true;
             setBounds(zoomTarget);
+            setScale(zoomTarget.scaleFactor);
         }
     }
 }
