@@ -16,7 +16,10 @@ import javax.swing.*;
 import javax.swing.event.MouseInputAdapter;
 import javax.swing.event.MouseInputListener;
 import java.awt.*;
+import java.awt.event.ComponentAdapter;
+import java.awt.event.ComponentEvent;
 import java.awt.event.MouseEvent;
+import java.awt.event.WindowEvent;
 import java.awt.geom.Area;
 import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
@@ -1008,6 +1011,33 @@ public class FlamegraphView<T> {
         public void doLayout() {
             super.doLayout();
             setDefaultViewLocation(getMode());
+        }
+
+        @Override
+        public void addNotify() {
+            super.addNotify();
+
+            // Adjust the width of the canvas to the width of the view rect, when
+            // the scroll bar is made visible, this prevents the horizontal scrollbar
+            // from appearing on first display, see #96.
+            // Since a scrollbar is made visible once, this listener is called only once,
+            // which is the intended behavior (otherwise it affects zooming).
+            var parent = SwingUtilities.getUnwrappedParent(this);
+            if (parent instanceof JViewport) {
+                var viewport = (JViewport) parent;
+                var scrollPane = (JScrollPane) viewport.getParent();
+                var vsb = scrollPane.getVerticalScrollBar();
+                vsb.addComponentListener(new ComponentAdapter() {
+                    @Override
+                    public void componentShown(ComponentEvent e) {
+                        var canvasWidth = getWidth();
+                        if (canvasWidth == 0) {
+                            return;
+                        }
+                        setSize(viewport.getViewRect().width, getHeight());
+                    }
+                });
+            }
         }
 
         @Override
