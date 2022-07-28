@@ -19,7 +19,6 @@ import java.awt.*;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
 import java.awt.event.MouseEvent;
-import java.awt.event.WindowEvent;
 import java.awt.geom.Area;
 import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
@@ -715,7 +714,7 @@ public class FlamegraphView<T> {
      * Reset the zoom to 1:1.
      */
     public void resetZoom() {
-        canvas.resetZoom();
+        zoom(canvas, canvas.resetZoomTarget());
     }
 
     /**
@@ -1044,7 +1043,6 @@ public class FlamegraphView<T> {
                                 );
                                 break;
                             case FLAMEGRAPH:
-
                                 vsb.setValue(
                                         value == vsb.getMinimum() ?
                                         vsb.getMaximum() :
@@ -1431,13 +1429,23 @@ public class FlamegraphView<T> {
             this.selectedFrameConsumer = consumer;
         }
 
-        public void resetZoom() {
-            // Setting size has the effect of calling revalidation
-            // which will trigger a layout, that calls updateViewLocation
-            // to correctly place the canvas for iciclegraph or flamegraph
-            // TODO restore animation
-            setSize(getVisibleRect().getSize());
-            revalidate(); // make sure revalidation is called to correctly reset the view location
+        public ZoomTarget resetZoomTarget() {
+            var visibleRect = getVisibleRect();
+            var bounds = getBounds();
+
+            var newHeight = flamegraphRenderEngine.computeVisibleFlamegraphHeight(
+                    (Graphics2D) getGraphics(),
+                    visibleRect.width,
+                    visibleRect.width,
+                    new Insets(0, 0, 0, 0)
+            );
+
+            return new ZoomTarget(
+                    0,
+                    getMode() == Mode.FLAMEGRAPH ? - (bounds.height - visibleRect.height) : 0,
+                    visibleRect.width,
+                    newHeight
+            );
         }
 
         @Override
