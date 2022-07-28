@@ -120,14 +120,14 @@ public class FlamegraphView<T> {
          * Called when the zoom action is triggered.
          *
          * <p>
-         *     Typical implementation will use the passed {@code zoomTarget}, and
-         *     invoke {@link ZoomableComponent#zoom(ZoomTarget)}. These implementation
-         *     could for example compute intermediate zoom target in order to produce
-         *     an animation.
+         * Typical implementation will use the passed {@code zoomTarget}, and
+         * invoke {@link ZoomableComponent#zoom(ZoomTarget)}. These implementation
+         * could for example compute intermediate zoom target in order to produce
+         * an animation.
          * </p>
          *
          * @param zoomableComponent The canvas to zoom on.
-         * @param zoomTarget the zoom target.
+         * @param zoomTarget        the zoom target.
          * @return Whether zooming has been performed.
          */
         boolean zoom(ZoomableComponent zoomableComponent, ZoomTarget zoomTarget);
@@ -141,7 +141,7 @@ public class FlamegraphView<T> {
          * Actually perform the zooming operation on the component.
          *
          * <p>
-         *     This likely involves revalidation and repainting of the component.
+         * This likely involves revalidation and repainting of the component.
          * </p>
          *
          * @param zoomTarget The zoom target.
@@ -992,9 +992,6 @@ public class FlamegraphView<T> {
         private final FlamegraphView<T> flamegraphView;
         private long lastDrawTime;
 
-        private boolean skipSetDefaultViewLocationOnZoom = false;
-
-
         public FlamegraphCanvas(FlamegraphView<T> flamegraphView) {
             this.flamegraphView = flamegraphView;
         }
@@ -1006,13 +1003,7 @@ public class FlamegraphView<T> {
         public void updateUI() {
             super.updateUI();
         }
-
-        @Override
-        public void doLayout() {
-            super.doLayout();
-            setDefaultViewLocation(getMode());
-        }
-
+        
         @Override
         public void addNotify() {
             super.addNotify();
@@ -1036,6 +1027,18 @@ public class FlamegraphView<T> {
                         }
                         setSize(viewport.getViewRect().width, getHeight());
                     }
+                });
+                this.addPropertyChangeListener(GRAPH_MODE, evt -> {
+                    SwingUtilities.invokeLater(() -> {
+                        switch ((Mode) evt.getNewValue()) {
+                            case ICICLEGRAPH:
+                                vsb.setValue(vsb.getMinimum());
+                                break;
+                            case FLAMEGRAPH:
+                                vsb.setValue(vsb.getMaximum());
+                                break;
+                        }
+                    });
                 });
             }
         }
@@ -1394,10 +1397,10 @@ public class FlamegraphView<T> {
 
         public void setMode(Mode mode) {
             var oldMode = getMode();
-            if(oldMode == mode) {
+            if (oldMode == mode) {
                 return;
             }
-            
+
             getFlamegraphRenderEngine().ifPresent(fre -> fre.setIcicle(Mode.ICICLEGRAPH == mode));
             resetZoom();
             firePropertyChange(GRAPH_MODE, oldMode, mode);
@@ -1405,35 +1408,6 @@ public class FlamegraphView<T> {
 
         public FlamegraphView.Mode getMode() {
             return getFlamegraphRenderEngine().map(fre -> fre.isIcicle() ? Mode.ICICLEGRAPH : Mode.FLAMEGRAPH).get();
-        }
-
-        private void setDefaultViewLocation(Mode mode) {
-            // This code is invoked by doLayout, but when zooming the size of the canvas
-            // is changed, which triggers a layout, which calls this method.
-            // But in doing so this method overrides the correct zoomed frame location,
-            // this hacky flag prevents this from happening.
-            if (skipSetDefaultViewLocationOnZoom) {
-                skipSetDefaultViewLocationOnZoom = false;
-                return;
-            }
-            var parent = getParent();
-            if (parent instanceof JViewport) {
-                var viewPort = (JViewport) parent;
-                switch (mode) {
-                    case ICICLEGRAPH:
-                        viewPort.setViewPosition(new Point(
-                                0,
-                                0
-                        ));
-                        break;
-                    case FLAMEGRAPH:
-                        viewPort.setViewPosition(new Point(
-                                0,
-                                getBounds().height - viewPort.getHeight()
-                        ));
-                        break;
-                }
-            }
         }
 
         public void setPopupConsumer(BiConsumer<FrameBox<T>, MouseEvent> consumer) {
@@ -1455,12 +1429,7 @@ public class FlamegraphView<T> {
 
         @Override
         public void zoom(ZoomTarget zoomTarget) {
-            // hacky way to prevent the view from jumping back to original position
-            // when zooming.
-            // Indeed, changing the size triggers a revalidation, which triggers a layout,
-            // which is overridden to place the canvas at the correct location depending
-            // on the graph type.
-            this.skipSetDefaultViewLocationOnZoom = true;
+            // Changing the size triggers a revalidation, which triggers a layout
             setBounds(zoomTarget);
         }
     }
