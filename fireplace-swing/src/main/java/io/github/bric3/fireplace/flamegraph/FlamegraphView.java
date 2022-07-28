@@ -1003,7 +1003,7 @@ public class FlamegraphView<T> {
         public void updateUI() {
             super.updateUI();
         }
-        
+
         @Override
         public void addNotify() {
             super.addNotify();
@@ -1030,12 +1030,26 @@ public class FlamegraphView<T> {
                 });
                 this.addPropertyChangeListener(GRAPH_MODE, evt -> {
                     SwingUtilities.invokeLater(() -> {
+                        var value = vsb.getValue();
+                        var bounds = this.getBounds();
+                        var visibleRect = this.getVisibleRect();
+
+                        // This computes the new view location based on the current view location
                         switch ((Mode) evt.getNewValue()) {
                             case ICICLEGRAPH:
-                                vsb.setValue(vsb.getMinimum());
+                                vsb.setValue(
+                                        value == vsb.getMaximum() ?
+                                        vsb.getMinimum() :
+                                        bounds.height - Math.abs(bounds.y) - visibleRect.height
+                                );
                                 break;
                             case FLAMEGRAPH:
-                                vsb.setValue(vsb.getMaximum());
+
+                                vsb.setValue(
+                                        value == vsb.getMinimum() ?
+                                        vsb.getMaximum() :
+                                        bounds.height - visibleRect.height - value
+                                );
                                 break;
                         }
                     });
@@ -1402,7 +1416,6 @@ public class FlamegraphView<T> {
             }
 
             getFlamegraphRenderEngine().ifPresent(fre -> fre.setIcicle(Mode.ICICLEGRAPH == mode));
-            resetZoom();
             firePropertyChange(GRAPH_MODE, oldMode, mode);
         }
 
