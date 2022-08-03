@@ -165,13 +165,13 @@ public class ImageTestUtils {
             }
         }
         if (colorDifferenceArea.x != 0 || colorDifferenceArea.y != 0) {
-            var diffPath = projectDir().resolve(testDisplayName + "-difference-color.png");
+            var diffPath = testReportDir().resolve(testDisplayName + "-difference-color.png");
             differences.add("Color differences found in this area: " + colorDifferenceArea + ", \ncolor difference image: " + diffPath);
 
             dumpPng(colorDifferenceImage, diffPath);
         }
         if (alphaDifferenceArea.x != 0 || alphaDifferenceArea.y != 0) {
-            var diffPath = projectDir().resolve(testDisplayName + "-difference-alpha.png");
+            var diffPath = testReportDir().resolve(testDisplayName + "-difference-alpha.png");
             differences.add("Alpha differences found in this area: " + alphaDifferenceArea + ", \nalpha difference image: " + diffPath);
             dumpPng(alphaDifferenceImage, diffPath);
         }
@@ -184,6 +184,10 @@ public class ImageTestUtils {
 
     public static Path projectDir() {
         return Path.of(System.getProperty("user.dir"));
+    }
+
+    public static Path testReportDir() {
+        return projectDir().resolve(System.getProperty("gradle.test.suite.report.location"));
     }
 
     public static String imageTypeToString(int imageType) {

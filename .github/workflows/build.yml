@@ -37,6 +37,13 @@ jobs:
       - name: Build with Gradle
         run: ./gradlew build --stacktrace
 
+      - name: Upload build reports
+        uses: actions/upload-artifact@v3
+        if: ${{ failure() }}
+        with:
+          name: build-reports
+          path: "**/build/reports/*"
+
       - name: Comment with build scan url
         uses: actions/github-script@v6
         if: github.event_name == 'pull_request' && failure()
@@ -60,3 +67,4 @@ jobs:
           ORG_GRADLE_PROJECT_ossrhPassword: ${{ secrets.ORG_GRADLE_PROJECT_OSSRHPASSWORD }}
         with:
           arguments: publish -Ppublish.central=true -Pversion.forceSnapshot=true
+

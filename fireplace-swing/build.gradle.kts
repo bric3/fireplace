@@ -30,11 +30,15 @@ testing {
                 implementation(libs.assertj)
                 implementation(libs.bundles.batik)
             }
+
+
         }
 
         withType(JvmTestSuite::class) {
             targets.configureEach {
                 testTask.configure {
+                    systemProperty("gradle.test.suite.report.location", reports.html.outputLocation.get().asFile)
+
                     testLogging {
                         showStackTraces = true
                         exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL

@@ -38,6 +38,7 @@ import static io.github.bric3.fireplace.flamegraph.ImageTestUtils.assertImageEqu
 import static io.github.bric3.fireplace.flamegraph.ImageTestUtils.dumpPng;
 import static io.github.bric3.fireplace.flamegraph.ImageTestUtils.projectDir;
 import static io.github.bric3.fireplace.flamegraph.ImageTestUtils.readImage;
+import static io.github.bric3.fireplace.flamegraph.ImageTestUtils.testReportDir;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @Tag("public-api")
@@ -57,7 +58,7 @@ class FlamegraphImageTest {
                 200
         );
 
-        dumpPng(image, projectDir().resolve("flamegraph.png"));
+        dumpPng(image, testReportDir().resolve(testInfo.getDisplayName() + "-output.png"));
         assertImageEquals(
                 testInfo.getDisplayName(),
                 readImage("/fg-ak-200x72.png"),
@@ -83,7 +84,7 @@ class FlamegraphImageTest {
     }
 
     @Test
-    void exercice_saving_by_passing_custom_graphics_eg_for_SVG_with_batik() throws IOException {
+    void exercice_saving_by_passing_custom_graphics_eg_for_SVG_with_batik(TestInfo testInfo) throws IOException {
         var flamegraphView = new FlamegraphImage<String>(
                 FrameTextsProvider.of(f -> f.actualNode),
                 FrameColorProvider.defaultColorProvider(__ -> Color.ORANGE),
@@ -116,7 +117,7 @@ class FlamegraphImageTest {
         var stringWriter = new StringWriter();
         svgGraphics2D.stream(stringWriter, true);
 
-        Files.writeString(projectDir().resolve("flamegraph.svg"), stringWriter.getBuffer());
+        Files.writeString(testReportDir().resolve(testInfo.getDisplayName() + "-output.svg"), stringWriter.getBuffer());
         assertThat(stringWriter.toString()).isEqualTo(content("/fg-ak-200x72.svg"));
     }
 
