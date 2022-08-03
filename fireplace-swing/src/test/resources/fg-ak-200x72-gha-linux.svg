@@ -7,7 +7,7 @@
   ><g style="fill:rgb(255,200,0); stroke:rgb(255,200,0);"
     ><rect x="0" width="199" height="17" y="54" style="stroke:none;"
     /></g
-    ><g style="fill:rgb(51,51,51); fill:rgb(51,51,51); font-family:sans-serif; font-weight:bold; text-rendering:geometricPrecision; stroke:rgb(51,51,51)"
+    ><g style="fill:rgb(51,51,51); text-rendering:geometricPrecision; font-weight:bold; font-family:sans-serif; stroke:rgb(51,51,51);"
     ><text x="3" xml:space="preserve" y="67.5" style="stroke:none;"
       >root</text
       ><rect x="0" y="36" width="39" style="fill:rgb(255,200,0); stroke:none;" height="17"

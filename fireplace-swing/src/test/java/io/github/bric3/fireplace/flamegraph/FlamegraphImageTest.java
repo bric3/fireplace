@@ -61,7 +61,7 @@ class FlamegraphImageTest {
         dumpPng(image, testReportDir().resolve(testInfo.getDisplayName() + "-output.png"));
         assertImageEquals(
                 testInfo.getDisplayName(),
-                readImage("/fg-ak-200x72.png"),
+                readImage(asset_fg_ak_200x72("png")),
                 image
         );
     }
@@ -118,7 +118,23 @@ class FlamegraphImageTest {
         svgGraphics2D.stream(stringWriter, true);
 
         Files.writeString(testReportDir().resolve(testInfo.getDisplayName() + "-output.svg"), stringWriter.getBuffer());
-        assertThat(stringWriter.toString()).isEqualTo(content("/fg-ak-200x72.svg"));
+        var type = "svg";
+        assertThat(stringWriter.toString()).isEqualTo(content(asset_fg_ak_200x72(type)));
+    }
+
+    private static String asset_fg_ak_200x72(String type) {
+        return "/fg-ak-200x72" + platform() +
+               "." + type;
+    }
+
+    private static String platform() {
+        var osName = System.getProperty("os.name");
+        if (osName.startsWith("Mac")) {
+            return "macOs";
+        } else if (osName.startsWith("Linux")) {
+            return Objects.equals(System.getenv("CI"), "true") ? "-gha-linux" : "linux";
+        }
+        return "";
     }
 
     private static String content(String name) {
