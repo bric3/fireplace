@@ -28,6 +28,7 @@ testing {
             useJUnitJupiter(libs.versions.junit.jupiter.get())
             dependencies {
                 implementation(libs.assertj)
+                implementation(libs.bundles.batik)
             }
         }
     }

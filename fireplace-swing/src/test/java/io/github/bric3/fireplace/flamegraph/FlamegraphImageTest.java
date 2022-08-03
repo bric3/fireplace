@@ -17,19 +17,28 @@
 package io.github.bric3.fireplace.flamegraph;
 
 
+import org.apache.batik.dom.GenericDOMImplementation;
+import org.apache.batik.svggen.SVGGraphics2D;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInfo;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.awt.*;
+import java.io.IOException;
+import java.io.StringWriter;
+import java.io.UncheckedIOException;
+import java.net.URISyntaxException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Objects;
 
 import static io.github.bric3.fireplace.flamegraph.ImageTestUtils.assertImageEquals;
 import static io.github.bric3.fireplace.flamegraph.ImageTestUtils.dumpPng;
 import static io.github.bric3.fireplace.flamegraph.ImageTestUtils.projectDir;
 import static io.github.bric3.fireplace.flamegraph.ImageTestUtils.readImage;
+import static org.assertj.core.api.Assertions.assertThat;
 
 @Tag("public-api")
 class FlamegraphImageTest {
@@ -41,7 +50,23 @@ class FlamegraphImageTest {
                 FrameFontProvider.defaultFontProvider()
         );
 
-        var model = new FrameModel<>(List.of(
+
+        var image = flamegraphView.generate(
+                simpleFrameModel(),
+                FlamegraphView.Mode.ICICLEGRAPH,
+                200
+        );
+
+        dumpPng(image, projectDir().resolve("flamegraph.png"));
+        assertImageEquals(
+                testInfo.getDisplayName(),
+                readImage("/fg-ak-200x72.png"),
+                image
+        );
+    }
+
+    private static FrameModel<String> simpleFrameModel() {
+        return new FrameModel<>(List.of(
                 new FrameBox<>("root", 0, 1, 0),
                 new FrameBox<>("A", 0, 0.2, 1),
                 new FrameBox<>("B", 0.20000000001, 0.40, 1),
@@ -55,15 +80,53 @@ class FlamegraphImageTest {
                 new FrameBox<>("J", 0.43, 0.46, 3),
                 new FrameBox<>("K", 0.53, 0.80, 3)
         ));
+    }
 
-
-        var image = flamegraphView.make(model, 200, FlamegraphView.Mode.ICICLEGRAPH);
-
-        dumpPng(image, projectDir().resolve("flamegraph.png"));
-        assertImageEquals(
-                testInfo.getDisplayName(),
-                readImage("/fg-ak-200x72.png"),
-                image
+    @Test
+    void exercice_saving_by_passing_custom_graphics_eg_for_SVG_with_batik() throws IOException {
+        var flamegraphView = new FlamegraphImage<String>(
+                FrameTextsProvider.of(f -> f.actualNode),
+                FrameColorProvider.defaultColorProvider(__ -> Color.ORANGE),
+                FrameFontProvider.defaultFontProvider()
         );
+
+        var document = GenericDOMImplementation.getDOMImplementation().createDocument(
+                "http://www.w3.org/2000/svg",
+                "svg",
+                null
+        );
+        var svgGraphics2D = new SVGGraphics2D(document);
+
+        var wantedWidth = 200;
+        flamegraphView.generate(
+                simpleFrameModel(),
+                FlamegraphView.Mode.FLAMEGRAPH,
+                wantedWidth,
+                svgGraphics2D,
+                height -> {
+                    svgGraphics2D.setSVGCanvasSize(new Dimension(wantedWidth, height));
+                    // svgGraphics2D.getRoot().setAttributeNS(
+                    //         null,
+                    //         "viewBox",
+                    //         "0 0 " + wantedWidth + " " + height
+                    // );
+                }
+        );
+
+        var stringWriter = new StringWriter();
+        svgGraphics2D.stream(stringWriter, true);
+
+        Files.writeString(projectDir().resolve("flamegraph.svg"), stringWriter.getBuffer());
+        assertThat(stringWriter.toString()).isEqualTo(content("/fg-ak-200x72.svg"));
+    }
+
+    private static String content(String name) {
+        try {
+            return Files.readString(Path.of(Objects.requireNonNull(ImageTestUtils.class.getResource(name)).toURI()));
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        } catch (URISyntaxException e) {
+            throw new RuntimeException(e);
+        }
     }
 }

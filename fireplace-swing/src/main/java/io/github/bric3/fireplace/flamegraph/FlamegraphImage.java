@@ -20,11 +20,13 @@ import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.awt.image.RenderedImage;
 import java.util.Objects;
+import java.util.function.IntConsumer;
 
 /**
  * Render a flamegraph or icicle to an image.
  *
  * <p>
+ * Example usage:
  * <pre><code>
  * FlamegraphImage&lt;MyNode&gt; flamegraphImage = new FlamegraphView&lt;&gt;(
  *     frameTextProvider,                              // string representation candidates
@@ -81,11 +83,11 @@ public class FlamegraphImage<T> {
      * Make an image from the frames models.
      *
      * @param frameModel The frame model to render.
-     * @param width      The wanted width of the image, the height is computed from this width.
      * @param mode       The display mode of the graph.
+     * @param width      The wanted width of the image, the height is computed from this width.
      * @return The flamegraph rendered image.
      */
-    public RenderedImage make(FrameModel<T> frameModel, int width, FlamegraphView.Mode mode) {
+    public RenderedImage generate(FrameModel<T> frameModel, FlamegraphView.Mode mode, int width) {
         try {
             fre.init(Objects.requireNonNull(frameModel));
 
@@ -113,6 +115,50 @@ public class FlamegraphImage<T> {
 
             g2.dispose();
             return imageCanvas;
+        } finally {
+            fre.reset();
+        }
+    }
+
+    /**
+     * Lower level method to generate an image of the flamegraph.
+     *
+     * <p>
+     * This methods assumes the client will control the lifecycle of the graphics
+     * handle.
+     * This method will first compute the height of the flamegraph, and
+     * it will use the passed graphics handle to get the appropriate font metrics.
+     * Then the {@code onHeightComputed} function will be called with the height.
+     * And finally, the renderer will use the graphics handle to draw the graph.
+     * </p>
+     *
+     * @param frameModel The frame model to render.
+     * @param mode       The display mode of the graph.
+     * @param width      The wanted width of the image, the height is computed from this width.
+     * @param g2         The graphics context to render to.
+     * @param onHeightComputed   Callback when the height has been computed.
+     */
+    public void generate(
+            FrameModel<T> frameModel,
+            FlamegraphView.Mode mode,
+            int width,
+            Graphics2D g2,
+            IntConsumer onHeightComputed
+    ) {
+        try {
+            fre.init(Objects.requireNonNull(frameModel));
+
+            var height = fre.computeVisibleFlamegraphHeight(
+                    g2,
+                    width
+            );
+            onHeightComputed.accept(height);
+
+            fre.paintToImage(
+                    g2,
+                    new Rectangle(0, 0, width, height),
+                    mode == FlamegraphView.Mode.ICICLEGRAPH
+            );
         } finally {
             fre.reset();
         }
