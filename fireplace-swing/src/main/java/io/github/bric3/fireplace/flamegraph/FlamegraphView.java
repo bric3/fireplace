@@ -22,7 +22,6 @@ import java.awt.event.MouseEvent;
 import java.awt.geom.Area;
 import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
-import java.awt.image.RenderedImage;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -37,7 +36,7 @@ import java.util.function.Supplier;
 import static java.lang.Boolean.TRUE;
 
 /**
- * Class that allows to display a flame graph.
+ * Swing component that allows to display a flame graph.
  * <p>
  * In general the Flamegraph's raw data is an actual tree. However walking
  * this tree require substantial effort to process during painting.
@@ -62,20 +61,29 @@ import static java.lang.Boolean.TRUE;
  *
  * // then later
  * flamegraphView.setModel(
- *      new FrameModel(
+ *      new FrameModel&lt;&gt;(
  *          "title",                                   // title of the flamegraph, used in root node
  *          frameEqualityFunction,                     // equality function for frames, used for sibling detection
  *          (FrameBox&lt;MyNode&gt;) listOfFrameBox()  // list of frames
  *      )
  * )
  * </code></pre>
+ * </p>
  * <p>
  * The created and <em>final</em> {@code component} is a composite that is based
  * on a {@link JScrollPane}.
  * </p>
  *
  * @param <T> The type of the node data.
+ * @see FlamegraphImage
+ * @see FrameModel
+ * @see FrameBox
+ * @see HoverListener
+ * @see FrameColorProvider
+ * @see FrameTextsProvider
+ * @see FrameFontProvider
  * @see FlamegraphRenderEngine
+ * @see FrameRenderer
  */
 public class FlamegraphView<T> {
     /**
@@ -104,36 +112,6 @@ public class FlamegraphView<T> {
      * The precomputed list of frames.
      */
     private FrameModel<T> framesModel = FrameModel.empty();
-
-    public RenderedImage saveGraphToImage(int width, Mode mode) {
-        return canvas.getFlamegraphRenderEngine()
-                     .map(fre -> {
-                         var height = fre.computeVisibleFlamegraphHeight(
-                                 new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB).createGraphics(),
-                                 width
-                         );
-                         BufferedImage imageCanvas = new BufferedImage(
-                                 width,
-                                 height,
-                                 BufferedImage.TYPE_INT_ARGB
-                         );
-                         Graphics2D g2 = imageCanvas.createGraphics();
-
-                         
-                         var size = new Rectangle(0, 0, imageCanvas.getWidth(), imageCanvas.getHeight());
-
-                         g2.setComposite(AlphaComposite.Clear);
-                         g2.fillRect(0, 0, imageCanvas.getWidth(), imageCanvas.getHeight());
-                         g2.setComposite(AlphaComposite.Src);
-
-                         fre.paintToImage(g2, size, mode == Mode.ICICLEGRAPH);
-
-                         g2.dispose();
-
-                         return imageCanvas;
-                     })
-                     .orElse(null);
-    }
 
     /**
      * Display mode for this stack-frame tree.
@@ -642,24 +620,22 @@ public class FlamegraphView<T> {
      *     selected based on the available space</li>
      *     <li>The root node text to display, if something specific is relevant,
      *     like the type of events, their number, etc.</li>
-     *     <li>The frame background color, this function can be replaced by
-     *     {@link #setColorFunction(Function)}, note that the foreground color
-     *     is chosen automatically</li>
+     *     <li>The frame background and foreground colors.</li>
      * </ul>
      *
      * @param frameTextsProvider The function to display label in frames.
-     * @param frameColorFunction The frame to background color function.
+     * @param frameColorProvider The frame to background color function.
      * @param frameFontProvider  The frame font provider.
      */
     public void setRenderConfiguration(
             FrameTextsProvider<T> frameTextsProvider,
-            FrameColorProvider<T> frameColorFunction,
+            FrameColorProvider<T> frameColorProvider,
             FrameFontProvider<T> frameFontProvider
     ) {
         var flamegraphRenderEngine = new FlamegraphRenderEngine<>(
                 new FrameRenderer<>(
                         frameTextsProvider,
-                        frameColorFunction,
+                        frameColorProvider,
                         frameFontProvider
                 )
         ).init(framesModel);

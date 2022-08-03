@@ -32,17 +32,16 @@ import static io.github.bric3.fireplace.flamegraph.ImageTestUtils.projectDir;
 import static io.github.bric3.fireplace.flamegraph.ImageTestUtils.readImage;
 
 @Tag("public-api")
-class FlamegraphViewTest {
+class FlamegraphImageTest {
     @Test
     void exercise_saving_graph_to_image(@TempDir Path tempDir, TestInfo testInfo) {
-        var flamegraphView = new FlamegraphView<String>();
-        flamegraphView.setRenderConfiguration(
+        var flamegraphView = new FlamegraphImage<String>(
                 FrameTextsProvider.of(f -> f.actualNode),
                 FrameColorProvider.defaultColorProvider(__ -> Color.ORANGE),
                 FrameFontProvider.defaultFontProvider()
         );
 
-        flamegraphView.setModel(new FrameModel<>(List.of(
+        var model = new FrameModel<>(List.of(
                 new FrameBox<>("root", 0, 1, 0),
                 new FrameBox<>("A", 0, 0.2, 1),
                 new FrameBox<>("B", 0.20000000001, 0.40, 1),
@@ -55,10 +54,10 @@ class FlamegraphViewTest {
                 new FrameBox<>("I", 0.111, 0.15, 3),
                 new FrameBox<>("J", 0.43, 0.46, 3),
                 new FrameBox<>("K", 0.53, 0.80, 3)
-        )));
+        ));
 
 
-        var image = flamegraphView.saveGraphToImage(200, FlamegraphView.Mode.ICICLEGRAPH);
+        var image = flamegraphView.make(model, 200, FlamegraphView.Mode.ICICLEGRAPH);
 
         dumpPng(image, projectDir().resolve("flamegraph.png"));
         assertImageEquals(
