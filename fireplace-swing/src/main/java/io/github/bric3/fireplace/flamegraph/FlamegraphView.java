@@ -22,6 +22,7 @@ import java.awt.event.MouseEvent;
 import java.awt.geom.Area;
 import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
+import java.awt.image.RenderedImage;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -103,6 +104,33 @@ public class FlamegraphView<T> {
      * The precomputed list of frames.
      */
     private FrameModel<T> framesModel = FrameModel.empty();
+
+    public RenderedImage saveGraphToImage(int width, Mode mode) {
+        return canvas.getFlamegraphRenderEngine()
+                     .map(fre -> {
+                         var height = fre.computeVisibleFlamegraphHeight(
+                                 new BufferedImage(1, 1, BufferedImage.TYPE_INT_RGB).createGraphics(),
+                                 width,
+                                 width
+                         );
+                         BufferedImage imageCanvas = new BufferedImage(
+                                 width,
+                                 height,
+                                 BufferedImage.TYPE_INT_RGB
+                         );
+                         Graphics2D g2 = imageCanvas.createGraphics();
+
+                         
+                         var size = new Rectangle(0, 0, imageCanvas.getWidth(), imageCanvas.getHeight());
+
+                         fre.paintToImage(g2, size, mode == Mode.ICICLEGRAPH);
+
+                         g2.dispose();
+
+                         return imageCanvas;
+                     })
+                     .orElse(null);
+    }
 
     /**
      * Display mode for this stack-frame tree.
@@ -1069,7 +1097,7 @@ public class FlamegraphView<T> {
                     (Graphics2D) getGraphics(),
                     flamegraphWidth,
                     getVisibleRect().width,
-                    insets
+                    true
             );
             preferredSize.width = Math.max(preferredSize.width, flamegraphWidth + insets.left + insets.right);
             preferredSize.height = Math.max(preferredSize.height, flamegraphHeight + insets.top + insets.bottom);
@@ -1436,13 +1464,12 @@ public class FlamegraphView<T> {
             var newHeight = flamegraphRenderEngine.computeVisibleFlamegraphHeight(
                     (Graphics2D) getGraphics(),
                     visibleRect.width,
-                    visibleRect.width,
-                    new Insets(0, 0, 0, 0)
+                    visibleRect.width
             );
 
             return new ZoomTarget(
                     0,
-                    getMode() == Mode.FLAMEGRAPH ? - (bounds.height - visibleRect.height) : 0,
+                    getMode() == Mode.FLAMEGRAPH ? -(bounds.height - visibleRect.height) : 0,
                     visibleRect.width,
                     newHeight
             );
