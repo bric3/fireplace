@@ -10,6 +10,7 @@
 package io.github.bric3.fireplace.flamegraph;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.function.Function;
 import java.util.function.ToDoubleFunction;
 
@@ -58,7 +59,13 @@ public class FrameBox<T> {
      * @param stackDepth the depth of the frame in the call stack.
      */
     public FrameBox(T actualNode, double startX, double endX, int stackDepth) {
-        this.actualNode = actualNode;
+        if (startX > endX || startX < 0.0 || endX > 1.0) {
+            throw new IllegalArgumentException("Invalid frame coordinates, should be 0 <= startX <= endX <= 1, actual values: startX=" + startX + ", endX=" + endX);
+        }
+        if (stackDepth < 0) {
+            throw new IllegalArgumentException("Invalid stack depth, should be >= 0, actual value: " + stackDepth);
+        }
+        this.actualNode = Objects.requireNonNull(actualNode);
         this.startX = startX;
         this.endX = endX;
         this.stackDepth = stackDepth;
@@ -152,7 +159,7 @@ public class FrameBox<T> {
      * @param fromNode        Node to start from.
      * @param getChildren     Get node children function.
      * @param nodeWeight      The node weight function.
-     * @param totalNodeWeight
+     * @param totalNodeWeight The total node weight function.
      * @param startX          Start boundary on the X axis.
      * @param endX            End boundary on the X axis.
      * @param depth           The node depth.
@@ -179,7 +186,7 @@ public class FrameBox<T> {
         var totalWeight = totalNodeWeight.applyAsDouble(fromNode);
         for (var node : children) {
             var nodeWidth = (nodeWeight.applyAsDouble(node) / totalWeight) * parentWidth;
-            endX = startX + nodeWidth;
+            endX = Math.min(startX + nodeWidth, 1.0);
             flattenAndCalculateCoordinate(accumulator, node, getChildren, nodeWeight, startX, endX, depth);
             startX = endX;
         }

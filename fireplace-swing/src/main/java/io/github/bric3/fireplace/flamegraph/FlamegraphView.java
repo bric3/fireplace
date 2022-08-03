@@ -36,7 +36,7 @@ import java.util.function.Supplier;
 import static java.lang.Boolean.TRUE;
 
 /**
- * Class that allows to display a flame graph.
+ * Swing component that allows to display a flame graph.
  * <p>
  * In general the Flamegraph's raw data is an actual tree. However walking
  * this tree require substantial effort to process during painting.
@@ -61,20 +61,29 @@ import static java.lang.Boolean.TRUE;
  *
  * // then later
  * flamegraphView.setModel(
- *      new FrameModel(
+ *      new FrameModel&lt;&gt;(
  *          "title",                                   // title of the flamegraph, used in root node
  *          frameEqualityFunction,                     // equality function for frames, used for sibling detection
  *          (FrameBox&lt;MyNode&gt;) listOfFrameBox()  // list of frames
  *      )
  * )
  * </code></pre>
+ * </p>
  * <p>
  * The created and <em>final</em> {@code component} is a composite that is based
  * on a {@link JScrollPane}.
  * </p>
  *
  * @param <T> The type of the node data.
+ * @see FlamegraphImage
+ * @see FrameModel
+ * @see FrameBox
+ * @see HoverListener
+ * @see FrameColorProvider
+ * @see FrameTextsProvider
+ * @see FrameFontProvider
  * @see FlamegraphRenderEngine
+ * @see FrameRenderer
  */
 public class FlamegraphView<T> {
     /**
@@ -611,24 +620,22 @@ public class FlamegraphView<T> {
      *     selected based on the available space</li>
      *     <li>The root node text to display, if something specific is relevant,
      *     like the type of events, their number, etc.</li>
-     *     <li>The frame background color, this function can be replaced by
-     *     {@link #setColorFunction(Function)}, note that the foreground color
-     *     is chosen automatically</li>
+     *     <li>The frame background and foreground colors.</li>
      * </ul>
      *
      * @param frameTextsProvider The function to display label in frames.
-     * @param frameColorFunction The frame to background color function.
+     * @param frameColorProvider The frame to background color function.
      * @param frameFontProvider  The frame font provider.
      */
     public void setRenderConfiguration(
             FrameTextsProvider<T> frameTextsProvider,
-            FrameColorProvider<T> frameColorFunction,
+            FrameColorProvider<T> frameColorProvider,
             FrameFontProvider<T> frameFontProvider
     ) {
         var flamegraphRenderEngine = new FlamegraphRenderEngine<>(
                 new FrameRenderer<>(
                         frameTextsProvider,
-                        frameColorFunction,
+                        frameColorProvider,
                         frameFontProvider
                 )
         ).init(framesModel);
@@ -1068,8 +1075,7 @@ public class FlamegraphView<T> {
             var flamegraphHeight = flamegraphRenderEngine.computeVisibleFlamegraphHeight(
                     (Graphics2D) getGraphics(),
                     flamegraphWidth,
-                    getVisibleRect().width,
-                    insets
+                    true
             );
             preferredSize.width = Math.max(preferredSize.width, flamegraphWidth + insets.left + insets.right);
             preferredSize.height = Math.max(preferredSize.height, flamegraphHeight + insets.top + insets.bottom);
@@ -1435,14 +1441,12 @@ public class FlamegraphView<T> {
 
             var newHeight = flamegraphRenderEngine.computeVisibleFlamegraphHeight(
                     (Graphics2D) getGraphics(),
-                    visibleRect.width,
-                    visibleRect.width,
-                    new Insets(0, 0, 0, 0)
+                    visibleRect.width
             );
 
             return new ZoomTarget(
                     0,
-                    getMode() == Mode.FLAMEGRAPH ? - (bounds.height - visibleRect.height) : 0,
+                    getMode() == Mode.FLAMEGRAPH ? -(bounds.height - visibleRect.height) : 0,
                     visibleRect.width,
                     newHeight
             );

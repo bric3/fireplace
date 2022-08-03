@@ -67,6 +67,10 @@ configure(fireplaceModules) {
     //     withSourcesJar()
     // }
 
+    repositories {
+        mavenCentral()
+    }
+
     val licenseSpec = copySpec {
         from("${project.rootDir}/LICENSE")
     }
