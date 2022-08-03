@@ -17,22 +17,24 @@
 package io.github.bric3.fireplace.flamegraph;
 
 
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInfo;
 import org.junit.jupiter.api.io.TempDir;
 
-import javax.imageio.ImageIO;
 import java.awt.*;
-import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 
 import static io.github.bric3.fireplace.flamegraph.ImageTestUtils.assertImageEquals;
-import static io.github.bric3.fireplace.flamegraph.ImageTestUtils.dump;
+import static io.github.bric3.fireplace.flamegraph.ImageTestUtils.dumpPng;
+import static io.github.bric3.fireplace.flamegraph.ImageTestUtils.projectDir;
+import static io.github.bric3.fireplace.flamegraph.ImageTestUtils.readImage;
 
+@Tag("public-api")
 class FlamegraphViewTest {
     @Test
-    void exercise_saving_graph_to_image(@TempDir Path tempDir) throws IOException {
+    void exercise_saving_graph_to_image(@TempDir Path tempDir, TestInfo testInfo) {
         var flamegraphView = new FlamegraphView<String>();
         flamegraphView.setRenderConfiguration(
                 FrameTextsProvider.of(f -> f.actualNode),
@@ -58,10 +60,10 @@ class FlamegraphViewTest {
 
         var image = flamegraphView.saveGraphToImage(200, FlamegraphView.Mode.ICICLEGRAPH);
 
-
-        dump(Files.newOutputStream(tempDir.resolve("flamegraph.png")), image);
+        dumpPng(image, projectDir().resolve("flamegraph.png"));
         assertImageEquals(
-                ImageIO.read(getClass().getResource("/fg-ak-200x72.png")),
+                testInfo.getDisplayName(),
+                readImage("/fg-ak-200x72.png"),
                 image
         );
     }

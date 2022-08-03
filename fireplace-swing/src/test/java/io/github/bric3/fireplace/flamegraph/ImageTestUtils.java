@@ -38,19 +38,22 @@ import java.awt.image.Raster;
 import java.awt.image.RenderedImage;
 import java.io.BufferedOutputStream;
 import java.io.IOException;
-import java.io.OutputStream;
+import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Objects;
 
 public class ImageTestUtils {
-    public static void dump(OutputStream tmpFile, RenderedImage image) throws IOException {
-        try (var output = tmpFile) {
-            ImageIO.write(image, "png", output);
+    public static void dumpPng(RenderedImage image, Path outputFile) {
+        try (var os = new BufferedOutputStream(Files.newOutputStream(outputFile))) {
+            ImageIO.write(image, "png", os);
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
         }
     }
 
-    public static void assertImageEquals(RenderedImage expected, RenderedImage actual) throws IOException {
+    public static void assertImageEquals(String testDisplayName, RenderedImage expected, RenderedImage actual) {
         var differences = new ArrayList<String>();
 
         if (expected.getWidth() != actual.getWidth()) {
@@ -71,12 +74,22 @@ public class ImageTestUtils {
 
         var widthDifference = Math.max(expected.getWidth(), actual.getWidth());
         var heightDifference = Math.max(expected.getHeight(), actual.getHeight());
-        BufferedImage differenceImage = new BufferedImage(widthDifference, heightDifference, BufferedImage.TYPE_INT_ARGB);
-        var g2d = differenceImage.createGraphics();
-        g2d.setComposite(AlphaComposite.Clear);
-        g2d.fillRect(0, 0, widthDifference, heightDifference);
-        g2d.setComposite(AlphaComposite.Src);
-        g2d.dispose();
+        var colorDifferenceImage = new BufferedImage(widthDifference, heightDifference, BufferedImage.TYPE_INT_ARGB);
+        {
+            var g2d = colorDifferenceImage.createGraphics();
+            g2d.setComposite(AlphaComposite.Clear);
+            g2d.fillRect(0, 0, widthDifference, heightDifference);
+            g2d.setComposite(AlphaComposite.Src);
+            g2d.dispose();
+        }
+        var alphaDifferenceImage = new BufferedImage(widthDifference, heightDifference, BufferedImage.TYPE_INT_ARGB);
+        {
+            var g2d = alphaDifferenceImage.createGraphics();
+            g2d.setComposite(AlphaComposite.Clear);
+            g2d.fillRect(0, 0, widthDifference, heightDifference);
+            g2d.setComposite(AlphaComposite.Src);
+            g2d.dispose();
+        }
 
         class GetRGB {
             private final ColorModel colorModel;
@@ -95,7 +108,8 @@ public class ImageTestUtils {
         var actualRGB = new GetRGB(actual);
 
         int color;
-        int minX = 0, maxX = 0, minY = 0, maxY = 0;
+        var colorDifferenceArea = new Rectangle(0, 0, 0, 0);
+        var alphaDifferenceArea = new Rectangle(0, 0, 0, 0);
         for (int x = 0; x < widthDifference; x++) {
             for (int y = 0; y < heightDifference; y++) {
 
@@ -121,43 +135,55 @@ public class ImageTestUtils {
                 var diffGreen = Math.abs(actualGreen - expectedGreen);
                 var diffBlue = Math.abs(actualBlue - expectedBlue);
 
-                color = (0xFF << 24) | // TODO diff alpha
+                color = (0xFF << 24) |
                         (diffRed << 16) | (diffGreen << 8) | diffBlue;
 
-                if ((color & 0x00FFFFFF) > 0) { // TODO diff alpha
-                    differenceImage.setRGB(x, y, color);
+                if ((color & 0x00FFFFFF) > 0) {
+                    colorDifferenceImage.setRGB(x, y, color);
 
-                    if (minX == 0) {
-                        minX = x;
+                    if (colorDifferenceArea.x == 0) {
+                        colorDifferenceArea.x = x;
                     }
-                    if (minY == 0) {
-                        minY = y;
+                    if (colorDifferenceArea.y == 0) {
+                        colorDifferenceArea.y = y;
                     }
-                    maxX = x;
-                    maxY = y;
+                    colorDifferenceArea.width = x - colorDifferenceArea.x + 1;
+                    colorDifferenceArea.height = y - colorDifferenceArea.y + 1;
+                }
+                if (diffAlpha > 0) {
+                    alphaDifferenceImage.setRGB(x, y, (0xFF << 24) | 75 << 16 | (diffAlpha) /* use alpha as blue channel value */);
+
+                    if (alphaDifferenceArea.x == 0) {
+                        alphaDifferenceArea.x = x;
+                    }
+                    if (alphaDifferenceArea.y == 0) {
+                        alphaDifferenceArea.y = y;
+                    }
+                    alphaDifferenceArea.width = x - alphaDifferenceArea.x + 1;
+                    alphaDifferenceArea.height = y - alphaDifferenceArea.y + 1;
                 }
             }
         }
-        if (minX != 0 || minY != 0) {
-            differences.add("Difference found in this area: [" + minX + ',' + minY + " ; " + maxX + ',' + maxY + ']');
+        if (colorDifferenceArea.x != 0 || colorDifferenceArea.y != 0) {
+            var diffPath = projectDir().resolve(testDisplayName + "-difference-color.png");
+            differences.add("Color differences found in this area: " + colorDifferenceArea + ", \ncolor difference image: " + diffPath);
+
+            dumpPng(colorDifferenceImage, diffPath);
+        }
+        if (alphaDifferenceArea.x != 0 || alphaDifferenceArea.y != 0) {
+            var diffPath = projectDir().resolve(testDisplayName + "-difference-alpha.png");
+            differences.add("Alpha differences found in this area: " + alphaDifferenceArea + ", \nalpha difference image: " + diffPath);
+            dumpPng(alphaDifferenceImage, diffPath);
         }
         if (!differences.isEmpty()) {
-            var diffPath = resolvePath("difference.png");
-            try (var os = new BufferedOutputStream(
-                    Files.newOutputStream(diffPath))) {
-
-                ImageIO.write(differenceImage, "png", os);
-            }
-            differences.add("Difference image: " + diffPath);
-
-            throw new AssertionError("differences were spotted (" +
+            throw new AssertionError("Image differences were spotted (" +
                                      differences.size() + "):\n * " +
                                      String.join("\n * ", differences));
         }
     }
 
-    public static Path resolvePath(String diffFile) {
-        return Path.of(System.getProperty("user.dir")).resolve(diffFile);
+    public static Path projectDir() {
+        return Path.of(System.getProperty("user.dir"));
     }
 
     public static String imageTypeToString(int imageType) {
@@ -193,6 +219,17 @@ public class ImageTestUtils {
 
             default:
                 return "UNKNOWN (" + imageType + ')';
+        }
+    }
+
+    public static BufferedImage readImage(String name) {
+        try {
+            return ImageIO.read(Objects.requireNonNull(
+                    ImageTestUtils.class.getResource(name),
+                    "Image not found: " + name
+            ));
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
         }
     }
 }

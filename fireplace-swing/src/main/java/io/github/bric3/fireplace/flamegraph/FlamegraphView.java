@@ -109,18 +109,22 @@ public class FlamegraphView<T> {
         return canvas.getFlamegraphRenderEngine()
                      .map(fre -> {
                          var height = fre.computeVisibleFlamegraphHeight(
-                                 new BufferedImage(1, 1, BufferedImage.TYPE_INT_RGB).createGraphics(),
+                                 new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB).createGraphics(),
                                  width
                          );
                          BufferedImage imageCanvas = new BufferedImage(
                                  width,
                                  height,
-                                 BufferedImage.TYPE_INT_RGB
+                                 BufferedImage.TYPE_INT_ARGB
                          );
                          Graphics2D g2 = imageCanvas.createGraphics();
 
                          
                          var size = new Rectangle(0, 0, imageCanvas.getWidth(), imageCanvas.getHeight());
+
+                         g2.setComposite(AlphaComposite.Clear);
+                         g2.fillRect(0, 0, imageCanvas.getWidth(), imageCanvas.getHeight());
+                         g2.setComposite(AlphaComposite.Src);
 
                          fre.paintToImage(g2, size, mode == Mode.ICICLEGRAPH);
 
