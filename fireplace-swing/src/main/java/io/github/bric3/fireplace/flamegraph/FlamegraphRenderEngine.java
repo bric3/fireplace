@@ -180,15 +180,13 @@ class FlamegraphRenderEngine<T> {
      *
      * @param g2           the graphics target ({@code null} not permitted), used for font metrics.
      * @param canvasWidth  the current canvas width
-     * @param visibleWidth the current visible rect
      * @return The height of the visible frames in this flamegraph
      */
     public int computeVisibleFlamegraphHeight(
             Graphics2D g2,
-            int canvasWidth,
-            int visibleWidth
+            int canvasWidth
     ) {
-        return computeVisibleFlamegraphHeight(g2, canvasWidth, visibleWidth, false);
+        return computeVisibleFlamegraphHeight(g2, canvasWidth, false);
     }
 
     /**
@@ -197,14 +195,12 @@ class FlamegraphRenderEngine<T> {
      *
      * @param g2           the graphics target ({@code null} not permitted), used for font metrics.
      * @param canvasWidth  the current canvas width
-     * @param visibleWidth the current visible rect
      * @param update       whether to update the internal fields.
      * @return The height of the visible frames in this flamegraph
      */
     public int computeVisibleFlamegraphHeight(
             Graphics2D g2,
             int canvasWidth,
-            int visibleWidth,
             boolean update
     ) {
         checkReady();
@@ -641,8 +637,7 @@ class FlamegraphRenderEngine<T> {
         var newCanvasWidth = (int) (bounds.getWidth() * factor);
         var newCanvasHeight = computeVisibleFlamegraphHeight(
                 g2,
-                newCanvasWidth,
-                (int) viewRect.getWidth()
+                newCanvasWidth
         );
 
         var newDimension = new Rectangle2D.Double(

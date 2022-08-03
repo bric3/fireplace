@@ -110,7 +110,6 @@ public class FlamegraphView<T> {
                      .map(fre -> {
                          var height = fre.computeVisibleFlamegraphHeight(
                                  new BufferedImage(1, 1, BufferedImage.TYPE_INT_RGB).createGraphics(),
-                                 width,
                                  width
                          );
                          BufferedImage imageCanvas = new BufferedImage(
@@ -1096,7 +1095,6 @@ public class FlamegraphView<T> {
             var flamegraphHeight = flamegraphRenderEngine.computeVisibleFlamegraphHeight(
                     (Graphics2D) getGraphics(),
                     flamegraphWidth,
-                    getVisibleRect().width,
                     true
             );
             preferredSize.width = Math.max(preferredSize.width, flamegraphWidth + insets.left + insets.right);
@@ -1463,7 +1461,6 @@ public class FlamegraphView<T> {
 
             var newHeight = flamegraphRenderEngine.computeVisibleFlamegraphHeight(
                     (Graphics2D) getGraphics(),
-                    visibleRect.width,
                     visibleRect.width
             );
 
