@@ -30,11 +30,12 @@ jobs:
           java-version: '11'
           distribution: 'zulu'
 
-      - name: Build with Gradle
-        id: build
+      - name: Setup Gradle
+        id: build-gradle
         uses: gradle/gradle-build-action@v2
-        with:
-          arguments: build --stacktrace
+
+      - name: Build with Gradle
+        run: ./gradlew build --stacktrace
 
       - name: Comment with build scan url
         uses: actions/github-script@v6

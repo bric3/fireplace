@@ -31,5 +31,22 @@ testing {
                 implementation(libs.bundles.batik)
             }
         }
+
+        withType(JvmTestSuite::class) {
+            targets.configureEach {
+                testTask.configure {
+                    testLogging {
+                        showStackTraces = true
+                        exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
+
+                        events = setOf(
+                            org.gradle.api.tasks.testing.logging.TestLogEvent.FAILED,
+                            org.gradle.api.tasks.testing.logging.TestLogEvent.STANDARD_ERROR,
+                            org.gradle.api.tasks.testing.logging.TestLogEvent.SKIPPED
+                        )
+                    }
+                }
+            }
+        }
     }
 }
