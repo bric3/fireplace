@@ -130,7 +130,7 @@ class FlamegraphImageTest {
     private static String platform() {
         var osName = System.getProperty("os.name");
         if (osName.startsWith("Mac")) {
-            return "macOs";
+            return "-macOs";
         } else if (osName.startsWith("Linux")) {
             return Objects.equals(System.getenv("CI"), "true") ? "-gha-linux" : "linux";
         }

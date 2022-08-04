@@ -47,7 +47,10 @@ import java.util.Objects;
 public class ImageTestUtils {
     public static void dumpPng(RenderedImage image, Path outputFile) {
         try (var os = new BufferedOutputStream(Files.newOutputStream(outputFile))) {
-            ImageIO.write(image, "png", os);
+            var written = ImageIO.write(image, "png", os);
+            if (!written) {
+                throw new IllegalStateException("Expected to write image to: " + outputFile);
+            }
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
