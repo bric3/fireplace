@@ -1065,13 +1065,14 @@ public class FlamegraphView<T> {
         @Override
         public Dimension getPreferredSize() {
             var preferredSize = new Dimension(10, 10);
-            if (flamegraphRenderEngine == null) {
+            var flamegraphWidth = getWidth();
+            // This method can be called before a Graphics2D is available, or before it has an initial size.
+            if (flamegraphRenderEngine == null || flamegraphWidth == 0 || getGraphics() == null) {
                 super.setPreferredSize(preferredSize);
                 return preferredSize;
             }
 
             Insets insets = getInsets();
-            var flamegraphWidth = getWidth();
             var flamegraphHeight = flamegraphRenderEngine.computeVisibleFlamegraphHeight(
                     (Graphics2D) getGraphics(),
                     flamegraphWidth,
