@@ -29,7 +29,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
-import java.util.function.Function;
 import java.util.function.Supplier;
 
 import static java.lang.Boolean.TRUE;
@@ -205,18 +204,6 @@ public class FlamegraphView<T> {
     }
 
     /**
-     * Represents a custom actions when zooming
-     *
-     * @param <T> The type of the node data.
-     */
-    @Deprecated(forRemoval = true)
-    public interface HoveringListener<T> {
-        default void onStopHover(MouseEvent e) {}
-
-        void onFrameHover(FrameBox<T> frame, Rectangle hoveredFrameRectangle, MouseEvent e);
-    }
-
-    /**
      * Return the {@code Flamegraph} that created the passed component.
      * <p>
      * If this wasn't returned by a {@code Flamegraph} then return empty.
@@ -306,16 +293,6 @@ public class FlamegraphView<T> {
      */
     public void configureCanvas(Consumer<JComponent> canvasConfigurer) {
         Objects.requireNonNull(canvasConfigurer).accept(canvas);
-    }
-
-    /**
-     * Replaces the frame to color function.
-     *
-     * @param frameColorFunction A function that takes a frame and returns a color.
-     */
-    @Deprecated(forRemoval = true)
-    public void setColorFunction(Function<FrameBox<T>, Color> frameColorFunction) {
-        setFrameColorProvider(FrameColorProvider.defaultColorProvider(frameColorFunction));
     }
 
     /**
@@ -426,16 +403,6 @@ public class FlamegraphView<T> {
      *
      * @param showMinimap {@code true} to show the minimap, {@code false} otherwise.
      */
-    @Deprecated(forRemoval = true)
-    public void showMinimap(boolean showMinimap) {
-        setShowMinimap(showMinimap);
-    }
-
-    /**
-     * Sets a flag that controls whether the minimap is visible.
-     *
-     * @param showMinimap {@code true} to show the minimap, {@code false} otherwise.
-     */
     public void setShowMinimap(boolean showMinimap) {
         canvas.showMinimap(showMinimap);
     }
@@ -520,120 +487,10 @@ public class FlamegraphView<T> {
      *
      * @param hoverListener the listener ({@code null} permitted).
      */
-    @Deprecated(forRemoval = true)
-    public void setHoveringListener(HoveringListener<T> hoverListener) {
-        setHoverListener(new HoverListener<>() {
-            @Override
-            public void onStopHover(FrameBox<T> prevHoveredFrame, Rectangle prevHoveredFrameRectangle, MouseEvent e) {
-                hoverListener.onStopHover(e);
-            }
-
-            @Override
-            public void onFrameHover(FrameBox<T> frame, Rectangle hoveredFrameRectangle, MouseEvent e) {
-                hoverListener.onFrameHover(frame, hoveredFrameRectangle, e);
-            }
-        });
-    }
-
-    /**
-     * Sets a listener that will be called when the mouse hovers a frame, or when it stops hovering.
-     *
-     * @param hoverListener the listener ({@code null} permitted).
-     */
     public void setHoverListener(HoverListener<T> hoverListener) {
         scrollPaneListener.setHoverListener(hoverListener);
     }
-
-    /**
-     * Actually set the {@link FlamegraphView} with typed data and configure how to use it.
-     * <p>
-     * It takes a list of {@link FrameBox} objects that wraps the actual data,
-     * which is referred to as <em>node</em>.
-     * </p>
-     * <p>
-     * In particular this function defines the behavior to access the typed data:
-     * <ul>
-     *     <li>Possible string candidates to display in frames, those are
-     *     selected based on the available space</li>
-     *     <li>The root node text to display, if something specific is relevant,
-     *     like the type of events, their number, etc.</li>
-     *     <li>The frame background color, this function can be replaced by
-     *     {@link #setColorFunction(Function)}, note that the foreground color
-     *     is chosen automatically</li>
-     *     <li>The tooltip text from the current node</li>
-     * </ul>
-     *
-     * @param frames              The {@code FrameBox} list to display.
-     * @param frameTextsProvider  function to display label in frames.
-     * @param frameColorFunction  the frame to background color function.
-     * @param tooltipTextFunction the frame tooltip text function.
-     */
-    @Deprecated(forRemoval = true)
-    public void setConfigurationAndData(
-            List<FrameBox<T>> frames,
-            FrameTextsProvider<T> frameTextsProvider,
-            FrameColorProvider<T> frameColorFunction,
-            FrameFontProvider<T> frameFontProvider,
-            Function<FrameBox<T>, String> tooltipTextFunction
-    ) {
-        setConfigurationAndData(
-                new FrameModel<>(frames),
-                frameTextsProvider,
-                frameColorFunction,
-                frameFontProvider,
-                tooltipTextFunction
-        );
-    }
-
-    /**
-     * Actually set the {@link FlamegraphView} with typed data and configure how to use it.
-     *
-     * <p>
-     * It takes a {@link FrameModel} object that wraps the actual data.
-     * </p>
-     * <p>
-     * In particular this function defines the behavior to access the typed data:
-     * <ul>
-     *     <li>Possible string candidates to display in frames, those are
-     *     selected based on the available space</li>
-     *     <li>The root node text to display, if something specific is relevant,
-     *     like the type of events, their number, etc.</li>
-     *     <li>The frame background color, this function can be replaced by
-     *     {@link #setColorFunction(Function)}, note that the foreground color
-     *     is chosen automatically</li>
-     *     <li>The tooltip text from the current node</li>
-     * </ul>
-     *
-     * @param frameModel          The {@code FrameBox} list to display.
-     * @param frameTextsProvider  The function to display label in frames.
-     * @param frameColorFunction  The frame to background color function.
-     * @param tooltipTextFunction The frame tooltip text function.
-     */
-    @Deprecated(forRemoval = true)
-    public void setConfigurationAndData(
-            FrameModel<T> frameModel,
-            FrameTextsProvider<T> frameTextsProvider,
-            FrameColorProvider<T> frameColorFunction,
-            FrameFontProvider<T> frameFontProvider,
-            Function<FrameBox<T>, String> tooltipTextFunction
-    ) {
-        framesModel = Objects.requireNonNull(frameModel);
-        var flamegraphRenderEngine = new FlamegraphRenderEngine<>(
-                new FrameRenderer<>(
-                        frameTextsProvider,
-                        frameColorFunction,
-                        frameFontProvider
-                )
-        ).init(frameModel);
-
-        canvas.setFlamegraphRenderEngine(Objects.requireNonNull(flamegraphRenderEngine));
-        Objects.requireNonNull(tooltipTextFunction);
-        canvas.setToolTipTextFunction((__, frame) -> tooltipTextFunction.apply(frame));
-
-        canvas.revalidate();
-        canvas.repaint();
-    }
-
+    
     /**
      * Sets the {@link FrameModel}.
      *
@@ -733,9 +590,8 @@ public class FlamegraphView<T> {
      * @see JComponent#putClientProperty(Object, Object)
      */
     public void putClientProperty(String key, Object value) {
-        Objects.requireNonNull(key);
         // value can be null, it means removing the key (see putClientProperty)
-        canvas.putClientProperty(key, value);
+        canvas.putClientProperty(Objects.requireNonNull(key), value);
     }
 
     /**
@@ -746,8 +602,7 @@ public class FlamegraphView<T> {
      * @see JComponent#getClientProperty(Object)
      */
     public Object getClientProperty(String key) {
-        Objects.requireNonNull(key);
-        return canvas.getClientProperty(key);
+        return canvas.getClientProperty(Objects.requireNonNull(key));
     }
 
     /**
@@ -809,8 +664,7 @@ public class FlamegraphView<T> {
      * Sets frames that need to be highlighted.
      * <p>
      * The passed collection must be a subset of the frames that were used
-     * in {@link #setConfigurationAndData(List, FrameTextsProvider, FrameColorProvider, FrameFontProvider, Function)}.
-     * this triggers a repaint event.
+     * in {@link #setModel(FrameModel)}, this triggers a repaint event.
      * </p>
      *
      * <p>
@@ -1509,7 +1363,7 @@ public class FlamegraphView<T> {
         }
 
         public FlamegraphView.Mode getMode() {
-            return getFlamegraphRenderEngine().map(fre -> fre.isIcicle() ? Mode.ICICLEGRAPH : Mode.FLAMEGRAPH).get();
+            return getFlamegraphRenderEngine().map(fre -> fre.isIcicle() ? Mode.ICICLEGRAPH : Mode.FLAMEGRAPH).orElseThrow();
         }
 
         public void setPopupConsumer(BiConsumer<FrameBox<T>, MouseEvent> consumer) {
