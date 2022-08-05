@@ -131,11 +131,21 @@ public class FirePlaceSwtMain {
         // flamegraph
         SwingUtilities.invokeLater(() -> {
             flamegraph = createFlameGraph(embeddingComposite, tooltip);
-            flamegraph.setShowMinimap(true);
+            // flamegraph.setShowHoveredSiblings(true);
 
             var panel = new Panel(new BorderLayout());
             panel.add(flamegraph.component);
             frame.add(panel);
+
+            // don't fix anything...
+            // the scroll bar don't show up
+            Display.getDefault().asyncExec(() -> {
+                embeddingComposite.layout(true, true);
+
+                // do not work either
+                var swingCompositeSize = embeddingComposite.getSize();
+                SwingUtilities.invokeLater(() -> flamegraph.component.setSize(swingCompositeSize.x, swingCompositeSize.y));
+            });
         });
 
         loadJfr(args, label, embeddingComposite);
@@ -279,16 +289,6 @@ public class FirePlaceSwtMain {
                         (a, b) -> Objects.equals(a.actualNode.getFrame(), b.actualNode.getFrame()),
                         flatFrameList
                 ));
-
-                // don't fix anything...
-                // the scroll bar don't show up
-                Display.getDefault().asyncExec(() -> {
-                    swingComposite.layout(true, true);
-
-                    // do not work either
-                    var swingCompositeSize = swingComposite.getSize();
-                    SwingUtilities.invokeLater(() -> flamegraph.component.setSize(swingCompositeSize.x, swingCompositeSize.y));
-                });
             });
         });
     }

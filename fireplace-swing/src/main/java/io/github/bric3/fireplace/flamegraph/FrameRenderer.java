@@ -218,11 +218,23 @@ class FrameRenderer<T> {
         this.frameTextsProvider = Objects.requireNonNull(frameTextsProvider, "frameTextsProvider");
     }
 
+    public FrameTextsProvider<T> getFrameTextsProvider() {
+        return frameTextsProvider;
+    }
+
     public void setFrameFontProvider(FrameFontProvider<T> frameFontProvider) {
         this.frameFontProvider = Objects.requireNonNull(frameFontProvider, "frameFontProvider");
     }
 
+    public FrameFontProvider<T> getFrameFontProvider() {
+        return frameFontProvider;
+    }
+
     public void setFrameColorProvider(FrameColorProvider<T> frameColorProvider) {
         this.frameColorProvider = Objects.requireNonNull(frameColorProvider, "frameColorProvider");
+    }
+
+    public FrameColorProvider<T> getFrameColorProvider() {
+        return frameColorProvider;
     }
 }
