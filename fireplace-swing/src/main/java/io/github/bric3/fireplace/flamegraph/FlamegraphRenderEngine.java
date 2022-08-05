@@ -52,7 +52,7 @@ class FlamegraphRenderEngine<T> {
      * A flag that controls whether a frame is drawn around the frame that the mouse pointer
      * hovers over.
      */
-    public boolean paintHoveredFrameBorder = true;
+    public boolean paintHoveredFrameBorder = false;
 
     /**
      * The color used to draw a border around the hovered frame.
@@ -379,6 +379,7 @@ class FlamegraphRenderEngine<T> {
         assert frameModel != null : "The flamegraph is not initialized, call init(FrameModel) first";
     }
 
+    // TODO move to FrameRenderer
     private void paintHoveredFrameBorder(
             Graphics2D g2,
             Rectangle2D bounds,
