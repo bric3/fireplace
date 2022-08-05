@@ -11,6 +11,7 @@ package io.github.bric3.fireplace;
 
 import io.github.bric3.fireplace.core.ui.Colors.Palette;
 import io.github.bric3.fireplace.flamegraph.ColorMapper;
+import io.github.bric3.fireplace.flamegraph.DimmingFrameColorProvider;
 import io.github.bric3.fireplace.flamegraph.FlamegraphView;
 import io.github.bric3.fireplace.flamegraph.FrameBox;
 import io.github.bric3.fireplace.flamegraph.FrameColorProvider;
@@ -130,7 +131,7 @@ public class FirePlaceSwtMain {
         // flamegraph
         SwingUtilities.invokeLater(() -> {
             flamegraph = createFlameGraph(embeddingComposite, tooltip);
-            flamegraph.setShowMinimap(false);
+            flamegraph.setShowMinimap(true);
 
             var panel = new Panel(new BorderLayout());
             panel.add(flamegraph.component);
@@ -157,7 +158,7 @@ public class FirePlaceSwtMain {
                         frame -> frame.isRoot() ? "" : FormatToolkit.getHumanReadable(frame.actualNode.getFrame().getMethod(), false, false, false, false, true, false),
                         frame -> frame.isRoot() ? "" : frame.actualNode.getFrame().getMethod().getMethodName()
                 ),
-                FrameColorProvider.defaultColorProvider(
+                new DimmingFrameColorProvider<>(
                         frame -> ColorMapper.ofObjectHashUsing(Palette.DATADOG.colors()).apply(frame.actualNode.getFrame().getMethod().getType().getPackage())
                 ),
                 FrameFontProvider.defaultFontProvider()
