@@ -302,7 +302,7 @@ public class FlamegraphView<T> {
     }
 
     /**
-     * Experimental configuration hook for the underlying hook.
+     * Experimental configuration hook for the underlying canvas.
      */
     public void configureCanvas(Consumer<JComponent> canvasConfigurer) {
         Objects.requireNonNull(canvasConfigurer).accept(canvas);
@@ -331,6 +331,18 @@ public class FlamegraphView<T> {
     }
 
     /**
+     * Returns the frame colors provider.
+     *
+     * @return The frame colors provider.
+     */
+    public FrameColorProvider<T> getFrameColorProvider() {
+        return canvas.getFlamegraphRenderEngine()
+                     .map(fgp -> fgp.getFrameRenderer()
+                                    .getFrameColorProvider())
+                     .orElse(null);
+    }
+
+    /**
      * Replaces the frame font provider.
      *
      * @param frameFontProvider A provider that takes a frame and returns its font.
@@ -340,6 +352,18 @@ public class FlamegraphView<T> {
         this.canvas.getFlamegraphRenderEngine()
                    .ifPresent(fgp -> fgp.getFrameRenderer()
                                         .setFrameFontProvider(frameFontProvider));
+    }
+
+    /**
+     * Returns the frane font provider.
+     *
+     * @return The frame font provider.
+     */
+    public FrameFontProvider<T> getFrameFontProvider() {
+        return canvas.getFlamegraphRenderEngine()
+                     .map(fgp -> fgp.getFrameRenderer()
+                                    .getFrameFontProvider())
+                     .orElse(null);
     }
 
     /**
@@ -355,6 +379,18 @@ public class FlamegraphView<T> {
     }
 
     /**
+     * Returns the frame texts candidate provider.
+     *
+     * @return The frame texts candidate provider.
+     */
+    public FrameTextsProvider<T> getFrameTextsProvider() {
+        return canvas.getFlamegraphRenderEngine()
+                     .map(fgp -> fgp.getFrameRenderer()
+                                    .getFrameTextsProvider())
+                     .orElse(null);
+    }
+
+    /**
      * Toggle the display of a gap between frames.
      *
      * @param frameGapEnabled {@code true} to show a gap between frames, {@code false} otherwise.
@@ -362,6 +398,17 @@ public class FlamegraphView<T> {
     public void setFrameGapEnabled(boolean frameGapEnabled) {
         canvas.getFlamegraphRenderEngine()
               .ifPresent(fgp -> fgp.getFrameRenderer().setDrawingFrameGap(frameGapEnabled));
+    }
+
+    /**
+     * Wether gap between frames is displayed.
+     *
+     * @return {@code true} if gap between frames is shown, {@code false} otherwise.
+     */
+    public boolean isFrameGapEnabled() {
+        return canvas.getFlamegraphRenderEngine()
+                     .map(fgp -> fgp.getFrameRenderer().isDrawingFrameGap())
+                     .orElse(false);
     }
 
     /**
