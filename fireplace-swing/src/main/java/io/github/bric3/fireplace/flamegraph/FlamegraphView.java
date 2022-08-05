@@ -1035,7 +1035,6 @@ public class FlamegraphView<T> {
                                 return;
                             }
                             setSize(viewport.getViewRect().width, getHeight());
-                            revalidate();
                         });
                     }
                 });
@@ -1067,15 +1066,17 @@ public class FlamegraphView<T> {
 
                 this.addPropertyChangeListener("preferredSize", evt -> {
                     var preferredSize = (Dimension) evt.getNewValue();
-                    // trigger minimap generation, when the flamegraph is zoomed, more
-                    // frame become visible, and this may make the visible depth higher,
-                    // this allows to update the minimap when more details are available.
-                    if (isVisible() && showMinimap
-                        // && preferredSize.width > minimapBounds.width
-                        // && preferredSize.height > minimapBounds.height
-                    ) {
-                        triggerMinimapGeneration();
-                    }
+                    SwingUtilities.invokeLater(() -> {
+                        // trigger minimap generation, when the flamegraph is zoomed, more
+                        // frame become visible, and this may make the visible depth higher,
+                        // this allows to update the minimap when more details are available.
+                        if (isVisible() && showMinimap
+                            // && preferredSize.width > minimapBounds.width
+                            // && preferredSize.height > minimapBounds.height
+                        ) {
+                            triggerMinimapGeneration();
+                        }
+                    });
                 });
             }
         }
