@@ -20,7 +20,6 @@ import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
 import java.awt.event.MouseEvent;
 import java.awt.geom.Area;
-import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
 import java.util.List;
 import java.util.Objects;
@@ -667,7 +666,7 @@ public class FlamegraphView<T> {
 
         canvas.getFlamegraphRenderEngine()
               .ifPresent(FlamegraphRenderEngine::reset);
-        canvas.invalidate();
+        canvas.revalidate();
         canvas.repaint();
     }
 
@@ -708,6 +707,7 @@ public class FlamegraphView<T> {
      * Triggers a repaint of the component.
      */
     public void requestRepaint() {
+        canvas.revalidate();
         canvas.repaint();
         canvas.triggerMinimapGeneration();
     }
@@ -982,7 +982,7 @@ public class FlamegraphView<T> {
         private JToolTip toolTip;
         private FlamegraphRenderEngine<T> flamegraphRenderEngine;
         private BiFunction<FrameModel<T>, FrameBox<T>, String> tooltipToTextFunction;
-        private final Dimension flamegraphDimension = new Dimension();
+        private Dimension flamegraphDimension = new Dimension();
 
         /**
          * Bounds used to compute painting and interactions with the minimap.
@@ -1029,11 +1029,14 @@ public class FlamegraphView<T> {
                 vsb.addComponentListener(new ComponentAdapter() {
                     @Override
                     public void componentShown(ComponentEvent e) {
-                        var canvasWidth = getWidth();
-                        if (canvasWidth == 0) {
-                            return;
-                        }
-                        setSize(viewport.getViewRect().width, getHeight());
+                        SwingUtilities.invokeLater(() -> {
+                            var canvasWidth = getWidth();
+                            if (canvasWidth == 0) {
+                                return;
+                            }
+                            setSize(viewport.getViewRect().width, getHeight());
+                            revalidate();
+                        });
                     }
                 });
                 this.addPropertyChangeListener(GRAPH_MODE, evt -> {
@@ -1061,38 +1064,48 @@ public class FlamegraphView<T> {
                         }
                     });
                 });
+
+                this.addPropertyChangeListener("preferredSize", evt -> {
+                    var preferredSize = (Dimension) evt.getNewValue();
+                    // trigger minimap generation, when the flamegraph is zoomed, more
+                    // frame become visible, and this may make the visible depth higher,
+                    // this allows to update the minimap when more details are available.
+                    if (isVisible() && showMinimap
+                        // && preferredSize.width > minimapBounds.width
+                        // && preferredSize.height > minimapBounds.height
+                    ) {
+                        triggerMinimapGeneration();
+                    }
+                });
             }
         }
 
         @Override
         public Dimension getPreferredSize() {
+            var oldFlamegraphDimension = this.flamegraphDimension;
             var preferredSize = new Dimension(10, 10);
             var flamegraphWidth = getWidth();
             // This method can be called before a Graphics2D is available, or before it has an initial size.
             if (flamegraphRenderEngine == null || flamegraphWidth == 0 || getGraphics() == null) {
-                super.setPreferredSize(preferredSize);
+                // super.setPreferredSize(preferredSize);
+                this.flamegraphDimension = preferredSize;
+                firePropertyChange("preferredSize", oldFlamegraphDimension, preferredSize);
                 return preferredSize;
             }
 
-            Insets insets = getInsets();
             var flamegraphHeight = flamegraphRenderEngine.computeVisibleFlamegraphHeight(
                     (Graphics2D) getGraphics(),
                     flamegraphWidth,
                     true
             );
-            preferredSize.width = Math.max(preferredSize.width, flamegraphWidth + insets.left + insets.right);
-            preferredSize.height = Math.max(preferredSize.height, flamegraphHeight + insets.top + insets.bottom);
 
-            // trigger minimap generation, when the flamegraph is zoomed, more
-            // frame become visible, and this may make the visible depth higher,
-            // this allows to update the minimap when more details are available.
-            if (flamegraphHeight != this.flamegraphDimension.height || flamegraphWidth != flamegraphDimension.width) {
-                triggerMinimapGeneration();
+            preferredSize.width = Math.max(preferredSize.width, flamegraphWidth);
+            preferredSize.height = Math.max(preferredSize.height, flamegraphHeight);
+
+            if (!flamegraphDimension.equals(preferredSize)) {
+                this.flamegraphDimension = preferredSize;
+                firePropertyChange("preferredSize", oldFlamegraphDimension, preferredSize);
             }
-            this.flamegraphDimension.height = flamegraphHeight;
-            this.flamegraphDimension.width = flamegraphWidth;
-
-            super.setPreferredSize(preferredSize);
             return preferredSize;
         }
 
@@ -1101,13 +1114,13 @@ public class FlamegraphView<T> {
             long start = System.currentTimeMillis();
 
             super.paintComponent(g);
-            Graphics2D g2 = (Graphics2D) g.create();
+            var g2 = (Graphics2D) g.create();
             var visibleRect = getVisibleRect();
             if (flamegraphRenderEngine == null) {
                 String message = "No data to display";
-                Font font = g2.getFont();
+                var font = g2.getFont();
                 // calculate center position
-                Rectangle2D bounds = g2.getFontMetrics(font).getStringBounds(message, g2);
+                var bounds = g2.getFontMetrics(font).getStringBounds(message, g2);
                 int xx = visibleRect.x + (int) ((visibleRect.width - bounds.getWidth()) / 2.0);
                 int yy = visibleRect.y + (int) ((visibleRect.height + bounds.getHeight()) / 2.0);
                 g2.drawString(message, xx, yy);
@@ -1271,19 +1284,22 @@ public class FlamegraphView<T> {
 
             CompletableFuture.runAsync(() -> {
                 var height = flamegraphRenderEngine.computeVisibleFlamegraphMinimapHeight(minimapBounds.width);
-                if (height == 0) {
+                // Don't generate minimap if there's no data, e.g. 1
+                // moreover there a random problematic interaction with the layout
+                // if the minimap is generated too early.
+                if (height <= 1) {
                     return;
                 }
 
-                GraphicsEnvironment e = GraphicsEnvironment.getLocalGraphicsEnvironment();
-                GraphicsConfiguration c = e.getDefaultScreenDevice().getDefaultConfiguration();
-                BufferedImage minimapImage = c.createCompatibleImage(minimapBounds.width, height, Transparency.TRANSLUCENT);
-                Graphics2D minimapGraphics = minimapImage.createGraphics();
+                var e = GraphicsEnvironment.getLocalGraphicsEnvironment();
+                var c = e.getDefaultScreenDevice().getDefaultConfiguration();
+                var minimapImage = c.createCompatibleImage(minimapBounds.width, height, Transparency.TRANSLUCENT);
+                var minimapGraphics = minimapImage.createGraphics();
                 minimapGraphics.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
                 minimapGraphics.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
                 minimapGraphics.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
 
-                Rectangle bounds = new Rectangle(minimapBounds.width, height);
+                var bounds = new Rectangle(minimapBounds.width, height);
                 flamegraphRenderEngine.paintMinimap(minimapGraphics, bounds);
                 minimapGraphics.dispose();
 
@@ -1426,8 +1442,8 @@ public class FlamegraphView<T> {
                 return;
             }
             this.showMinimap = showMinimap;
-            triggerMinimapGeneration();
             firePropertyChange("minimap", !showMinimap, showMinimap);
+            triggerMinimapGeneration();
         }
 
         public boolean isShowMinimap() {

@@ -281,13 +281,13 @@ public class FirePlaceSwtMain {
 
                 // don't fix anything...
                 // the scroll bar don't show up
-                Display.getDefault().asyncExec(() -> {
-                    swingComposite.layout(true, true);
-
-                    // do not work either
-                    var swingCompositeSize = swingComposite.getSize();
-                    SwingUtilities.invokeLater(() -> flamegraph.component.setSize(swingCompositeSize.x, swingCompositeSize.y));
-                });
+                // Display.getDefault().asyncExec(() -> {
+                //     swingComposite.layout(true, true);
+                //
+                //     // do not work either
+                //     var swingCompositeSize = swingComposite.getSize();
+                //     SwingUtilities.invokeLater(() -> flamegraph.component.setSize(swingCompositeSize.x, swingCompositeSize.y));
+                // });
             });
         });
     }
