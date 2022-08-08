@@ -79,10 +79,10 @@ public class FirePlaceMain {
                 jfrBinder.bindPaths(p -> openedFileLabel.setText(p.get(0).toAbsolutePath().toString()));
             }
 
-            var allocationFlameGraphPanel = new FlameGraphTab();
-            {
-                jfrBinder.bindEvents(JfrAnalyzer::stackTraceAllocationFun, allocationFlameGraphPanel::setStacktraceTreeModel);
-            }
+            // var allocationFlameGraphPanel = new FlameGraphTab();
+            // {
+            //     jfrBinder.bindEvents(JfrAnalyzer::stackTraceAllocationFun, allocationFlameGraphPanel::setStacktraceTreeModel);
+            // }
             var cpuFlameGraphPanel = new FlameGraphTab();
             {
                 jfrBinder.bindEvents(JfrAnalyzer::stackTraceCPUFun, cpuFlameGraphPanel::setStacktraceTreeModel);
@@ -105,10 +105,10 @@ public class FirePlaceMain {
             }
             var jTabbedPane = new JTabbedPane();
             {
+                jTabbedPane.addTab(CPU, cpuFlameGraphPanel);
+                // jTabbedPane.addTab(ALLOCATIONS, allocationFlameGraphPanel);
                 jTabbedPane.addTab(SYSTEM_PROPERTIES, JScrollPaneWithBackButton.create(() -> new JScrollPane(sysProps)));
                 jTabbedPane.addTab(NATIVE_LIBRARIES, JScrollPaneWithBackButton.create(() -> new JScrollPane(nativeLibs)));
-                jTabbedPane.addTab(ALLOCATIONS, allocationFlameGraphPanel);
-                jTabbedPane.addTab(CPU, cpuFlameGraphPanel);
                 jTabbedPane.setTabPlacement(JTabbedPane.BOTTOM);
             }
 

@@ -13,6 +13,8 @@ import io.github.bric3.fireplace.core.ui.JScrollPaneWithBackButton;
 import io.github.bric3.fireplace.core.ui.MouseInputListenerWorkaroundForToolTipEnabledComponent;
 
 import javax.swing.*;
+import javax.swing.event.ChangeEvent;
+import javax.swing.event.ChangeListener;
 import javax.swing.event.MouseInputAdapter;
 import javax.swing.event.MouseInputListener;
 import java.awt.*;
@@ -21,6 +23,8 @@ import java.awt.event.ComponentEvent;
 import java.awt.event.MouseEvent;
 import java.awt.geom.Area;
 import java.awt.image.BufferedImage;
+import java.beans.PropertyChangeEvent;
+import java.beans.PropertyChangeListener;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -939,6 +943,100 @@ public class FlamegraphView<T> {
                         });
                     }
                 });
+                var hsb = scrollPane.getHorizontalScrollBar();
+                ChangeListener hsbModelChanged = new ChangeListener() {
+                    private int modelValue = -1;
+                    private int modelMaximum = -1;
+                    private int viewportWidth = -1;
+
+                    private int computedViewWidth = -1;
+
+                    @Override
+                    public void stateChanged(ChangeEvent e) {
+                        var oldViewPortWidth = viewportWidth;
+                        viewportWidth = viewport.getWidth();
+
+                        var rangeModel = (BoundedRangeModel) e.getSource();
+                        var oldModelValue = modelValue;
+                        var oldModelMaximum = modelMaximum;
+                        modelValue = rangeModel.getValue();
+                        modelMaximum = rangeModel.getMaximum();
+
+                        if (viewportWidth == oldViewPortWidth || oldViewPortWidth == -1) {
+                            return;
+                        }
+                        if (oldModelValue == -1 || oldModelMaximum == -1) {
+                            return;
+                        }
+                        
+                        System.out.println("hsbModelChanged (Value): " + oldModelValue + " -> " + rangeModel.getValue());
+                        System.out.println("hsbModelChanged (Maximum): " + oldModelMaximum + " -> " + rangeModel.getMaximum());
+                        // System.out.println("hsbModelChanged (curr width (new)): " + getWidth());
+
+                        var ratio = (double) oldViewPortWidth / computedViewWidth;
+                        System.out.println("hsbModelChanged (Ratio): " + ratio);
+                        computedViewWidth = (int) (viewportWidth * ratio);
+
+                        System.out.println("hsbModelChanged (New Width): " + oldModelMaximum + " -> " + computedViewWidth);
+
+                        if(ratio == 1.0) {
+                            SwingUtilities.invokeLater(() -> {
+                                setSize(computedViewWidth, getHeight());
+                            });
+                        }
+
+                        // viewport.setViewSize(new Dimension(
+                        //
+                        // ));
+                    }
+                };
+                hsb.getModel().addChangeListener(hsbModelChanged);
+                hsb.addPropertyChangeListener("model", evt -> {
+                    ((BoundedRangeModel) evt.getOldValue()).removeChangeListener(hsbModelChanged);
+                    ((BoundedRangeModel) evt.getNewValue()).addChangeListener(hsbModelChanged);
+                });
+
+                // scrollPane.addPropertyChangeListener("bounds" , evt -> {
+                //     System.out.println("scrollPane.size: " + evt.getOldValue() + " -> " + evt.getNewValue());
+                // });
+                // scrollPane.addComponentListener(new ComponentAdapter() {
+                //     Dimension currentSize = new Dimension();
+                //     Dimension currentViewSize = new Dimension();
+                //     Point currentViewPosition = new Point();
+                //     @Override
+                //     public void componentResized(ComponentEvent e) {
+                //         var oldSize = this.currentSize;
+                //         this.currentSize = viewport.getSize();
+                //         var oldViewSize = this.currentViewSize;
+                //         this.currentViewSize = viewport.getViewSize();
+                //         Point oldViewLocation = this.currentViewPosition;
+                //         this.currentViewPosition = viewport.getViewPosition();
+                //
+                //         if (oldSize.width == 0) {
+                //             return;
+                //         }
+                //         /*
+                //            |-------------------------------|
+                //            |                               |
+                //            |         o----------|          |
+                //            |         |          |          |
+                //            |         |----------|          |
+                //            |                               |
+                //            |-------------------------------|
+                //          */
+                //         var oldViewSizeWidth = oldViewSize.width;
+                //         var widthRatio = (double) oldSize.width / oldViewSize.width;
+                //         var locationXRatio = currentViewPosition.x * widthRatio;
+                //
+                //         currentViewSize.width *= widthRatio;
+                //
+                //         SwingUtilities.invokeLater(() -> {
+                //
+                //             viewport.setViewSize(currentViewSize.getSize());
+                //         });
+                //     }
+                // });
+
                 this.addPropertyChangeListener(GRAPH_MODE, evt -> {
                     SwingUtilities.invokeLater(() -> {
                         var value = vsb.getValue();
@@ -1394,7 +1492,9 @@ public class FlamegraphView<T> {
         @Override
         public void zoom(ZoomTarget zoomTarget) {
             // Changing the size triggers a revalidation, which triggers a layout
-            setBounds(zoomTarget);
+            SwingUtilities.invokeLater(() -> {
+                setBounds(zoomTarget);
+            });
         }
     }
 }
