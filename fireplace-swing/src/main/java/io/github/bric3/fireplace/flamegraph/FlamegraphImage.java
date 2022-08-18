@@ -41,7 +41,6 @@ import java.util.function.IntConsumer;
  *
  * ImageIO.write(image, "png", new File("flamegraph.png"));
  * </code></pre>
- * </p>
  *
  * @param <T> The type of the node data.
  * @see FlamegraphView
@@ -61,7 +60,6 @@ public class FlamegraphImage<T> {
      *     like the type of events, their number, etc.</li>
      *     <li>The frame background and foreground colors</li>
      * </ul>
-     * </p>
      *
      * @param frameTextsProvider The function to display label in frames.
      * @param frameColorProvider The frame to background color function.
@@ -132,11 +130,11 @@ public class FlamegraphImage<T> {
      * And finally, the renderer will use the graphics handle to draw the graph.
      * </p>
      *
-     * @param frameModel The frame model to render.
-     * @param mode       The display mode of the graph.
-     * @param width      The wanted width of the image, the height is computed from this width.
-     * @param g2         The graphics context to render to.
-     * @param onHeightComputed   Callback when the height has been computed.
+     * @param frameModel       The frame model to render.
+     * @param mode             The display mode of the graph.
+     * @param width            The wanted width of the image, the height is computed from this width.
+     * @param g2               The graphics context to render to.
+     * @param onHeightComputed Callback when the height has been computed.
      */
     public void generate(
             FrameModel<T> frameModel,

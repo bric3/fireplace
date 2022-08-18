@@ -58,6 +58,7 @@ public class FrameModel<T> {
      * which is referred to as <em>node</em>.
      * </p>.
      *
+     * @param title         The title of the flamegraph, used in the root frame.
      * @param frameEquality Custom equality code for the actual node object {@code T}.
      * @param frames        The list of {@code FrameBox} objects.
      */

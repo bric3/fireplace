@@ -12,6 +12,8 @@ import org.gradle.nativeplatform.platform.internal.DefaultNativePlatform
 
 fun properties(key: String) = project.findProperty(key).toString()
 
+description = "SWT app that uses fireplace-swing"
+
 plugins {
     id("application")
 }

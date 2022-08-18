@@ -56,7 +56,7 @@ tasks.create("v") {
     }
 }
 
-val fireplaceModules = subprojects.filter { it.name != projects.fireplaceApp.name }
+val fireplaceModules = subprojects - project(":fireplace-app") - project(":fireplace-swt-experiment")
 configure(fireplaceModules) {
     apply(plugin = "java-library") // needed to get the java component
     apply(plugin = "maven-publish")
@@ -91,6 +91,12 @@ configure(fireplaceModules) {
                 // take extension from project instance
                 project.the<SourceSetContainer>().named("main").get().allJava
             )
+        }
+
+        // todo replace by java.withJavadocJar()
+        val javadocJar by registering(Jar::class) {
+            from(named("javadoc"))
+            archiveClassifier.set("javadoc")
         }
 
         val jar = named<Jar>("jar") {
@@ -139,6 +145,7 @@ configure(fireplaceModules) {
             create<MavenPublication>("mavenJava") {
                 from(components["java"])
                 artifact(tasks["sourcesJar"])
+                artifact(tasks["javadocJar"])
                 groupId = project.group.toString()
                 artifactId = project.name
                 // OSSRH enforces the `-SNAPSHOT` suffix on snapshot repository
@@ -155,6 +162,8 @@ configure(fireplaceModules) {
 
                 val gitRepo = "https://github.com/bric3/fireplace"
                 pom {
+                    name.set(project.name)
+                    description.set(project.description)
                     url.set(gitRepo)
 
                     scm {
@@ -162,6 +171,7 @@ configure(fireplaceModules) {
                         developerConnection.set("scm:git:${gitRepo}.git")
                         url.set(gitRepo)
                     }
+                    
                     issueManagement {
                         system.set("GitHub")
                         url.set("https://github.com/spring-projects/spring-framework/issues")
@@ -172,6 +182,14 @@ configure(fireplaceModules) {
                             distribution.set("repo")
                             name.set("Mozilla Public License Version 2.0")
                             url.set("https://www.mozilla.org/en-US/MPL/2.0/")
+                        }
+                    }
+
+                    developers {
+                        developer {
+                            id.set("bric3")
+                            name.set("Brice Dutheil")
+                            email.set("brice.dutheil@gmail.com")
                         }
                     }
                 }

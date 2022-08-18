@@ -66,7 +66,7 @@ import static java.lang.Boolean.TRUE;
  *      )
  * )
  * </code></pre>
- * </p>
+ *
  * <p>
  * The created and <em>final</em> {@code component} is a composite that is based
  * on a {@link JScrollPane}.
@@ -290,6 +290,8 @@ public class FlamegraphView<T> {
 
     /**
      * Experimental configuration hook for the underlying canvas.
+     *
+     * @param canvasConfigurer The configurer for the canvas.
      */
     public void configureCanvas(Consumer<JComponent> canvasConfigurer) {
         Objects.requireNonNull(canvasConfigurer).accept(canvas);
@@ -490,7 +492,7 @@ public class FlamegraphView<T> {
     public void setHoverListener(HoverListener<T> hoverListener) {
         scrollPaneListener.setHoverListener(hoverListener);
     }
-    
+
     /**
      * Sets the {@link FrameModel}.
      *
