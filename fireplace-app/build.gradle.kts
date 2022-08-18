@@ -10,6 +10,8 @@
 
 fun properties(key: String) = project.findProperty(key).toString()
 
+description = "Swing app that uses fireplace-swing"
+
 plugins {
     id("application")
     id("com.github.johnrengelman.shadow") version "7.1.2"

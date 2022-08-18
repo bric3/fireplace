@@ -56,16 +56,17 @@ tasks.create("v") {
     }
 }
 
-val fireplaceModules = subprojects.filter { it.name != projects.fireplaceApp.name }
+val fireplaceModules = subprojects - project(":fireplace-app") - project(":fireplace-swt-experiment")
 configure(fireplaceModules) {
     apply(plugin = "java-library") // needed to get the java component
     apply(plugin = "maven-publish")
     apply(plugin = "signing")
     apply(plugin = "biz.aQute.bnd.builder")
 
-    // configure<JavaPluginExtension> {
-    //     withSourcesJar()
-    // }
+    configure<JavaPluginExtension> {
+        withJavadocJar()
+        withSourcesJar()
+    }
 
     repositories {
         mavenCentral()
@@ -82,15 +83,6 @@ configure(fireplaceModules) {
 
         withType(Jar::class) {
             metaInf.with(licenseSpec)
-        }
-
-        // todo replace by java.withSourcesJar()
-        val sourcesJar by registering(Jar::class) {
-            archiveClassifier.set("sources")
-            from(
-                // take extension from project instance
-                project.the<SourceSetContainer>().named("main").get().allJava
-            )
         }
 
         val jar = named<Jar>("jar") {
@@ -138,9 +130,7 @@ configure(fireplaceModules) {
         publications {
             create<MavenPublication>("mavenJava") {
                 from(components["java"])
-                artifact(tasks["sourcesJar"])
-                groupId = project.group.toString()
-                artifactId = project.name
+
                 // OSSRH enforces the `-SNAPSHOT` suffix on snapshot repository
                 // https://central.sonatype.org/faq/400-error/#question
                 version = when {
@@ -149,12 +139,9 @@ configure(fireplaceModules) {
                 }
                 project.extra["publishingVersion"] = version
 
-                afterEvaluate {
-                    description = project.description
-                }
-
                 val gitRepo = "https://github.com/bric3/fireplace"
                 pom {
+                    name.set(project.name)
                     url.set(gitRepo)
 
                     scm {
@@ -162,6 +149,7 @@ configure(fireplaceModules) {
                         developerConnection.set("scm:git:${gitRepo}.git")
                         url.set(gitRepo)
                     }
+                    
                     issueManagement {
                         system.set("GitHub")
                         url.set("https://github.com/spring-projects/spring-framework/issues")
@@ -174,7 +162,23 @@ configure(fireplaceModules) {
                             url.set("https://www.mozilla.org/en-US/MPL/2.0/")
                         }
                     }
+
+                    developers {
+                        developer {
+                            id.set("bric3")
+                            name.set("Brice Dutheil")
+                            email.set("brice.dutheil@gmail.com")
+                        }
+                    }
                 }
+                // subprojects properties (like description) will be available
+                // after they have been configured
+                afterEvaluate {
+                    pom {
+                        description.set(project.description)
+                    }
+                }
+
             }
         }
         repositories {
@@ -195,7 +199,6 @@ configure(fireplaceModules) {
                     url = uri("${rootProject.buildDir}/publishing-repository")
                 }
                 project.extra["publishingRepositoryUrl"] = url
-
             }
         }
     }
