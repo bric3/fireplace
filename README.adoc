@@ -1,4 +1,49 @@
 image:https://github.com/bric3/fireplace/actions/workflows/build.yml/badge.svg[Java CI with Gradle,link=https://github.com/bric3/fireplace/actions/workflows/build.yml]
+// image:https://snyk.io/test/github/bric3/fireplace/badge.svg?targetFile=build.gradle["Known Vulnerabilities", link="https://snyk.io/test/github/bric3/fireplace?targetFile=build.gradle.kts"]
+image:https://img.shields.io/maven-central/v/io.github.bric3.fireplace/fireplace-swing.svg["Maven Central", link="https://search.maven.org/artifact/io.github.bric3.fireplace/fireplace-swing"]
+
+== Flamegraph / Iciclegraph Java Swing component
+
+++++
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset=".github/images/fireplace-dark.png">
+  <img alt="Shows a flamegraph in either light or dark mode" src=".github/images/fireplace-light.png">
+</picture>
+++++
+
+== Usage
+
+.Example usage
+[source,java]
+----
+var fg = new FlamegraphView<Node>();
+
+flamegraphView.setRenderConfiguration(
+        FrameTextsProvider.of(
+                frame -> frame.isRoot() ? "root" : frame.actualNode.getFrame().getHumanReadableShortString(),
+                frame -> frame.isRoot() ? "" : FormatToolkit.getHumanReadable(frame.actualNode.getFrame().getMethod(), false, false, false, false, true, false),
+                frame -> frame.isRoot() ? "" : frame.actualNode.getFrame().getMethod().getMethodName()
+        ),
+        new DimmingFrameColorProvider<>(defaultFrameColorMode.colorMapperUsing(ColorMapper.ofObjectHashUsing(defaultColorPalette.colors()))),
+        FrameFontProvider.defaultFontProvider()
+);
+
+jpanel.add(flamegraphView.component);
+
+
+// later, fill in the data
+var listOfFrames = FrameBox.flattenAndCalculateCoordinate(new ArrayList<Node>(), ...);
+flamegraphView.setModel(
+        new FrameModel<>(
+                "title, events (CPU, Locks)", // used in the root "frame"
+                 (a, b) -> Objects.equals(a, b), // used to identify equal frames
+                 listOfFrames
+        )
+);
+
+----
+
+== Misc
 
 Snapshot versions will be delivered at
 
