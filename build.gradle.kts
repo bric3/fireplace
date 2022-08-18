@@ -76,6 +76,10 @@ configure(fireplaceModules) {
     }
 
     tasks {
+        withType(JavaCompile::class) {
+            options.encoding = "UTF-8"
+        }
+
         withType(Jar::class) {
             metaInf.with(licenseSpec)
         }
