@@ -139,14 +139,9 @@ configure(fireplaceModules) {
                 }
                 project.extra["publishingVersion"] = version
 
-                afterEvaluate {
-                    description = project.description
-                }
-
                 val gitRepo = "https://github.com/bric3/fireplace"
                 pom {
                     name.set(project.name)
-                    description.set(project.description)
                     url.set(gitRepo)
 
                     scm {
@@ -176,6 +171,14 @@ configure(fireplaceModules) {
                         }
                     }
                 }
+                // subprojects properties (like description) will be available
+                // after they have been configured
+                afterEvaluate {
+                    pom {
+                        description.set(project.description)
+                    }
+                }
+
             }
         }
         repositories {
