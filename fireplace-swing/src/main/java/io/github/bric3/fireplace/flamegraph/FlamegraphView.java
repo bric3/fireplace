@@ -625,7 +625,7 @@ public class FlamegraphView<T> {
      * Reset the zoom to 1:1.
      */
     public void resetZoom() {
-        zoom(canvas, canvas.resetZoomTarget());
+        zoom(canvas, canvas.getResetZoomTarget());
     }
 
     /**
@@ -634,17 +634,15 @@ public class FlamegraphView<T> {
      * @param frame The frame to zoom to.
      */
     public void zoomTo(FrameBox<T> frame) {
-        canvas.getFlamegraphRenderEngine().map(fgp -> fgp.calculateZoomTargetFrame(
-                (Graphics2D) canvas.getGraphics(),
-                canvas.getBounds(),
-                canvas.getVisibleRect(),
-                frame,
-                2,
-                0
-        )).ifPresent(zoomTarget -> zoom(canvas, zoomTarget));
+        zoom(canvas, canvas.getFrameZoomTarget(frame));
     }
 
     private static <T> void zoom(FlamegraphCanvas<T> canvas, ZoomTarget zoomTarget) {
+        if (zoomTarget == null) {
+            // NOP
+            return;
+        }
+
         // adjust zoom target location for horizontal scrollbar height if canvas bigger than viewRect
         if (canvas.getMode() == Mode.FLAMEGRAPH) {
             var visibleRect = canvas.getVisibleRect();
@@ -1376,12 +1374,17 @@ public class FlamegraphView<T> {
             this.selectedFrameConsumer = consumer;
         }
 
-        public ZoomTarget resetZoomTarget() {
+        public ZoomTarget getResetZoomTarget() {
+            var graphics = (Graphics2D) getGraphics();
+            if (graphics == null) {
+                return null;
+            }
+
             var visibleRect = getVisibleRect();
             var bounds = getBounds();
 
             var newHeight = flamegraphRenderEngine.computeVisibleFlamegraphHeight(
-                    (Graphics2D) getGraphics(),
+                    graphics,
                     visibleRect.width
             );
 
@@ -1390,6 +1393,22 @@ public class FlamegraphView<T> {
                     getMode() == Mode.FLAMEGRAPH ? -(bounds.height - visibleRect.height) : 0,
                     visibleRect.width,
                     newHeight
+            );
+        }
+
+        public ZoomTarget getFrameZoomTarget(FrameBox<T> frame) {
+            var graphics = (Graphics2D) getGraphics();
+            if (graphics == null) {
+                return null;
+            }
+
+            return flamegraphRenderEngine.calculateZoomTargetFrame(
+                    graphics,
+                    getBounds(),
+                    getVisibleRect(),
+                    frame,
+                    2,
+                    0
             );
         }
 
