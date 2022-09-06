@@ -9,10 +9,12 @@
  */
 package io.github.bric3.fireplace.swt_awt;
 
+import org.eclipse.swt.SWT;
+import org.eclipse.swt.SWTException;
 import org.eclipse.swt.widgets.Display;
 
 import java.awt.*;
-import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.*;
 import java.util.function.Supplier;
 
 /**
@@ -24,6 +26,7 @@ import java.util.function.Supplier;
  * </p>
  */
 public abstract class SWT_AWTBridge {
+
     /**
      * Allow to compute / get a value from AWT's Event Dispatch Thread.
      *
@@ -32,7 +35,9 @@ public abstract class SWT_AWTBridge {
      * Indeed, blocking the SWT thread could cause deadlocks.
      * </p>
      *
+     * @param <T> the type of the value to compute
      * @param task The task that produce the value to run.
+     * @return the value computed in AWT's Event Dispatch Thread.
      */
     public static <T> T computeInEDT(Supplier<T> task) {
         if (EventQueue.isDispatchThread()) {
@@ -125,5 +130,44 @@ public abstract class SWT_AWTBridge {
 
     public static org.eclipse.swt.graphics.Point toSWTPoint(Point awtPoint) {
         return new org.eclipse.swt.graphics.Point(awtPoint.x, awtPoint.y);
+    }
+
+    /**
+     * Queue an SWT task on a different thread to avoid deadlock with AWT, in particular different that AWT Event Dispatch Thread.
+     *
+     * <p>
+     *     The issue is that invoking {@link Display#asyncExec(Runnable)} from AWT Event Dispatch Thread
+     *     may dead lock the application (as it synchronizes on the {@link org.eclipse.swt.graphics.Device} class).
+     *     Typically this happens when SWT is trying to dispose the shell/display, but there is still pending tasks
+     *     that want to {@code asyncExec}.
+     * </p>
+     *
+     * @param display The contextual display
+     * @param task The task to run
+     */
+    public static void invokeSwtAwayFromAwt(Display display, Runnable task) {
+        if (display.isDisposed()) {
+            return;
+        }
+        SideExecutorHolder.es.execute(() -> {
+            try {
+                if (display.isDisposed()) {
+                    return;
+                }
+                task.run();
+            } catch (SWTException e) {
+                if (e.code != SWT.ERROR_DEVICE_DISPOSED) {
+                    throw e;
+                }
+            }
+        });
+    }
+
+    private static abstract class SideExecutorHolder {
+        static ExecutorService es = Executors.newSingleThreadExecutor(targetRunnable -> {
+            var thread = new Thread(targetRunnable, "Side-SWT-Queue");
+            thread.setDaemon(true);
+            return thread;
+        });
     }
 }

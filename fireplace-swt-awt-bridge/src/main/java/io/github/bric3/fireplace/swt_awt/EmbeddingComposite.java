@@ -30,7 +30,7 @@ import java.util.function.Supplier;
  *
  * <p>
  * How to use:
- * <code><pre>
+ * <pre><code>
  *  var embed = new EmbeddingComposite(parent);
  *
  *  // possibly declare childs to the composite, e.g.
@@ -39,9 +39,8 @@ import java.util.function.Supplier;
  *  // run the initialization by providing a swing component supplier
  *  // this will be called in the AWT Event Dispatch Thread.
  *  // This supplier may use the embed children like the tooltip, however beware of SWT deadlocks.
- *  embed.init(() -> new JLabel("Hello World"));
- * </pre></code>
- * </p>
+ *  embed.init(() -&gt; new JLabel("Hello World"));
+ * </code></pre>
  *
  * <p>
  * Don't forget to use {@link SWT_AWTBridge} methods to dispatch events from SWT to AWT.
@@ -108,7 +107,6 @@ public class EmbeddingComposite extends Composite {
         });
 
         var componentRef = new AtomicReference<JComponent>(null);
-
         SWT_AWTBridge.invokeInEDTAndWait(() -> {
             var jComponent = jComponentSupplier.get();
             componentRef.set(jComponent);
@@ -157,12 +155,16 @@ public class EmbeddingComposite extends Composite {
                     if ((e.getModifiersEx() & InputEvent.META_DOWN_MASK) != 0) {
                         if (e.getKeyChar() == 'q') {
                             System.out.println("cmd+q pressed");
-                            /*
-                             * This code exits abruptly, but using Display.dispose causes
-                             * a deadlock with the main loop.
-                             * Possibly de-install the tooltip mechanism before proceeding ?
+                            /* This code tries to gracefully handle the exit, but
+                             * In an SWT_AWT listener there's a listener that handle the FocusOut event but the call to
+                             * synthesizeWindowActivation may produce an NPE if the frame is still active / focused.
+                             *
+                             * Another approach is possible using System.exit(0), however the app exits abruptly.
                              */
-                            System.exit(0);
+                            frame.dispose();
+                            SWT_AWTBridge.invokeSwtAwayFromAwt(EmbeddingComposite.this.getDisplay(), () -> {
+                                EmbeddingComposite.this.getDisplay().dispose();
+                            });
                         }
                     }
                 }

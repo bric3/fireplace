@@ -24,9 +24,10 @@ import org.eclipse.swt.graphics.Color;
 import org.eclipse.swt.layout.FillLayout;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
-import org.eclipse.swt.widgets.*;
 import org.eclipse.swt.widgets.Composite;
+import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Label;
+import org.eclipse.swt.widgets.Shell;
 import org.openjdk.jmc.common.item.*;
 import org.openjdk.jmc.common.util.FormatToolkit;
 import org.openjdk.jmc.flightrecorder.CouldNotLoadRecordingException;
@@ -39,11 +40,9 @@ import org.openjdk.jmc.flightrecorder.stacktrace.tree.StacktraceTreeModel;
 import javax.swing.*;
 import java.io.IOException;
 import java.io.UncheckedIOException;
-import java.lang.reflect.InvocationTargetException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
-import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 import static java.util.stream.Collectors.joining;
@@ -53,7 +52,7 @@ public class FirePlaceSwtMain {
 
     private FlamegraphView<Node> flamegraph;
 
-    public static void main(String[] args) throws InterruptedException, InvocationTargetException {
+    public static void main(String[] args) {
         if (ProcessHandle.current().info().commandLine().stream().noneMatch(s -> s.contains("-XstartOnFirstThread")) &&
             System.getProperty("os.name").toLowerCase().contains("mac")) {
             System.err.println("java command requires -XstartOnFirstThread on macOs");
@@ -86,7 +85,7 @@ public class FirePlaceSwtMain {
         }
     }
 
-    private Shell launchApp(Display display, String[] args) throws InterruptedException, InvocationTargetException {
+    private Shell launchApp(Display display, String[] args) {
         var shell = new Shell(display, SWT.BORDER | SWT.CLOSE | SWT.MIN | SWT.TITLE | SWT.RESIZE);
         var shellBgAwtColor = SWT_AWTBridge.toAWTColor(shell.getBackground());
         Colors.setDarkMode(!Colors.isBright(shellBgAwtColor));
@@ -105,7 +104,7 @@ public class FirePlaceSwtMain {
 
         shell.setLayout(new FillLayout(SWT.VERTICAL));
         shell.setSize(1000, 800);
-        
+
         var parentComposite = new Composite(shell, SWT.CENTER);
         parentComposite.setLayout(new GridLayout(1, false));
         var label = new Label(parentComposite, SWT.BORDER);
@@ -205,13 +204,13 @@ public class FirePlaceSwtMain {
               .append(frameBox.actualNode.getFrame().getType())
               .append("<br/>");
 
-            Integer bci = frameBox.actualNode.getFrame().getBCI();
+            var bci = frameBox.actualNode.getFrame().getBCI();
             if (bci != null) {
                 sb.append("BCI: ")
                   .append(bci)
                   .append("<br/>");
             }
-            Integer frameLineNumber = frameBox.actualNode.getFrame().getFrameLineNumber();
+            var frameLineNumber = frameBox.actualNode.getFrame().getFrameLineNumber();
             if (frameLineNumber != null) {
                 sb.append("Line number: ")
                   .append(frameLineNumber)
@@ -220,8 +219,7 @@ public class FirePlaceSwtMain {
             sb.append("</p></form>");
             var text = sb.toString();
 
-            try {
-                // Not sure how to prevent that, but the call to asyncExec may deadlock
+            SWT_AWTBridge.invokeSwtAwayFromAwt(owner.getDisplay(), () -> {
                 owner.getDisplay().asyncExec(() -> {
                     var control = Display.getDefault().getCursorControl();
 
@@ -232,9 +230,7 @@ public class FirePlaceSwtMain {
                         tooltip.show(new org.eclipse.swt.graphics.Point(toolTipTarget.x, toolTipTarget.y));
                     }
                 });
-            } catch (SWTException e) {
-                System.out.println("If this happen, the display has been disposed");
-            }
+            });
         });
 
         return fg;
