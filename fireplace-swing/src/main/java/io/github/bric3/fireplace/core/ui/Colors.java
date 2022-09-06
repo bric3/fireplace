@@ -331,11 +331,26 @@ public class Colors {
      */
     public static Color foregroundColor(Color backgroundColor) {
         // sRGB luminance(Y) values
-        var brightness = brightness(backgroundColor);
-        var isBright = brightness >= DARK_PERCEIVED_BRIGHTNESS_THRESHOLD;
+        boolean isBright = isBright(backgroundColor);
         return isBright ?
                (darkMode ? Colors.panelBackground : Colors.panelForeground) :
                Color.white;
+    }
+
+    /**
+     * Indicate whether a color is bright based on the perceived luminance of the color.
+     *
+     * <p>
+     * Assumes an sRGB color space.
+     * </p>
+     *
+     * @param color The color
+     * @return true if bright, otherwise false
+     */
+    public static boolean isBright(Color color) {
+        var brightness = brightness(color);
+        var isBright = brightness >= DARK_PERCEIVED_BRIGHTNESS_THRESHOLD;
+        return isBright;
     }
 
     /**

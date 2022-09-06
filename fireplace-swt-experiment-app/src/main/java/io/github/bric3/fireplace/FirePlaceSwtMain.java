@@ -9,6 +9,7 @@
  */
 package io.github.bric3.fireplace;
 
+import io.github.bric3.fireplace.core.ui.Colors;
 import io.github.bric3.fireplace.core.ui.Colors.Palette;
 import io.github.bric3.fireplace.flamegraph.*;
 import io.github.bric3.fireplace.swt_awt.SWTKeyLogger;
@@ -19,6 +20,7 @@ import org.eclipse.swt.SWTException;
 import org.eclipse.swt.awt.SWT_AWT;
 import org.eclipse.swt.events.ShellAdapter;
 import org.eclipse.swt.events.ShellEvent;
+import org.eclipse.swt.graphics.Color;
 import org.eclipse.swt.layout.FillLayout;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
@@ -92,6 +94,9 @@ public class FirePlaceSwtMain {
 
     private Shell launchApp(Display display, String[] args) throws InterruptedException, InvocationTargetException {
         var shell = new Shell(display, SWT.BORDER | SWT.CLOSE | SWT.MIN | SWT.TITLE | SWT.RESIZE);
+        var shellBgAwtColor = SWT_AWTBridge.toAWTColor(shell.getBackground());
+        Colors.setDarkMode(!Colors.isBright(shellBgAwtColor));
+
         shell.setText("FirePlace SWT Experiment");
         shell.addDisposeListener(event -> System.out.println("shell disposed"));
         shell.addShellListener(new ShellAdapter() {
@@ -117,12 +122,16 @@ public class FirePlaceSwtMain {
 
         var embeddingComposite = new Composite(parentComposite, SWT.EMBEDDED | SWT.NO_BACKGROUND);
         embeddingComposite.setLayoutData(new GridData(GridData.FILL_BOTH));
-        // embeddingComposite.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
         embeddingComposite.setLayout(new GridLayout(1, true));
 
         var tooltip = new StyledToolTip(embeddingComposite, org.eclipse.jface.window.ToolTip.NO_RECREATE, true);
         tooltip.setPopupDelay(500);
         tooltip.setShift(new org.eclipse.swt.graphics.Point(10, 5));
+
+        if (Colors.isDarkMode()) {
+            tooltip.setForegroundColor(new Color(223, 225, 229));
+            tooltip.setBackgroundColor(new Color(43, 45, 48));
+        }
 
         embeddingComposite.addListener(
                 SWT.MouseExit,
@@ -154,6 +163,7 @@ public class FirePlaceSwtMain {
         // flamegraph
         SWT_AWTBridge.invokeAndWaitInEDT(() -> {
             flamegraph = createFlameGraph(embeddingComposite, tooltip);
+            flamegraph.component.setBackground(shellBgAwtColor);
 
             /*
              * Bug 228221 - SWT no longer receives key events in KeyAdapter when using SWT_AWT.new_Frame AWT frame
@@ -180,7 +190,6 @@ public class FirePlaceSwtMain {
              * change it back to a non-root here.
              */
             applet.setFocusCycleRoot(false);
-            applet.setBackground(SWT_AWTBridge.toAWTColor(backgroundColor));
 
             /*
              * Use the following approach to add the component to the applet
