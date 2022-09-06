@@ -158,11 +158,10 @@ public class FirePlaceSwtMain {
             });
         });
 
-        var backgroundColor = embeddingComposite.getBackground();
-
         // flamegraph
         SWT_AWTBridge.invokeAndWaitInEDT(() -> {
             flamegraph = createFlameGraph(embeddingComposite, tooltip);
+            new ZoomAnimation().install(flamegraph);
             flamegraph.component.setBackground(shellBgAwtColor);
 
             /*
