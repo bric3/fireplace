@@ -78,7 +78,7 @@ public abstract class SWT_AWTBridge {
      *
      * @param runnable The task to run.
      */
-    public static void invokeAndWaitInEDT(Runnable runnable) {
+    public static void invokeInEDTAndWait(Runnable runnable) {
         computeInEDT(() -> {
             runnable.run();
             return null;
