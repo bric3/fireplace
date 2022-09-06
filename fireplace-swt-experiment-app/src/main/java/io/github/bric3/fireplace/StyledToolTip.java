@@ -18,7 +18,7 @@ import org.eclipse.swt.widgets.Event;
 import org.eclipse.ui.forms.widgets.FormText;
 
 /**
- * This tool tip extends the Jface implementation and relies on the {@link FormText} control
+ * This tool tip extends the JFace implementation and relies on the {@link FormText} control
  * to render the text.
  *
  * @author brice.dutheil

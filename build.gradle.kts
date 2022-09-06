@@ -56,20 +56,20 @@ tasks.create("v") {
     }
 }
 
-val fireplaceModules = subprojects - project(":fireplace-app") - project(":fireplace-swt-experiment")
+val fireplaceModules = subprojects - project(":fireplace-app") - project(":fireplace-swt-experiment-app")
 configure(fireplaceModules) {
     apply(plugin = "java-library") // needed to get the java component
     apply(plugin = "maven-publish")
     apply(plugin = "signing")
     apply(plugin = "biz.aQute.bnd.builder")
 
+    repositories {
+        mavenCentral()
+    }
+
     configure<JavaPluginExtension> {
         withJavadocJar()
         withSourcesJar()
-    }
-
-    repositories {
-        mavenCentral()
     }
 
     val licenseSpec = copySpec {
@@ -184,7 +184,7 @@ configure(fireplaceModules) {
         repositories {
             maven {
                 if (properties("publish.central").toBoolean()) {
-                    val isGithubRelease = System.getenv("GITHUB_EVENT_NAME").equals("release", true)
+                    val isGithubRelease = providers.environmentVariable("GITHUB_EVENT_NAME").get().equals("release", true)
                     name = "central"
                     url = uri(when {
                                   isGithubRelease && !isSnapshot -> "https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/"
@@ -199,6 +199,35 @@ configure(fireplaceModules) {
                     url = uri("${rootProject.buildDir}/publishing-repository")
                 }
                 project.extra["publishingRepositoryUrl"] = url
+            }
+        }
+    }
+}
+
+// Configure the right SWT dependency for the current platform
+// Gradle do not offer a way to resolve a "property" like ${property}, instead it is necessary
+// to configure the dependency substitution.
+val os: OperatingSystem = org.gradle.nativeplatform.platform.internal.DefaultNativePlatform.getCurrentOperatingSystem()
+val arch: String = providers.systemProperty("os.arch").get()
+configure(listOf(project(":fireplace-swt-experiment-app"), project(":fireplace-swt-awt-bridge"))) {
+    configurations.all {
+        resolutionStrategy {
+            dependencySubstitution {
+                val osId = when {
+                    os.isWindows -> "win32.win32"
+                    os.isLinux -> "gtk.linux"
+                    os.isMacOsX -> "cocoa.macosx"
+                    else -> throw GradleException("Unsupported OS: $os")
+                }
+
+                val archId = when (arch) {
+                    "x86_64", "amd64" -> "x86_64"
+                    else -> throw GradleException("Unsupported architecture: $arch")
+                }
+
+                substitute(module("org.eclipse.platform:org.eclipse.swt.\${osgi.platform}"))
+                    .using(module("org.eclipse.platform:org.eclipse.swt.$osId.$archId:${rootProject.libs.versions.swt.get()}"))
+                    .because("The maven property '\${osgi.platform}' that appear in the artifact coordinate is not handled by Gradle, it is required to replace the dependency")
             }
         }
     }

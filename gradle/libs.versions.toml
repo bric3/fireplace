@@ -22,6 +22,8 @@ assertj = "3.23.1"
 
 batik = "1.14"
 
+swt = "3.120.0"
+
 [libraries]
 flatlaf = { module = "com.formdev:flatlaf", version.ref = "flatlaf" }
 flatlaf-extras = { module = "com.formdev:flatlaf-extras", version.ref = "flatlaf" }
@@ -42,9 +44,14 @@ assertj = { module = "org.assertj:assertj-core", version.ref = "assertj" }
 batik-svggen = { module = "org.apache.xmlgraphics:batik-svggen", version.ref = "batik" }
 batik-dom = { module = "org.apache.xmlgraphics:batik-dom", version.ref = "batik" }
 
+eclipse-swt = { module ="org.eclipse.platform:org.eclipse.swt", version.ref = "swt" }
+eclipse-jface = { module ="org.eclipse.platform:org.eclipse.jface", version = "3.26.0" }
+eclipse-ui-forms = { module ="org.eclipse.platform:org.eclipse.ui.forms", version = "3.11.300" }
+
 [bundles]
 junit-jupiter = ["junit-jupiter-api", "junit-jupiter-engine"]
 graal-js = ["graal-js", "graal-js-scriptengine"]
 flatlaf = ["flatlaf", "flatlaf-extras"]
 darklaf = ["darklaf-platform-preferences", "darklaf-platform-decorations"]
 batik = ["batik-svggen", "batik-dom"]
+eclipse-swt = ["eclipse-swt", "eclipse-jface", "eclipse-ui-forms"]

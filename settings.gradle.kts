@@ -16,12 +16,14 @@ include(
     "fireplace-swing",
     "fireplace-swing-animation",
     "fireplace-app",
-    "fireplace-swt-experiment"
+    "fireplace-swt-awt-bridge",
+    "fireplace-swt-experiment-app",
 )
 enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 
 gradleEnterprise {
-    if (System.getenv("CI") != null) {
+    if (providers.environmentVariable("CI").isPresent) {
+        println("CI")
         buildScan {
             termsOfServiceUrl = "https://gradle.com/terms-of-service"
             termsOfServiceAgree = "yes"

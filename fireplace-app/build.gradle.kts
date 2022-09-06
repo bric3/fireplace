@@ -35,7 +35,7 @@ dependencies {
     implementation(libs.flightrecorder)
 
 //    implementation(libs.graal.sdk)
-    implementation(libs.bundles.graal.js)
+//    implementation(libs.bundles.graal.js)
 
     testImplementation(libs.junit.jupiter.api)
     testRuntimeOnly(libs.junit.jupiter.engine)
@@ -56,7 +56,7 @@ tasks.jar {
         "Implementation-Title" to project.name,
         "Implementation-Version" to project.version,
         "Automatic-Module-Name" to project.name.replace('-', '.'),
-        "Created-By" to "${System.getProperty("java.version")} (${System.getProperty("java.specification.vendor")})",
+        "Created-By" to "${providers.systemProperty("java.version").get()} (${providers.systemProperty("java.specification.vendor").get()})",
     )
 }
 
