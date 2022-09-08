@@ -18,7 +18,7 @@ import io.github.bric3.fireplace.flamegraph.FlamegraphView;
 import io.github.bric3.fireplace.flamegraph.FrameFontProvider;
 import io.github.bric3.fireplace.flamegraph.FrameModel;
 import io.github.bric3.fireplace.flamegraph.FrameTextsProvider;
-import io.github.bric3.fireplace.flamegraph.ZoomAnimation;
+import io.github.bric3.fireplace.flamegraph.animation.ZoomAnimation;
 import io.github.bric3.fireplace.ui.BalloonToolTip;
 import org.openjdk.jmc.common.util.FormatToolkit;
 import org.openjdk.jmc.flightrecorder.stacktrace.tree.Node;
