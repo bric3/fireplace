@@ -11,7 +11,7 @@
 [versions]
 flatlaf = "2.4"
 darklaf = "3.0.1"
-radiance-animation = "6.0.0"
+radiance-animation = "6.0.1"
 
 jmc-flightrecorder = "8.2.1"
 
