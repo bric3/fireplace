@@ -9,7 +9,7 @@
 #
 
 [versions]
-flatlaf = "2.4"
+flatlaf = "2.5"
 darklaf = "3.0.1"
 radiance-animation = "6.0.1"
 
