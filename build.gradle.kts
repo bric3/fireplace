@@ -152,7 +152,7 @@ configure(fireplaceModules) {
                     
                     issueManagement {
                         system.set("GitHub")
-                        url.set("https://github.com/spring-projects/spring-framework/issues")
+                        url.set("https://github.com/bric3/fireplace/issues")
                     }
 
                     licenses {
