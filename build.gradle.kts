@@ -13,7 +13,7 @@ fun properties(key: String, defaultValue: Any? = null) = (project.findProperty(k
 
 plugins {
     id("com.github.hierynomus.license") version "0.16.1"
-    id("me.qoomon.git-versioning") version "6.3.4"
+    id("me.qoomon.git-versioning") version "6.3.5"
     id("biz.aQute.bnd.builder") version "6.3.1" apply false
     `maven-publish`
 }
