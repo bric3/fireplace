@@ -20,7 +20,7 @@ graalvm = "22.3.0"
 junit-jupiter = "5.9.1"
 assertj = "3.23.1"
 
-batik = "1.15"
+batik = "1.16"
 
 swt = "3.121.0"
 
