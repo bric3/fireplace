@@ -29,11 +29,9 @@ testing {
         val test by getting(JvmTestSuite::class) {
             useJUnitJupiter(libs.versions.junit.jupiter.get())
             dependencies {
-                implementation(libs.assertj)
-                implementation(libs.bundles.batik)
+                implementation.add(libs.assertj)
+                implementation.bundle(libs.bundles.batik)
             }
-
-
         }
 
         withType(JvmTestSuite::class) {
