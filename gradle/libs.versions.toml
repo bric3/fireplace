@@ -22,7 +22,7 @@ assertj = "3.23.1"
 
 batik = "1.16"
 
-swt = "3.121.0"
+swt = "3.122.0"
 
 [libraries]
 flatlaf = { module = "com.formdev:flatlaf", version.ref = "flatlaf" }
