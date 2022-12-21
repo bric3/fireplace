@@ -213,6 +213,7 @@ configure(listOf(project(":fireplace-swt-experiment-app"), project(":fireplace-s
     configurations.all {
         resolutionStrategy {
             dependencySubstitution {
+                // Available SWT packages https://repo1.maven.org/maven2/org/eclipse/platform/
                 val osId = when {
                     os.isWindows -> "win32.win32"
                     os.isLinux -> "gtk.linux"
@@ -222,6 +223,7 @@ configure(listOf(project(":fireplace-swt-experiment-app"), project(":fireplace-s
 
                 val archId = when (arch) {
                     "x86_64", "amd64" -> "x86_64"
+                    "aarch64" -> "aarch64"
                     else -> throw GradleException("Unsupported architecture: $arch")
                 }
 
