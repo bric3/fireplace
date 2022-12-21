@@ -916,13 +916,14 @@ public class FlamegraphView<T> {
         @Override
         public void addNotify() {
             super.addNotify();
+            var fgCanvas = this;
 
             // Adjust the width of the canvas to the width of the view rect, when
             // the scroll bar is made visible, this prevents the horizontal scrollbar
             // from appearing on first display, see #96.
             // Since a scrollbar is made visible once, this listener is called only once,
             // which is the intended behavior (otherwise it affects zooming).
-            var parent = SwingUtilities.getUnwrappedParent(this);
+            var parent = SwingUtilities.getUnwrappedParent(fgCanvas);
             if (parent instanceof JViewport) {
                 var viewport = (JViewport) parent;
                 var scrollPane = (JScrollPane) viewport.getParent();
@@ -931,19 +932,27 @@ public class FlamegraphView<T> {
                     @Override
                     public void componentShown(ComponentEvent e) {
                         SwingUtilities.invokeLater(() -> {
-                            var canvasWidth = getWidth();
+                            var canvasWidth = fgCanvas.getWidth();
                             if (canvasWidth == 0) {
                                 return;
                             }
-                            setSize(viewport.getViewRect().width, getHeight());
+                            // On the first display the flamegraph has the same width as the enclosing container
+                            // but if flamegraph is zoomed in the width will be different, in this case
+                            // DO NOT set the width of the canvas to the width of the view port.
+                            if (scrollPane.getWidth() != canvasWidth) {
+                                return;
+                            }
+                            // Adjust the width of the canvas to the width of the viewport rect
+                            // to prevent the horizontal scrollbar from appearing on first display.
+                            fgCanvas.setSize(viewport.getViewRect().width, getHeight());
                         });
                     }
                 });
-                this.addPropertyChangeListener(GRAPH_MODE, evt -> {
+                fgCanvas.addPropertyChangeListener(GRAPH_MODE, evt -> {
                     SwingUtilities.invokeLater(() -> {
                         var value = vsb.getValue();
-                        var bounds = this.getBounds();
-                        var visibleRect = this.getVisibleRect();
+                        var bounds = fgCanvas.getBounds();
+                        var visibleRect = fgCanvas.getVisibleRect();
 
                         // This computes the new view location based on the current view location
                         switch ((Mode) evt.getNewValue()) {
@@ -965,7 +974,7 @@ public class FlamegraphView<T> {
                     });
                 });
 
-                this.addPropertyChangeListener("preferredSize", evt -> {
+                fgCanvas.addPropertyChangeListener("preferredSize", evt -> {
                     var preferredSize = (Dimension) evt.getNewValue();
                     SwingUtilities.invokeLater(() -> {
                         // trigger minimap generation, when the flamegraph is zoomed, more
