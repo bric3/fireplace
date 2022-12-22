@@ -1121,8 +1121,8 @@ public class FlamegraphView<T> {
 
                     int x = (int) (visibleRect.x * zoomZoneScaleX);
                     int y = (int) (visibleRect.y * zoomZoneScaleY);
-                    int w = (int) (visibleRect.width * zoomZoneScaleX);
-                    int h = (int) (visibleRect.height * zoomZoneScaleY);
+                    int w = Math.min((int) (visibleRect.width * zoomZoneScaleX), minimapBounds.width);
+                    int h = Math.min((int) (visibleRect.height * zoomZoneScaleY), minimapBounds.height);
 
                     var zoomZone = new Area(new Rectangle(minimapInset, minimapInset, minimapBounds.width, minimapBounds.height));
                     zoomZone.subtract(new Area(new Rectangle(x + minimapInset, y + minimapInset, w, h)));
