@@ -7,13 +7,13 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
-import me.qoomon.gitversioning.commons.GitRefType
+import nebula.plugin.release.git.opinion.Strategies
 
 fun properties(key: String, defaultValue: Any? = null) = (project.findProperty(key) ?: defaultValue).toString()
 
 plugins {
     id("com.github.hierynomus.license") version "0.16.1"
-    id("me.qoomon.git-versioning") version "6.3.7"
+    id("nebula.release") version "17.1.0"
     id("biz.aQute.bnd.builder") version "6.4.0" apply false
     `maven-publish`
 }
@@ -22,37 +22,15 @@ allprojects {
     group = "io.github.bric3.fireplace"
 }
 
-
-// Doc : https://github.com/qoomon/gradle-git-versioning-plugin
-gitVersioning.apply {
-    val dirty = if (!properties("version.showDirtiness", "true").toBoolean()) "" else "\${dirty}"
-    refs {
-        considerTagsOnBranches = true
-        tag("v(?<tagVersion>[0-9].*)") {
-            version = "\${ref.tagVersion}${dirty}"
-        }
-        branch("master") {
-            version = "${project.version}${dirty}"
-        }
-        branch(".+") {
-            version = "\${ref}-\${commit.short}${dirty}"
-        }
-    }
-
-    rev {
-        version = "\${commit.short}${dirty}"
-    }
+release {
+    defaultVersionStrategy = Strategies.getSNAPSHOT()
 }
 
-val isSnapshot =
-    version.toString().endsWith("SNAPSHOT")
-            || properties("version.forceSnapshot").toBoolean()
-            || (!properties("version.forceRelease").toBoolean()
-            && gitVersioning.gitVersionDetails.refType != GitRefType.TAG)
+fun isSnapshot(version: Any) = version.toString().endsWith("-SNAPSHOT") || version.toString().contains("-dev")
 
-tasks.create("v") {
+tasks.register("v") {
     doLast {
-        println("Version : ${project.version}, snapshot : ${isSnapshot}")
+        println("Version : ${project.version}")
     }
 }
 
@@ -128,15 +106,9 @@ configure(fireplaceModules) {
     // ORG_GRADLE_PROJECT_signingKey=$(cat armoredKey) ORG_GRADLE_PROJECT_signingPassword=$(cat passphrase) ./gradlew publish --console=verbose
     publishing {
         publications {
-            create<MavenPublication>("mavenJava") {
+            register<MavenPublication>("mavenJava") {
                 from(components["java"])
 
-                // OSSRH enforces the `-SNAPSHOT` suffix on snapshot repository
-                // https://central.sonatype.org/faq/400-error/#question
-                version = when {
-                    isSnapshot -> project.version.toString().replace("-(DIRTY)", "")
-                    else -> project.version.toString()
-                }
                 project.extra["publishingVersion"] = version
 
                 val gitRepo = "https://github.com/bric3/fireplace"
@@ -149,7 +121,7 @@ configure(fireplaceModules) {
                         developerConnection.set("scm:git:${gitRepo}.git")
                         url.set(gitRepo)
                     }
-                    
+
                     issueManagement {
                         system.set("GitHub")
                         url.set("https://github.com/bric3/fireplace/issues")
@@ -184,12 +156,15 @@ configure(fireplaceModules) {
         repositories {
             maven {
                 if (properties("publish.central").toBoolean()) {
-                    val isGithubRelease = providers.environmentVariable("GITHUB_EVENT_NAME").get().equals("release", true)
+                    val isGithubRelease =
+                        providers.environmentVariable("GITHUB_EVENT_NAME").get().equals("release", true)
                     name = "central"
-                    url = uri(when {
-                                  isGithubRelease && !isSnapshot -> "https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/"
-                                  else -> "https://s01.oss.sonatype.org/content/repositories/snapshots"
-                              })
+                    url = uri(
+                        when {
+                            isGithubRelease && !isSnapshot(project.version) -> "https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/"
+                            else -> "https://s01.oss.sonatype.org/content/repositories/snapshots"
+                        }
+                    )
                     credentials {
                         username = findProperty("ossrhUsername") as? String
                         password = findProperty("ossrhPassword") as? String
