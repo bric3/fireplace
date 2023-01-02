@@ -7,13 +7,11 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
-import nebula.plugin.release.git.opinion.Strategies
-
 fun properties(key: String, defaultValue: Any? = null) = (project.findProperty(key) ?: defaultValue).toString()
 
 plugins {
     id("com.github.hierynomus.license") version "0.16.1"
-    id("nebula.release") version "17.1.0"
+    id("com.javiersc.semver.gradle.plugin") version "0.3.0-alpha.5"
     id("biz.aQute.bnd.builder") version "6.4.0" apply false
     `maven-publish`
 }
@@ -22,11 +20,7 @@ allprojects {
     group = "io.github.bric3.fireplace"
 }
 
-release {
-    defaultVersionStrategy = Strategies.getSNAPSHOT()
-}
-
-fun isSnapshot(version: Any) = version.toString().endsWith("-SNAPSHOT") || version.toString().contains("-dev")
+fun isSnapshot(version: Any) = version.toString().endsWith("-SNAPSHOT") || version.toString().matches(Regex(".*\\.\\d+\\+[0-9a-f]+")) // .54+6a08d70
 
 tasks.register("v") {
     doLast {
