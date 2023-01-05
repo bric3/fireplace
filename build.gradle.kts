@@ -20,11 +20,6 @@ plugins {
 
 allprojects {
     group = "io.github.bric3.fireplace"
-
-    apply(plugin = "com.javiersc.semver.gradle.plugin")
-    semver {
-        tagPrefix.set("v")
-    }
 }
 
 tasks.register("v") {
@@ -39,6 +34,11 @@ configure(fireplaceModules) {
     apply(plugin = "maven-publish")
     apply(plugin = "signing")
     apply(plugin = "biz.aQute.bnd.builder")
+    apply(plugin = "com.javiersc.semver.gradle.plugin")
+
+    semver {
+        tagPrefix.set("v")
+    }
 
     repositories {
         mavenCentral()
@@ -62,13 +62,13 @@ configure(fireplaceModules) {
             metaInf.with(licenseSpec)
         }
 
-        val jar = named<Jar>("jar") {
+        named<Jar>("jar") {
             bundle {
                 val version by archiveVersion
                 bnd(
                     mapOf(
                         "Bundle-License" to "https://www.mozilla.org/en-US/MPL/2.0/",
-                        "Bundle-Name" to project.name,
+                        "Bundle-Name" to providers.provider { project.name },
                         // "Bundle-Description" to project.description,
                         "-exportcontents" to listOf(
                             "!io.github.bric3.fireplace.internal.*",
@@ -79,9 +79,9 @@ configure(fireplaceModules) {
                 )
             }
             manifest.attributes(
-                "Implementation-Title" to project.name,
-                "Implementation-Version" to project.version,
-                "Automatic-Module-Name" to project.name.replace('-', '.'),
+                "Implementation-Title" to providers.provider { project.name },
+                "Implementation-Version" to providers.provider { project.version },
+                "Automatic-Module-Name" to providers.provider { project.name.replace('-', '.') },
                 "Created-By" to "${System.getProperty("java.version")} (${System.getProperty("java.specification.vendor")})",
             )
         }
