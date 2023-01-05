@@ -79,7 +79,7 @@ jobs:
           ORG_GRADLE_PROJECT_ossrhUsername: ${{ secrets.ORG_GRADLE_PROJECT_OSSRHUSERNAME }}
           ORG_GRADLE_PROJECT_ossrhPassword: ${{ secrets.ORG_GRADLE_PROJECT_OSSRHPASSWORD }}
         with:
-          arguments: publish -Ppublish.central=true -Pversion.forceSnapshot=true
+          arguments: publish -Ppublish.central=true -Psemver.stage=snapshot
 
   # This job will update the PR with the JUnit report
   # In order to be able to make the most of it this job in particular has

@@ -9,6 +9,9 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
+      - uses: skymatic/semver-validation-action@v1
+        with:
+          version: ${{ github.event.release.tag_name }}
       - uses: actions/checkout@v3
         with:
           ref: ${{ github.event.release.tag_name }}
@@ -27,5 +30,5 @@ jobs:
           ORG_GRADLE_PROJECT_ossrhUsername: ${{ secrets.ORG_GRADLE_PROJECT_OSSRHUSERNAME }}
           ORG_GRADLE_PROJECT_ossrhPassword: ${{ secrets.ORG_GRADLE_PROJECT_OSSRHPASSWORD }}
         with:
+          # com.javiersc.semver.gradle.plugin should pick the actual tag
           arguments: publish -Ppublish.central=true
-          
