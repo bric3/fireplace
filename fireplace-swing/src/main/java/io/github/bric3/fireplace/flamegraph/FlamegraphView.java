@@ -506,8 +506,11 @@ public class FlamegraphView<T> {
         framesModel = Objects.requireNonNull(frameModel);
         canvas.getFlamegraphRenderEngine().ifPresent(fre -> fre.init(frameModel));
 
-        canvas.revalidate();
-        canvas.repaint();
+        // force invalidation of the canvas so that the scrollpane will fetch the new preferredSize
+        // otherwise old cached preferredSize will be used.
+        canvas.invalidate();
+        component.revalidate();
+        component.repaint();
     }
 
     /**
