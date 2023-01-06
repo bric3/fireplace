@@ -1,3 +1,5 @@
+import com.javiersc.semver.gradle.plugin.extensions.isSnapshot
+
 /*
  * Fireplace
  *
@@ -7,13 +9,11 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
-import me.qoomon.gitversioning.commons.GitRefType
-
 fun properties(key: String, defaultValue: Any? = null) = (project.findProperty(key) ?: defaultValue).toString()
 
 plugins {
     id("com.github.hierynomus.license") version "0.16.1"
-    id("me.qoomon.git-versioning") version "6.3.7"
+    id("com.javiersc.semver.gradle.plugin") version "0.4.0-alpha.1"
     id("biz.aQute.bnd.builder") version "6.4.0" apply false
     `maven-publish`
 }
@@ -22,37 +22,9 @@ allprojects {
     group = "io.github.bric3.fireplace"
 }
 
-
-// Doc : https://github.com/qoomon/gradle-git-versioning-plugin
-gitVersioning.apply {
-    val dirty = if (!properties("version.showDirtiness", "true").toBoolean()) "" else "\${dirty}"
-    refs {
-        considerTagsOnBranches = true
-        tag("v(?<tagVersion>[0-9].*)") {
-            version = "\${ref.tagVersion}${dirty}"
-        }
-        branch("master") {
-            version = "${project.version}${dirty}"
-        }
-        branch(".+") {
-            version = "\${ref}-\${commit.short}${dirty}"
-        }
-    }
-
-    rev {
-        version = "\${commit.short}${dirty}"
-    }
-}
-
-val isSnapshot =
-    version.toString().endsWith("SNAPSHOT")
-            || properties("version.forceSnapshot").toBoolean()
-            || (!properties("version.forceRelease").toBoolean()
-            && gitVersioning.gitVersionDetails.refType != GitRefType.TAG)
-
-tasks.create("v") {
+tasks.register("v") {
     doLast {
-        println("Version : ${project.version}, snapshot : ${isSnapshot}")
+        println(project.version.toString())
     }
 }
 
@@ -62,6 +34,11 @@ configure(fireplaceModules) {
     apply(plugin = "maven-publish")
     apply(plugin = "signing")
     apply(plugin = "biz.aQute.bnd.builder")
+    apply(plugin = "com.javiersc.semver.gradle.plugin")
+
+    semver {
+        tagPrefix.set("v")
+    }
 
     repositories {
         mavenCentral()
@@ -85,13 +62,13 @@ configure(fireplaceModules) {
             metaInf.with(licenseSpec)
         }
 
-        val jar = named<Jar>("jar") {
+        named<Jar>("jar") {
             bundle {
                 val version by archiveVersion
                 bnd(
                     mapOf(
                         "Bundle-License" to "https://www.mozilla.org/en-US/MPL/2.0/",
-                        "Bundle-Name" to project.name,
+                        "Bundle-Name" to providers.provider { project.name },
                         // "Bundle-Description" to project.description,
                         "-exportcontents" to listOf(
                             "!io.github.bric3.fireplace.internal.*",
@@ -102,16 +79,22 @@ configure(fireplaceModules) {
                 )
             }
             manifest.attributes(
-                "Implementation-Title" to project.name,
-                "Implementation-Version" to project.version,
-                "Automatic-Module-Name" to project.name.replace('-', '.'),
+                "Implementation-Title" to providers.provider { project.name },
+                "Implementation-Version" to providers.provider { project.version },
+                "Automatic-Module-Name" to providers.provider { project.name.replace('-', '.') },
                 "Created-By" to "${System.getProperty("java.version")} (${System.getProperty("java.specification.vendor")})",
             )
         }
 
-        named("publish") {
+        withType<PublishToMavenRepository>().configureEach {
             doFirst {
-                logger.lifecycle("Uploading version '${project.extra["publishingVersion"]}' to ${project.extra["publishingRepositoryUrl"]}")
+                logger.lifecycle("Publishing version '${this@configureEach.publication.version}' to ${this@configureEach.repository.url}")
+            }
+        }
+
+        withType<PublishToMavenLocal>().configureEach {
+            doFirst {
+                logger.lifecycle("Publishing version '${this@configureEach.publication.version}' locally")
             }
         }
     }
@@ -128,16 +111,8 @@ configure(fireplaceModules) {
     // ORG_GRADLE_PROJECT_signingKey=$(cat armoredKey) ORG_GRADLE_PROJECT_signingPassword=$(cat passphrase) ./gradlew publish --console=verbose
     publishing {
         publications {
-            create<MavenPublication>("mavenJava") {
+            register<MavenPublication>("mavenJava") {
                 from(components["java"])
-
-                // OSSRH enforces the `-SNAPSHOT` suffix on snapshot repository
-                // https://central.sonatype.org/faq/400-error/#question
-                version = when {
-                    isSnapshot -> project.version.toString().replace("-(DIRTY)", "")
-                    else -> project.version.toString()
-                }
-                project.extra["publishingVersion"] = version
 
                 val gitRepo = "https://github.com/bric3/fireplace"
                 pom {
@@ -149,7 +124,7 @@ configure(fireplaceModules) {
                         developerConnection.set("scm:git:${gitRepo}.git")
                         url.set(gitRepo)
                     }
-                    
+
                     issueManagement {
                         system.set("GitHub")
                         url.set("https://github.com/bric3/fireplace/issues")
@@ -178,18 +153,22 @@ configure(fireplaceModules) {
                         description.set(project.description)
                     }
                 }
-
             }
         }
         repositories {
             maven {
-                if (properties("publish.central").toBoolean()) {
-                    val isGithubRelease = providers.environmentVariable("GITHUB_EVENT_NAME").get().equals("release", true)
+                if (providers.gradleProperty("publish.central").orNull.toBoolean()) {
+                    val isGithubRelease =
+                        providers.environmentVariable("GITHUB_EVENT_NAME").get().equals("release", true)
                     name = "central"
-                    url = uri(when {
-                                  isGithubRelease && !isSnapshot -> "https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/"
-                                  else -> "https://s01.oss.sonatype.org/content/repositories/snapshots"
-                              })
+                    setUrl(isSnapshot.map { snap ->
+                        uri(
+                            when {
+                                isGithubRelease && !snap -> "https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/"
+                                else -> "https://s01.oss.sonatype.org/content/repositories/snapshots"
+                            }
+                        )
+                    })
                     credentials {
                         username = findProperty("ossrhUsername") as? String
                         password = findProperty("ossrhPassword") as? String
@@ -198,7 +177,6 @@ configure(fireplaceModules) {
                     name = "build-dir"
                     url = uri("${rootProject.buildDir}/publishing-repository")
                 }
-                project.extra["publishingRepositoryUrl"] = url
             }
         }
     }
