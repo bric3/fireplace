@@ -9,7 +9,7 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
-      - uses: skymatic/semver-validation-action@v1
+      - uses: skymatic/semver-validation-action@v2
         with:
           version: ${{ github.event.release.tag_name }}
       - uses: actions/checkout@v3
