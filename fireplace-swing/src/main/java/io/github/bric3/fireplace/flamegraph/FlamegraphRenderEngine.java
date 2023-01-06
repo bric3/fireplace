@@ -138,6 +138,7 @@ class FlamegraphRenderEngine<T> {
         this.frameModel = Objects.requireNonNull(frameModel, "frameModel");
         this.depth = frameModel.frames.stream().mapToInt(fb -> fb.stackDepth).max().orElse(0) + 1;
         visibleDepth = depth;
+        visibleDepthCache.clear();
         return this;
     }
 
@@ -150,6 +151,7 @@ class FlamegraphRenderEngine<T> {
         this.frameModel = FrameModel.empty();
         this.depth = 1;
         visibleDepth = 1;
+        visibleDepthCache.clear();
         return this;
     }
 
