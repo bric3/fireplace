@@ -1,0 +1,23 @@
+# Fireplace
+#
+# Copyright (c) 2021, Today - Brice Dutheil
+#
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+name: Fetch history up-to last-tag
+description: Fetch git history up-to last-tag
+runs:
+  using: "composite"
+  steps:
+    - name: Get all tags
+      shell: bash
+      run: git fetch --tags origin
+    - name: Get the most recent tag
+      shell: bash
+      run: |
+        MOST_RECENT_TAG="$(git describe --abbrev=0 --tags)"
+        echo "Most recent tag: $MOST_RECENT_TAG"
+        
+        echo "most_recent_tag=$MOST_RECENT_TAG" >> $GITHUB_OUTPUT
