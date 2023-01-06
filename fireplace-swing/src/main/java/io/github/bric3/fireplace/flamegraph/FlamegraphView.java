@@ -974,6 +974,7 @@ public class FlamegraphView<T> {
                                 );
                                 break;
                         }
+                        fgCanvas.triggerMinimapGeneration();
                     });
                 });
 
@@ -987,7 +988,7 @@ public class FlamegraphView<T> {
                             // && preferredSize.width > minimapBounds.width
                             // && preferredSize.height > minimapBounds.height
                         ) {
-                            triggerMinimapGeneration();
+                            fgCanvas.triggerMinimapGeneration();
                         }
                     });
                 });
@@ -1427,6 +1428,8 @@ public class FlamegraphView<T> {
         @Override
         public void zoom(ZoomTarget zoomTarget) {
             // Changing the size triggers a revalidation, which triggers a layout
+            // Not calling setBounds from the Timeline may provoke EDT violations
+            // however calling invokeLater makes the animation out of order, and not smooth.
             setBounds(zoomTarget);
         }
     }
