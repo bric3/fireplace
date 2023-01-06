@@ -13,7 +13,7 @@ flatlaf = "3.0"
 darklaf = "3.0.2"
 radiance-animation = "6.5.0"
 
-jmc-flightrecorder = "8.2.1"
+jmc-flightrecorder = "8.3.0"
 
 graalvm = "22.3.0"
 

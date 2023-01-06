@@ -11,7 +11,6 @@ package io.github.bric3.fireplace;
 
 import io.github.bric3.fireplace.flamegraph.FrameBox;
 import org.openjdk.jmc.common.IMCFrame.Type;
-import org.openjdk.jmc.common.IMCType;
 import org.openjdk.jmc.flightrecorder.stacktrace.tree.Node;
 
 import java.awt.*;
@@ -35,11 +34,11 @@ public enum JfrFrameColorMode {
                 return undefinedColor;
             }
 
-            switch (frame.getType()) {
-                case NATIVE:
-                case KERNEL:
-                case CPP:
-                    return runtimeColor;
+            Type type = frame.getType();
+            if (type.equals(Type.NATIVE)
+                || type.equals(Type.KERNEL)
+                || type.equals(Type.CPP)) {
+                return runtimeColor;
             }
 
             var name = frame.getMethod().getType().getPackage().getName();
@@ -64,17 +63,15 @@ public enum JfrFrameColorMode {
             if (frameNode.isRoot()) {
                 return rootNodeColor;
             }
-            switch (frameNode.getFrame().getType()) {
-                case INTERPRETED:
-                    return interpretedColor;
-                case INLINED:
-                    return inlinedColor;
-                case JIT_COMPILED:
-                    return jitCompiledColor;
-                case UNKNOWN:
-                default:
-                    return undefinedColor;
+            Type type = frameNode.getFrame().getType();
+            if (type.equals(Type.INTERPRETED)) {
+                return interpretedColor;
+            } else if (type.equals(Type.INLINED)) {
+                return inlinedColor;
+            } else if (type.equals(Type.JIT_COMPILED)) {
+                return jitCompiledColor;
             }
+            return undefinedColor;
         }
     };
 
