@@ -83,6 +83,7 @@ public class FirePlaceMain {
             {
                 jfrBinder.bindEvents(JfrAnalyzer::stackTraceAllocationFun, allocationFlameGraphPanel::setStacktraceTreeModel);
             }
+
             var cpuFlameGraphPanel = new FlameGraphTab();
             {
                 jfrBinder.bindEvents(JfrAnalyzer::stackTraceCPUFun, cpuFlameGraphPanel::setStacktraceTreeModel);
@@ -105,57 +106,65 @@ public class FirePlaceMain {
             }
             var jTabbedPane = new JTabbedPane();
             {
-                jTabbedPane.addTab(SYSTEM_PROPERTIES, JScrollPaneWithBackButton.create(() -> new JScrollPane(sysProps)));
-                jTabbedPane.addTab(NATIVE_LIBRARIES, JScrollPaneWithBackButton.create(() -> new JScrollPane(nativeLibs)));
                 jTabbedPane.addTab(ALLOCATIONS, allocationFlameGraphPanel);
                 jTabbedPane.addTab(CPU, cpuFlameGraphPanel);
+                jTabbedPane.addTab(SYSTEM_PROPERTIES, JScrollPaneWithBackButton.create(() -> new JScrollPane(sysProps)));
+                jTabbedPane.addTab(NATIVE_LIBRARIES, JScrollPaneWithBackButton.create(() -> new JScrollPane(nativeLibs)));
                 jTabbedPane.setTabPlacement(JTabbedPane.BOTTOM);
             }
 
             var topPanel = new JPanel(new BorderLayout());
-            topPanel.add(openedFileLabel, BorderLayout.CENTER);
-            topPanel.add(AppearanceControl.getComponent(), BorderLayout.EAST);
+            {
+                topPanel.add(openedFileLabel, BorderLayout.CENTER);
+                topPanel.add(AppearanceControl.getComponent(), BorderLayout.EAST);
+            }
 
             var mainPanel = new JPanel(new BorderLayout());
-            mainPanel.add(new TitleBar(topPanel), BorderLayout.NORTH);
-            mainPanel.add(jTabbedPane, BorderLayout.CENTER);
+            {
+                mainPanel.add(new TitleBar(topPanel), BorderLayout.NORTH);
+                mainPanel.add(jTabbedPane, BorderLayout.CENTER);
+            }
 
             var frameResizeLabel = new FrameResizeLabel();
             var hudPanel = new HudPanel();
             jfrBinder.setOnLoadActions(() -> hudPanel.setProgressVisible(true), () -> hudPanel.setProgressVisible(false));
 
             var appLayers = new JLayeredPane();
-            appLayers.setLayout(new OverlayLayout(appLayers));
-            appLayers.setOpaque(false);
-            appLayers.setVisible(true);
-            appLayers.add(mainPanel, JLayeredPane.PALETTE_LAYER);
-            appLayers.add(hudPanel.getComponent(), JLayeredPane.MODAL_LAYER);
-            appLayers.add(frameResizeLabel.getComponent(), JLayeredPane.POPUP_LAYER);
+            {
+                appLayers.setLayout(new OverlayLayout(appLayers));
+                appLayers.setOpaque(false);
+                appLayers.setVisible(true);
+                appLayers.add(mainPanel, JLayeredPane.PALETTE_LAYER);
+                appLayers.add(hudPanel.getComponent(), JLayeredPane.MODAL_LAYER);
+                appLayers.add(frameResizeLabel.getComponent(), JLayeredPane.POPUP_LAYER);
+            }
 
             JfrFilesDropHandler.install(jfrBinder::load, appLayers, hudPanel.getDnDTarget());
 
             var frame = new JFrame("FirePlace");
-            frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-            frame.setSize(new Dimension(1000, 600));
-            frame.getContentPane().add(appLayers);
-            frameResizeLabel.installListener(frame);
-            frame.addWindowListener(new WindowAdapter() {
-                @Override
-                public void windowOpened(WindowEvent e) {
-                    if (cliPaths.isEmpty()) {
-                        hudPanel.getDnDTarget().activate();
-                    } else {
-                        jfrBinder.load(cliPaths);
+            {
+                frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+                frame.setSize(new Dimension(1000, 800));
+                frame.getContentPane().add(appLayers);
+                frameResizeLabel.installListener(frame);
+                frame.addWindowListener(new WindowAdapter() {
+                    @Override
+                    public void windowOpened(WindowEvent e) {
+                        if (cliPaths.isEmpty()) {
+                            hudPanel.getDnDTarget().activate();
+                        } else {
+                            jfrBinder.load(cliPaths);
+                        }
                     }
-                }
-            });
+                });
 
-            frame.getGraphicsConfiguration(); // get active screen
+                frame.getGraphicsConfiguration(); // get active screen
 
-            AppearanceControl.installAppIcon(frame);
-            AppearanceControl.install(frame);
+                AppearanceControl.installAppIcon(frame);
+                AppearanceControl.install(frame);
 
-            frame.setVisible(true);
+                frame.setVisible(true);
+            }
         });
     }
 }

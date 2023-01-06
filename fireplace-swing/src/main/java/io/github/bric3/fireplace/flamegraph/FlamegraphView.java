@@ -939,15 +939,15 @@ public class FlamegraphView<T> {
                             if (canvasWidth == 0) {
                                 return;
                             }
-                            // On the first display the flamegraph has the same width as the enclosing container
-                            // but if flamegraph is zoomed in the width will be different, in this case
-                            // DO NOT set the width of the canvas to the width of the view port.
-                            if (scrollPane.getWidth() != canvasWidth) {
-                                return;
-                            }
+
                             // Adjust the width of the canvas to the width of the viewport rect
                             // to prevent the horizontal scrollbar from appearing on first display.
                             fgCanvas.setSize(viewport.getViewRect().width, getHeight());
+
+                            // On the first display the flamegraph has the same width as the enclosing container
+                            // but if flamegraph is zoomed in the width will be different.
+                            // So we remove this listener to prevent the canvas from being wrongly resized
+                            vsb.removeComponentListener(this);
                         });
                     }
                 });
