@@ -18,7 +18,7 @@ jmc-flightrecorder = "8.2.1"
 graalvm = "22.3.0"
 
 junit-jupiter = "5.9.1"
-assertj = "3.23.1"
+assertj = "3.24.0"
 
 batik = "1.16"
 
