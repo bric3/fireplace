@@ -23,10 +23,11 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
-#        with:
-#          fetch-depth: 0
+        with:
+          fetch-depth: 0
 
-      - uses: ./.github/actions/checkout-tags
+      - run: git describe --abbrev=0 --tags
+#      - uses: ./.github/actions/checkout-tags
 
 #      - name: debug
 #        run: echo "${{ toJSON(github.event)}}"
