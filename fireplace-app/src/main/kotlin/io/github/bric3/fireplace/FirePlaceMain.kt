@@ -9,7 +9,6 @@
  */
 package io.github.bric3.fireplace
 
-import io.github.bric3.fireplace.core.ui.JScrollPaneWithBackButton
 import io.github.bric3.fireplace.ui.FrameResizeLabel
 import io.github.bric3.fireplace.ui.HudPanel
 import io.github.bric3.fireplace.ui.TitleBar
@@ -33,10 +32,6 @@ import kotlin.also
 import kotlin.apply
 import kotlin.run
 
-const val SYSTEM_PROPERTIES = "System properties"
-const val NATIVE_LIBRARIES = "Native libraries"
-const val ALLOCATIONS = "Allocations"
-const val CPU = "CPU"
 
 fun main(args: Array<String>) {
     System.getProperties().forEach { k: Any, v: Any -> println("$k = $v") }
@@ -68,71 +63,41 @@ private fun initUI(jfrBinder: JFRBinder, cliPaths: List<Path>) {
         EventDispatchThreadHangMonitor.initMonitoring()
     }
     SwingUtilities.invokeLater {
-        val openedFileLabel = JTextField("").apply {
-            border = BorderFactory.createEmptyBorder(5, 5, 5, 5)
-            isEditable = false
-            dropTarget = null
-            jfrBinder.bindPaths { paths -> this.text = paths[0].toAbsolutePath().toString() }
-        }
-        val allocationFlameGraphPanel = FlameGraphTab().apply {
-            jfrBinder.bindEvents(
-                JfrAnalyzer::stackTraceAllocationFun,
-                this::setStacktraceTreeModel
+        val mainAppPanel = JPanel(BorderLayout()).apply {
+            add(
+                TitleBar(JPanel(BorderLayout()).apply {
+                    add(
+                        JTextField("").apply {
+                            border = BorderFactory.createEmptyBorder(5, 5, 5, 5)
+                            isEditable = false
+                            dropTarget = null
+                            jfrBinder.bindPaths { paths -> text = paths[0].toAbsolutePath().toString() }
+                        },
+                        BorderLayout.CENTER
+                    )
+                    add(AppearanceControl.component, BorderLayout.EAST)
+                }),
+                BorderLayout.NORTH
             )
-        }
-        val cpuFlameGraphPanel = FlameGraphTab().apply {
-            jfrBinder.bindEvents(
-                JfrAnalyzer::stackTraceCPUFun,
-                this::setStacktraceTreeModel,
-            )
-        }
-        val nativeLibs = JTextArea().apply {
-            isEditable = false
-            dropTarget = null
-            caret.isVisible = true
-            caret.isSelectionVisible = true
-            jfrBinder.bindEvents(
-                JfrAnalyzer::nativeLibraries,
-                this::setText
-            )
-        }
-        val sysProps = JTextArea().apply {
-            isEditable = false
-            dropTarget = null
-            caret.isVisible = true
-            caret.isSelectionVisible = true
-            jfrBinder.bindEvents(
-                JfrAnalyzer::jvmSystemProperties,
-                this::setText
-            )
-        }
-        val jTabbedPane = JTabbedPane().apply {
-            addTab(ALLOCATIONS, allocationFlameGraphPanel)
-            addTab(CPU, cpuFlameGraphPanel)
-            addTab(SYSTEM_PROPERTIES, JScrollPaneWithBackButton.create { JScrollPane(sysProps) })
-            addTab(NATIVE_LIBRARIES, JScrollPaneWithBackButton.create { JScrollPane(nativeLibs) })
-            tabPlacement = JTabbedPane.BOTTOM
-        }
-
-        val topPanel = JPanel(BorderLayout()).apply {
-            add(openedFileLabel, BorderLayout.CENTER)
-            add(AppearanceControl.component, BorderLayout.EAST)
-        }
-        val mainPanel = JPanel(BorderLayout()).apply {
-            add(TitleBar(topPanel), BorderLayout.NORTH)
-            add(jTabbedPane, BorderLayout.CENTER)
+            add(ContentPanel(jfrBinder), BorderLayout.CENTER)
         }
         val frameResizeLabel = FrameResizeLabel()
         val hudPanel = HudPanel()
-        jfrBinder.setOnLoadActions({ hudPanel.setProgressVisible(true) }) { hudPanel.setProgressVisible(false) }
+
+        jfrBinder.setOnLoadActions(
+            { hudPanel.setProgressVisible(true) },
+            { hudPanel.setProgressVisible(false) }
+        )
+
         val appLayers = JLayeredPane().apply {
             layout = OverlayLayout(this)
             isOpaque = false
             isVisible = true
-            add(mainPanel, JLayeredPane.PALETTE_LAYER)
+            add(mainAppPanel, JLayeredPane.PALETTE_LAYER)
             add(hudPanel.component, JLayeredPane.MODAL_LAYER)
             add(frameResizeLabel.component, JLayeredPane.POPUP_LAYER)
         }
+        
         JfrFilesDropHandler.install(
             jfrBinder::load,
             appLayers,

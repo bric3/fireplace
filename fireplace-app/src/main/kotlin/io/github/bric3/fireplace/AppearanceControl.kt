@@ -98,6 +98,18 @@ internal object AppearanceControl {
                 return if (FlatLaf.isLafDark()) TitleColor.LIGHT else TitleColor.DARK
             }
         })
+
+        run {
+            // UIManager.put("TextComponent.arc", 5) // Text fields with rounded corners
+            UIManager.put("Component.focusWidth", 1)
+            UIManager.put("Component.innerFocusWidth", 1)
+            UIManager.put("Tree.wideSelection", "false")
+            UIManager.put("Tree.selectionArc", 5)
+            UIManager.put("List.selectionArc", 5)
+            UIManager.put("ComboBox.popupInsets", "1,0,1,0")
+            UIManager.put("ComboBox.selectionArc", 5)
+        }
+
         start()
     }
 
