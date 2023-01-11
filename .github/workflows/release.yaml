@@ -26,7 +26,7 @@ jobs:
         with:
           java-version: '11'
           distribution: 'zulu'
-      - name: Publish to Central
+      - name: Publish to Staging Repository
         uses: gradle/gradle-build-action@v2
         if: success()
         env:
@@ -37,3 +37,8 @@ jobs:
         with:
           # com.javiersc.semver.gradle.plugin should pick the actual tag
           arguments: publish -Ppublish.central=true
+
+# Don't forget to deploy the release to central
+# * 'Close' the repo to trigger the evaluations of to components against the requirements
+# * 'Release' the repo
+# https://central.sonatype.org/publish/release/
