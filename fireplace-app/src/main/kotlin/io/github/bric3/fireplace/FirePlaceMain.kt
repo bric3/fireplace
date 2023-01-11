@@ -116,7 +116,7 @@ private fun initUI(jfrBinder: JFRBinder, cliPaths: List<Path>) {
 
         val topPanel = JPanel(BorderLayout()).apply {
             add(openedFileLabel, BorderLayout.CENTER)
-            add(AppearanceControl.getComponent(), BorderLayout.EAST)
+            add(AppearanceControl.component, BorderLayout.EAST)
         }
         val mainPanel = JPanel(BorderLayout()).apply {
             add(TitleBar(topPanel), BorderLayout.NORTH)
