@@ -1,8 +1,8 @@
-package io.github.bric3.fireplace;
+package io.github.bric3.fireplace.ui;
 
 import javax.swing.*;
 
-public interface DnDTarget {
+public interface DragAndDropTarget {
     JComponent getComponent();
 
     void activate();

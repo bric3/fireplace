@@ -1,7 +1,5 @@
 package io.github.bric3.fireplace.ui;
 
-import io.github.bric3.fireplace.DnDTarget;
-
 import javax.swing.*;
 import java.awt.*;
 
@@ -33,8 +31,8 @@ public class HudPanel {
         return hudPanel;
     }
 
-    public DnDTarget getDnDTarget() {
-        return new DnDTarget() {
+    public DragAndDropTarget getDnDTarget() {
+        return new DragAndDropTarget() {
             @Override
             public JComponent getComponent() {
                 return hudPanel;
