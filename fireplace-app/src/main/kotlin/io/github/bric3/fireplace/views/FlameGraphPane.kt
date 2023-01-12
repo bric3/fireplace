@@ -7,8 +7,11 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
-package io.github.bric3.fireplace
+package io.github.bric3.fireplace.views
 
+import io.github.bric3.fireplace.JfrFrameColorMode
+import io.github.bric3.fireplace.JfrFrameColorMode.BY_PACKAGE
+import io.github.bric3.fireplace.JfrFrameNodeConverter
 import io.github.bric3.fireplace.core.ui.Colors
 import io.github.bric3.fireplace.core.ui.DarkLightColor
 import io.github.bric3.fireplace.flamegraph.ColorMapper
@@ -36,7 +39,7 @@ import java.util.stream.Collectors.toCollection
 import javax.swing.*
 import javax.swing.Timer
 
-class FlameGraphTab : JPanel(BorderLayout()) {
+class FlameGraphPane : JPanel(BorderLayout()) {
     private var jfrFlamegraphView: FlamegraphView<Node>
     private var dataApplier: Consumer<FlamegraphView<Node>>? = null
 
@@ -215,7 +218,7 @@ class FlameGraphTab : JPanel(BorderLayout()) {
 
     companion object {
         private val defaultColorPalette = Colors.Palette.DATADOG
-        private val defaultFrameColorMode = JfrFrameColorMode.BY_PACKAGE
+        private val defaultFrameColorMode = BY_PACKAGE
         private const val defaultPaintFrameBorder = true
         private const val defaultShowMinimap = true
         private const val defaultIcicleMode = true

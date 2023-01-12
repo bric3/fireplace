@@ -113,8 +113,8 @@ object JfrAnalyzer {
     }
 
     @JvmStatic
-    fun nativeLibraries(events: IItemCollection): String {
-        return buildString {
+    fun nativeLibraries(events: IItemCollection): List<String> {
+        return buildList {
             events.apply(
                 ItemFilters.type(
                     setOf(
@@ -127,8 +127,7 @@ object JfrAnalyzer {
                 )
                 eventsCollection.stream()
                     .forEach { event: IItem ->
-                        append(nativeLibNameAccessor.getMember(event))
-                        append("\n")
+                        this.add(nativeLibNameAccessor.getMember(event))
                     }
             }
         }

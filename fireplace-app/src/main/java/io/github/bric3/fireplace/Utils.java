@@ -9,9 +9,27 @@
  */
 package io.github.bric3.fireplace;
 
+import java.util.Arrays;
 import java.util.function.Supplier;
 
 public class Utils {
+    public static boolean isFireplaceDebug() {
+        return isFireplaceSwingDebug()
+               || Boolean.getBoolean("fireplace.debug");
+    }
+
+    public static boolean isFireplaceSwingDebug() {
+        return Boolean.getBoolean("fireplace.swing.debug");
+    }
+
+    public static boolean isDebugging() {
+        return ProcessHandle.current()
+                            .info()
+                            .arguments()
+                            .map(args -> Arrays.stream(args).anyMatch(arg -> arg.contains("-agentlib:jdwp")))
+                            .orElse(false);
+    }
+
     /**
      * Returns a supplier that caches the computation of the given value supplier.
      *

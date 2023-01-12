@@ -1,52 +1,34 @@
 package io.github.bric3.fireplace
 
+import io.github.bric3.fireplace.views.appDebug.AppSystemProperties
+import io.github.bric3.fireplace.views.appDebug.AppUIManagerProperties
+import io.github.bric3.fireplace.views.cpu.MethodCpuSample
+import io.github.bric3.fireplace.views.general.NativeLibraries
+import io.github.bric3.fireplace.views.general.SystemProperties
+import io.github.bric3.fireplace.views.memory.Allocations
 import java.awt.BorderLayout
-import javax.swing.*
+import javax.swing.JPanel
+import javax.swing.JSplitPane
+import javax.swing.JTree
 import javax.swing.tree.DefaultMutableTreeNode
 import javax.swing.tree.TreePath
 import javax.swing.tree.TreeSelectionModel
 
 
 internal class ContentPanel(private val jfrBinder: JFRBinder) : JPanel(BorderLayout()) {
-    private val SYSTEM_PROPERTIES = "System properties"
-    private val NATIVE_LIBRARIES = "Native libraries"
-    private val ALLOCATIONS = "Allocations"
-    private val CPU = "CPU"
+    private val views = buildList {
+        add(MethodCpuSample(jfrBinder))
+        add(Allocations(jfrBinder))
+        add(SystemProperties(jfrBinder))
+        add(NativeLibraries(jfrBinder))
 
-    private val views = linkedMapOf(
-        CPU to FlameGraphTab().apply {
-            jfrBinder.bindEvents(
-                JfrAnalyzer::stackTraceCPUFun,
-                this::setStacktraceTreeModel,
-            )
-        },
-        ALLOCATIONS to FlameGraphTab().apply {
-            jfrBinder.bindEvents(
-                JfrAnalyzer::stackTraceAllocationFun,
-                this::setStacktraceTreeModel
-            )
-        },
-        SYSTEM_PROPERTIES to JTextArea().apply {
-            isEditable = false
-            dropTarget = null
-            caret.isVisible = true
-            caret.isSelectionVisible = true
-            jfrBinder.bindEvents(
-                JfrAnalyzer::jvmSystemProperties,
-                this::setText
-            )
-        },
-        NATIVE_LIBRARIES to JTextArea().apply {
-            isEditable = false
-            dropTarget = null
-            caret.isVisible = true
-            caret.isSelectionVisible = true
-            jfrBinder.bindEvents(
-                JfrAnalyzer::nativeLibraries,
-                this::setText
-            )
-        },
-    )
+        if (AppSystemProperties.isActive()) {
+            add(AppSystemProperties())
+        }
+        if (AppUIManagerProperties.isActive()) {
+            add(AppUIManagerProperties())
+        }
+    }.associateByTo(LinkedHashMap()) { it.identifier }
 
     init {
         val view = JPanel(BorderLayout())
@@ -60,16 +42,16 @@ internal class ContentPanel(private val jfrBinder: JFRBinder) : JPanel(BorderLay
                 val lastPathComponent = e.path.lastPathComponent as DefaultMutableTreeNode
                 views[lastPathComponent.userObject as String]?.let {
                     view.removeAll()
-                    view.add(it as JComponent)
+                    view.add(it.getView())
                     view.revalidate()
                     view.repaint()
                 }
             }
             selectionPath = TreePath(model.firstLeaf.path)
+            minimumSize = preferredSize
         }
 
         JSplitPane(JSplitPane.HORIZONTAL_SPLIT, jTree, view).apply {
-            
         }.also {
             add(it, BorderLayout.CENTER)
         }

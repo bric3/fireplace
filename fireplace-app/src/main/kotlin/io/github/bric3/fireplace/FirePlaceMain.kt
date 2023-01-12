@@ -19,18 +19,11 @@ import java.awt.BorderLayout
 import java.awt.Dimension
 import java.awt.event.WindowAdapter
 import java.awt.event.WindowEvent
-import java.lang.Boolean
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.*
 import java.util.stream.Collectors.toUnmodifiableList
 import javax.swing.*
-import kotlin.Any
-import kotlin.Array
-import kotlin.String
-import kotlin.also
-import kotlin.apply
-import kotlin.run
 
 
 fun main(args: Array<String>) {
@@ -51,10 +44,7 @@ fun main(args: Array<String>) {
 }
 
 private fun initUI(jfrBinder: JFRBinder, cliPaths: List<Path>) {
-    if (Boolean.getBoolean("fireplace.swing.debug") || Boolean.getBoolean("fireplace.debug")) {
-        System.getProperties().forEach { k: Any, v: Any -> println("$k = $v") }
-    }
-    if (Boolean.getBoolean("fireplace.swing.debug")) {
+    if (Utils.isFireplaceSwingDebug()) {
         if (System.getProperty("fireplace.swing.debug.thread.violation.checker") == "IJ") {
             AssertiveRepaintManager.install()
         } else {

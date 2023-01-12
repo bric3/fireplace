@@ -24,15 +24,13 @@ import java.util.function.Function
 import java.util.stream.Collectors.toUnmodifiableList
 import javax.swing.*
 
-internal class JFRBinder {
+class JFRBinder {
     private val eventsBinders: MutableList<Consumer<IItemCollection>> = mutableListOf()
     private val pathsBinders: MutableList<Consumer<List<Path>>> = mutableListOf()
-    private var onLoadStart: Runnable? = null
-    private var onLoadEnd: Runnable? = null
-    fun bindPaths(pathsBinder: Consumer<List<Path>>) {
-        pathsBinders.add { paths -> SwingUtilities.invokeLater { pathsBinder.accept(paths) } }
-    }
+    private lateinit var onLoadStart: Runnable
+    private lateinit var onLoadEnd: Runnable
 
+    // TODO make JfrBinder support lazy registering of binders
     fun <T> bindEvents(provider: Function<IItemCollection, T>, componentUpdate: Consumer<T>) {
         eventsBinders.add { events: IItemCollection ->
             CompletableFuture.supplyAsync { provider.apply(events) }
@@ -46,11 +44,15 @@ internal class JFRBinder {
         }
     }
 
-    fun load(jfrPaths: List<Path>) {
+    internal fun bindPaths(pathsBinder: Consumer<List<Path>>) {
+        pathsBinders.add { paths -> SwingUtilities.invokeLater { pathsBinder.accept(paths) } }
+    }
+
+    internal fun load(jfrPaths: List<Path>) {
         if (jfrPaths.isEmpty()) {
             return
         }
-        onLoadStart!!.run()
+        onLoadStart.run()
         CompletableFuture.runAsync {
             pathsBinders.forEach { it.accept(jfrPaths) }
             
@@ -78,11 +80,11 @@ internal class JFRBinder {
                 }.join()
             }
             eventsBinders.forEach { binder -> binder.accept(eventSupplier.get()) }
-            onLoadEnd!!.run()
+            onLoadEnd.run()
         }
     }
 
-    fun setOnLoadActions(onLoadStart: Runnable?, onLoadEnd: Runnable?) {
+    internal fun setOnLoadActions(onLoadStart: Runnable?, onLoadEnd: Runnable?) {
         this.onLoadStart = Runnable { SwingUtilities.invokeLater(onLoadStart) }
         this.onLoadEnd = Runnable { SwingUtilities.invokeLater(onLoadEnd) }
     }

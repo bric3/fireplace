@@ -91,6 +91,11 @@ public class Colors {
     public static Color translucent_black_20 = new Color(0x20000000, true);
 
     /**
+     * Color BLACK with alpha 0x10.
+     */
+    public static Color translucent_black_10 = new Color(0x10000000, true);
+
+    /**
      * Color WHITE with alpha 0xD0.
      */
     public static Color translucent_white_D0 = new Color(0xD0FFFFFF, true);
@@ -119,6 +124,11 @@ public class Colors {
      * Color WHITE with alpha 0x20.
      */
     public static Color translucent_white_20 = new Color(0x20FFFFFF, true);
+
+    /**
+     * Color WHITE with alpha 0x10.
+     */
+    public static Color translucent_white_10 = new Color(0x10FFFFFF, true);
 
     /**
      * Panel background color, from the current LaF (updated on dark mode change).
