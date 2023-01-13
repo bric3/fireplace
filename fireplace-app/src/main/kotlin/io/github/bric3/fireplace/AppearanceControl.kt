@@ -37,6 +37,7 @@ internal object AppearanceControl {
     private const val TO_DARK_LAF = "DARK"
     private val manager = SystemPreferencesManager()
 
+    @JvmStatic
     private val SYNC_THEME_CHANGER = Runnable {
         // System.out.println(">>>> theme preference changed = " + ThemePreferencesHandler.getSharedInstance().getPreferredThemeStyle());
         @Suppress("WHEN_ENUM_CAN_BE_NULL_IN_JAVA")
@@ -60,11 +61,13 @@ internal object AppearanceControl {
         manager.addListener { SYNC_THEME_CHANGER.run() }
     }
 
+    @JvmStatic
     private fun start() {
         SYNC_THEME_CHANGER.run()
         toggleSyncWithOS(true)
     }
 
+    @JvmStatic
     fun install(frame: JFrame) {
         setGlobalProperties(frame.title)
 
@@ -122,6 +125,7 @@ internal object AppearanceControl {
         return ExternalLafDecorator.instance().decorationsManager().titlePaneLayoutInfo(rootPane).windowButtonRect()
     }
 
+    @JvmStatic
     private fun setGlobalProperties(title: String) {
         if (SystemInfo.isLinux) {
             // most linux distros have ugly font rendering, but these here can fix that:
@@ -157,6 +161,7 @@ internal object AppearanceControl {
         }
     }
 
+    @JvmStatic
     private fun toggleSyncWithOS(sync: Boolean) {
         manager.enableReporting(sync)
     }
@@ -224,6 +229,7 @@ internal object AppearanceControl {
             }
         }
 
+    @JvmStatic
     @Suppress("MemberVisibilityCanBePrivate")
     fun updateUI() {
         for (window in Window.getWindows()) {
