@@ -23,7 +23,13 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.util.*
 import java.util.stream.Collectors.toUnmodifiableList
-import javax.swing.*
+import javax.swing.BorderFactory
+import javax.swing.JFrame
+import javax.swing.JLayeredPane
+import javax.swing.JPanel
+import javax.swing.JTextField
+import javax.swing.OverlayLayout
+import javax.swing.SwingUtilities
 
 
 fun main(args: Array<String>) {
@@ -89,7 +95,7 @@ private fun initUI(jfrBinder: JFRBinder, cliPaths: List<Path>) {
         }
         
         JfrFilesDropHandler.install(
-            jfrBinder::load,
+            jfrBinder::loadJfrFiles,
             appLayers,
             hudPanel.dnDTarget
         )
@@ -104,7 +110,7 @@ private fun initUI(jfrBinder: JFRBinder, cliPaths: List<Path>) {
                     if (cliPaths.isEmpty()) {
                         hudPanel.dnDTarget.activate()
                     } else {
-                        jfrBinder.load(cliPaths)
+                        jfrBinder.loadJfrFiles(cliPaths)
                     }
                 }
             })

@@ -7,10 +7,10 @@ import io.github.bric3.fireplace.unwrappedTable
 import io.github.bric3.fireplace.views.ViewPanel
 import javax.swing.JComponent
 
-class NativeLibraries(jfrBinder: JFRBinder) : ViewPanel {
+class NativeLibraries(private val jfrBinder: JFRBinder) : ViewPanel {
     override val identifier = "Native libraries"
 
-    private val nativeLibrariesPane: JComponent =
+    private val nativeLibs by lazy {
         simpleReadOnlyTable(
             arrayOf(),
             arrayOf("Path")
@@ -23,6 +23,7 @@ class NativeLibraries(jfrBinder: JFRBinder) : ViewPanel {
                 )
             }
         }
+    }
 
-    override fun getView(): JComponent = nativeLibrariesPane
+    override fun getView(): JComponent = nativeLibs
 }

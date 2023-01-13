@@ -9,7 +9,7 @@ import javax.swing.UIManager
 class AppUIManagerProperties : ViewPanel {
     override val identifier: String = "App UIManager properties"
 
-    override fun getView(): JComponent {
+    private val component by lazy {
         // UIManager.getLookAndFeelDefaults()
         //     .entries
         //     .stream()
@@ -23,7 +23,7 @@ class AppUIManagerProperties : ViewPanel {
         //     .sorted()
         //     .map {  }
 
-        return simpleReadOnlyTable(
+        simpleReadOnlyTable(
             UIManager.getLookAndFeelDefaults()
                 .entries
                 .map { arrayOf(it.key, it.value) }
@@ -31,6 +31,8 @@ class AppUIManagerProperties : ViewPanel {
             arrayOf("Key", "Value")
         )
     }
+
+    override fun getView(): JComponent = component
 
 
     companion object {

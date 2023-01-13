@@ -8,12 +8,14 @@ import javax.swing.JComponent
 class AppSystemProperties : ViewPanel {
     override val identifier: String = "App System properties"
 
-    override fun getView(): JComponent {
-        return simpleReadOnlyTable(
+    private val component by lazy {
+        simpleReadOnlyTable(
             System.getProperties().map { arrayOf(it.key, it.value) }.toTypedArray(),
             arrayOf("Key", "Value")
         )
     }
+
+    override fun getView(): JComponent = component
 
     companion object {
         fun isActive(): Boolean = Utils.isDebugging() || Utils.isFireplaceDebug()

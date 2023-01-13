@@ -91,8 +91,8 @@ object JfrAnalyzer {
     }
 
     @JvmStatic
-    fun jvmSystemProperties(events: IItemCollection): String {
-        return buildString {
+    fun jvmSystemProperties(events: IItemCollection): Map<String, String> {
+        return buildMap {
             events.apply(
                 ItemFilters.type(
                     setOf(
@@ -103,10 +103,10 @@ object JfrAnalyzer {
                 val keyAccessor = eventsCollection.type.getAccessor(JdkAttributes.ENVIRONMENT_KEY.key)
                 val valueAccessor = eventsCollection.type.getAccessor(JdkAttributes.ENVIRONMENT_VALUE.key)
                 eventsCollection.stream().forEach { event: IItem ->
-                    append(keyAccessor.getMember(event))
-                    append(" = ")
-                    append(valueAccessor.getMember(event))
-                    append("\n")
+                    put(
+                        keyAccessor.getMember(event),
+                        valueAccessor.getMember(event)
+                    )
                 }
             }
         }

@@ -6,16 +6,17 @@ import io.github.bric3.fireplace.views.FlameGraphPane
 import io.github.bric3.fireplace.views.ViewPanel
 import javax.swing.JComponent
 
-class Allocations(jfrBinder: JFRBinder) : ViewPanel {
+class Allocations(private val jfrBinder: JFRBinder) : ViewPanel {
     override val identifier = "Allocations"
 
-    private val allocationPane: FlameGraphPane =
+    private val flameGraphPane by lazy {
         FlameGraphPane().apply {
             jfrBinder.bindEvents(
                 JfrAnalyzer::stackTraceAllocationFun,
                 this::setStacktraceTreeModel
             )
         }
+    }
 
-    override fun getView(): JComponent = allocationPane
+    override fun getView(): JComponent = flameGraphPane
 }
