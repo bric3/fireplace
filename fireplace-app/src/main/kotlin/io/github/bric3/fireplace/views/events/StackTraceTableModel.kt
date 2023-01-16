@@ -1,0 +1,52 @@
+package io.github.bric3.fireplace.views.events
+
+import io.github.bric3.fireplace.getMemberFromEvent
+import org.openjdk.jmc.common.IMCStackTrace
+import org.openjdk.jmc.common.item.IItem
+import org.openjdk.jmc.flightrecorder.JfrAttributes
+import javax.swing.table.AbstractTableModel
+
+internal class StackTraceTableModel : AbstractTableModel() {
+    private var stackTrace: IMCStackTrace? = null
+    fun setRecordedStackTrace(event: IItem?) {
+        stackTrace = if (event != null) {
+            event.type
+                .getAccessor(JfrAttributes.EVENT_STACKTRACE.key)
+                .getMemberFromEvent(event) as IMCStackTrace
+        } else {
+            null
+        }
+        fireTableDataChanged()
+    }
+
+    override fun getRowCount(): Int {
+        return stackTrace?.frames?.size ?: return 0
+    }
+
+    override fun getColumnCount(): Int {
+        return 4
+    }
+
+    override fun getColumnName(column: Int): String {
+        return when(column) {
+            0 -> "Frame"
+            1 -> "Line"
+            2 -> "Byte Code Index"
+            3 -> "Hidden"
+            else -> throw IllegalArgumentException("Unknown column $column")
+        }
+    }
+
+    override fun getValueAt(rowIndex: Int, columnIndex: Int): Any? {
+        val imcStackTrace = stackTrace ?: return null
+        val frame = imcStackTrace.frames[rowIndex]
+
+        return when (columnIndex) {
+            0 -> "${frame.method.type.typeName}.${frame.method.methodName}"
+            1 -> frame.frameLineNumber
+            2 -> frame.bci
+            3 -> frame.method.isHidden
+            else -> throw IllegalArgumentException("Unknown column $columnIndex")
+        }
+    }
+}

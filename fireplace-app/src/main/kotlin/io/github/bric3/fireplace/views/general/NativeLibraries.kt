@@ -5,12 +5,11 @@ import io.github.bric3.fireplace.JfrAnalyzer
 import io.github.bric3.fireplace.simpleReadOnlyTable
 import io.github.bric3.fireplace.unwrappedTable
 import io.github.bric3.fireplace.views.ViewPanel
-import javax.swing.JComponent
 
 class NativeLibraries(private val jfrBinder: JFRBinder) : ViewPanel {
     override val identifier = "Native libraries"
 
-    private val nativeLibs by lazy {
+    override val view by lazy {
         simpleReadOnlyTable(
             arrayOf(),
             arrayOf("Path")
@@ -24,6 +23,4 @@ class NativeLibraries(private val jfrBinder: JFRBinder) : ViewPanel {
             }
         }
     }
-
-    override fun getView(): JComponent = nativeLibs
 }

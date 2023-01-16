@@ -60,6 +60,8 @@ public class Colors {
      */
     public static final int DARK_PERCEIVED_BRIGHTNESS_THRESHOLD = gammaFunction(0.45);
 
+    public static final Color blue = new DarkLightColor(Color.decode("#2B4EFF"), Color.decode("#39ACE7"));
+
     /**
      * Color BLACK with alpha 0xD0.
      */
@@ -641,6 +643,10 @@ public class Colors {
 
     public static Color rgba(int r, int g, int b, float a) {
         return new Color(r, g, b, (int) (a * 255));
+    }
+
+    public static String toHex(Color color) {
+        return String.format("#%02x%02x%02x", color.getRed(), color.getGreen(), color.getBlue());
     }
 
     private static void checkThat(boolean invalid, String message) {

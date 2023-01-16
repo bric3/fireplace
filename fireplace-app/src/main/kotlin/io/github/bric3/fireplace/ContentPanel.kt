@@ -3,6 +3,7 @@ package io.github.bric3.fireplace
 import io.github.bric3.fireplace.views.appDebug.AppSystemProperties
 import io.github.bric3.fireplace.views.appDebug.AppUIManagerProperties
 import io.github.bric3.fireplace.views.cpu.MethodCpuSample
+import io.github.bric3.fireplace.views.events.EventBrowser
 import io.github.bric3.fireplace.views.general.NativeLibraries
 import io.github.bric3.fireplace.views.general.SystemProperties
 import io.github.bric3.fireplace.views.memory.Allocations
@@ -21,6 +22,7 @@ internal class ContentPanel(private val jfrBinder: JFRBinder) : JPanel(BorderLay
         add(Allocations(jfrBinder))
         add(SystemProperties(jfrBinder))
         add(NativeLibraries(jfrBinder))
+        add(EventBrowser(jfrBinder))
 
         if (AppSystemProperties.isActive()) {
             add(AppSystemProperties())
@@ -42,7 +44,7 @@ internal class ContentPanel(private val jfrBinder: JFRBinder) : JPanel(BorderLay
                 val lastPathComponent = e.path.lastPathComponent as DefaultMutableTreeNode
                 views[lastPathComponent.userObject as String]?.let {
                     view.removeAll()
-                    view.add(it.getView())
+                    view.add(it.view)
                     view.revalidate()
                     view.repaint()
                 }

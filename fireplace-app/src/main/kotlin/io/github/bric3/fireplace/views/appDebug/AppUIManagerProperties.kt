@@ -3,13 +3,12 @@ package io.github.bric3.fireplace.views.appDebug
 import io.github.bric3.fireplace.Utils
 import io.github.bric3.fireplace.simpleReadOnlyTable
 import io.github.bric3.fireplace.views.ViewPanel
-import javax.swing.JComponent
 import javax.swing.UIManager
 
 class AppUIManagerProperties : ViewPanel {
     override val identifier: String = "App UIManager properties"
 
-    private val component by lazy {
+    override val view by lazy {
         // UIManager.getLookAndFeelDefaults()
         //     .entries
         //     .stream()
@@ -31,9 +30,6 @@ class AppUIManagerProperties : ViewPanel {
             arrayOf("Key", "Value")
         )
     }
-
-    override fun getView(): JComponent = component
-
 
     companion object {
         fun isActive(): Boolean = Utils.isFireplaceDebug()

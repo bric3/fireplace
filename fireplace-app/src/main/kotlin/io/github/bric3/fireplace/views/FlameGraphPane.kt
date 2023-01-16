@@ -36,8 +36,16 @@ import java.util.function.Consumer
 import java.util.function.Function
 import java.util.stream.Collectors.joining
 import java.util.stream.Collectors.toCollection
-import javax.swing.*
+import javax.swing.BoxLayout
+import javax.swing.JButton
+import javax.swing.JCheckBox
+import javax.swing.JComboBox
+import javax.swing.JComponent
+import javax.swing.JPanel
+import javax.swing.JTextField
+import javax.swing.JToggleButton
 import javax.swing.Timer
+import javax.swing.ToolTipManager
 
 class FlameGraphPane : JPanel(BorderLayout()) {
     private var jfrFlamegraphView: FlamegraphView<Node>
@@ -100,7 +108,7 @@ class FlameGraphPane : JPanel(BorderLayout()) {
             isSelected = defaultShowMinimap
         }
         val animateToggle = JCheckBox("Animate").apply {
-            addActionListener { e: ActionEvent? ->
+            addActionListener { _: ActionEvent? ->
                 zoomAnimation.isAnimateZoomTransitions = isSelected
             }
             isSelected = true

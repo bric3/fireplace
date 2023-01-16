@@ -9,10 +9,7 @@
  */
 package io.github.bric3.fireplace
 
-import org.openjdk.jmc.common.item.IItem
 import org.openjdk.jmc.common.item.IItemCollection
-import org.openjdk.jmc.common.item.IItemIterable
-import org.openjdk.jmc.common.item.IType
 import org.openjdk.jmc.flightrecorder.CouldNotLoadRecordingException
 import org.openjdk.jmc.flightrecorder.JfrLoaderToolkit
 import java.io.IOException
@@ -23,7 +20,7 @@ import java.util.function.Consumer
 import java.util.function.Function
 import java.util.function.Supplier
 import java.util.stream.Collectors.toUnmodifiableList
-import javax.swing.*
+import javax.swing.SwingUtilities
 
 class JFRBinder {
     private val eventsBinders: MutableList<Consumer<IItemCollection>> = mutableListOf()
@@ -81,12 +78,12 @@ class JFRBinder {
                     } catch (e1: CouldNotLoadRecordingException) {
                         throw RuntimeException(e1)
                     }
-                    events.stream()
-                        .flatMap(IItemIterable::stream)
-                        .map(IItem::getType)
-                        .map(IType<*>::getIdentifier)
-                        .distinct()
-                        .forEach { println(it) }
+
+                    if (Utils.isDebugging()) {
+                        TypeCategoryExtractor.extract(events)
+                            .forEach { (type, category) -> println("$type -> $category") }
+                    }
+
                     events
                 }.join()
             }
