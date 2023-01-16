@@ -12,11 +12,12 @@ internal class StackTraceTableModel : AbstractTableModel() {
         stackTrace = if (event != null) {
             event.type
                 .getAccessor(JfrAttributes.EVENT_STACKTRACE.key)
-                .getMemberFromEvent(event) as IMCStackTrace
+                ?.getMemberFromEvent(event) as? IMCStackTrace
         } else {
             null
         }
         fireTableDataChanged()
+        fireTableStructureChanged()
     }
 
     override fun getRowCount(): Int {
@@ -24,7 +25,7 @@ internal class StackTraceTableModel : AbstractTableModel() {
     }
 
     override fun getColumnCount(): Int {
-        return 4
+        return 5
     }
 
     override fun getColumnName(column: Int): String {
@@ -32,7 +33,8 @@ internal class StackTraceTableModel : AbstractTableModel() {
             0 -> "Frame"
             1 -> "Line"
             2 -> "Byte Code Index"
-            3 -> "Hidden"
+            3 -> "Frame Type"
+            4 -> "Hidden"
             else -> throw IllegalArgumentException("Unknown column $column")
         }
     }
@@ -45,7 +47,8 @@ internal class StackTraceTableModel : AbstractTableModel() {
             0 -> "${frame.method.type.typeName}.${frame.method.methodName}"
             1 -> frame.frameLineNumber
             2 -> frame.bci
-            3 -> frame.method.isHidden
+            3 -> frame.type
+            4 -> frame.method.isHidden
             else -> throw IllegalArgumentException("Unknown column $columnIndex")
         }
     }

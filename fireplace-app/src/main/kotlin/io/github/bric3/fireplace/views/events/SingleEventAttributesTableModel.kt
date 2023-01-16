@@ -18,14 +18,18 @@ internal class SingleEventAttributesTableModel(private var event: IItem?) : Abst
     private fun refreshFields() {
         val event = event ?: return
 
-        event.type.accessorKeys.entries.forEach {
-            it.key.identifier
-            val valueDescriptor = it.value.name
-            println("${it.key.identifier} + $valueDescriptor")
-        }
+        // if (Utils.isDebugging()) {
+        //     event.type.accessorKeys.entries.forEach {
+        //         it.key.identifier
+        //         val valueDescriptor = it.value.name
+        //         println("${it.key.identifier} + $valueDescriptor")
+        //     }
+        // }
 
         fields = event.type.accessorKeys.filterKeys {
-            println(it.identifier)
+            //if (Utils.isDebugging()) {
+            //    println(it.identifier)
+            //}
             it != JfrAttributes.EVENT_STACKTRACE.key && it != JfrAttributes.EVENT_TYPE.key
         }.toList()
     }
