@@ -139,6 +139,10 @@ class FlamegraphRenderEngine<T> {
         this.depth = frameModel.frames.stream().mapToInt(fb -> fb.stackDepth).max().orElse(0) + 1;
         visibleDepth = depth;
         visibleDepthCache.clear();
+        selectedFrame = null;
+        hoveredFrame = null;
+        toHighlight = Collections.emptySet();
+        hoveredSiblingFrames = Collections.emptySet();
         return this;
     }
 
