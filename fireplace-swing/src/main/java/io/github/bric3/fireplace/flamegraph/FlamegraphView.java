@@ -176,7 +176,8 @@ public class FlamegraphView<T> {
      * @param <T> The type of the node data.
      */
     public interface HoverListener<T> {
-        default void onStopHover(FrameBox<T> previousHoveredFrame, Rectangle prevHoveredFrameRectangle, MouseEvent e) {}
+        default void onStopHover(FrameBox<T> previousHoveredFrame, Rectangle prevHoveredFrameRectangle, MouseEvent e) {
+        }
 
         void onFrameHover(FrameBox<T> frame, Rectangle hoveredFrameRectangle, MouseEvent e);
 
@@ -717,7 +718,7 @@ public class FlamegraphView<T> {
                 var dy = e.getY() - pressedPoint.y;
                 var viewPortViewPosition = viewPort.getViewPosition();
                 viewPort.setViewPosition(new Point(Math.max(0, viewPortViewPosition.x - dx),
-                                                   Math.max(0, viewPortViewPosition.y - dy)));
+                        Math.max(0, viewPortViewPosition.y - dy)));
                 pressedPoint = e.getPoint();
                 e.consume();
             }
@@ -932,8 +933,25 @@ public class FlamegraphView<T> {
                 var scrollPane = (JScrollPane) viewport.getParent();
                 var vsb = scrollPane.getVerticalScrollBar();
                 vsb.addComponentListener(new ComponentAdapter() {
+                    private int frameModelHashCode = 0;
+
                     @Override
                     public void componentShown(ComponentEvent e) {
+                        // On the first display the flamegraph has the same width as the enclosing container
+                        // but if flamegraph is zoomed-in the canvas width will be different.
+                        // * So don't run this listener to prevent the canvas from being wrongly resized
+                        // if the model didn't change.
+                        // * The guard uses the hash code of the model because the model can be changed,
+                        // and running this listener is necessary to prevent the horizontal scrollbar as well.
+                        if (fgCanvas.flamegraphRenderEngine != null
+                            && fgCanvas.flamegraphRenderEngine.getFrameModel() != null) {
+                            int newHashCode = fgCanvas.flamegraphRenderEngine.getFrameModel().hashCode();
+                            if (newHashCode == frameModelHashCode) {
+                                return;
+                            }
+                            frameModelHashCode = newHashCode;
+                        }
+
                         SwingUtilities.invokeLater(() -> {
                             var canvasWidth = fgCanvas.getWidth();
                             if (canvasWidth == 0) {
@@ -943,11 +961,6 @@ public class FlamegraphView<T> {
                             // Adjust the width of the canvas to the width of the viewport rect
                             // to prevent the horizontal scrollbar from appearing on first display.
                             fgCanvas.setSize(viewport.getViewRect().width, getHeight());
-
-                            // On the first display the flamegraph has the same width as the enclosing container
-                            // but if flamegraph is zoomed in the width will be different.
-                            // So we remove this listener to prevent the canvas from being wrongly resized
-                            vsb.removeComponentListener(this);
                         });
                     }
                 });

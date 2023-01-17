@@ -711,4 +711,8 @@ class FlamegraphRenderEngine<T> {
     public boolean isIcicle() {
         return icicle;
     }
+
+    public FrameModel<T> getFrameModel() {
+        return frameModel;
+    }
 }
