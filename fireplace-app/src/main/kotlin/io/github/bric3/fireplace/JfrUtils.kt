@@ -1,15 +1,22 @@
 package io.github.bric3.fireplace
 
+import org.openjdk.jmc.common.item.IAttribute
 import org.openjdk.jmc.common.item.IItem
 import org.openjdk.jmc.common.item.IItemCollection
 import org.openjdk.jmc.common.item.IItemIterable
 import org.openjdk.jmc.common.item.IMemberAccessor
 import org.openjdk.jmc.common.item.IType
+import org.openjdk.jmc.common.item.ItemCollectionToolkit
+import org.openjdk.jmc.common.item.ItemFilters
 import org.openjdk.jmc.common.unit.IFormatter
+import org.openjdk.jmc.common.unit.IQuantity
+import org.openjdk.jmc.flightrecorder.stacktrace.FrameSeparator
+import org.openjdk.jmc.flightrecorder.stacktrace.tree.StacktraceTreeModel
 import java.lang.invoke.MethodHandles
 import java.util.*
 import java.util.stream.Collectors
 import java.util.stream.Collectors.joining
+import java.util.stream.StreamSupport
 import kotlin.streams.asSequence
 
 fun <M, O> IMemberAccessor<M, O>.getMemberFromEvent(event: IItem): Any? {
@@ -102,3 +109,50 @@ object TypeCategoryExtractor {
 }
 
 data class TypeCategory(val type: IType<*>, val categories: List<String>, val count: Long)
+
+fun IItemCollection.stacktraceTreeModel(nodeWeightAttribute: IAttribute<IQuantity>? = null): StacktraceTreeModel {
+    val methodFrameSeparator = FrameSeparator(FrameSeparator.FrameCategorization.METHOD, false)
+    val invertedStacks = false
+    return StacktraceTreeModel(
+        this,
+        methodFrameSeparator,
+        invertedStacks,
+        nodeWeightAttribute
+    )
+}
+
+fun Iterable<IItem>.stacktraceTreeModel(nodeWeightAttribute: IAttribute<IQuantity>? = null): StacktraceTreeModel {
+    return this.toItemCollection().stacktraceTreeModel(nodeWeightAttribute)
+}
+
+fun Iterable<IItem>.toItemCollection(parallel: Boolean = false): IItemCollection {
+    return ItemCollectionToolkit.build(StreamSupport.stream(this.spliterator(), parallel))
+}
+
+fun <T, K> byThreads(events: IItemCollection, classifier: IAttribute<T>, subAttribute: IAttribute<K>? = null): Map<K, List<IItem>> {
+    val mappingAttribute = subAttribute ?: classifier
+
+    val hasEventThread = ItemFilters.hasAttribute(classifier)
+    val eventsWithEventThread = events.apply(hasEventThread)
+
+    return eventsWithEventThread.parallelStream()
+        .flatMap { itemIterable ->
+            val accessor = mappingAttribute.getAccessor(itemIterable.type)!!
+
+            itemIterable.parallelStream()
+                .map {
+                    accessor.getMember(it) to it
+                }
+        }
+        .collect(
+            Collectors.toMap(
+                {
+                    @Suppress("UNCHECKED_CAST")
+                    it.first as K
+                },
+                { listOf(it.second) },
+                { a, b -> a + b }
+            )
+        )
+}
+

@@ -7,61 +7,22 @@ import org.openjdk.jmc.common.item.IItemIterable
 import org.openjdk.jmc.common.item.ItemFilters
 import org.openjdk.jmc.common.item.ItemToolkit
 import org.openjdk.jmc.flightrecorder.jdk.JdkAttributes
-import org.openjdk.jmc.flightrecorder.stacktrace.FrameSeparator
+import org.openjdk.jmc.flightrecorder.jdk.JdkFilters
 import org.openjdk.jmc.flightrecorder.stacktrace.tree.StacktraceTreeModel
 import java.util.function.Consumer
 
 object JfrAnalyzer {
     @JvmStatic
     fun stackTraceAllocationFun(events: IItemCollection): StacktraceTreeModel {
-        val methodFrameSeparator = FrameSeparator(FrameSeparator.FrameCategorization.METHOD, false)
-        val allocCollection = events.apply(
-            ItemFilters.type(
-                setOf(
-                    "jdk.ObjectAllocationInNewTLAB",
-                    "jdk.ObjectAllocationOutsideTLAB"
-                )
-            )
-        )
-        return StacktraceTreeModel(
-            allocCollection,
-            methodFrameSeparator,
-            false,
-            // JdkAttributes.ALLOCATION_SIZE
-        )
 
-
-        //        allocCollection.forEach(eventsCollection -> {
-        //            var stackAccessor = eventsCollection.getType().getAccessor(JfrAttributes.EVENT_STACKTRACE.getKey());
-        //            eventsCollection.stream().limit(10).forEach(item -> {
-        //                var stack = stackAccessor.getMember(item);
-        //
-        //                if (stack == null || stack.getFrames() == null) {
-        //                    return;
-        //                }
-        //
-        //
-        //            });
-        //        });
+        return events.apply(JdkFilters.ALLOC_ALL).stacktraceTreeModel(
+            //JdkAttributes.ALLOCATION_SIZE
+        )
     }
 
     @JvmStatic
-    fun stackTraceCPUFun(events: IItemCollection): StacktraceTreeModel {
-        val methodFrameSeparator = FrameSeparator(FrameSeparator.FrameCategorization.METHOD, false)
-        val allocCollection = events.apply(
-            ItemFilters.type(
-                setOf(
-                    "jdk.ExecutionSample"
-                )
-            )
-        )
-        val invertedStacks = false
-        return StacktraceTreeModel(
-            allocCollection,
-            methodFrameSeparator,
-            invertedStacks,
-            // JdkAttributes.SAMPLE_WEIGHT
-        )
+    fun executionSamples(events: IItemCollection): IItemCollection {
+        return events.apply(JdkFilters.EXECUTION_SAMPLE)
     }
 
     private fun otherEvents(events: IItemCollection) {

@@ -1,12 +1,11 @@
 package io.github.bric3.fireplace.views.events
 
 import io.github.bric3.fireplace.JFRBinder
+import io.github.bric3.fireplace.ui.autoSize
 import io.github.bric3.fireplace.views.ViewPanel
 import org.openjdk.jmc.common.item.IItemCollection
 import org.openjdk.jmc.common.item.ItemCollectionToolkit
 import java.awt.BorderLayout
-import java.awt.event.ComponentAdapter
-import java.awt.event.ComponentEvent
 import java.util.function.Consumer
 import java.util.function.Function
 import javax.swing.JPanel
@@ -163,17 +162,5 @@ class EventBrowser(private val jfrBinder: JFRBinder) : ViewPanel {
             result.add(content.category)
         }
         return result
-    }
-
-    fun JSplitPane.autoSize(proportionalLocation: Double) {
-        this.addComponentListener(object : ComponentAdapter() {
-            private var firstResize = true
-            override fun componentResized(e: ComponentEvent? ) {
-                if (firstResize) {
-                    this@autoSize.setDividerLocation(proportionalLocation)
-                    firstResize = false
-                }
-            }
-        })
     }
 }

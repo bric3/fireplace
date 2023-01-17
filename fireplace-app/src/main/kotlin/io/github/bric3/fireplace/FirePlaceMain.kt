@@ -102,7 +102,7 @@ private fun initUI(jfrBinder: JFRBinder, cliPaths: List<Path>) {
 
         JFrame("FirePlace").run {
             defaultCloseOperation = JFrame.EXIT_ON_CLOSE
-            size = Dimension(1000, 800)
+            size = Dimension(1400, 800)
             contentPane.add(appLayers)
             frameResizeLabel.installListener(this)
             addWindowListener(object : WindowAdapter() {
