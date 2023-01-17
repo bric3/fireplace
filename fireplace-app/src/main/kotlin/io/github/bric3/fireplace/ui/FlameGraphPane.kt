@@ -7,7 +7,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
-package io.github.bric3.fireplace.views
+package io.github.bric3.fireplace.ui
 
 import io.github.bric3.fireplace.JfrFrameColorMode
 import io.github.bric3.fireplace.JfrFrameColorMode.BY_PACKAGE
@@ -21,7 +21,6 @@ import io.github.bric3.fireplace.flamegraph.FrameFontProvider
 import io.github.bric3.fireplace.flamegraph.FrameModel
 import io.github.bric3.fireplace.flamegraph.FrameTextsProvider
 import io.github.bric3.fireplace.flamegraph.animation.ZoomAnimation
-import io.github.bric3.fireplace.ui.BalloonToolTip
 import org.openjdk.jmc.common.util.FormatToolkit
 import org.openjdk.jmc.flightrecorder.stacktrace.tree.Node
 import org.openjdk.jmc.flightrecorder.stacktrace.tree.StacktraceTreeModel
