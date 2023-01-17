@@ -11,18 +11,10 @@ package io.github.bric3.fireplace.views.memory
 
 import io.github.bric3.fireplace.JFRBinder
 import io.github.bric3.fireplace.JfrAnalyzer
-import io.github.bric3.fireplace.ui.FlameGraphPane
-import io.github.bric3.fireplace.ui.ViewPanel
+import io.github.bric3.fireplace.ui.ThreadFlamegraphView
 
-class Allocations(private val jfrBinder: JFRBinder) : ViewPanel {
+class Allocations(jfrBinder: JFRBinder) : ThreadFlamegraphView(jfrBinder) {
     override val identifier = "Allocations"
 
-    override val view by lazy {
-        FlameGraphPane().apply {
-            jfrBinder.bindEvents(
-                JfrAnalyzer::stackTraceAllocationFun,
-                this::setStacktraceTreeModel
-            )
-        }
-    }
+    override val eventSelector = JfrAnalyzer::allocInOutTlab
 }

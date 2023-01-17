@@ -8,16 +8,12 @@ import org.openjdk.jmc.common.item.ItemFilters
 import org.openjdk.jmc.common.item.ItemToolkit
 import org.openjdk.jmc.flightrecorder.jdk.JdkAttributes
 import org.openjdk.jmc.flightrecorder.jdk.JdkFilters
-import org.openjdk.jmc.flightrecorder.stacktrace.tree.StacktraceTreeModel
 import java.util.function.Consumer
 
 object JfrAnalyzer {
     @JvmStatic
-    fun stackTraceAllocationFun(events: IItemCollection): StacktraceTreeModel {
-
-        return events.apply(JdkFilters.ALLOC_ALL).stacktraceTreeModel(
-            //JdkAttributes.ALLOCATION_SIZE
-        )
+    fun allocInOutTlab(events: IItemCollection): IItemCollection {
+        return events.apply(JdkFilters.ALLOC_ALL)
     }
 
     @JvmStatic

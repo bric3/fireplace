@@ -12,9 +12,11 @@ package io.github.bric3.fireplace.ui
 import io.github.bric3.fireplace.JFRBinder
 import io.github.bric3.fireplace.byThreads
 import io.github.bric3.fireplace.stacktraceTreeModel
+import org.openjdk.jmc.common.item.IAttribute
 import org.openjdk.jmc.common.item.IItem
 import org.openjdk.jmc.common.item.IItemCollection
 import org.openjdk.jmc.common.item.ItemCollectionToolkit
+import org.openjdk.jmc.common.unit.IQuantity
 import org.openjdk.jmc.flightrecorder.JfrAttributes
 import org.openjdk.jmc.flightrecorder.jdk.JdkAttributes
 import java.awt.event.MouseEvent
@@ -27,6 +29,7 @@ abstract class ThreadFlamegraphView(private val jfrBinder: JFRBinder) : ViewPane
     private var threadMapping: Map<String, List<IItem>> = mapOf()
     abstract override val identifier: String
     protected abstract val eventSelector: (IItemCollection) -> IItemCollection
+    open val nodeWeightAttribute : IAttribute<IQuantity>? = null // e.g. JdkAttributes.SAMPLE_WEIGHT or JdkAttributes.ALLOCATION_SIZE ?
 
     override val view by lazy {
         val flameGraphPane = FlameGraphPane()
@@ -52,7 +55,7 @@ abstract class ThreadFlamegraphView(private val jfrBinder: JFRBinder) : ViewPane
                         else -> selectedIndices.map { threadListModel[it] }
                             .mapNotNull { threadMapping[it] }
                             .flatten()
-                            .stacktraceTreeModel()
+                            .stacktraceTreeModel(nodeWeightAttribute)
                     }
                 )
             }
@@ -79,9 +82,7 @@ abstract class ThreadFlamegraphView(private val jfrBinder: JFRBinder) : ViewPane
             }
 
             flameGraphPane.setStacktraceTreeModel(
-                events.stacktraceTreeModel(
-                    //JdkAttributes.SAMPLE_WEIGHT
-                )
+                events.stacktraceTreeModel(nodeWeightAttribute)
             )
         }
 
