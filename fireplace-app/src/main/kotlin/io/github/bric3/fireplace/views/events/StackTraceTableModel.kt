@@ -26,7 +26,6 @@ internal class StackTraceTableModel : AbstractTableModel() {
             null
         }
         fireTableDataChanged()
-        fireTableStructureChanged()
     }
 
     override fun getRowCount(): Int {
