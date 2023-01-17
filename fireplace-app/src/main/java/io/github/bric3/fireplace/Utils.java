@@ -30,6 +30,12 @@ public class Utils {
                             .orElse(false);
     }
 
+    public static void ifDebugging(Runnable runnable) {
+        if (isDebugging()) {
+            runnable.run();
+        }
+    }
+
     /**
      * Returns a supplier that caches the computation of the given value supplier.
      *

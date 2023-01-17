@@ -12,6 +12,7 @@ package io.github.bric3.fireplace.ui
 import io.github.bric3.fireplace.JfrFrameColorMode
 import io.github.bric3.fireplace.JfrFrameColorMode.BY_PACKAGE
 import io.github.bric3.fireplace.JfrFrameNodeConverter
+import io.github.bric3.fireplace.Utils
 import io.github.bric3.fireplace.core.ui.Colors
 import io.github.bric3.fireplace.core.ui.DarkLightColor
 import io.github.bric3.fireplace.flamegraph.ColorMapper
@@ -82,14 +83,6 @@ class FlameGraphPane : JPanel(BorderLayout()) {
             colorModeJComboBox.addActionListener(it)
         }
 
-        val gapToggle = JCheckBox("Gap").apply {
-            addActionListener {
-                jfrFlamegraphView.isFrameGapEnabled = isSelected
-                jfrFlamegraphView.requestRepaint()
-            }
-            isSelected = defaultPaintFrameBorder
-        }
-
         val icicleModeToggle = JCheckBox("Icicle").apply {
             addActionListener {
                 jfrFlamegraphView.mode =
@@ -116,40 +109,6 @@ class FlameGraphPane : JPanel(BorderLayout()) {
             add(jfrFlamegraphView.component.apply {
                 border = null
             })
-        }
-        val timer = Timer(2000) {
-            jfrFlamegraphView = getJfrFlamegraphView().apply {
-                isShowMinimap = defaultShowMinimap
-                mode = if (defaultIcicleMode) FlamegraphView.Mode.ICICLEGRAPH else FlamegraphView.Mode.FLAMEGRAPH
-                icicleModeToggle.isSelected = defaultIcicleMode
-                minimapToggle.isSelected = defaultShowMinimap
-                configureCanvas { component: JComponent -> registerToolTips(component) }
-                putClientProperty(FlamegraphView.SHOW_STATS, true)
-                setMinimapShadeColorSupplier { minimapShade }
-                zoomAnimation.install(this)
-                dataApplier?.accept(this)
-            }
-            updateColorSettingsListener.actionPerformed(null)
-            wrapper.run {
-                removeAll()
-                add(jfrFlamegraphView.component.apply {
-                    border = null
-                })
-                revalidate()
-                repaint(1000)
-            }
-        }.apply {
-            initialDelay = 0
-            isRepeats = true
-        }
-        val refreshToggle = JToggleButton("Refresh").apply {
-            addActionListener {
-                if (timer.isRunning) {
-                    timer.stop()
-                } else {
-                    timer.start()
-                }
-            }
         }
         val resetZoom = JButton("1:1").apply {
             addActionListener { jfrFlamegraphView.resetZoom() }
@@ -188,16 +147,71 @@ class FlameGraphPane : JPanel(BorderLayout()) {
             layout = BoxLayout(this, BoxLayout.X_AXIS)
             add(colorPaletteJComboBox)
             add(colorModeJComboBox)
-            add(gapToggle)
             add(icicleModeToggle)
             add(animateToggle)
             add(minimapToggle)
-            add(refreshToggle)
+            Utils.ifDebugging {
+                add(
+                    refreshToggle(
+                        icicleModeToggle,
+                        minimapToggle,
+                        minimapShade,
+                        zoomAnimation,
+                        updateColorSettingsListener,
+                        wrapper
+                    )
+                )
+            }
             add(resetZoom)
             add(searchField)
         }
         add(controlPanel, BorderLayout.NORTH)
         add(wrapper, BorderLayout.CENTER)
+    }
+
+    private fun refreshToggle(
+        icicleModeToggle: JCheckBox,
+        minimapToggle: JCheckBox,
+        minimapShade: DarkLightColor,
+        zoomAnimation: ZoomAnimation,
+        updateColorSettingsListener: ActionListener,
+        wrapper: JPanel
+    ): JToggleButton {
+        val timer = Timer(2000) {
+            jfrFlamegraphView = getJfrFlamegraphView().apply {
+                isShowMinimap = defaultShowMinimap
+                mode = if (defaultIcicleMode) FlamegraphView.Mode.ICICLEGRAPH else FlamegraphView.Mode.FLAMEGRAPH
+                icicleModeToggle.isSelected = defaultIcicleMode
+                minimapToggle.isSelected = defaultShowMinimap
+                configureCanvas { component: JComponent -> registerToolTips(component) }
+                putClientProperty(FlamegraphView.SHOW_STATS, true)
+                setMinimapShadeColorSupplier { minimapShade }
+                zoomAnimation.install(this)
+                dataApplier?.accept(this)
+            }
+            updateColorSettingsListener.actionPerformed(null)
+            wrapper.run {
+                removeAll()
+                add(jfrFlamegraphView.component.apply {
+                    border = null
+                })
+                revalidate()
+                repaint(1000)
+            }
+        }.apply {
+            initialDelay = 0
+            isRepeats = true
+        }
+        val refreshToggle = JToggleButton("Refresh").apply {
+            addActionListener {
+                if (timer.isRunning) {
+                    timer.stop()
+                } else {
+                    timer.start()
+                }
+            }
+        }
+        return refreshToggle
     }
 
     fun setStacktraceTreeModel(stacktraceTreeModel: StacktraceTreeModel) {
