@@ -21,9 +21,13 @@ import javax.swing.table.TableColumnModel;
 import javax.swing.table.TableModel;
 import java.awt.*;
 import java.awt.event.MouseEvent;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.EventObject;
+import java.util.List;
 import java.util.Objects;
 import java.util.function.Consumer;
+import java.util.function.IntSupplier;
 
 /**
  * A tailored {@link JTable} where cells are interactive.
@@ -103,8 +107,10 @@ public class InteractiveJTable extends JTable {
         setDefaultEditor(JComponent.class, new InteractiveTableCellEditor<>());
         setSurrendersFocusOnKeystroke(true);
 
-        RowHoveringListener.install(this);
-        AutoEditCellListener.install(this);
+        ProperMouseEnterExitListener.install(this).register(
+                                       new RowHoveringListener(this),
+                                       new AutoEditCellListener(this)
+                               );
 
         adjustRowHeights();
     }
@@ -489,9 +495,30 @@ public class InteractiveJTable extends JTable {
             throw new IllegalStateException("getCellEditorValue() should not be called");
         }
 
+        @Override
+        public boolean stopCellEditing() {
+            cancelCellEditing();
+            return true;
+        }
+
         /**
          * Returns true as default implementation but activate as well the
          * component on the first click by emitting synthetic events.
+         * <p>
+         * One can extend this listener to provide hooks when the editor is
+         * stopped/cancelled, typically in the constructor.
+         * <pre><code>
+         * addCellEditorListener(new CellEditorListener() {
+         *     @Override
+         *     public void editingStopped(ChangeEvent e) {
+         *         ...
+         *     }
+         *     @Override
+         *     public void editingCanceled(ChangeEvent e) {
+         *         ...
+         *     }
+         * });
+         * </code></pre>
          *
          * @param anEvent an event object
          * @return true
@@ -542,17 +569,6 @@ public class InteractiveJTable extends JTable {
                 final int row,
                 final int column
         ) {
-            //addCellEditorListener(new CellEditorListener() {
-            //    @Override
-            //    public void editingStopped(ChangeEvent e) {
-            //        ...
-            //    }
-            //
-            //    @Override
-            //    public void editingCanceled(ChangeEvent e) {
-            //        ...
-            //    }
-            //});
             if (value instanceof JComponent) {
                 editorComponent = (C) value;
                 return editorComponent;
@@ -636,77 +652,32 @@ public class InteractiveJTable extends JTable {
         }
     }
 
-    protected static boolean pointerStillInsideTheTable(MouseEvent event, JTable table) {
-        if (event.getID() != MouseEvent.MOUSE_EXITED) {
-            throw new RuntimeException("Event is not a MOUSE_EXITED event: " + event);
-        }
-        // A MOUSE_EXITED event is fired when the mouse pointer
-        // can be fired when the pointer is over a child component is over
-        // the table, in particular the editor component.
-        // So rowAtPoint and columnAtPoint will not return -1,
-        // the following won't work accurately for this event.
-        //    int r = table.rowAtPoint(e.getPoint());
-        //    int c = table.columnAtPoint(e.getPoint());
-        //
-        // Instead we use the last known pointer location, and
-        // check the poiner coordinate
-        Point point = SwingUtils.getLastPointerLocation(table);
-
-        var editorComponent = table.getEditorComponent();
-        // this event is likely a retargeted event because mouse
-        // is now over the editor and thus exited the table
-        // but this code cares about mouse coordinates.
-        // So bail out since the pinter is still inside the table.
-        return editorComponent != null
-               && editorComponent.contains(
-                SwingUtilities.convertPoint(table, point, editorComponent)
-        );
-    }
-
     /**
      * Listen to mouse position to set the hovered row.
      *
      * @see InteractiveJTable#prepareEditor(TableCellEditor, int, int)
      * @see InteractiveJTable#prepareRenderer(TableCellRenderer, int, int)
      */
-    private static class RowHoveringListener extends MouseInputAdapter {
+    private static class RowHoveringListener implements ProperMouseEnterExitListener.SimpleMouseListener {
         private final JTable table;
 
         public RowHoveringListener(InteractiveJTable interactiveTable) {
             this.table = interactiveTable;
         }
-
-        public static void install(InteractiveJTable interactiveTable) {
-            var rowHoveringListener = new RowHoveringListener(interactiveTable);
-            interactiveTable.addMouseMotionListener(rowHoveringListener);
-            interactiveTable.addMouseListener(rowHoveringListener);
+        
+        @Override
+        public void mouseMoveWithin(MouseEvent e) {
+            performHovering(() -> table.rowAtPoint(e.getPoint()));
         }
 
         @Override
-        public void mouseMoved(MouseEvent e) {
-            performHovering(e);
+        public void mouseOut(MouseEvent e) {
+            performHovering(() -> -1);
         }
 
-        @Override
-        public void mouseEntered(MouseEvent e) {
-            performHovering(e);
-        }
-
-        @Override
-        public void mouseExited(MouseEvent e) {
-            if (pointerStillInsideTheTable(e, table)) {
-                return;
-            }
-
-            if (!table.contains(e.getPoint())) {
-                performHovering(e);
-            }
-        }
-
-        private void performHovering(MouseEvent e) {
+        private void performHovering(IntSupplier rowSupplier) {
             int oldHoveredRow = (int) Objects.requireNonNullElse(table.getClientProperty("hoveredRow"), -1);
-
-            int rowToHover = e.getID() == MouseEvent.MOUSE_EXITED ? -1 : table.rowAtPoint(e.getPoint());
+            int rowToHover = rowSupplier.getAsInt();
             table.putClientProperty("hoveredRow", rowToHover);
             if (oldHoveredRow != rowToHover) {
                 // request repaint of the row
@@ -727,61 +698,110 @@ public class InteractiveJTable extends JTable {
     /**
      * This allows to enter editing mode for this cell, thus making the cell interactive.
      */
-    private static class AutoEditCellListener extends MouseInputAdapter {
+    private static class AutoEditCellListener implements ProperMouseEnterExitListener.SimpleMouseListener {
         private final InteractiveJTable table;
 
         public AutoEditCellListener(InteractiveJTable interactiveTable) {
             this.table = interactiveTable;
         }
 
-        public static void install(InteractiveJTable interactiveTable) {
-            interactiveTable.addMouseMotionListener(new AutoEditCellListener(interactiveTable));
-            interactiveTable.addMouseListener(new AutoEditCellListener(interactiveTable));
-        }
-
         @Override
-        public void mouseExited(MouseEvent e) {
-            if (pointerStillInsideTheTable(e, table)) return;
-
+        public void mouseOut(MouseEvent e) {
             if (table.isEditing()) {
                 table.getCellEditor().cancelCellEditing();
             }
         }
 
         @Override
-        public void mouseMoved(MouseEvent e) {
+        public void mouseMoveWithin(MouseEvent e) {
             // Actually rowAtPoint or columnAtPoint will never return -1,
             // when handling mouse moved
-            int r = table.rowAtPoint(e.getPoint());
-            int c = table.columnAtPoint(e.getPoint());
+            var point = e.getPoint();
+            int r = table.rowAtPoint(point);
+            int c = table.columnAtPoint(point);
 
-            TableCellEditor cellEditor = table.getCellEditor();
+            var currentCellEditor = table.getCellEditor();
             if (table.isCellEditable(r, c)
-                && (table.getEditingRow() != r || table.getEditingColumn() != c) // avoid flickering, when the mouse mouve over the same cell
+                && (table.getEditingRow() != r || table.getEditingColumn() != c) // avoid flickering, when the mouse move over the same cell
             ) {
                 // Cancel previous, otherwise editCellAt will invoke stopCellEditing which
                 // actually get the current value from the editor and set it to the model (see editingStopped)
                 if (table.isEditing() && r >= 0 && c >= 0) {
-                    cellEditor.cancelCellEditing();
+                    currentCellEditor.cancelCellEditing();
                 }
-
+                
                 table.editCellAt(r, c);
-                var cellEditorComponent = table.getEditorComponent();
-                if (cellEditor != null) {
-                    cellEditorComponent.addMouseListener(new MouseInputAdapter() {
+                var newCellEditorComponent = table.getEditorComponent();
+                var newCellEditor = table.getCellEditor();
+                if (newCellEditor != null && newCellEditorComponent != null) {
+                    newCellEditorComponent.addMouseListener(new MouseInputAdapter() {
                         @Override
                         public void mouseExited(MouseEvent e) {
-                            cellEditor.cancelCellEditing();
+                            newCellEditor.cancelCellEditing();
                             // Remove ourselves from the component, otherwise listeners will pile up
-                            cellEditorComponent.removeMouseListener(this);
+                            newCellEditorComponent.removeMouseListener(this);
                         }
                     });
                 }
             } else {
                 if (table.isEditing() && r < 0 && c < 0) {
-                    cellEditor.cancelCellEditing();
+                    currentCellEditor.cancelCellEditing();
                 }
             }
+        }
+    }
+
+    /**
+     * Mouse exit are not properly tracked by the
+     * regular mouse listeners, so we need to capture events higher
+     * in the dispatcher via AWTEventListener.
+     * In order to simplify integration, this utility also <em>merge</em>
+     * mouse enter and mouse move events.
+     *
+     * @see SimpleMouseListener
+     */
+    private static class ProperMouseEnterExitListener {
+        private final List<SimpleMouseListener> listeners = new ArrayList<>();
+
+        public ProperMouseEnterExitListener(InteractiveJTable interactiveTable) {
+            var dumbListenerForMouseEventSubscription = new MouseInputAdapter() {
+            };
+            interactiveTable.addMouseListener(dumbListenerForMouseEventSubscription);
+            interactiveTable.addMouseMotionListener(dumbListenerForMouseEventSubscription);
+
+            Toolkit.getDefaultToolkit().addAWTEventListener(awtEvent -> {
+                var source = awtEvent.getSource();
+                if (source instanceof JComponent) {
+                    var comp = (JComponent) source;
+                    // The actual received event may come from a different component than the table
+                    var tableMouseEvent = SwingUtilities.convertMouseEvent(comp, (MouseEvent) awtEvent, interactiveTable);
+                    if (SwingUtilities.isDescendingFrom(comp, interactiveTable)) { // TODO check if within bounds ?
+                        // The mouse is in the house...
+
+                        listeners.forEach(l -> l.mouseMoveWithin(tableMouseEvent));
+                        //rowHoveringListener.performHovering(() -> interactiveTable.rowAtPoint(SwingUtils.getLastPointerLocation(interactiveTable)));
+                    } else {
+                        // Mouse is outside
+                        listeners.forEach(l -> l.mouseOut(tableMouseEvent));
+                        //rowHoveringListener.performHovering(() -> -1);
+                    }
+                }
+            }, AWTEvent.MOUSE_MOTION_EVENT_MASK | AWTEvent.MOUSE_EVENT_MASK);
+        }
+
+        public static ProperMouseEnterExitListener install(InteractiveJTable interactiveTable) {
+            return new ProperMouseEnterExitListener(interactiveTable);
+        }
+
+        public ProperMouseEnterExitListener register(SimpleMouseListener... listeners) {
+            this.listeners.addAll(Arrays.asList(listeners));
+            return this;
+        }
+
+        public interface SimpleMouseListener {
+            void mouseMoveWithin(MouseEvent e);
+
+            void mouseOut(MouseEvent e);
         }
     }
 }
