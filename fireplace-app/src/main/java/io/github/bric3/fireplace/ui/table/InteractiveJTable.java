@@ -774,16 +774,17 @@ public class InteractiveJTable extends JTable {
                 if (source instanceof JComponent) {
                     var comp = (JComponent) source;
                     // The actual received event may come from a different component than the table
-                    var tableMouseEvent = SwingUtilities.convertMouseEvent(comp, (MouseEvent) awtEvent, interactiveTable);
-                    if (SwingUtilities.isDescendingFrom(comp, interactiveTable)) { // TODO check if within bounds ?
+                    var tableMouseEvent = SwingUtilities.convertMouseEvent(
+                            comp,
+                            (MouseEvent) awtEvent,
+                            interactiveTable
+                    );
+                    if (interactiveTable.contains(tableMouseEvent.getPoint())) {
                         // The mouse is in the house...
-
                         listeners.forEach(l -> l.mouseMoveWithin(tableMouseEvent));
-                        //rowHoveringListener.performHovering(() -> interactiveTable.rowAtPoint(SwingUtils.getLastPointerLocation(interactiveTable)));
                     } else {
                         // Mouse is outside
                         listeners.forEach(l -> l.mouseOut(tableMouseEvent));
-                        //rowHoveringListener.performHovering(() -> -1);
                     }
                 }
             }, AWTEvent.MOUSE_MOTION_EVENT_MASK | AWTEvent.MOUSE_EVENT_MASK);
