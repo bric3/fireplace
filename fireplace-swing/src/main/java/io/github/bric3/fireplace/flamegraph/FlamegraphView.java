@@ -18,6 +18,7 @@ import javax.swing.event.MouseInputListener;
 import java.awt.*;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
+import java.awt.event.HierarchyEvent;
 import java.awt.event.MouseEvent;
 import java.awt.geom.Area;
 import java.awt.image.BufferedImage;
@@ -226,7 +227,7 @@ public class FlamegraphView<T> {
         canvas = new FlamegraphCanvas<>(this);
         canvas.putClientProperty(OWNER_KEY, this);
         scrollPaneListener = new FlamegraphScrollPaneMouseInputListener<>(canvas);
-        var scrollPane = new JScrollPane(canvas);
+        var scrollPane = createScrollPane();
         scrollPane.putClientProperty(OWNER_KEY, this);
         var layeredScrollPane = JScrollPaneWithBackButton.create(
                 () -> {
@@ -263,6 +264,105 @@ public class FlamegraphView<T> {
             scrollPane.getHorizontalScrollBar().setBackground(bg);
             canvas.setBackground(bg);
         });
+    }
+
+    private JScrollPane createScrollPane() {
+        var jScrollPane = new JScrollPane(canvas);
+        var viewport = new JViewport() {
+            @Override
+            protected LayoutManager createLayoutManager() {
+                return new ViewportLayout() {
+                    private final Dimension oldViewPortSize = new Dimension(); // reusable
+                    private final Dimension flamegraphSize = new Dimension(); // reusable
+                    private final Point flamegraphLocation = new Point(); // reusable
+                    
+                    @Override
+                    public void layoutContainer(Container parent) {
+                        // Custom layout code to handle container shrinking.
+                        // The default view port layout asks the preferred size
+                        // of the view.
+                        // But that cannot work since the canvas won;t update
+                        // its width, it receives its size from the layout container.
+                        //
+                        // However, the default algorithm only updates the size
+                        // after it has received the preferred size, or if the
+                        // viewport got bigger.
+                        //
+                        // This code makes the necessary query to the canvas to
+                        // asks if it needs a new size given the viewport width change,
+                        // in order to keep the same zoom factor.
+                        //
+                        // The view location is also updated.
+
+                        var vp = (JViewport) parent;
+                        var canvas = (FlamegraphCanvas<?>) vp.getView();
+                        int oldVpWidth = oldViewPortSize.width;
+                        var vpSize = vp.getSize(oldViewPortSize);
+
+                        // view port has been resized
+                        if (vpSize.width != oldVpWidth) {
+                            // if old fg width == old vp width
+                            //   the scaleFactor is 1.0
+                            //   => recompute the fg size
+                            // if old fg width > old vp width
+                            //   the scaleFactor is > 1.0
+                            //   => compute the scaleFactor
+                            //   => scale the fg size using the current vp width
+                            // if old fg width < old vp width
+                            //   ==> do nothing
+                            int oldFlamegraphWidth = flamegraphSize.width;
+                            if (oldFlamegraphWidth == oldVpWidth) {
+                                canvas.updateFlamegraphDimension(
+                                        flamegraphSize,
+                                        vpSize.width
+                                );
+
+                                // check view position ?
+                            } else {
+                                // compute scale factor
+                                double scaleFactor = FlamegraphRenderEngine.getScaleFactor(
+                                        oldVpWidth,
+                                        oldFlamegraphWidth,
+                                        1.0
+                                );
+
+                                // scale the fg size with the new viewport width
+                                canvas.updateFlamegraphDimension(
+                                        flamegraphSize,
+                                        (int) Math.round(vpSize.width / scaleFactor)
+                                );
+
+                            }
+                            vp.setViewSize(flamegraphSize);
+
+                            // if view position X > 0
+                            //   the fg is zoomed
+                            //   => compute the position ratio
+                            //   => apply ratio to the current fg width
+
+                            int oldFlamegraphX = Math.abs(flamegraphLocation.x);
+                            if (oldFlamegraphX > 0) {
+                                // compute scale factor
+                                double positionRatio = (double) oldFlamegraphX / (double) oldFlamegraphWidth;
+                                flamegraphLocation.x = Math.abs((int) Math.round(positionRatio * flamegraphSize.width));
+                                flamegraphLocation.y = Math.abs(flamegraphLocation.y);
+
+                                vp.setViewPosition(flamegraphLocation);
+                            }
+                        } else {
+                            super.layoutContainer(parent);
+                            // update the sizes
+                            vp.getSize(oldViewPortSize);
+                            canvas.getSize(flamegraphSize);
+                            canvas.getLocation(flamegraphLocation);
+                        }
+                    }
+                };
+            }
+        };
+        jScrollPane.setViewport(viewport);
+        jScrollPane.setViewportView(canvas);
+        return jScrollPane;
     }
 
     /**
@@ -435,7 +535,9 @@ public class FlamegraphView<T> {
      * @return {@code true} if the siblings of the hovered frame are highlighted, {@code false} otherwise.
      */
     public boolean isShowHoveredSiblings() {
-        return canvas.getFlamegraphRenderEngine().map(FlamegraphRenderEngine::isShowHoveredSiblings).orElse(false);
+        return canvas.getFlamegraphRenderEngine()
+                     .map(FlamegraphRenderEngine::isShowHoveredSiblings)
+                     .orElse(false);
     }
 
     /**
@@ -595,7 +697,7 @@ public class FlamegraphView<T> {
      * @param value the value.
      * @see JComponent#putClientProperty(Object, Object)
      */
-    public void putClientProperty(String key, Object value) {
+    public <V> void putClientProperty(String key, V value) {
         // value can be null, it means removing the key (see putClientProperty)
         canvas.putClientProperty(Objects.requireNonNull(key), value);
     }
@@ -607,8 +709,9 @@ public class FlamegraphView<T> {
      * @return the value
      * @see JComponent#getClientProperty(Object)
      */
-    public Object getClientProperty(String key) {
-        return canvas.getClientProperty(Objects.requireNonNull(key));
+    @SuppressWarnings("unchecked")
+    public <V> V getClientProperty(String key) {
+        return (V) canvas.getClientProperty(Objects.requireNonNull(key));
     }
 
     /**
@@ -918,9 +1021,33 @@ public class FlamegraphView<T> {
         }
 
         @Override
+        public void doLayout() {
+            Rectangle bounds = getBounds();
+            double delta = getParent().getWidth() - getVisibleRect().getWidth();
+            // TODO capture position in view rect
+
+            if(delta < 0) {
+
+            }
+            Point location = getLocation();
+
+
+            super.doLayout();
+        }
+
+        @Override
         public void addNotify() {
             super.addNotify();
             var fgCanvas = this;
+
+            fgCanvas.addHierarchyListener(e -> {
+                boolean b = (e.getChangeFlags() & HierarchyEvent.DISPLAYABILITY_CHANGED) != 0;
+                if (b && !e.getComponent().isDisplayable()) {
+                    fgCanvas.getParent();
+                    // todo
+                }
+            });
+
 
             // Adjust the width of the canvas to the width of the view rect, when
             // the scroll bar is made visible, this prevents the horizontal scrollbar
@@ -1026,7 +1153,6 @@ public class FlamegraphView<T> {
                     flamegraphWidth,
                     true
             );
-
             preferredSize.width = Math.max(preferredSize.width, flamegraphWidth);
             preferredSize.height = Math.max(preferredSize.height, flamegraphHeight);
 
@@ -1035,6 +1161,18 @@ public class FlamegraphView<T> {
                 firePropertyChange("preferredSize", oldFlamegraphDimension, preferredSize);
             }
             return preferredSize;
+        }
+
+        protected Dimension updateFlamegraphDimension(Dimension dimension, int flamegraphWidth) {
+            var flamegraphHeight = flamegraphRenderEngine.computeVisibleFlamegraphHeight(
+                    (Graphics2D) getGraphics(),
+                    flamegraphWidth,
+                    true
+            );
+
+            dimension.width = flamegraphWidth;
+            dimension.height = flamegraphHeight;
+            return dimension;
         }
 
         @Override
