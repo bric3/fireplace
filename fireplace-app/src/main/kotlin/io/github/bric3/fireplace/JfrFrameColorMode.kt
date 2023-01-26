@@ -9,6 +9,7 @@
  */
 package io.github.bric3.fireplace
 
+import io.github.bric3.fireplace.core.ui.LightDarkColor
 import io.github.bric3.fireplace.flamegraph.FrameBox
 import org.openjdk.jmc.common.IMCFrame
 import org.openjdk.jmc.flightrecorder.stacktrace.tree.Node
@@ -21,7 +22,7 @@ import java.util.regex.Pattern
  */
 enum class JfrFrameColorMode {
     BY_PACKAGE {
-        private val runtimePrefixes = Pattern.compile("(java\\.|javax\\.|sun\\.|com\\.sun\\.|com\\.oracle\\.|com\\.ibm\\.)")
+        private val runtimePrefixes = Pattern.compile("(java\\.|javax\\.|sun\\.|com\\.sun\\.|com\\.oracle\\.|com\\.ibm\\.|jdk\\.)")
         public override fun getJfrNodeColor(colorMapper: Function<Any, Color>, frameNode: Node): Color {
             if (frameNode.isRoot) {
                 return rootNodeColor
@@ -70,8 +71,14 @@ enum class JfrFrameColorMode {
     }
 
     companion object {
-        var rootNodeColor = Color(198, 198, 198)
-        var runtimeColor = Color(34, 107, 232)
+        var rootNodeColor = LightDarkColor(
+            0xFF_77_4A_A4.toInt(),
+            0xFF_56_1D_8C.toInt()
+        )
+        var runtimeColor = LightDarkColor(
+            0xFF_D1_D4_DE.toInt(),
+            0xFF_3B_39_3D.toInt()
+        )
         var undefinedColor = Color(108, 163, 189)
         var jitCompiledColor = Color(21, 110, 64)
         var inlinedColor = Color.pink

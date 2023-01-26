@@ -18,7 +18,7 @@ import java.awt.image.ColorModel;
 /**
  * Represents a color that can return two values depending on the {@link Colors#isDarkMode()}
  */
-public class DarkLightColor extends Color {
+public class LightDarkColor extends Color {
     private final Color dark;
 
     /**
@@ -27,7 +27,7 @@ public class DarkLightColor extends Color {
      * @param light the light color.
      * @param dark  the dark color.
      */
-    public DarkLightColor(Color light, Color dark) {
+    public LightDarkColor(Color light, Color dark) {
         super(light.getRGB(), light.getAlpha() != 255);
         this.dark = dark;
     }
@@ -38,7 +38,7 @@ public class DarkLightColor extends Color {
      * @param light_rgba the light color.
      * @param dark_rgba  the dark color.
      */
-    public DarkLightColor(int light_rgba, int dark_rgba) {
+    public LightDarkColor(int light_rgba, int dark_rgba) {
         super(light_rgba, true);
         this.dark = new Color(dark_rgba, true);
     }

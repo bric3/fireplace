@@ -33,7 +33,7 @@
 package io.github.bric3.fireplace.flamegraph;
 
 import io.github.bric3.fireplace.core.ui.Colors;
-import io.github.bric3.fireplace.core.ui.DarkLightColor;
+import io.github.bric3.fireplace.core.ui.LightDarkColor;
 
 import java.awt.*;
 import java.util.Objects;
@@ -65,12 +65,12 @@ import static io.github.bric3.fireplace.flamegraph.FrameRenderingFlags.isMinimap
  * @param <T> The actual type of frame.
  */
 public class DimmingFrameColorProvider<T> implements FrameColorProvider<T> {
-    public static final Color DIMMED_TEXT_COLOR = new DarkLightColor(
+    public static final Color DIMMED_TEXT_COLOR = new LightDarkColor(
             Colors.rgba(28, 43, 52, 0.68f),
             Colors.rgba(255, 255, 255, 0.51f)
     );
 
-    public static final Color ROOT_BACKGROUND_COLOR = new DarkLightColor(
+    public static final Color ROOT_BACKGROUND_COLOR = new LightDarkColor(
             new Color(0xFFEAF6FC),
             new Color(0xFF091222)
     );

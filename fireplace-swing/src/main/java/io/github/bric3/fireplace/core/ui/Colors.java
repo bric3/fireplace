@@ -60,7 +60,7 @@ public class Colors {
      */
     public static final int DARK_PERCEIVED_BRIGHTNESS_THRESHOLD = gammaFunction(0.45);
 
-    public static final Color blue = new DarkLightColor(Color.decode("#2B4EFF"), Color.decode("#39ACE7"));
+    public static final Color blue = new LightDarkColor(Color.decode("#2B4EFF"), Color.decode("#39ACE7"));
 
     /**
      * Color BLACK with alpha 0xD0.
@@ -435,7 +435,7 @@ public class Colors {
      *
      * @param color The color to dim
      * @return The dimmed color ({@link #darkMode} aware)
-     * @see DarkLightColor
+     * @see LightDarkColor
      */
     public static Color dim(Color color) {
         var hslaLight = hslaComponents(color);
@@ -454,7 +454,7 @@ public class Colors {
             hslaLight[L] = 0.93f;
         }
 
-        return new DarkLightColor(
+        return new LightDarkColor(
                 hsla(hslaLight[H], hslaLight[S], hslaLight[L], hslaLight[ALPHA]),
                 hsla(hslaDark[H], hslaDark[S], hslaDark[L], hslaDark[ALPHA])
         );

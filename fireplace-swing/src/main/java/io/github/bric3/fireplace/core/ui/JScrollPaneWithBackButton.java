@@ -58,7 +58,7 @@ public abstract class JScrollPaneWithBackButton {
         );
         private final JButton button = new JButton(buttonIcon) {
 
-            private final Color ARMED_BUTTON_COLOR = new DarkLightColor(
+            private final Color ARMED_BUTTON_COLOR = new LightDarkColor(
                     Color.darkGray,
                     Color.lightGray
             );

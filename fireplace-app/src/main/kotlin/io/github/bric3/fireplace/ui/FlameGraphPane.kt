@@ -14,7 +14,7 @@ import io.github.bric3.fireplace.JfrFrameColorMode.BY_PACKAGE
 import io.github.bric3.fireplace.JfrFrameNodeConverter
 import io.github.bric3.fireplace.Utils
 import io.github.bric3.fireplace.core.ui.Colors
-import io.github.bric3.fireplace.core.ui.DarkLightColor
+import io.github.bric3.fireplace.core.ui.LightDarkColor
 import io.github.bric3.fireplace.flamegraph.ColorMapper
 import io.github.bric3.fireplace.flamegraph.DimmingFrameColorProvider
 import io.github.bric3.fireplace.flamegraph.FlamegraphView
@@ -58,7 +58,10 @@ class FlameGraphPane : JPanel(BorderLayout()) {
             putClientProperty(FlamegraphView.SHOW_STATS, true)
             setTooltipComponentSupplier { BalloonToolTip() }
         }
-        val minimapShade = DarkLightColor(Colors.translucent_white_80, Colors.translucent_black_40).also {
+        val minimapShade = LightDarkColor(
+            Colors.translucent_white_80,
+            Colors.translucent_black_40
+        ).also {
             jfrFlamegraphView.setMinimapShadeColorSupplier { it }
         }
         val zoomAnimation = ZoomAnimation().also { it.install(jfrFlamegraphView) }
@@ -172,7 +175,7 @@ class FlameGraphPane : JPanel(BorderLayout()) {
     private fun refreshToggle(
         icicleModeToggle: JCheckBox,
         minimapToggle: JCheckBox,
-        minimapShade: DarkLightColor,
+        minimapShade: LightDarkColor,
         zoomAnimation: ZoomAnimation,
         updateColorSettingsListener: ActionListener,
         wrapper: JPanel
