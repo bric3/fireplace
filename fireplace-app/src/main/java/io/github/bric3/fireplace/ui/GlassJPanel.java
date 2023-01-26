@@ -1,13 +1,13 @@
 package io.github.bric3.fireplace.ui;
 
 import io.github.bric3.fireplace.core.ui.Colors;
-import io.github.bric3.fireplace.core.ui.DarkLightColor;
+import io.github.bric3.fireplace.core.ui.LightDarkColor;
 
 import javax.swing.*;
 import java.awt.*;
 
 public class GlassJPanel extends JPanel {
-    private static final Color TRANSLUCENT_BACKGROUND = new DarkLightColor(
+    private static final Color TRANSLUCENT_BACKGROUND = new LightDarkColor(
             Colors.translucent_white_D0,
             Colors.translucent_black_80
     );
