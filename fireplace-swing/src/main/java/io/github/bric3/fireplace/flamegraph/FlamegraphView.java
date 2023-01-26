@@ -267,8 +267,8 @@ public class FlamegraphView<T> {
     }
 
     private JScrollPane createScrollPane() {
-        JScrollPane jScrollPane = new JScrollPane(canvas);
-        JViewport viewport = new JViewport() {
+        var jScrollPane = new JScrollPane(canvas);
+        var viewport = new JViewport() {
             @Override
             protected LayoutManager createLayoutManager() {
                 return new ViewportLayout() {

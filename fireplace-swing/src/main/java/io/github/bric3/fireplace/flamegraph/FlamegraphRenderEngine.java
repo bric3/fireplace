@@ -427,8 +427,7 @@ class FlamegraphRenderEngine<T> {
         if (viewRect.intersects(frameRect)) {
             g2.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);
             g2.setColor(frameBorderColor.get());
-            // TODO use floor / ceil ?
-            g2.drawRect((int) x, (int) y, (int) w, (int) h);
+            g2.draw(frameRect);
         }
     }
 
