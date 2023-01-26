@@ -683,8 +683,10 @@ class FlamegraphRenderEngine<T> {
      * factor = ----------------------------
      *           frameWidthX * bounds.width
      * </pre>
+     *
+     * Note that to retrieve the zoom factor one should use {@code 1 / factor}.
      */
-    private static double getScaleFactor(double visibleWidth, double canvasWidth, double frameWidthX) {
+    protected static double getScaleFactor(double visibleWidth, double canvasWidth, double frameWidthX) {
         return visibleWidth / (canvasWidth * frameWidthX);
     }
 
