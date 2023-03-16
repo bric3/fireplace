@@ -45,8 +45,8 @@ batik-svggen = { module = "org.apache.xmlgraphics:batik-svggen", version.ref = "
 batik-dom = { module = "org.apache.xmlgraphics:batik-dom", version.ref = "batik" }
 
 eclipse-swt = { module ="org.eclipse.platform:org.eclipse.swt", version.ref = "swt" }
-eclipse-jface = { module ="org.eclipse.platform:org.eclipse.jface", version = "3.28.0" }
-eclipse-ui-forms = { module ="org.eclipse.platform:org.eclipse.ui.forms", version = "3.11.500" }
+eclipse-jface = { module ="org.eclipse.platform:org.eclipse.jface", version = "3.29.0" }
+eclipse-ui-forms = { module ="org.eclipse.platform:org.eclipse.ui.forms", version = "3.11.600" }
 
 [bundles]
 junit-jupiter = ["junit-jupiter-api", "junit-jupiter-engine"]
