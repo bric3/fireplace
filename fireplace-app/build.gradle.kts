@@ -14,7 +14,7 @@ description = "Swing app that uses fireplace-swing"
 
 plugins {
     id("application")
-    id("com.github.johnrengelman.shadow") version "8.1.0"
+    id("com.github.johnrengelman.shadow") version "8.1.1"
 
     // Playing with graal compiler
     id("org.graalvm.plugin.compiler") version "0.1.0-alpha2"
