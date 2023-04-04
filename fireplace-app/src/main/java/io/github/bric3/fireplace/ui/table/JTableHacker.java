@@ -14,6 +14,12 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 
 class JTableHacker {
+    static {
+        if (!JTable.class.getModule().isOpen(JTable.class.getPackageName(), ClassLoader.getSystemClassLoader().getUnnamedModule())) {
+            throw new IllegalStateException("Needs JVM option \"--add-opens java.desktop/javax.swing=ALL-UNNAMED\"");
+        }
+    }
+
     private static final Method getRowModelMethod;
 
     static {
@@ -52,9 +58,9 @@ class JTableHacker {
 
     void sortManager_setViewRowHeight(int row, int rowHeight) {
         try {
-            Object sortManager = sortManagerField.get(table);
+            var sortManager = sortManagerField.get(table);
             if (sortManager != null) {
-                Method setViewRowHeight = sortManager.getClass().getDeclaredMethod("setViewRowHeight", int.class, int.class);
+                var setViewRowHeight = sortManager.getClass().getDeclaredMethod("setViewRowHeight", int.class, int.class);
                 setViewRowHeight.setAccessible(true);
                 setViewRowHeight.invoke(sortManager, row, rowHeight);
             }

@@ -1,5 +1,7 @@
 package io.github.bric3.fireplace.ui.table;
 
+import com.formdev.flatlaf.FlatLightLaf;
+import io.github.bric3.fireplace.core.ui.Colors;
 import io.github.bric3.fireplace.ui.table.InteractiveJTable.InteractiveTableCellEditor;
 import io.github.bric3.fireplace.ui.table.InteractiveJTable.InteractiveTableCellRenderer;
 
@@ -15,6 +17,10 @@ import java.util.function.Consumer;
 public class InteractiveTableDemo extends JFrame {
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> {
+            FlatLightLaf.setup();
+            Colors.setDarkMode(false);
+            //UIManager.put("InteractiveJTable.rowHoverBackground", new LightDarkColor(0xE5EBF3, 0x4E5357));
+            //UIManager.put("InteractiveJTable.rowStripeBackground", new LightDarkColor(0xE6E9EE, 0x34383A));
             var interactiveTableLayout = new DefaultInteractiveTableModel() {
                 @Override
                 public boolean isCellEditable(int row, int column) {
@@ -26,8 +32,9 @@ public class InteractiveTableDemo extends JFrame {
                 // create data and put into table, first column is a string,
                 // the second is derived from a JPanel.
 
-                interactiveTableLayout.addRow("Chart 1", new int[] { 20, 100}); // new ChartPanel("block1", 20, 100, 20)
-                interactiveTableLayout.addRow("Chart 2", new int[] { 40, 150}); // new ChartPanel("block2", 40, 150, 40)
+                interactiveTableLayout.addRow("Chart 1", new int[] { 20, 100});
+                interactiveTableLayout.addRow("Chart 2", new int[] { 40, 150});
+                // TODO fix JTextArea
                 // interactiveTableLayout.addRow(
                 //         "Text",
                 //         "Lorem ipsum dolor sit amet, consectetur adipiscing elit, " +
@@ -52,6 +59,7 @@ public class InteractiveTableDemo extends JFrame {
                 JTextArea jTextArea = new JTextArea();
                 jTextArea.setLineWrap(true);
                 jTextArea.setEditable(false);
+                jTextArea.setWrapStyleWord(true);
                 jTextArea.setForeground(Color.BLACK);
                 myTable.setDefaultRenderer(
                         String.class,
@@ -217,7 +225,6 @@ public class InteractiveTableDemo extends JFrame {
         }
 
         public void setValue(boolean[] v) {
-            // setPreferredSize(new Dimension(getPreferredSize().width, v[0] ? 100 : 20));
             live.setSelected(v[0]);
             condition.setSelected(v[1]);
             disable.setSelected(v[2]);
