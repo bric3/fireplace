@@ -154,7 +154,7 @@ class EventBrowser(private val jfrBinder: JFRBinder) : ViewPanel {
                         autoSize(0.5)
                     }
                 ).apply {
-                    autoSize(0.3)
+                    autoSize(0.2)
                 }
             )
         }
