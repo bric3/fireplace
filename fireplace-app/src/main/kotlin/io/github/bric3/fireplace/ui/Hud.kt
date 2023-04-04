@@ -13,37 +13,44 @@ import java.awt.BorderLayout
 import java.awt.GridBagLayout
 import javax.swing.*
 
-class Hud {
-    private val dndPanel: JPanel
-    private val progressPanel: JPanel
-    private val hudPanel: JPanel
-
-    init {
-        dndPanel = GlassJPanel(GridBagLayout()).apply {
-            add(JLabel("<html><font size=+4>Drag and drop JFR file here</font></html>"))
-            setOpaque(false)
-            setVisible(false)
-        }
-        progressPanel = GlassJPanel(BorderLayout()).apply {
-            add(
-                JLabel("<html><font size=+4>Loading in progress</font></html>", SwingConstants.CENTER),
-                BorderLayout.CENTER
-            )
-            val progress = JProgressBar().apply {
-                isIndeterminate = true
-            }
-            add(progress, BorderLayout.SOUTH)
-        }
-        hudPanel = JPanel().apply {
-            layout = BoxLayout(this, BoxLayout.Y_AXIS)
-            add(dndPanel)
-            add(progressPanel)
-            isOpaque = false
-        }
+class Hud(private val mainComponent: JComponent) {
+    private val dndPanel: JPanel = GlassJPanel(GridBagLayout(), GlassJPanel.blurOf(mainComponent)).apply {
+        add(JLabel("<html><font size=+4>Drag and drop JFR file here</font></html>"))
+        isOpaque = false
+        isVisible = false
     }
 
+    private val progressPanel: JPanel = GlassJPanel(BorderLayout(), GlassJPanel.blurOf(mainComponent)).apply {
+        add(
+            JLabel("<html><font size=+4>Loading in progress</font></html>", SwingConstants.CENTER),
+            BorderLayout.CENTER
+        )
+        val progress = JProgressBar().apply {
+            isIndeterminate = true
+        }
+        add(progress, BorderLayout.SOUTH)
+    }
+
+    private val hudPanel: JPanel = JPanel().apply {
+        layout = BoxLayout(this, BoxLayout.Y_AXIS)
+        add(dndPanel)
+        add(progressPanel)
+        isOpaque = false
+    }
+
+    private val frameResizeLabel = FrameResizeLabel()
     val component: JComponent
-        get() = hudPanel
+
+    init {
+        component = JLayeredPane().apply {
+            layout = OverlayLayout(this)
+            isOpaque = false
+            isVisible = true
+            addLayer(mainComponent, JLayeredPane.PALETTE_LAYER)
+            addLayer(hudPanel, JLayeredPane.MODAL_LAYER)
+            addLayer(frameResizeLabel.component, JLayeredPane.POPUP_LAYER)
+        }
+    }
 
     val dnDTarget: DragAndDropTarget
         get() = object : DragAndDropTarget {
@@ -65,4 +72,6 @@ class Hud {
         }
         progressPanel.isVisible = visible
     }
+
+    fun installResizeListener(frame: JFrame) = frameResizeLabel.installListener(frame)
 }

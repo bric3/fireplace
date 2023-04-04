@@ -71,34 +71,25 @@ private fun initUI(jfrBinder: JFRBinder, cliPaths: List<Path>) {
             )
             add(ContentPanel(jfrBinder), BorderLayout.CENTER)
         }
-        val frameResizeLabel = FrameResizeLabel()
-        val hud = Hud()
+
+        val hud = Hud(mainAppPanel)
 
         jfrBinder.setOnLoadActions(
             { hud.setProgressVisible(true) },
             { hud.setProgressVisible(false) }
         )
 
-        val appLayers = JLayeredPane().apply {
-            layout = OverlayLayout(this)
-            isOpaque = false
-            isVisible = true
-            addLayer(mainAppPanel, JLayeredPane.PALETTE_LAYER)
-            addLayer(hud.component, JLayeredPane.MODAL_LAYER)
-            addLayer(frameResizeLabel.component, JLayeredPane.POPUP_LAYER)
-        }
-
         JfrFilesDropHandler.install(
             jfrBinder::loadJfrFiles,
-            appLayers,
+            hud.component,
             hud.dnDTarget
         )
 
         JFrame("FirePlace").run {
             defaultCloseOperation = JFrame.EXIT_ON_CLOSE
             size = Dimension(1400, 800)
-            contentPane.add(appLayers)
-            frameResizeLabel.installListener(this)
+            contentPane.add(hud.component)
+            hud.installResizeListener(this)
             addWindowListener(object : WindowAdapter() {
                 override fun windowOpened(e: WindowEvent) {
                     if (cliPaths.isEmpty()) {

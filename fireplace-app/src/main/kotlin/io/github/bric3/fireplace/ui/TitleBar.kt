@@ -34,7 +34,6 @@ class TitleBar(component: JComponent) : JPanel(BorderLayout()) {
 
     private class WindowButtonSpace private constructor() : JComponent() {
         private val windowButtonRect: Rectangle by lazy {
-            println("called once")
             ExternalLafDecorator.instance()
                 .decorationsManager()
                 .titlePaneLayoutInfo(rootPane)
