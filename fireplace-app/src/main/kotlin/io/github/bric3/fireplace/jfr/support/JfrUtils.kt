@@ -28,9 +28,9 @@ import java.util.stream.Collectors.joining
 import java.util.stream.StreamSupport
 import kotlin.streams.asSequence
 
-fun <M, O> IMemberAccessor<M, O>.getMemberFromEvent(event: IItem): Any? {
+fun <M, O> IMemberAccessor<M, O>.getMemberFromEvent(event: IItem): M {
     @Suppress("UNCHECKED_CAST") // getMember doesn't compile with the Kotlin typesystem
-    return (this as IMemberAccessor<Any, IItem>).getMember(event)
+    return (this as IMemberAccessor<M, IItem>).getMember(event)
 }
 
 fun <T> IFormatter<T>.formatValue(value: Any?): String? {
@@ -164,4 +164,3 @@ fun <T, K> byThreads(events: IItemCollection, classifier: IAttribute<T>, subAttr
             )
         )
 }
-
