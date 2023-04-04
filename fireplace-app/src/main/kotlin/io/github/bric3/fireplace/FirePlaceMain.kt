@@ -10,7 +10,7 @@
 package io.github.bric3.fireplace
 
 import io.github.bric3.fireplace.ui.FrameResizeLabel
-import io.github.bric3.fireplace.ui.HudPanel
+import io.github.bric3.fireplace.ui.Hud
 import io.github.bric3.fireplace.ui.TitleBar
 import io.github.bric3.fireplace.ui.addLayer
 import io.github.bric3.fireplace.ui.debug.AssertiveRepaintManager
@@ -72,11 +72,11 @@ private fun initUI(jfrBinder: JFRBinder, cliPaths: List<Path>) {
             add(ContentPanel(jfrBinder), BorderLayout.CENTER)
         }
         val frameResizeLabel = FrameResizeLabel()
-        val hudPanel = HudPanel()
+        val hud = Hud()
 
         jfrBinder.setOnLoadActions(
-            { hudPanel.setProgressVisible(true) },
-            { hudPanel.setProgressVisible(false) }
+            { hud.setProgressVisible(true) },
+            { hud.setProgressVisible(false) }
         )
 
         val appLayers = JLayeredPane().apply {
@@ -84,14 +84,14 @@ private fun initUI(jfrBinder: JFRBinder, cliPaths: List<Path>) {
             isOpaque = false
             isVisible = true
             addLayer(mainAppPanel, JLayeredPane.PALETTE_LAYER)
-            addLayer(hudPanel.component, JLayeredPane.MODAL_LAYER)
+            addLayer(hud.component, JLayeredPane.MODAL_LAYER)
             addLayer(frameResizeLabel.component, JLayeredPane.POPUP_LAYER)
         }
 
         JfrFilesDropHandler.install(
             jfrBinder::loadJfrFiles,
             appLayers,
-            hudPanel.dnDTarget
+            hud.dnDTarget
         )
 
         JFrame("FirePlace").run {
@@ -102,7 +102,7 @@ private fun initUI(jfrBinder: JFRBinder, cliPaths: List<Path>) {
             addWindowListener(object : WindowAdapter() {
                 override fun windowOpened(e: WindowEvent) {
                     if (cliPaths.isEmpty()) {
-                        hudPanel.dnDTarget.activate()
+                        hud.dnDTarget.activate()
                     } else {
                         jfrBinder.loadJfrFiles(cliPaths)
                     }

@@ -13,7 +13,7 @@ import java.awt.BorderLayout
 import java.awt.GridBagLayout
 import javax.swing.*
 
-class HudPanel {
+class Hud {
     private val dndPanel: JPanel
     private val progressPanel: JPanel
     private val hudPanel: JPanel
