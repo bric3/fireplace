@@ -108,9 +108,9 @@ public class InteractiveJTable extends JTable {
         setSurrendersFocusOnKeystroke(true);
 
         ProperMouseEnterExitListener.install(this).register(
-                                       new RowHoveringListener(this),
-                                       new AutoEditCellListener(this)
-                               );
+                new RowHoveringListener(this),
+                new AutoEditCellListener(this)
+        );
 
         adjustRowHeights();
     }
@@ -256,8 +256,8 @@ public class InteractiveJTable extends JTable {
                 });
             } else {
                 var background = isStriped() ?
-                                 row % 2 == 1 ? getBackground() : getRowStripeBackground() :
-                                 getBackground();
+                        row % 2 == 1 ? getBackground() : getRowStripeBackground() :
+                        getBackground();
                 applyBackgroundToHierarchy(cellComponent, c -> {
                     if (background != c.getBackground()) {
                         c.setBackground(background);
@@ -275,9 +275,9 @@ public class InteractiveJTable extends JTable {
     private static void applyBackgroundToHierarchy(@NotNull JComponent container, Consumer<JComponent> backgroundApplier) {
         container.setOpaque(true);
         SwingUtils.descendantOrSelf(container)
-                  .filter(JComponent.class::isInstance)
-                  .map(JComponent.class::cast)
-                  .forEach(backgroundApplier);
+                .filter(JComponent.class::isInstance)
+                .map(JComponent.class::cast)
+                .forEach(backgroundApplier);
     }
 
     /**
@@ -528,8 +528,8 @@ public class InteractiveJTable extends JTable {
         public boolean shouldSelectCell(final EventObject anEvent) {
             var locationWithin = new Point(3, 3); // arbitrary ?
             if (editorComponent != null
-                && anEvent instanceof MouseEvent
-                && ((MouseEvent) anEvent).getID() == MouseEvent.MOUSE_PRESSED
+                    && anEvent instanceof MouseEvent
+                    && ((MouseEvent) anEvent).getID() == MouseEvent.MOUSE_PRESSED
             ) {
                 MouseEvent originalMouseEvent = (MouseEvent) anEvent;
                 Component dispatchComponent =
@@ -664,7 +664,7 @@ public class InteractiveJTable extends JTable {
         public RowHoveringListener(InteractiveJTable interactiveTable) {
             this.table = interactiveTable;
         }
-        
+
         @Override
         public void mouseMoveWithin(MouseEvent e) {
             performHovering(() -> table.rowAtPoint(e.getPoint()));
@@ -722,14 +722,14 @@ public class InteractiveJTable extends JTable {
 
             var currentCellEditor = table.getCellEditor();
             if (table.isCellEditable(r, c)
-                && (table.getEditingRow() != r || table.getEditingColumn() != c) // avoid flickering, when the mouse move over the same cell
+                    && (table.getEditingRow() != r || table.getEditingColumn() != c) // avoid flickering, when the mouse move over the same cell
             ) {
                 // Cancel previous, otherwise editCellAt will invoke stopCellEditing which
                 // actually get the current value from the editor and set it to the model (see editingStopped)
                 if (table.isEditing() && r >= 0 && c >= 0) {
                     currentCellEditor.cancelCellEditing();
                 }
-                
+
                 table.editCellAt(r, c);
                 var newCellEditorComponent = table.getEditorComponent();
                 var newCellEditor = table.getCellEditor();
