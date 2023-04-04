@@ -16,6 +16,7 @@ import io.github.bric3.fireplace.ui.debug.AssertiveRepaintManager
 import io.github.bric3.fireplace.ui.debug.CheckThreadViolationRepaintManager
 import io.github.bric3.fireplace.ui.debug.EventDispatchThreadHangMonitor
 import java.awt.BorderLayout
+import java.awt.Component
 import java.awt.Dimension
 import java.awt.event.WindowAdapter
 import java.awt.event.WindowEvent
@@ -23,14 +24,7 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.util.*
 import java.util.stream.Collectors.toUnmodifiableList
-import javax.swing.BorderFactory
-import javax.swing.JFrame
-import javax.swing.JLayeredPane
-import javax.swing.JPanel
-import javax.swing.JTextField
-import javax.swing.OverlayLayout
-import javax.swing.SwingUtilities
-
+import javax.swing.*
 
 fun main(args: Array<String>) {
     System.getProperties().forEach { k: Any, v: Any -> println("$k = $v") }
@@ -89,11 +83,11 @@ private fun initUI(jfrBinder: JFRBinder, cliPaths: List<Path>) {
             layout = OverlayLayout(this)
             isOpaque = false
             isVisible = true
-            add(mainAppPanel, JLayeredPane.PALETTE_LAYER)
-            add(hudPanel.component, JLayeredPane.MODAL_LAYER)
-            add(frameResizeLabel.component, JLayeredPane.POPUP_LAYER)
+            addLayer(mainAppPanel, JLayeredPane.PALETTE_LAYER)
+            addLayer(hudPanel.component, JLayeredPane.MODAL_LAYER)
+            addLayer(frameResizeLabel.component, JLayeredPane.POPUP_LAYER)
         }
-        
+
         JfrFilesDropHandler.install(
             jfrBinder::loadJfrFiles,
             appLayers,
@@ -120,4 +114,30 @@ private fun initUI(jfrBinder: JFRBinder, cliPaths: List<Path>) {
             isVisible = true
         }
     }
+}
+
+/**
+ * This function is required in Kotlin for JLayeredPane to properly add components as layer.
+ *
+ * Otherwise, kotlin will treat [JLayeredPane.DEFAULT_LAYER] constants
+ * as `int` and will instead call [`JLayeredPane.add(Component comp, int index)`][JLayeredPane.add]
+ * instead of [`JLayeredPane.add(Component comp, Object constraints)`][JLayeredPane.add].
+ *
+ * Java will generate the following byt code
+ *
+ * ```
+ * GETSTATIC javax/swing/JLayeredPane.MODAL_LAYER : Ljava/lang/Integer;
+ * INVOKEVIRTUAL javax/swing/JLayeredPane.add (Ljava/awt/Component;Ljava/lang/Object;)V
+ * ```
+ *
+ * While Kotlin will generate
+ * ```
+ * INVOKEVIRTUAL java/lang/Integer.intValue ()I
+ * INVOKEVIRTUAL javax/swing/JLayeredPane.add (Ljava/awt/Component;I)Ljava/awt/Component;
+ * ```
+ *
+ * This methods make sure the constraint is treated as an [Object].
+ */
+fun JLayeredPane.addLayer(c: Component, constraint: Int) {
+    add(c, constraint as Any)
 }
