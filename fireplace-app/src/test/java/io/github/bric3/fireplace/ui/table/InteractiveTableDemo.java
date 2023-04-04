@@ -16,6 +16,7 @@ import java.util.function.Consumer;
 
 public class InteractiveTableDemo extends JFrame {
     public static void main(String[] args) {
+        // Needs --add-opens java.desktop/javax.swing=ALL-UNNAMED
         SwingUtilities.invokeLater(() -> {
             FlatLightLaf.setup();
             Colors.setDarkMode(false);
