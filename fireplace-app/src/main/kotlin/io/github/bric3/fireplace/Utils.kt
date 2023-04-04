@@ -40,7 +40,7 @@ object Utils {
      * @param <T>           the type of the value
      * @return a memoized version of the value supplier
      * @see [Holger's answer on StackOverflow](https://stackoverflow.com/a/35335467/48136)
-    </T> */
+     */
     fun <T> memoize(valueSupplier: Supplier<T>): Supplier<T> {
         return object : Supplier<T> {
             var delegate = Supplier { firstTime() }

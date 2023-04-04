@@ -24,6 +24,6 @@ class AppSystemProperties : ViewPanel {
     }
 
     companion object {
-        fun isActive(): Boolean = Utils.isDebugging() || Utils.isFireplaceDebug()
+        fun isActive(): Boolean = Utils.isDebugging || Utils.isFireplaceDebug
     }
 }

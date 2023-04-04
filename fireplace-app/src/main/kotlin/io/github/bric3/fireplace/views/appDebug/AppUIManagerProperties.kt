@@ -41,6 +41,6 @@ class AppUIManagerProperties : ViewPanel {
     }
 
     companion object {
-        fun isActive(): Boolean = Utils.isFireplaceDebug()
+        fun isActive(): Boolean = Utils.isFireplaceDebug
     }
 }

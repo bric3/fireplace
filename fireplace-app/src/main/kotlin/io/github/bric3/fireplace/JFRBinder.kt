@@ -79,7 +79,7 @@ class JFRBinder {
                         throw RuntimeException(e1)
                     }
 
-                    if (Utils.isDebugging()) {
+                    if (Utils.isDebugging) {
                         TypeCategoryExtractor.extract(events)
                             .forEach { (type, category) -> println("$type -> $category") }
                     }

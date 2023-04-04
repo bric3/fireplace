@@ -44,7 +44,7 @@ fun main(args: Array<String>) {
 }
 
 private fun initUI(jfrBinder: JFRBinder, cliPaths: List<Path>) {
-    if (Utils.isFireplaceSwingDebug()) {
+    if (Utils.isFireplaceSwingDebug) {
         if (System.getProperty("fireplace.swing.debug.thread.violation.checker") == "IJ") {
             AssertiveRepaintManager.install()
         } else {
