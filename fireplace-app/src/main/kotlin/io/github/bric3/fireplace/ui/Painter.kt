@@ -1,35 +1,25 @@
-/*
- * Fireplace
- *
- * Copyright (c) 2021, Today - Brice Dutheil
- *
- * This Source Code Form is subject to the terms of the Mozilla Public
- * License, v. 2.0. If a copy of the MPL was not distributed with this
- * file, You can obtain one at https://mozilla.org/MPL/2.0/.
- */
 package io.github.bric3.fireplace.ui
 
 import io.github.bric3.fireplace.core.ui.Colors
 import io.github.bric3.fireplace.core.ui.LightDarkColor
-import java.awt.*
+import java.awt.Color
+import java.awt.Graphics2D
+import java.awt.GraphicsEnvironment
+import java.awt.Transparency
 import java.awt.image.BufferedImage
 import java.awt.image.BufferedImageOp
 import java.awt.image.ConvolveOp
 import java.awt.image.Kernel
 import javax.swing.JComponent
-import javax.swing.JPanel
 
-class GlassJPanel @JvmOverloads constructor(layout: LayoutManager = GridBagLayout(), private val backgroundPainter: BackgroundPainter) : JPanel(layout) {
-    override fun paintComponent(g: Graphics) {
-        backgroundPainter.paint(g as Graphics2D, this)
-    }
-
-    interface BackgroundPainter {
-        fun paint(g2: Graphics2D, c: JComponent)
-    }
+/**
+ * Experimental interface to paint something on a component.
+ */
+interface Painter {
+    fun paint(g2: Graphics2D, c: JComponent)
 
     companion object {
-        fun translucent() = object : BackgroundPainter {
+        fun translucent() = object : Painter {
             private val translucentColor: Color = LightDarkColor(
                 Colors.translucent_white_D0,
                 Colors.translucent_black_80
@@ -42,7 +32,7 @@ class GlassJPanel @JvmOverloads constructor(layout: LayoutManager = GridBagLayou
         }
 
 
-        fun blurOf(bgComp: JComponent) = object : BackgroundPainter {
+        fun blurOf(bgComp: JComponent) = object : Painter {
             private lateinit var mOffscreenImage: BufferedImage
             private val mOperation: BufferedImageOp
             private var isAlreadyPainting : Boolean = false
