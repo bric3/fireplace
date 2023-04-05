@@ -7,6 +7,8 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
+@file:Suppress("unused")
+
 package io.github.bric3.fireplace
 
 import com.formdev.flatlaf.FlatDarculaLaf
@@ -31,6 +33,7 @@ import java.awt.Toolkit
 import java.awt.Window
 import javax.swing.*
 
+@Suppress("unused")
 internal object AppearanceControl {
     private const val TO_APPEARANCE = "CURRENT_MODE"
     private const val TO_LIGHT_LAF = "LIGHT"
@@ -89,7 +92,7 @@ internal object AppearanceControl {
             }
 
             override fun activeForegroundColor(): Color {
-                // ignored on macOs
+                // ignored on macOS
                 return UIManager.getColor("TitlePane.foreground")
             }
 

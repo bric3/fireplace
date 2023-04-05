@@ -46,7 +46,7 @@ class Hud(private val mainComponent: JComponent) {
             layout = OverlayLayout(this)
             isOpaque = false
             isVisible = true
-            addLayer(mainComponent, JLayeredPane.PALETTE_LAYER)
+            addLayer(mainComponent, JLayeredPane.DEFAULT_LAYER)
             addLayer(hudPanel, JLayeredPane.MODAL_LAYER)
             addLayer(frameResizeLabel.component, JLayeredPane.POPUP_LAYER)
         }

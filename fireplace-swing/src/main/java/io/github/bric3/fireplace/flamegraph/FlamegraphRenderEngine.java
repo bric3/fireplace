@@ -52,12 +52,12 @@ class FlamegraphRenderEngine<T> {
      * A flag that controls whether a frame is drawn around the frame that the mouse pointer
      * hovers over.
      */
-    public boolean paintHoveredFrameBorder = false;
+    public final boolean paintHoveredFrameBorder = false;
 
     /**
      * The color used to draw a border around the hovered frame.
      */
-    public Supplier<Color> frameBorderColor = () -> Colors.panelForeground;
+    public final Supplier<Color> frameBorderColor = () -> Colors.panelForeground;
 
     /**
      * A flag that controls whether siblings of hovered frames are also rendered
@@ -169,7 +169,7 @@ class FlamegraphRenderEngine<T> {
         checkReady();
         assert thumbnailWidth > 0 : "minimap width must be superior to 0";
 
-        // Somewhat it is a best effort to draw something that shows
+        // Somewhat it is a best-effort to draw something that shows
         // something representative. The canvas recompute this, if its
         // size change so there's a chance the minimap can be updated
         // with higher details (previously invisible frames)
@@ -409,7 +409,7 @@ class FlamegraphRenderEngine<T> {
          *    the line on 50% outside and 50% inside. I don;t know how to avoid that
          *
          * In some of my test what is ok on a retina is ugly on a 1.x monitor,
-         * adjusting the rectangle with the scale wasn't very pretty, as sometime
+         * adjusting the rectangle with the scale wasn't very pretty, as sometimes
          * the border starts inside the frame.
          * Played with Area subtraction, but this wasn't successful.
          */

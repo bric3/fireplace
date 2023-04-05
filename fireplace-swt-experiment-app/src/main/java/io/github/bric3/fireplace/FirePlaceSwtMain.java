@@ -258,7 +258,7 @@ public class FirePlaceSwtMain {
         text.setText(jfrFiles.get(0).toString());
 
         var eventSupplier = CompletableFuture.supplyAsync(() -> {
-            IItemCollection events = null;
+            IItemCollection events;
             try {
                 events = JfrLoaderToolkit.loadEvents(jfrFiles);
             } catch (IOException ioe) {

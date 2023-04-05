@@ -33,43 +33,43 @@ public abstract class FrameRenderingFlags {
     /**
      * Indicate the renderer is actually rendering a minimap.
      */
-    public static int MINIMAP_MODE = 1;
+    public static final int MINIMAP_MODE = 1;
 
     /**
      * The renderer is currently highlighting some frames
      */
-    public static int HIGHLIGHTING = 1 << 1;
+    public static final int HIGHLIGHTING = 1 << 1;
 
     /**
      * The renderer is currently rendering a highlighted frame.
      */
-    public static int HIGHLIGHTED_FRAME = 1 << 2;
+    public static final int HIGHLIGHTED_FRAME = 1 << 2;
 
     /**
      * The renderer is currently rendering a hovered frame
      */
-    public static int HOVERED = 1 << 3;
+    public static final int HOVERED = 1 << 3;
 
     /**
      * The renderer is currently rendering the sibling of a hovered frame
      */
-    public static int HOVERED_SIBLING = 1 << 4;
+    public static final int HOVERED_SIBLING = 1 << 4;
 
     /**
      * The renderer is currently focusing some frames (a "sub-flame")
      */
-    public static int FOCUSING = 1 << 5;
+    public static final int FOCUSING = 1 << 5;
 
     /**
      * The renderer is currently rendering a focused frame.
      */
-    public static int FOCUSED_FRAME = 1 << 6;
+    public static final int FOCUSED_FRAME = 1 << 6;
 
     /**
      * The renderer is currently rendering a partial frame, e.g. it is larger
      * that the painting area.
      */
-    public static int PARTIAL_FRAME = 1 << 7;
+    public static final int PARTIAL_FRAME = 1 << 7;
 
 
     public static int toFlags(

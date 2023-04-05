@@ -48,6 +48,7 @@ import java.util.function.Supplier;
  *
  * @see SWT_AWTBridge
  */
+@SuppressWarnings("unused")
 public class EmbeddingComposite extends Composite {
 
     /**

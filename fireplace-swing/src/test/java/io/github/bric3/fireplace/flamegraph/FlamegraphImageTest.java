@@ -36,7 +36,6 @@ import java.util.Objects;
 
 import static io.github.bric3.fireplace.flamegraph.ImageTestUtils.assertImageEquals;
 import static io.github.bric3.fireplace.flamegraph.ImageTestUtils.dumpPng;
-import static io.github.bric3.fireplace.flamegraph.ImageTestUtils.projectDir;
 import static io.github.bric3.fireplace.flamegraph.ImageTestUtils.readImage;
 import static io.github.bric3.fireplace.flamegraph.ImageTestUtils.testReportDir;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -84,7 +83,7 @@ class FlamegraphImageTest {
     }
 
     @Test
-    void exercice_saving_by_passing_custom_graphics_eg_for_SVG_with_batik(TestInfo testInfo) throws IOException {
+    void exercise_saving_by_passing_custom_graphics_egofor_SVG_with_batik(TestInfo testInfo) throws IOException {
         var flamegraphView = new FlamegraphImage<String>(
                 FrameTextsProvider.of(f -> f.actualNode),
                 FrameColorProvider.defaultColorProvider(__ -> Color.ORANGE),

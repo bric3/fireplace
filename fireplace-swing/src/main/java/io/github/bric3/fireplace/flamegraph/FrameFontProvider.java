@@ -44,7 +44,7 @@ public interface FrameFontProvider<T> {
     Font getFont(FrameBox<T> frame, int flags);
 
     static <T> FrameFontProvider<T> defaultFontProvider() {
-        return new FrameFontProvider<T>() {
+        return new FrameFontProvider<>() {
             /**
              * The font used to display frame labels
              */

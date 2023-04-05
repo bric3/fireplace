@@ -49,13 +49,14 @@ class BalloonToolTip : JToolTip() {
 
     override fun paintComponent(g: Graphics) {
         val s = makeBalloonShape()
-        val g2 = g.create() as Graphics2D
-        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
-        g2.color = background
-        g2.fill(s)
-        g2.color = foreground
-        g2.draw(s)
-        g2.dispose()
+        (g.create() as Graphics2D).run {
+            setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
+            color = background
+            fill(s)
+            color = foreground
+            draw(s)
+            dispose()
+        }
         super.paintComponent(g)
     }
 

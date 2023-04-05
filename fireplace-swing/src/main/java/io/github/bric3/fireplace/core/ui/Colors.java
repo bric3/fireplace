@@ -70,12 +70,12 @@ public class Colors {
     /**
      * Color BLACK with alpha 0xB0.
      */
-    public static Color translucent_black_B0 = new Color(0xB0000000, true);
+    public static final Color translucent_black_B0 = new Color(0xB0000000, true);
 
     /**
      * Color BLACK with alpha 0x80.
      */
-    public static Color translucent_black_80 = new Color(0x80000000, true);
+    public static final Color translucent_black_80 = new Color(0x80000000, true);
 
     /**
      * Color BLACK with alpha 0x60.
@@ -85,7 +85,7 @@ public class Colors {
     /**
      * Color BLACK with alpha 0x40.
      */
-    public static Color translucent_black_40 = new Color(0x40000000, true);
+    public static final Color translucent_black_40 = new Color(0x40000000, true);
 
     /**
      * Color BLACK with alpha 0x20.
@@ -95,22 +95,22 @@ public class Colors {
     /**
      * Color BLACK with alpha 0x10.
      */
-    public static Color translucent_black_10 = new Color(0x10000000, true);
+    public static final Color translucent_black_10 = new Color(0x10000000, true);
 
     /**
      * Color WHITE with alpha 0xD0.
      */
-    public static Color translucent_white_D0 = new Color(0xD0FFFFFF, true);
+    public static final Color translucent_white_D0 = new Color(0xD0FFFFFF, true);
 
     /**
      * Color WHITE with alpha 0xB0.
      */
-    public static Color translucent_white_B0 = new Color(0xB0FFFFFF, true);
+    public static final Color translucent_white_B0 = new Color(0xB0FFFFFF, true);
 
     /**
      * Color WHITE with alpha 0x80.
      */
-    public static Color translucent_white_80 = new Color(0x80FFFFFF, true);
+    public static final Color translucent_white_80 = new Color(0x80FFFFFF, true);
 
     /**
      * Color WHITE with alpha 0x60.
@@ -199,7 +199,7 @@ public class Colors {
         LIGHT_VIOLET_TO_ORANGE("#54478c", "#2c699a", "#048ba8", "#0db39e", "#16db93", "#83e377", "#b9e769", "#efea5a", "#f1c453", "#f29e4c"),
 
         /**
-         * Light theme, black to beige to red color palette.
+         * Light theme, black to beige, to red color palette.
          */
         LIGHT_BLACK_TO_BEIGE_TO_RED("#001219", "#005f73", "#0a9396", "#94d2bd", "#e9d8a6", "#ee9b00", "#ca6702", "#bb3e03", "#ae2012", "#9b2226"),
 

@@ -92,7 +92,7 @@ public class FlamegraphView<T> {
     /**
      * The key for a client property that controls the display of rendering statistics.
      */
-    public static String SHOW_STATS = "flamegraph.show_stats";
+    public static final String SHOW_STATS = "flamegraph.show_stats";
 
     private final FlamegraphCanvas<T> canvas;
 
@@ -1015,6 +1015,7 @@ public class FlamegraphView<T> {
         /**
          * Override this method to listen to LaF changes.
          */
+        @SuppressWarnings("EmptyMethod")
         @Override
         public void updateUI() {
             super.updateUI();

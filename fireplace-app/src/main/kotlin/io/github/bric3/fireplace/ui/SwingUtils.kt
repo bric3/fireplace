@@ -47,7 +47,7 @@ fun JSplitPane.autoSize(proportionalLocation: Double) {
  * INVOKEVIRTUAL javax/swing/JLayeredPane.add (Ljava/awt/Component;I)Ljava/awt/Component;
  * ```
  *
- * This methods make sure the constraint is treated as an [Object].
+ * These methods make sure the constraint is treated as an [Object].
  */
 fun JLayeredPane.addLayer(c: Component, constraint: Int) {
     add(c, constraint as Any)

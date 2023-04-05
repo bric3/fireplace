@@ -22,8 +22,8 @@ import javax.swing.ToolTipManager
  * the component can generate multiple tooltips depending on which cell the
  * mouse is positioned over.
  *
- * However, when the viewport of the scrollpane is moved and the mouse is
- * not moved the tooltip isn't updated even though the mouse is positioned
+ * However, when the viewport of the scroll-pane is moved and the mouse is
+ * not moved the tooltip is not updated even though the mouse is positioned
  * over a different cell. This might happen for example when the mouse wheel
  * is used to scroll the viewport.
  *

@@ -38,7 +38,7 @@ import static javax.swing.SwingUtilities.isEventDispatchThread;
  * @author Scott Delap
  * @author Alexander Potochkin
  * <p>
- * https://swinghelper.dev.java.net/
+ * <a href="https://swinghelper.dev.java.net/">swinghelper</a>
  */
 public class CheckThreadViolationRepaintManager extends RepaintManager {
     // Should always be turned on because it shouldn't matter

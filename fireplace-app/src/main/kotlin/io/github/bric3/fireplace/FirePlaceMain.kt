@@ -9,10 +9,8 @@
  */
 package io.github.bric3.fireplace
 
-import io.github.bric3.fireplace.ui.FrameResizeLabel
 import io.github.bric3.fireplace.ui.Hud
 import io.github.bric3.fireplace.ui.TitleBar
-import io.github.bric3.fireplace.ui.addLayer
 import io.github.bric3.fireplace.ui.debug.AssertiveRepaintManager
 import io.github.bric3.fireplace.ui.debug.CheckThreadViolationRepaintManager
 import io.github.bric3.fireplace.ui.debug.EventDispatchThreadHangMonitor

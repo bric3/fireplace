@@ -77,7 +77,7 @@ public interface FrameColorProvider<T> {
 
     static <T> FrameColorProvider<T> defaultColorProvider(Function<FrameBox<T>, Color> frameBaseColorFunction) {
         Objects.requireNonNull(frameBaseColorFunction, "frameColorFunction");
-        return new FrameColorProvider<T>() {
+        return new FrameColorProvider<>() {
             /**
              * The color used to draw frames that are highlighted.
              */

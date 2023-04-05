@@ -86,7 +86,7 @@ class FrameRenderer<T> {
     /**
      * The width of the border drawn around the hovered frame.
      */
-    public int frameBorderWidth = 1;
+    public final int frameBorderWidth = 1;
 
     /**
      * The stroke used to draw a border around the hovered frame.

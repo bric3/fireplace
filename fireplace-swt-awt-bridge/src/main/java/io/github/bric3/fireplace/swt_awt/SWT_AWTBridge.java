@@ -164,7 +164,7 @@ public abstract class SWT_AWTBridge {
     }
 
     private static abstract class SideExecutorHolder {
-        static ExecutorService es = Executors.newSingleThreadExecutor(targetRunnable -> {
+        static final ExecutorService es = Executors.newSingleThreadExecutor(targetRunnable -> {
             var thread = new Thread(targetRunnable, "Side-SWT-Queue");
             thread.setDaemon(true);
             return thread;

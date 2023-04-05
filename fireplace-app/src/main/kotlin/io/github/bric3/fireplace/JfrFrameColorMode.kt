@@ -81,7 +81,7 @@ enum class JfrFrameColorMode {
         )
         var undefinedColor = Color(108, 163, 189)
         var jitCompiledColor = Color(21, 110, 64)
-        var inlinedColor = Color.pink
-        var interpretedColor = Color.orange
+        var inlinedColor: Color = Color.pink
+        var interpretedColor: Color = Color.orange
     }
 }

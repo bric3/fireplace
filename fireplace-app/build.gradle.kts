@@ -42,10 +42,10 @@ dependencies {
     testRuntimeOnly(libs.junit.jupiter.engine)
 }
 
-val JAVA_VERSION = 19
+val javaVersion = 19
 java {
     toolchain {
-        languageVersion.set(JavaLanguageVersion.of(JAVA_VERSION))
+        languageVersion.set(JavaLanguageVersion.of(javaVersion))
     }
 }
 
@@ -68,7 +68,7 @@ tasks.test {
 
 tasks.withType(JavaCompile::class) {
     options.compilerArgs.addAll(arrayOf("-Xlint"))
-    options.release.set(JAVA_VERSION)
+    options.release.set(javaVersion)
 }
 
 

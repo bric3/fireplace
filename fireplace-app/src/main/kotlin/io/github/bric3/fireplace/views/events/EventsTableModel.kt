@@ -12,14 +12,9 @@ package io.github.bric3.fireplace.views.events
 import io.github.bric3.fireplace.formatValue
 import io.github.bric3.fireplace.getMemberFromEvent
 import org.openjdk.jmc.common.IDescribable
-import org.openjdk.jmc.common.item.IAccessorKey
-import org.openjdk.jmc.common.item.IItem
-import org.openjdk.jmc.common.item.IItemCollection
-import org.openjdk.jmc.common.item.IType
-import org.openjdk.jmc.common.item.ItemCollectionToolkit
+import org.openjdk.jmc.common.item.*
 import org.openjdk.jmc.flightrecorder.JfrAttributes
 import javax.swing.table.AbstractTableModel
-import kotlin.streams.toList
 
 internal class EventsTableModel : AbstractTableModel() {
     private data class AttributeDescriptor(val accessorKey: IAccessorKey<*>, val describable: IDescribable) {

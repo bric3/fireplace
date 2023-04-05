@@ -367,7 +367,7 @@ public final class EventDispatchThreadHangMonitor extends EventQueue {
         // information when dealing with modal dialogs. Maybe we should
         // reinstate that, but search from the other end of the stack?
         for (StackTraceElement stackTraceElement : stackTrace) {
-            result.append("\n    at " + stackTraceElement);
+            result.append("\n    at ").append(stackTraceElement);
         }
         return result.toString();
     }

@@ -48,8 +48,8 @@ public abstract class JScrollPaneWithBackButton {
     }
 
     private static class ScrollBackToTopLayerUI extends LayerUI<JScrollPane> {
-        public int xGap;
-        public int yGap;
+        public final int xGap;
+        public final int yGap;
         private final JPanel buttonContainer = new JPanel();
         private final Point currentMousePoint = new Point();
         private final UpArrowIcon buttonIcon = new UpArrowIcon(
