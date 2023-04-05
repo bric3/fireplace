@@ -15,7 +15,7 @@ import org.openjdk.jmc.common.item.IItem
 import org.openjdk.jmc.flightrecorder.JfrAttributes
 import javax.swing.table.AbstractTableModel
 
-internal class StackTraceTableModel : AbstractTableModel() {
+internal class StackFrameTableModel : AbstractTableModel() {
     private var stackTrace: IMCStackTrace? = null
     fun setRecordedStackTrace(event: IItem?) {
         stackTrace = if (event != null) {

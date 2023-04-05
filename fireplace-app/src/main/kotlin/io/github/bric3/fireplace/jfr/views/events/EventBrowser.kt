@@ -52,8 +52,8 @@ class EventBrowser(private val jfrBinder: JFRLoaderBinder) : ViewPanel {
             columnModel.getColumn(1).headerValue = "Value"
         }
 
-        val stackTraceTableModel = StackTraceTableModel()
-        val stackTraceTable = JTable(stackTraceTableModel)
+        val stackFrameTableModel = StackFrameTableModel()
+        val stackTraceTable = JTable(stackFrameTableModel)
 
         val eventDetailsTabs = JTabbedPane().apply {
             add("Properties", JPanel(BorderLayout()).apply {
@@ -77,11 +77,11 @@ class EventBrowser(private val jfrBinder: JFRLoaderBinder) : ViewPanel {
                         // new selection here means we need to update the properties table and possibly the stack trace table
                         eventsTableModel.getAtRow(selectedIndex).let { event ->
                             eventPropertiesTableModel.setRecordedEvent(event)
-                            stackTraceTableModel.setRecordedStackTrace(event)
+                            stackFrameTableModel.setRecordedStackTrace(event)
                         }
                     } else {
                         eventPropertiesTableModel.setRecordedEvent(null)
-                        stackTraceTableModel.setRecordedStackTrace(null)
+                        stackFrameTableModel.setRecordedStackTrace(null)
                     }
                 }
             }
