@@ -9,11 +9,15 @@
  */
 package io.github.bric3.fireplace
 
-import io.github.bric3.fireplace.ui.Hud
-import io.github.bric3.fireplace.ui.TitleBar
+import io.github.bric3.fireplace.jfr.ProfileContentPanel
+import io.github.bric3.fireplace.jfr.JFRLoaderBinder
+import io.github.bric3.fireplace.jfr.JfrFilesDropHandler
+import io.github.bric3.fireplace.ui.toolkit.Hud
+import io.github.bric3.fireplace.ui.toolkit.TitleBar
 import io.github.bric3.fireplace.ui.debug.AssertiveRepaintManager
 import io.github.bric3.fireplace.ui.debug.CheckThreadViolationRepaintManager
 import io.github.bric3.fireplace.ui.debug.EventDispatchThreadHangMonitor
+import io.github.bric3.fireplace.ui.toolkit.AppearanceControl
 import java.awt.BorderLayout
 import java.awt.Dimension
 import java.awt.event.WindowAdapter
@@ -37,11 +41,11 @@ fun main(args: Array<String>) {
             }
         }
         .collect(toUnmodifiableList())
-    val jfrBinder = JFRBinder()
+    val jfrBinder = JFRLoaderBinder()
     initUI(jfrBinder, paths)
 }
 
-private fun initUI(jfrBinder: JFRBinder, cliPaths: List<Path>) {
+private fun initUI(jfrBinder: JFRLoaderBinder, cliPaths: List<Path>) {
     if (Utils.isFireplaceSwingDebug) {
         if (System.getProperty("fireplace.swing.debug.thread.violation.checker") == "IJ") {
             AssertiveRepaintManager.install()
@@ -67,7 +71,7 @@ private fun initUI(jfrBinder: JFRBinder, cliPaths: List<Path>) {
                 }),
                 BorderLayout.NORTH
             )
-            add(ContentPanel(jfrBinder), BorderLayout.CENTER)
+            add(ProfileContentPanel(jfrBinder), BorderLayout.CENTER)
         }
 
         val hud = Hud(mainAppPanel)

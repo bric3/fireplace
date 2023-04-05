@@ -9,9 +9,9 @@
  */
 package io.github.bric3.fireplace.ui
 
-import io.github.bric3.fireplace.JfrFrameColorMode
-import io.github.bric3.fireplace.JfrFrameColorMode.BY_PACKAGE
-import io.github.bric3.fireplace.JfrFrameNodeConverter
+import io.github.bric3.fireplace.jfr.JfrFrameColorMode
+import io.github.bric3.fireplace.jfr.JfrFrameColorMode.BY_PACKAGE
+import io.github.bric3.fireplace.jfr.JfrFrameNodeConverter
 import io.github.bric3.fireplace.Utils
 import io.github.bric3.fireplace.core.ui.Colors
 import io.github.bric3.fireplace.core.ui.LightDarkColor
@@ -22,6 +22,7 @@ import io.github.bric3.fireplace.flamegraph.FrameFontProvider
 import io.github.bric3.fireplace.flamegraph.FrameModel
 import io.github.bric3.fireplace.flamegraph.FrameTextsProvider
 import io.github.bric3.fireplace.flamegraph.animation.ZoomAnimation
+import io.github.bric3.fireplace.ui.toolkit.BalloonToolTip
 import org.openjdk.jmc.common.util.FormatToolkit
 import org.openjdk.jmc.flightrecorder.stacktrace.tree.Node
 import org.openjdk.jmc.flightrecorder.stacktrace.tree.StacktraceTreeModel

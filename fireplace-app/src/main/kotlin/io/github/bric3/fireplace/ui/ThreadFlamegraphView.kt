@@ -9,9 +9,10 @@
  */
 package io.github.bric3.fireplace.ui
 
-import io.github.bric3.fireplace.JFRBinder
-import io.github.bric3.fireplace.byThreads
-import io.github.bric3.fireplace.stacktraceTreeModel
+import io.github.bric3.fireplace.jfr.JFRLoaderBinder
+import io.github.bric3.fireplace.jfr.byThreads
+import io.github.bric3.fireplace.jfr.stacktraceTreeModel
+import io.github.bric3.fireplace.ui.toolkit.autoSize
 import org.openjdk.jmc.common.item.IAttribute
 import org.openjdk.jmc.common.item.IItem
 import org.openjdk.jmc.common.item.IItemCollection
@@ -24,7 +25,7 @@ import javax.swing.DefaultListModel
 import javax.swing.JList
 import javax.swing.JSplitPane
 
-abstract class ThreadFlamegraphView(private val jfrBinder: JFRBinder) : ViewPanel {
+abstract class ThreadFlamegraphView(private val jfrBinder: JFRLoaderBinder) : ViewPanel {
     private var events: IItemCollection = ItemCollectionToolkit.EMPTY
     private var threadMapping: Map<String, List<IItem>> = mapOf()
     abstract override val identifier: String
