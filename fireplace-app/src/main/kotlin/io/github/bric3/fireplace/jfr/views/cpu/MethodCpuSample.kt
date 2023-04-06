@@ -9,8 +9,8 @@
  */
 package io.github.bric3.fireplace.jfr.views.cpu
 
-import io.github.bric3.fireplace.jfr.JFRLoaderBinder
-import io.github.bric3.fireplace.jfr.JfrAnalyzer
+import io.github.bric3.fireplace.jfr.support.JFRLoaderBinder
+import io.github.bric3.fireplace.jfr.support.JfrAnalyzer
 import io.github.bric3.fireplace.ui.ThreadFlamegraphView
 
 class MethodCpuSample(jfrBinder: JFRLoaderBinder) : ThreadFlamegraphView(jfrBinder) {

@@ -9,6 +9,7 @@
  */
 package io.github.bric3.fireplace.jfr
 
+import io.github.bric3.fireplace.jfr.support.JFRLoaderBinder
 import io.github.bric3.fireplace.jfr.views.appDebug.AppSystemProperties
 import io.github.bric3.fireplace.jfr.views.appDebug.AppUIManagerProperties
 import io.github.bric3.fireplace.jfr.views.cpu.MethodCpuSample

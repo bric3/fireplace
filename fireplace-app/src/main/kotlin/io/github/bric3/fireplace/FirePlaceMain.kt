@@ -10,8 +10,8 @@
 package io.github.bric3.fireplace
 
 import io.github.bric3.fireplace.jfr.ProfileContentPanel
-import io.github.bric3.fireplace.jfr.JFRLoaderBinder
-import io.github.bric3.fireplace.jfr.JfrFilesDropHandler
+import io.github.bric3.fireplace.jfr.support.JFRLoaderBinder
+import io.github.bric3.fireplace.jfr.support.JfrFilesDropHandler
 import io.github.bric3.fireplace.ui.toolkit.Hud
 import io.github.bric3.fireplace.ui.toolkit.TitleBar
 import io.github.bric3.fireplace.ui.debug.AssertiveRepaintManager

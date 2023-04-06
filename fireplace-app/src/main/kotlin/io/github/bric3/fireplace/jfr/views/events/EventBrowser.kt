@@ -9,7 +9,7 @@
  */
 package io.github.bric3.fireplace.jfr.views.events
 
-import io.github.bric3.fireplace.jfr.JFRLoaderBinder
+import io.github.bric3.fireplace.jfr.support.JFRLoaderBinder
 import io.github.bric3.fireplace.ui.ViewPanel
 import io.github.bric3.fireplace.ui.toolkit.autoSize
 import org.openjdk.jmc.common.item.IItemCollection

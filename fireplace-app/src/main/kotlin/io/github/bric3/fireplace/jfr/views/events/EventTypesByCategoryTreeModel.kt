@@ -9,8 +9,8 @@
  */
 package io.github.bric3.fireplace.jfr.views.events
 
-import io.github.bric3.fireplace.jfr.TypeCategory
-import io.github.bric3.fireplace.jfr.TypeCategoryExtractor
+import io.github.bric3.fireplace.jfr.support.TypeCategory
+import io.github.bric3.fireplace.jfr.support.TypeCategoryExtractor
 import io.github.bric3.fireplace.core.ui.Colors
 import org.openjdk.jmc.common.item.IItemCollection
 import org.openjdk.jmc.common.item.IType

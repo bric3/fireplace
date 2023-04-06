@@ -9,9 +9,9 @@
  */
 package io.github.bric3.fireplace.ui
 
-import io.github.bric3.fireplace.jfr.JfrFrameColorMode
-import io.github.bric3.fireplace.jfr.JfrFrameColorMode.BY_PACKAGE
-import io.github.bric3.fireplace.jfr.JfrFrameNodeConverter
+import io.github.bric3.fireplace.jfr.support.JfrFrameColorMode
+import io.github.bric3.fireplace.jfr.support.JfrFrameColorMode.BY_PACKAGE
+import io.github.bric3.fireplace.jfr.support.JfrFrameNodeConverter
 import io.github.bric3.fireplace.Utils
 import io.github.bric3.fireplace.core.ui.Colors
 import io.github.bric3.fireplace.core.ui.LightDarkColor

@@ -9,9 +9,9 @@
  */
 package io.github.bric3.fireplace.ui
 
-import io.github.bric3.fireplace.jfr.JFRLoaderBinder
-import io.github.bric3.fireplace.jfr.byThreads
-import io.github.bric3.fireplace.jfr.stacktraceTreeModel
+import io.github.bric3.fireplace.jfr.support.JFRLoaderBinder
+import io.github.bric3.fireplace.jfr.support.byThreads
+import io.github.bric3.fireplace.jfr.support.stacktraceTreeModel
 import io.github.bric3.fireplace.ui.toolkit.autoSize
 import org.openjdk.jmc.common.item.IAttribute
 import org.openjdk.jmc.common.item.IItem

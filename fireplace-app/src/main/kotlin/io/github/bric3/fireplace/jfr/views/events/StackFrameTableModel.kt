@@ -9,7 +9,7 @@
  */
 package io.github.bric3.fireplace.jfr.views.events
 
-import io.github.bric3.fireplace.jfr.getMemberFromEvent
+import io.github.bric3.fireplace.jfr.support.getMemberFromEvent
 import org.openjdk.jmc.common.IMCStackTrace
 import org.openjdk.jmc.common.item.IItem
 import org.openjdk.jmc.flightrecorder.JfrAttributes

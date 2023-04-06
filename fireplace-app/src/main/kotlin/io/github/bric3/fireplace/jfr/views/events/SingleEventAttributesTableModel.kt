@@ -9,8 +9,8 @@
  */
 package io.github.bric3.fireplace.jfr.views.events
 
-import io.github.bric3.fireplace.jfr.formatValue
-import io.github.bric3.fireplace.jfr.getMemberFromEvent
+import io.github.bric3.fireplace.jfr.support.formatValue
+import io.github.bric3.fireplace.jfr.support.getMemberFromEvent
 import org.openjdk.jmc.common.IDescribable
 import org.openjdk.jmc.common.item.IAccessorKey
 import org.openjdk.jmc.common.item.IItem
