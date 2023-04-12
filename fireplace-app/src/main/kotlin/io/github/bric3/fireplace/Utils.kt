@@ -60,4 +60,20 @@ object Utils {
             }
         }
     }
+
+    inline fun <T> stopWatch(name: String, crossinline block: () -> T): T {
+        if (!isFireplaceSwingDebug) {
+            return block()
+        }
+
+        val start: Long = System.currentTimeMillis()
+
+        try {
+            return block()
+        } finally {
+            val elapsed: Long = System.currentTimeMillis() - start
+            println("[${Thread.currentThread().name}] $name took $elapsed ms")
+        }
+    }
 }
+
