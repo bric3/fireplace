@@ -35,6 +35,7 @@ dependencies {
     implementation(libs.bundles.darklaf)
     implementation(libs.flightrecorder)
 
+    implementation(libs.bundles.kotlinx.coroutines)
 //    implementation(libs.graal.sdk)
 //    implementation(libs.bundles.graal.js)
 

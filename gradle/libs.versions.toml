@@ -24,6 +24,8 @@ batik = "1.16"
 
 swt = "3.123.0"
 
+kotlin-coroutines = "1.6.4"
+
 [libraries]
 flatlaf = { module = "com.formdev:flatlaf", version.ref = "flatlaf" }
 flatlaf-extras = { module = "com.formdev:flatlaf-extras", version.ref = "flatlaf" }
@@ -41,6 +43,9 @@ junit-jupiter-api = { module = "org.junit.jupiter:junit-jupiter-api", version.re
 junit-jupiter-engine = { module = "org.junit.jupiter:junit-jupiter-engine", version.ref = "junit-jupiter" }
 assertj = { module = "org.assertj:assertj-core", version.ref = "assertj" }
 
+kotlin-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core-jvm", version.ref ="kotlin-coroutines" }
+kotlin-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref ="kotlin-coroutines" }
+
 batik-svggen = { module = "org.apache.xmlgraphics:batik-svggen", version.ref = "batik" }
 batik-dom = { module = "org.apache.xmlgraphics:batik-dom", version.ref = "batik" }
 
@@ -53,5 +58,6 @@ junit-jupiter = ["junit-jupiter-api", "junit-jupiter-engine"]
 graal-js = ["graal-js", "graal-js-scriptengine"]
 flatlaf = ["flatlaf", "flatlaf-extras"]
 darklaf = ["darklaf-platform-preferences", "darklaf-platform-decorations"]
+kotlinx-coroutines = ["kotlin-coroutines-core", "kotlin-coroutines-test"]
 batik = ["batik-svggen", "batik-dom"]
 eclipse-swt = ["eclipse-swt", "eclipse-jface", "eclipse-ui-forms"]

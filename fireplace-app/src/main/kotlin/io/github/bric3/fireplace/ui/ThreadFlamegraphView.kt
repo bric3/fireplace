@@ -21,6 +21,7 @@ import org.openjdk.jmc.common.unit.IQuantity
 import org.openjdk.jmc.flightrecorder.JfrAttributes
 import org.openjdk.jmc.flightrecorder.jdk.JdkAttributes
 import java.awt.event.MouseEvent
+import java.util.concurrent.CompletableFuture
 import javax.swing.DefaultListModel
 import javax.swing.JList
 import javax.swing.JSplitPane
@@ -50,41 +51,49 @@ abstract class ThreadFlamegraphView(private val jfrBinder: JFRLoaderBinder) : Vi
             }
         }.apply {
             addListSelectionListener {
-                flameGraphPane.setStacktraceTreeModel(
-                    when (this.selectedValue) {
-                        ALL_THREADS_LABEL, null -> events.stacktraceTreeModel()
-                        else -> selectedIndices.map { threadListModel[it] }
-                            .mapNotNull { threadMapping[it] }
-                            .flatten()
-                            .stacktraceTreeModel(nodeWeightAttribute)
-                    }
-                )
+                val selectedValue = this.selectedValue
+
+                CompletableFuture.runAsync {
+                    flameGraphPane.setStacktraceTreeModelAsync(
+                        when (selectedValue) {
+                            ALL_THREADS_LABEL, null -> events.stacktraceTreeModel()
+                            else -> selectedIndices.map { threadListModel[it] }
+                                .mapNotNull { threadMapping[it] }
+                                .flatten()
+                                .stacktraceTreeModel(nodeWeightAttribute)
+                        }
+                    )
+                }
             }
         }
 
 
-        jfrBinder.bindEvents(eventSelector) {
-            events = it
-            threadMapping = byThreads(
-                events,
-                JfrAttributes.EVENT_THREAD,
-                JdkAttributes.EVENT_THREAD_NAME
-            )
-            threadListModel.run {
-                clear()
-                addElement(ALL_THREADS_LABEL)
-                addAll(
-                    threadMapping.keys.sortedWith(
-                        Comparator.nullsLast(
-                            Comparator.naturalOrder()
+        jfrBinder.bindEvents(
+            {
+                val eventSelection = eventSelector(it)
+                events = eventSelection
+                threadMapping = byThreads(
+                    events,
+                    JfrAttributes.EVENT_THREAD,
+                    JdkAttributes.EVENT_THREAD_NAME
+                )
+                threadListModel.run {
+                    clear()
+                    addElement(ALL_THREADS_LABEL)
+                    addAll(
+                        threadMapping.keys.sortedWith(
+                            Comparator.nullsLast(
+                                Comparator.naturalOrder()
+                            )
                         )
                     )
-                )
-            }
+                }
 
-            flameGraphPane.setStacktraceTreeModel(
                 events.stacktraceTreeModel(nodeWeightAttribute)
-            )
+            }
+        ) {
+            // don't do any heavy computation there
+            flameGraphPane.setStacktraceTreeModelAsync(it)
         }
 
 

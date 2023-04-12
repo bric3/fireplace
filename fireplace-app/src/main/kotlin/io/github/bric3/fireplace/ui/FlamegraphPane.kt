@@ -12,6 +12,7 @@ package io.github.bric3.fireplace.ui
 import io.github.bric3.fireplace.Utils
 import io.github.bric3.fireplace.core.ui.Colors
 import io.github.bric3.fireplace.core.ui.LightDarkColor
+import io.github.bric3.fireplace.core.ui.SwingUtils
 import io.github.bric3.fireplace.flamegraph.*
 import io.github.bric3.fireplace.flamegraph.animation.ZoomAnimation
 import io.github.bric3.fireplace.jfr.support.JfrFrameColorMode
@@ -205,9 +206,11 @@ class FlamegraphPane : JPanel(BorderLayout()) {
         return refreshToggle
     }
 
-    fun setStacktraceTreeModel(stacktraceTreeModel: StacktraceTreeModel) {
-        dataApplier = dataApplier(stacktraceTreeModel).also {
-            it.accept(jfrFlamegraphView)
+    fun setStacktraceTreeModelAsync(stacktraceTreeModel: StacktraceTreeModel) {
+        CompletableFuture.runAsync {
+            dataApplier = dataApplier(stacktraceTreeModel).also {
+                it.accept(jfrFlamegraphView)
+            }
         }
     }
 
@@ -217,14 +220,17 @@ class FlamegraphPane : JPanel(BorderLayout()) {
             .stream()
             .map { itemsIterable -> itemsIterable.type.identifier }
             .collect(joining(", ", "all (", ")"))
+
         return Consumer { flameGraph ->
-            flameGraph.setModel(
-                FrameModel(
-                    title,
-                    { a, b -> a.actualNode.frame == b.actualNode.frame },
-                    flatFrameList
-                ).withDescription(title)
-            )
+            SwingUtils.invokeLater {
+                flameGraph.setModel(
+                    FrameModel(
+                        title,
+                        { a, b -> a.actualNode.frame == b.actualNode.frame },
+                        flatFrameList
+                    ).withDescription(title)
+                )
+            }
         }
     }
 

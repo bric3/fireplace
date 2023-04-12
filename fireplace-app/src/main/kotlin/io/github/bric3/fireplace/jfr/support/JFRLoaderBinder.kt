@@ -30,6 +30,12 @@ class JFRLoaderBinder {
     private lateinit var onLoadEnd: Runnable
     private lateinit var eventSupplierFuture: CompletableFuture<Supplier<IItemCollection>>
 
+    /**
+     * Bind a component to computed events.
+     *
+     * The [provider] function is called with the events as parameter and runs on the fork/join pool.
+     * The [componentUpdate] function is called with the result of the [provider] function and runs on the EDT.
+     */
     fun <T> bindEvents(provider: Function<IItemCollection, T>, componentUpdate: Consumer<T>) {
         val eventBinder: (IItemCollection) -> Unit = { events: IItemCollection ->
             CompletableFuture.supplyAsync { provider.apply(events) }
