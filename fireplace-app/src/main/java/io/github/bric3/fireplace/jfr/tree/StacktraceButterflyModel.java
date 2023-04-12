@@ -106,26 +106,27 @@ public class StacktraceButterflyModel {
     ) {
         // if there's a match add children nodes
         if (nodeSelector.test(node.getFrame())) {
-            Node predecessorsRootNode = getOrCreateFocusedMethodNode(predecessorsRoot, node.getFrame());
+            Node focusedFrame = getOrCreateFocusedMethodNode(predecessorsRoot, node.getFrame());
 
-            predecessorsRootNode.weight += node.getWeight();
-            predecessorsRootNode.cumulativeWeight += node.getCumulativeWeight();
+            // Only capturing the total of the focused frame (cumulative weight) to
+            // compute the impact on the predecssors
+            double focusedFrameCumulativeWeight = node.getCumulativeWeight();
+            focusedFrame.weight += focusedFrameCumulativeWeight;
+            focusedFrame.cumulativeWeight += focusedFrameCumulativeWeight;
 
             // Adds and merge predecessors in the callers tree
-            Node predecessorNode = predecessorsRootNode;
+            Node currentPredecessor = focusedFrame;
             for (
                     org.openjdk.jmc.flightrecorder.stacktrace.tree.Node currentNode = node.getParent();
-                    currentNode != null && currentNode.getParent() != null;
+                    currentNode != null && !currentNode.isRoot();
                     currentNode = currentNode.getParent()
             ) {
-                if (currentNode.getParent().isRoot()) {
-                    continue;
-                }
-
-                Node child = getOrCreateNode(predecessorNode, currentNode.getFrame());
-                child.weight += currentNode.getWeight();
-                child.cumulativeWeight += currentNode.getCumulativeWeight();
-                predecessorNode = child;
+                Node predecessor = getOrCreateNode(currentPredecessor, currentNode.getFrame());
+                // The amount of weight the focused frame has on predecessors in the back trace
+                predecessor.weight += focusedFrameCumulativeWeight;
+                // The total amount of work done by the predecessors
+                predecessor.cumulativeWeight += currentNode.getCumulativeWeight();
+                currentPredecessor = predecessor;
             }
         }
 
@@ -161,10 +162,10 @@ public class StacktraceButterflyModel {
     ) {
         // if there's a match add children nodes
         if (nodeSelector.test(node.getFrame())) {
-            Node successorsRootNode = getOrCreateFocusedMethodNode(successorsRoot, node.getFrame());
-            successorsRootNode.weight += node.getWeight();
-            successorsRootNode.cumulativeWeight += node.getCumulativeWeight();
-            convertAndAddChildren(successorsRootNode, node);
+            Node focusedFrame = getOrCreateFocusedMethodNode(successorsRoot, node.getFrame());
+            focusedFrame.weight += node.getWeight();
+            focusedFrame.cumulativeWeight += node.getCumulativeWeight();
+            convertAndAddChildren(focusedFrame, node);
         }
         // regardless look for matching nodes in children
         for (org.openjdk.jmc.flightrecorder.stacktrace.tree.Node child : node.getChildren()) {
@@ -217,15 +218,18 @@ public class StacktraceButterflyModel {
         node.children.addAll(childrenMap.values());
     }
 
-    private static void convertAndAddChildren(Node successorsRootNode, org.openjdk.jmc.flightrecorder.stacktrace.tree.Node node) {
+    private static void convertAndAddChildren(Node successorsParentNode, org.openjdk.jmc.flightrecorder.stacktrace.tree.Node node) {
         List<Node> list = new ArrayList<>();
         for (org.openjdk.jmc.flightrecorder.stacktrace.tree.Node child : node.getChildren()) {
-            Node jmcTreeNode = toJmcTreeNode(successorsRootNode, child);
+            Node jmcTreeNode = toJmcTreeNode(successorsParentNode, child);
             list.add(jmcTreeNode);
         }
-        successorsRootNode.children.addAll(list);
+        successorsParentNode.children.addAll(list);
     }
 
+    /*
+     * Unfortunately it is required to convert the nodes since this class live in a different package.
+     */
     private static Node toJmcTreeNode(Node convertedParent, org.openjdk.jmc.flightrecorder.stacktrace.tree.Node node) {
         Node converted = new Node(
                 convertedParent,
@@ -238,10 +242,31 @@ public class StacktraceButterflyModel {
         return converted;
     }
 
+    /**
+     * Returns the root node of the successors tree.
+     * The successors tree is a regular flamegraph whose root is the focused frame.
+     * <ul>
+     *     <li>weight: the <em>self</em> value</li>
+     *     <li>cumulativeWeight: the sum of work done by this frame and it's callees</li>
+     *     <li>children: the callees</li>
+     * @return the root node of the successors tree
+     */
     public Node getSuccessorsRoot() {
         return successorsRoot;
     }
 
+    /**
+     * Returns the root node of the predecessors tree.
+     * The predecessors tree represents merged callers of the focused method,
+     * the node values in the tree have a slightly different meaning than a regular flamegraph:
+     * <ul>
+     *     <li>weight: the amount of weight the focused frame has on predecessors</li>
+     *     <li>cumulativeWeight: the total weight of work done by the predecessors in the whole profile</li>
+     *     <li>children: the merged predecessors</li>
+     *     <li>parent: the callee</li>
+     * </ul>
+     * @return the root node of the predecessors tree
+     */
     public Node getPredecessorsRoot() {
         return predecessorsRoot;
     }
