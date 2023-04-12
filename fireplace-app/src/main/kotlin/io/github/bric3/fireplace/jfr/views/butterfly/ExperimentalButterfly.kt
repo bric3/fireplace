@@ -14,7 +14,8 @@ class ExperimentalButterfly(private val jfrBinder: JFRLoaderBinder) : ViewPanel 
 
         jfrBinder.bindEvents(JfrAnalyzer::executionSamples) {
             val stacktraceButterflyModel = it.stacktraceButterflyModel(nodeSelector = { frame ->
-                frame.method.methodName.contains("computeUnderProgress") && frame.method.type.typeName.contains("CoreProgressManager")
+                (frame.method.type.typeName == "StupidMain" && frame.method.methodName == "work") ||
+                (frame.method.type.typeName.contains("CoreProgressManager") && frame.method.methodName.contains("computeUnderProgress"))
             })
 
             butterflyPane.setStacktraceButterflyModel(stacktraceButterflyModel)
