@@ -11,6 +11,7 @@ package io.github.bric3.fireplace.jfr.support
 
 import io.github.bric3.fireplace.flamegraph.FrameBox
 import org.openjdk.jmc.flightrecorder.stacktrace.tree.Node
+import java.util.function.ToDoubleFunction
 
 /**
  * Creates an array of FlameNodes that live in the [0.0, 1.0] world space on the X axis and the depth of the stack representing
@@ -35,15 +36,17 @@ object JfrFrameNodeConverter {
         return nodes
     }
 
-    // Compatibility with Node duplicata
-    fun convert(node: io.github.bric3.fireplace.jfr.tree.Node): List<FrameBox<io.github.bric3.fireplace.jfr.tree.Node>> {
+    fun convertButterfly(
+        node: io.github.bric3.fireplace.jfr.tree.Node,
+        nodeWeightFunction: ToDoubleFunction<io.github.bric3.fireplace.jfr.tree.Node>
+    ): MutableList<FrameBox<io.github.bric3.fireplace.jfr.tree.Node>> {
         val nodes = mutableListOf<FrameBox<io.github.bric3.fireplace.jfr.tree.Node>>()
         FrameBox.flattenAndCalculateCoordinate(
             nodes,
             node,
             io.github.bric3.fireplace.jfr.tree.Node::getChildren,
-            io.github.bric3.fireplace.jfr.tree.Node::getCumulativeWeight,
-            { it.children.stream().mapToDouble(io.github.bric3.fireplace.jfr.tree.Node::getCumulativeWeight).sum() },
+            nodeWeightFunction,
+            { it.children.stream().mapToDouble(nodeWeightFunction).sum() },
             0.0,
             1.0,
             0
@@ -51,4 +54,7 @@ object JfrFrameNodeConverter {
         assert(nodes[0].actualNode.isRoot) { "First node should be the root node" }
         return nodes
     }
+
+    fun predecessorsWeight() = io.github.bric3.fireplace.jfr.tree.Node::getWeight
+    fun successorsWeight() = io.github.bric3.fireplace.jfr.tree.Node::getCumulativeWeight
 }

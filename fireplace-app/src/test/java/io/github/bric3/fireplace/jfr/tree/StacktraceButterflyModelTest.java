@@ -1,3 +1,12 @@
+/*
+ * Fireplace
+ *
+ * Copyright (c) 2021, Today - Brice Dutheil
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/.
+ */
 package io.github.bric3.fireplace.jfr.tree;
 
 import org.jetbrains.annotations.NotNull;
@@ -74,88 +83,37 @@ class StacktraceButterflyModelTest {
 
     @Test
     void should_produce_predecessors_from_StacktraceTreeModel() {
-        // io.github.bric3.fireplace.jfr.tree.StupidMain.work()
         StacktraceButterflyModel butterfly = StacktraceButterflyModel.from(
                 execSampleTreeModel,
                 frame -> frame.getMethod().getMethodName().equals("work")
         );
 
-        Node predecessorsRoot = butterfly.getPredecessorsRoot().getChildren().get(0);
-
-        assertChildren(
-                predecessorsRoot,
-                main -> {
-                    assertMethodName(main, "StupidMain.main");
-                    assertChildren(main);
-                },
-                qux -> {
-                    assertMethodName(qux, "StupidMain$C.qux");
-                    assertChildren(
-                            qux,
-                            bar -> {
-                                assertMethodName(bar, "StupidMain$B.bar");
-                                assertChildren(
-                                        bar,
-                                        foo -> {
-                                            assertMethodName(foo, "StupidMain$A.foo");
-                                            assertChildren(
-                                                    foo,
-                                                    main -> {
-                                                        assertMethodName(main, "StupidMain.main");
-                                                        assertChildren(main);
-                                                    }
-                                            );
-                                        }
-                                );
-                            },
-                            zap -> {
-                                assertMethodName(zap, "StupidMain$Z.zap");
-                                assertChildren(
-                                        zap,
-                                        main -> {
-                                            assertMethodName(main, "StupidMain.main");
-                                            assertChildren(main);
-                                        }
-                                );
-                            }
-                    );
-                },
-                bar -> {
-                    assertMethodName(bar, "StupidMain$B.bar");
-                    assertChildren(
-                            bar,
-                            foo -> {
-                                assertMethodName(foo, "StupidMain$A.foo");
-                                assertChildren(
-                                        foo,
-                                        main -> {
-                                            assertMethodName(main, "StupidMain.main");
-                                            assertChildren(main);
-                                        }
-                                );
-                            }
-                    );
-                },
-                foo -> {
-                    assertMethodName(foo, "StupidMain$A.foo");
-                    assertChildren(
-                            foo,
-                            main -> {
-                                assertMethodName(main, "StupidMain.main");
-                                assertChildren(main);
-                            }
-                    );
-                },
-                zap -> {
-                    assertMethodName(zap, "StupidMain$Z.zap");
-                    assertChildren(
-                            zap,
-                            main -> {
-                                assertMethodName(main, "StupidMain.main");
-                                assertChildren(main);
-                            }
-                    );
-                }
+        assertEquivalentTree(
+                butterfly.getPredecessorsRoot(),
+                node("StupidMain.work", 1536.0, 1536.0,
+                        node("StupidMain.main", 261.0, 1536.0),
+                        node("StupidMain$C.qux", 500.0, 500.0,
+                                node("StupidMain$B.bar", 246.0, 510.0,
+                                        node("StupidMain$A.foo", 246.0, 771.0,
+                                                node("StupidMain.main", 246.0, 1536.0)
+                                        )
+                                ),
+                                node("StupidMain$Z.zap", 254.0, 504.0,
+                                        node("StupidMain.main", 254.0, 1536.0)
+                                )
+                        ),
+                        node("StupidMain$B.bar", 264.0, 510.0,
+                                node("StupidMain$A.foo", 264.0, 771.0,
+                                        node("StupidMain.main", 264.0, 1536.0)
+                                )
+                        ),
+                        node("StupidMain$A.foo", 261.0, 771.0,
+                                node("StupidMain.main", 261.0, 1536.0)
+                        ),
+                        node("StupidMain$Z.zap", 250.0, 504.0,
+                                node("StupidMain.main", 250.0, 1536.0)
+                        )
+                )
         );
     }
 
@@ -167,42 +125,27 @@ class StacktraceButterflyModelTest {
                 frame -> frame.getMethod().getMethodName().equals("work")
         );
 
-        // [
-        //   Random.nextInt() 8.00 (8.00),
-        //   MessageDigest.update(byte) 240.00 (240.00),
-        //   MessageDigest.update(byte) 239.00 (239.00),
-        //   Random.nextInt() 2.00 (2.00),
-        //   MessageDigest.update(byte) 249.00 (249.00),
-        //   Random.nextInt() 5.00 (5.00),
-        //   MessageDigest.update(byte) 248.00 (248.00),
-        //   Random.nextInt() 4.00 (4.00),
-        //   MessageDigest.update(byte) 246.00 (246.00),
-        //   Random.nextInt() 3.00 (3.00),
-        //   MessageDigest.update(byte) 242.00 (242.00),
-        //   Random.nextInt() 1.00 (1.00)
-        // ]
-
         assertEquivalentTree(
                 butterfly.getSuccessorsRoot(),
-                node("StupidMain.work", 49.00, 1536.00,
+                node("StupidMain.work", 49.0, 1536.0,
                         node("Random.nextInt",
-                                8.00 + 2.00 + 5.00 + 4.00 + 3.00 + 1.00,
-                                8.00 + 2.00 + 5.00 + 4.00 + 3.00 + 1.00,
+                                23.0 /*8.0 + 2.0 + 5.0 + 4.0 + 3.0 + 1.0*/,
+                                23.0 /*8.0 + 2.0 + 5.0 + 4.0 + 3.0 + 1.0*/,
                                 node("Random.next", 22.0, 22.0,
                                         node("AtomicLong.compareAndSet", 14.0, 14.0)
                                 )
                         ),
                         node("MessageDigest.update",
-                                240.00 + 239.00 + 249.00 + 248.00 + 246.00 + 242.00,
-                                240.00 + 239.00 + 249.00 + 248.00 + 246.00 + 242.00,
-                                node("MessageDigest$Delegate.engineUpdate", 1461.00, 1461.00,
-                                        node("DigestBase.engineUpdate", 1399.00, 1399.00,
+                                1464.0 /* 240.0 + 239.0 + 249.0 + 248.0 + 246.0 + 242.0 */,
+                                1464.0 /* 240.0 + 239.0 + 249.0 + 248.0 + 246.0 + 242.0 */,
+                                node("MessageDigest$Delegate.engineUpdate", 1461.0, 1461.0,
+                                        node("DigestBase.engineUpdate", 1399.0, 1399.0,
                                                 node("DigestBase.engineUpdate",
-                                                        1356.00,
-                                                        1356.00,
-                                                        node("Preconditions.checkFromIndexSize", 21.00, 21.00),
-                                                        node("SHA2.implCompress", 853.00, 853.00, count(2)),
-                                                        node("SHA2.implCompress0", 3.00, 3.00)
+                                                        1356.0,
+                                                        1356.0,
+                                                        node("Preconditions.checkFromIndexSize", 21.0, 21.0),
+                                                        node("SHA2.implCompress", 853.0, 853.0, count(2)),
+                                                        node("SHA2.implCompress0", 3.0, 3.0)
                                                 )
                                         )
                                 )
@@ -247,18 +190,31 @@ class StacktraceButterflyModelTest {
         assertEquals(childrenAssertions.length, node.getChildren().size());
     }
 
-    private static void assertChildrenSize(Node node, int expected) {
-        assertEquals(expected, node.getChildren().size());
-    }
-
-    private static void assertMethodName(Node node, String typeAndMethodName) {
-        int dotPos = typeAndMethodName.indexOf('.');
+    private static void assertMethodName(Node node, String typeAndMethod) {
+        int dotPos = typeAndMethod.indexOf('.');
 
         if (dotPos < 0) {
-            throw new IllegalArgumentException("typeAndMethodName should look like 'Type.method'");
+            throw new IllegalArgumentException("typeAndMethod should look like 'Type.method' or 'Type$Inner.method'");
         }
-        String className = typeAndMethodName.substring(0, dotPos);
-        assertEquals(className, node.getFrame().getMethod().getType().getTypeName());
-        assertEquals(typeAndMethodName.substring(dotPos + 1), node.getFrame().getMethod().getMethodName());
+        assertEquals(
+                typeAndMethod,
+                node.getFrame().getMethod().getType().getTypeName() + "." + node.getFrame().getMethod().getMethodName()
+        );
+    }
+
+    private static void print(Node node) {
+        System.out.println(treeToString("", node, true, new StringBuilder()));
+    }
+
+    private static CharSequence treeToString(String prefix, Node node, boolean isTail, StringBuilder outputBuilder) {
+        outputBuilder.append(prefix).append(isTail ? "└── " : "├── ").append(node).append("\n");
+        for (int i = 0; i < node.children.size() - 1; i++) {
+
+            treeToString(prefix + (isTail ? "    " : "│   "), node.children.get(i), false, outputBuilder);
+        }
+        if (node.children.size() > 0) {
+            treeToString(prefix + (isTail ? "    " : "│   "), node.children.get(node.children.size() - 1), true, outputBuilder);
+        }
+        return outputBuilder;
     }
 }
