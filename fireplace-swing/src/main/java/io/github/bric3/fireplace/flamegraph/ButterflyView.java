@@ -13,8 +13,14 @@ public class ButterflyView<T> extends JPanel {
 
     public ButterflyView() {
         setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
-        add((predecessorView = new FlamegraphView<T>()).component, BorderLayout.NORTH);
-        add((successorsView = new FlamegraphView<T>()).component, BorderLayout.SOUTH);
+        add((predecessorView = getFlamegraphView()).component, BorderLayout.NORTH);
+        add((successorsView = getFlamegraphView()).component, BorderLayout.SOUTH);
+    }
+
+    private static <T> FlamegraphView<T> getFlamegraphView() {
+        FlamegraphView<T> fgv = new FlamegraphView<>();
+        fgv.setShowMinimap(false);
+        return fgv;
     }
 
     /**
