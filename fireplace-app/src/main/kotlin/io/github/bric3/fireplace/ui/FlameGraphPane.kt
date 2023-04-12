@@ -293,9 +293,9 @@ class FlameGraphPane : JPanel(BorderLayout()) {
                     append(" ")
                     append(frame.actualNode.weight)
                     append("<br>BCI: ")
-                    append(frame.actualNode.frame.bci)
+                    append(frame.actualNode.frame.bci ?: "N/A")
                     append(" Line number: ")
-                    append(frame.actualNode.frame.frameLineNumber)
+                    append(frame.actualNode.frame.frameLineNumber ?: "N/A")
                     append("<br></html>")
                 }
             }
