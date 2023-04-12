@@ -33,7 +33,7 @@ abstract class ThreadFlamegraphView(private val jfrBinder: JFRLoaderBinder) : Vi
     open val nodeWeightAttribute : IAttribute<IQuantity>? = null // e.g. JdkAttributes.SAMPLE_WEIGHT or JdkAttributes.ALLOCATION_SIZE ?
 
     override val view by lazy {
-        val flameGraphPane = FlameGraphPane()
+        val flameGraphPane = FlamegraphPane()
 
         val threadListModel = DefaultListModel<String>()
         val threadList = object : JList<String>(threadListModel) {

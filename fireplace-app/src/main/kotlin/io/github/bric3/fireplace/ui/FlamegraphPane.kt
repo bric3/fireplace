@@ -9,19 +9,14 @@
  */
 package io.github.bric3.fireplace.ui
 
-import io.github.bric3.fireplace.jfr.support.JfrFrameColorMode
-import io.github.bric3.fireplace.jfr.support.JfrFrameColorMode.BY_PACKAGE
-import io.github.bric3.fireplace.jfr.support.JfrFrameNodeConverter
 import io.github.bric3.fireplace.Utils
 import io.github.bric3.fireplace.core.ui.Colors
 import io.github.bric3.fireplace.core.ui.LightDarkColor
-import io.github.bric3.fireplace.flamegraph.ColorMapper
-import io.github.bric3.fireplace.flamegraph.DimmingFrameColorProvider
-import io.github.bric3.fireplace.flamegraph.FlamegraphView
-import io.github.bric3.fireplace.flamegraph.FrameFontProvider
-import io.github.bric3.fireplace.flamegraph.FrameModel
-import io.github.bric3.fireplace.flamegraph.FrameTextsProvider
+import io.github.bric3.fireplace.flamegraph.*
 import io.github.bric3.fireplace.flamegraph.animation.ZoomAnimation
+import io.github.bric3.fireplace.jfr.support.JfrFrameColorMode
+import io.github.bric3.fireplace.jfr.support.JfrFrameColorMode.BY_PACKAGE
+import io.github.bric3.fireplace.jfr.support.JfrFrameNodeConverter
 import io.github.bric3.fireplace.ui.toolkit.BalloonToolTip
 import org.openjdk.jmc.common.util.FormatToolkit
 import org.openjdk.jmc.flightrecorder.stacktrace.tree.Node
@@ -37,18 +32,10 @@ import java.util.function.Consumer
 import java.util.function.Function
 import java.util.stream.Collectors.joining
 import java.util.stream.Collectors.toCollection
-import javax.swing.BoxLayout
-import javax.swing.JButton
-import javax.swing.JCheckBox
-import javax.swing.JComboBox
-import javax.swing.JComponent
-import javax.swing.JPanel
-import javax.swing.JTextField
-import javax.swing.JToggleButton
+import javax.swing.*
 import javax.swing.Timer
-import javax.swing.ToolTipManager
 
-class FlameGraphPane : JPanel(BorderLayout()) {
+class FlamegraphPane : JPanel(BorderLayout()) {
     private var jfrFlamegraphView: FlamegraphView<Node>
     private var dataApplier: Consumer<FlamegraphView<Node>>? = null
 
