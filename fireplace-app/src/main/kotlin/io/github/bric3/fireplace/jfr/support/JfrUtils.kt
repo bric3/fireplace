@@ -127,7 +127,7 @@ fun IItemCollection.stacktraceTreeModel(nodeWeightAttribute: IAttribute<IQuantit
 }
 
 fun IItemCollection.stacktraceButterflyModel(nodeWeightAttribute: IAttribute<IQuantity>? = null, nodeSelector: Predicate<AggregatableFrame>): StacktraceButterflyModel {
-    return StacktraceButterflyModel(
+    return StacktraceButterflyModel.from(
         this.stacktraceTreeModel(nodeWeightAttribute),
         nodeSelector,
     )
