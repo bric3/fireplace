@@ -12,13 +12,16 @@ class ExperimentalButterfly(private val jfrBinder: JFRLoaderBinder) : ViewPanel 
     override val view by lazy {
         val butterflyPane = ButterflyPane()
 
-        jfrBinder.bindEvents(JfrAnalyzer::executionSamples) {
-            val stacktraceButterflyModel = it.stacktraceButterflyModel(nodeSelector = { frame ->
+        jfrBinder.bindEvents({
+            val executionSamples = JfrAnalyzer.executionSamples(it)
+            executionSamples.stacktraceButterflyModel(nodeSelector = { frame ->
                 (frame.method.type.typeName == "StupidMain" && frame.method.methodName == "work") ||
-                (frame.method.type.typeName.contains("CoreProgressManager") && frame.method.methodName.contains("computeUnderProgress"))
+                        (frame.method.type.typeName.contains("CoreProgressManager") && frame.method.methodName.contains(
+                            "computeUnderProgress"
+                        ))
             })
-
-            butterflyPane.setStacktraceButterflyModel(stacktraceButterflyModel)
+        }) {
+            butterflyPane.setStacktraceButterflyModelAsync(it)
         }
 
         butterflyPane
