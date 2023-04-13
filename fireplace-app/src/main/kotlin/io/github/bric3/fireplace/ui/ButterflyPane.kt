@@ -11,6 +11,7 @@ package io.github.bric3.fireplace.ui
 
 import io.github.bric3.fireplace.Utils
 import io.github.bric3.fireplace.core.ui.Colors
+import io.github.bric3.fireplace.core.ui.SwingUtils
 import io.github.bric3.fireplace.flamegraph.ButterflyView
 import io.github.bric3.fireplace.flamegraph.ColorMapper
 import io.github.bric3.fireplace.flamegraph.DimmingFrameColorProvider
@@ -33,6 +34,7 @@ import java.awt.Color
 import java.awt.event.ActionListener
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
+import java.util.concurrent.CompletableFuture
 import java.util.function.Consumer
 import java.util.function.Function
 import java.util.regex.Pattern
@@ -145,31 +147,36 @@ class ButterflyPane : JPanel(BorderLayout()) {
         return refreshToggle
     }
 
-    fun setStacktraceButterflyModel(stacktraceButterflyModel: StacktraceButterflyModel) {
-        dataApplier = dataApplier(stacktraceButterflyModel).also {
-            it.accept(jfrButterflyView)
+    fun setStacktraceButterflyModelAsync(stacktraceButterflyModel: StacktraceButterflyModel) {
+        CompletableFuture.runAsync {
+            dataApplier = dataApplier(stacktraceButterflyModel).also {
+                it.accept(jfrButterflyView)
+            }
         }
     }
 
     private fun dataApplier(stacktraceButterflyModel: StacktraceButterflyModel): Consumer<ButterflyView<Node>> {
-        val predecessorsFlatFrameList = convertButterfly(stacktraceButterflyModel.predecessorsRoot, predecessorsWeight())
+        val predecessorsFlatFrameList =
+            convertButterfly(stacktraceButterflyModel.predecessorsRoot, predecessorsWeight())
         val successorsFlatFrameList = convertButterfly(stacktraceButterflyModel.successorsRoot, successorsWeight())
         val title = stacktraceButterflyModel.focusedMethod.method.methodName
         return Consumer { flameGraph ->
             val frameEquality: (a: FrameBox<Node>, b: FrameBox<Node>) -> Boolean =
                 { a, b -> a.actualNode.frame == b.actualNode.frame }
-            flameGraph.setModel(
-                FrameModel(
-                    title,
-                    frameEquality,
-                    predecessorsFlatFrameList
-                ).withDescription(title),
-                FrameModel(
-                    title,
-                    frameEquality,
-                    successorsFlatFrameList
-                ).withDescription(title),
-            )
+            SwingUtils.invokeLater {
+                flameGraph.setModel(
+                    FrameModel(
+                        title,
+                        frameEquality,
+                        predecessorsFlatFrameList
+                    ).withDescription(title),
+                    FrameModel(
+                        title,
+                        frameEquality,
+                        successorsFlatFrameList
+                    ).withDescription(title),
+                )
+            }
         }
     }
 
@@ -181,13 +188,13 @@ class ButterflyPane : JPanel(BorderLayout()) {
          * Stupid method mimicking [JfrFrameColorMode.BY_PACKAGE.getJfrNodeColor] to accommodate
          * [io.github.bric3.fireplace.jfr.tree.Node] duplicata.
          */
-        fun colorMapping(colorMapper: ColorMapper<Any?>): Function<FrameBox<io.github.bric3.fireplace.jfr.tree.Node>, Color> {
+        fun colorMapping(colorMapper: ColorMapper<Any?>): Function<FrameBox<Node>, Color> {
             val runtimePrefixes =
                 Pattern.compile("(java\\.|javax\\.|sun\\.|com\\.sun\\.|com\\.oracle\\.|com\\.ibm\\.|jdk\\.)")
 
             fun byPackage(
                 colorMapper: ColorMapper<Any?>,
-                frameNode: io.github.bric3.fireplace.jfr.tree.Node
+                frameNode: Node
             ): Color {
                 if (frameNode.isRoot) {
                     return JfrFrameColorMode.rootNodeColor
@@ -206,7 +213,7 @@ class ButterflyPane : JPanel(BorderLayout()) {
                 }
                 return colorMapper.apply(name)
             }
-            return Function { frameBox: FrameBox<io.github.bric3.fireplace.jfr.tree.Node> ->
+            return Function { frameBox: FrameBox<Node> ->
                 byPackage(colorMapper, frameBox.actualNode)
             }
         }
