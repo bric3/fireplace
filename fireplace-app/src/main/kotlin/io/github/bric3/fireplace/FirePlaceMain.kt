@@ -12,12 +12,12 @@ package io.github.bric3.fireplace
 import io.github.bric3.fireplace.jfr.ProfileContentPanel
 import io.github.bric3.fireplace.jfr.support.JFRLoaderBinder
 import io.github.bric3.fireplace.jfr.support.JfrFilesDropHandler
-import io.github.bric3.fireplace.ui.toolkit.Hud
-import io.github.bric3.fireplace.ui.toolkit.TitleBar
 import io.github.bric3.fireplace.ui.debug.AssertiveRepaintManager
 import io.github.bric3.fireplace.ui.debug.CheckThreadViolationRepaintManager
 import io.github.bric3.fireplace.ui.debug.EventDispatchThreadHangMonitor
 import io.github.bric3.fireplace.ui.toolkit.AppearanceControl
+import io.github.bric3.fireplace.ui.toolkit.Hud
+import io.github.bric3.fireplace.ui.toolkit.TitleBar
 import java.awt.BorderLayout
 import java.awt.Dimension
 import java.awt.event.WindowAdapter
@@ -26,7 +26,11 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.util.*
 import java.util.stream.Collectors.toUnmodifiableList
-import javax.swing.*
+import javax.swing.BorderFactory
+import javax.swing.JFrame
+import javax.swing.JPanel
+import javax.swing.JTextField
+import javax.swing.SwingUtilities
 
 fun main(args: Array<String>) {
     System.getProperties().forEach { k: Any, v: Any -> println("$k = $v") }
@@ -62,6 +66,7 @@ private fun initUI(jfrBinder: JFRLoaderBinder, cliPaths: List<Path>) {
                         JTextField("").apply {
                             border = BorderFactory.createEmptyBorder(5, 5, 5, 5)
                             isEditable = false
+                            isFocusable = false
                             dropTarget = null
                             jfrBinder.bindPaths { paths -> text = paths[0].toAbsolutePath().toString() }
                         },

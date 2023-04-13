@@ -31,7 +31,15 @@ import java.awt.Rectangle
 import java.awt.Taskbar
 import java.awt.Toolkit
 import java.awt.Window
-import javax.swing.*
+import javax.swing.JButton
+import javax.swing.JCheckBox
+import javax.swing.JComponent
+import javax.swing.JFrame
+import javax.swing.JPanel
+import javax.swing.JRootPane
+import javax.swing.RootPaneContainer
+import javax.swing.SwingUtilities
+import javax.swing.UIManager
 
 @Suppress("unused")
 internal object AppearanceControl {
@@ -157,8 +165,8 @@ internal object AppearanceControl {
         Toolkit.getDefaultToolkit().getImage(resource).let {
             try {
                 Taskbar.getTaskbar().iconImage = it
-            } catch (ignored: UnsupportedOperationException) {
-            } catch (ignored: SecurityException) {
+            } catch (_: UnsupportedOperationException) {
+            } catch (_: SecurityException) {
             }
             jFrame.iconImage = it
         }
