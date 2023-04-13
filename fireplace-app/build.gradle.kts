@@ -15,9 +15,6 @@ description = "Swing app that uses fireplace-swing"
 plugins {
     id("application")
     id("com.github.johnrengelman.shadow") version "8.1.1"
-
-    // Playing with graal compiler
-    id("org.graalvm.plugin.compiler") version "0.1.0-alpha2"
     kotlin("jvm") version "1.8.21"
 }
 
@@ -34,10 +31,7 @@ dependencies {
     implementation(libs.bundles.flatlaf)
     implementation(libs.bundles.darklaf)
     implementation(libs.flightrecorder)
-
     implementation(libs.bundles.kotlinx.coroutines)
-//    implementation(libs.graal.sdk)
-//    implementation(libs.bundles.graal.js)
 
     testImplementation(libs.junit.jupiter.api)
     testRuntimeOnly(libs.junit.jupiter.engine)
@@ -85,7 +79,7 @@ tasks.withType<JavaExec>().configureEach {
         "-XX:NativeMemoryTracking=summary",
     )
     // Need to set the toolchain https://github.com/gradle/gradle/issues/16791
-    // javaLauncher.set(javaToolchains.launcherFor(java.toolchain))  // Project toolchain
+    javaLauncher.set(javaToolchains.launcherFor(java.toolchain))  // Project toolchain
 
     projectDir.resolve(properties("hotswap-agent-location")).let {
         if (it.exists() && properties("dcevm-enabled").toBoolean()) {
@@ -99,8 +93,3 @@ tasks.withType<JavaExec>().configureEach {
         }
     }
 }
-
-graal {
-    version = libs.versions.graalvm.get()
-}
-

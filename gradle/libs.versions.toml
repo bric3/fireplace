@@ -15,8 +15,6 @@ radiance-animation = "6.5.0"
 
 jmc-flightrecorder = "8.3.1"
 
-graalvm = "22.3.2"
-
 junit-jupiter = "5.9.3"
 assertj = "3.24.2"
 
@@ -35,10 +33,6 @@ radiance-animation = { module = "org.pushing-pixels:radiance-animation", version
 
 flightrecorder = { module = "org.openjdk.jmc:flightrecorder", version.ref = "jmc-flightrecorder" }
 
-graal-sdk = { module = "org.graalvm.sdk:graal-sdk", version.ref = "graalvm" }
-graal-js = { module = "org.graalvm.js:js", version.ref = "graalvm" }
-graal-js-scriptengine = { module = "org.graalvm.js:js-scriptengine", version.ref = "graalvm" }
-
 junit-jupiter-api = { module = "org.junit.jupiter:junit-jupiter-api", version.ref = "junit-jupiter" }
 junit-jupiter-engine = { module = "org.junit.jupiter:junit-jupiter-engine", version.ref = "junit-jupiter" }
 assertj = { module = "org.assertj:assertj-core", version.ref = "assertj" }
@@ -55,7 +49,6 @@ eclipse-ui-forms = { module ="org.eclipse.platform:org.eclipse.ui.forms", versio
 
 [bundles]
 junit-jupiter = ["junit-jupiter-api", "junit-jupiter-engine"]
-graal-js = ["graal-js", "graal-js-scriptengine"]
 flatlaf = ["flatlaf", "flatlaf-extras"]
 darklaf = ["darklaf-platform-preferences", "darklaf-platform-decorations"]
 kotlinx-coroutines = ["kotlin-coroutines-core", "kotlin-coroutines-test"]
