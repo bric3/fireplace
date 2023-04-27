@@ -18,7 +18,7 @@ plugins {
 
     // Playing with graal compiler
     id("org.graalvm.plugin.compiler") version "0.1.0-alpha2"
-    kotlin("jvm") version "1.8.20"
+    kotlin("jvm") version "1.8.21"
 }
 
 repositories {
