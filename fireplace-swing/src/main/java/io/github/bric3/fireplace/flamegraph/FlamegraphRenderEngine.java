@@ -177,11 +177,11 @@ class FlamegraphRenderEngine<T> {
     }
 
     /**
-     * Computes the dimensions of the flamegraph for the specified width (just the height needs calculating,
+     * Computes the height of the flamegraph for the specified width (just the height needs calculating,
      * and this depends on the font metrics).
      *
      * <p>
-     *     This methods don't update internal fields.
+     *     This method doesn't update internal fields.
      * </p>
      *
      * @param g2           the graphics target ({@code null} not permitted), used for font metrics.
@@ -196,7 +196,7 @@ class FlamegraphRenderEngine<T> {
     }
 
     /**
-     * Computes the dimensions of the flamegraph for the specified width (just the height needs calculating,
+     * Computes the height of the flamegraph for the specified width (just the height needs calculating,
      * and this depends on the font metrics).
      *
      * @param g2           the graphics target ({@code null} not permitted), used for font metrics.
@@ -606,8 +606,31 @@ class FlamegraphRenderEngine<T> {
         return getFrameAt(g2, bounds, point).map(frame -> {
             // TODO refactor to make frame selection explicit, possibly via toggleSelectedFrameAt
             this.selectedFrame = frame;
-
             return calculateZoomTargetFrame(g2, bounds, viewRect, frame, 0, 0);
+        });
+    }
+
+    /**
+     * As for {@link #calculateZoomTargetForFrameAt(Graphics2D, Rectangle2D, Rectangle2D, Point)} but
+     * only adjusts the horizontal zoom.
+     *
+     * @param g2       the graphics target ({@code null} not permitted).
+     * @param bounds   the bounds within which the flame graph is currently rendered.
+     * @param viewRect the subset of the bounds that is actually visible
+     * @param point    the coordinates at which to look for a frame.
+     * @return An optional zoom target.
+     */
+    public Optional<ZoomTarget> calculateHorizontalZoomTargetForFrameAt(
+            Graphics2D g2,
+            Rectangle2D bounds,
+            Rectangle2D viewRect,
+            Point point
+    ) {
+        checkReady();
+
+        return getFrameAt(g2, bounds, point).map(frame -> {
+            this.selectedFrame = frame;
+            return calculateZoomTargetFrame(g2, bounds, viewRect, frame, -1, 0);
         });
     }
 
@@ -621,7 +644,7 @@ class FlamegraphRenderEngine<T> {
      * @param bounds           the bounds within which the flame graph is currently rendered.
      * @param viewRect         the subset of the bounds that is actually visible
      * @param frame            the frame.
-     * @param contextBefore    number of contextual parents
+     * @param contextBefore    number of contextual parents, if -1 then zoom will be horizontal only
      * @param contextLeftRight the contextual frames on the left and right (unused at this time)
      * @return A zoom target.
      */
@@ -637,38 +660,45 @@ class FlamegraphRenderEngine<T> {
 
         var frameWidthX = frame.endX - frame.startX;
         var frameBoxHeight = frameRenderer.getFrameBoxHeight(g2);
-
         var factor = getScaleFactor(viewRect.getWidth(), bounds.getWidth(), frameWidthX);
-        // Change offset to center the flame from this frame
-        var newCanvasWidth = (int) (bounds.getWidth() * factor);
-        var newCanvasHeight = computeVisibleFlamegraphHeight(
+        // calculate the depth of the frame(s) at the top of the current view
+        int frameDepthAtTopOfView = icicle ?
+                (int) viewRect.getY() / frameBoxHeight
+                : (int) (bounds.getHeight() - viewRect.getMaxY()) / frameBoxHeight;
+        // calculate the new width so the current frame will occupy the full width of the view
+        var newViewWidth = (int) (bounds.getWidth() * factor);
+        var newViewHeight = computeVisibleFlamegraphHeight(
                 g2,
-                newCanvasWidth
+                newViewWidth
         );
 
         var newDimension = new Rectangle2D.Double(
                 bounds.getX(),
                 bounds.getY(),
-                newCanvasWidth,
-                newCanvasHeight
+                newViewWidth,
+                newViewHeight
         );
+        int newFrameDepthAtTopOfView = contextBefore >= 0 ?
+                Math.max(frame.stackDepth - contextBefore, 0) :
+                frameDepthAtTopOfView; // contextBefore is -1, so keep the same vertical location
+
         var frameY = computeFrameRectY(
                 newDimension,
                 frameBoxHeight,
-                Math.max(frame.stackDepth - contextBefore, 0), icicle
+                newFrameDepthAtTopOfView, icicle
         );
         var viewLocationY = icicle ?
                             Math.max(0, frameY) :
                             Math.min(
-                                    (int) (newCanvasHeight - viewRect.getHeight()),
+                                    (int) (newViewHeight - viewRect.getHeight()),
                                     (int) (frameY + frameBoxHeight - viewRect.getHeight())
                             );
 
         return new ZoomTarget(
-                - (int) (frame.startX * newCanvasWidth),
+                - (int) (frame.startX * newViewWidth),
                 - viewLocationY,
-                newCanvasWidth,
-                newCanvasHeight
+                newViewWidth,
+                newViewHeight
         );
     }
 
