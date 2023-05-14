@@ -24,7 +24,7 @@ batik = "1.16"
 
 swt = "3.123.0"
 
-kotlin-coroutines = "1.7.0"
+kotlin-coroutines = "1.7.1"
 
 [libraries]
 flatlaf = { module = "com.formdev:flatlaf", version.ref = "flatlaf" }
