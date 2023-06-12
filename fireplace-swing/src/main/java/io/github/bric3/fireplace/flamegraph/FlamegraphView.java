@@ -226,7 +226,7 @@ public class FlamegraphView<T> {
     public FlamegraphView() {
         canvas = new FlamegraphCanvas<>(this);
         canvas.putClientProperty(OWNER_KEY, this);
-        scrollPaneListener = new FlamegraphScrollPaneMouseInputListener<>(canvas);
+        scrollPaneListener = new FlamegraphScrollPaneMouseInputListener<>(canvas, true);
         var scrollPane = createScrollPane();
         scrollPane.putClientProperty(OWNER_KEY, this);
         var layeredScrollPane = JScrollPaneWithBackButton.create(
@@ -804,8 +804,11 @@ public class FlamegraphView<T> {
         private HoverListener<T> hoverListener;
         private FrameBox<T> hoveredFrame;
 
-        public FlamegraphScrollPaneMouseInputListener(FlamegraphCanvas<T> canvas) {
+        private boolean zoomHorizontalOnly;
+
+        public FlamegraphScrollPaneMouseInputListener(FlamegraphCanvas<T> canvas, boolean zoomHorizontalOnly) {
             this.canvas = canvas;
+            this.zoomHorizontalOnly = zoomHorizontalOnly;
         }
 
         @Override
@@ -865,12 +868,24 @@ public class FlamegraphView<T> {
 
             if (e.getClickCount() == 2) {
                 // find zoom target then do an animated transition
-                canvas.getFlamegraphRenderEngine().flatMap(fgp -> fgp.calculateZoomTargetForFrameAt(
-                        (Graphics2D) canvas.getGraphics(),
-                        canvas.getBounds(),
-                        canvas.getVisibleRect(),
-                        latestMouseLocation
-                )).ifPresent(zoomTarget -> zoom(canvas, zoomTarget));
+                canvas.getFlamegraphRenderEngine().flatMap(fgp -> {
+                    if (this.zoomHorizontalOnly) {
+                        return fgp.calculateHorizontalZoomTargetForFrameAt(
+                                (Graphics2D) canvas.getGraphics(),
+                                canvas.getBounds(),
+                                canvas.getVisibleRect(),
+                                latestMouseLocation
+                        );
+                    } else {
+                        return fgp.calculateZoomTargetForFrameAt(
+                                (Graphics2D) canvas.getGraphics(),
+                                canvas.getBounds(),
+                                canvas.getVisibleRect(),
+                                latestMouseLocation
+                        );
+                    }
+
+                }).ifPresent(zoomTarget -> zoom(canvas, zoomTarget));
                 return;
             }
 
