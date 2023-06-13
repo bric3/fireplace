@@ -20,7 +20,7 @@ assertj = "3.24.2"
 
 batik = "1.16"
 
-swt = "3.123.0"
+swt = "3.124.0"
 
 kotlin-coroutines = "1.7.1"
 
