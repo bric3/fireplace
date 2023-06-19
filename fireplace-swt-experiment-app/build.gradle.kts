@@ -37,7 +37,7 @@ dependencies {
 
 java {
     toolchain {
-        languageVersion.set(JavaLanguageVersion.of(11))
+        languageVersion.set(JavaLanguageVersion.of(17))
     }
 }
 
@@ -50,7 +50,9 @@ tasks.jar {
         "Implementation-Title" to project.name,
         "Implementation-Version" to project.version,
         "Automatic-Module-Name" to project.name.replace('-', '.'),
-        "Created-By" to "${providers.systemProperty("java.version").get()} (${providers.systemProperty("java.specification.vendor").get()})",
+        "Created-By" to "${
+            providers.systemProperty("java.version").get()
+        } (${providers.systemProperty("java.specification.vendor").get()})",
     )
 }
 
@@ -60,7 +62,7 @@ tasks.test {
 
 tasks.withType(JavaCompile::class) {
     options.compilerArgs.addAll(arrayOf("-Xlint"))
-    options.release.set(11)
+    options.release.set(17)
 }
 
 
@@ -70,7 +72,7 @@ tasks.withType<JavaExec>().configureEach {
     classpath(sourceSets.main.get().runtimeClasspath)
 
     // Need to set the toolchain https://github.com/gradle/gradle/issues/16791
-    // javaLauncher.set(javaToolchains.launcherFor(java.toolchain))  // Project toolchain
+    javaLauncher.set(javaToolchains.launcherFor(java.toolchain))
 
     if (DefaultNativePlatform.getCurrentOperatingSystem().isMacOsX) {
         jvmArgs("-XstartOnFirstThread")

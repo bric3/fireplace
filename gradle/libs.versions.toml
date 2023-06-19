@@ -20,7 +20,9 @@ assertj = "3.24.2"
 
 batik = "1.16"
 
-swt = "3.123.0"
+eclipse-swt = "3.124.0"
+eclipse-jface = "3.30.0"
+eclipse-ui-forms = "3.12.0"
 
 kotlin-coroutines = "1.7.1"
 
@@ -43,9 +45,9 @@ kotlin-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-te
 batik-svggen = { module = "org.apache.xmlgraphics:batik-svggen", version.ref = "batik" }
 batik-dom = { module = "org.apache.xmlgraphics:batik-dom", version.ref = "batik" }
 
-eclipse-swt = { module ="org.eclipse.platform:org.eclipse.swt", version.ref = "swt" }
-eclipse-jface = { module ="org.eclipse.platform:org.eclipse.jface", version = "3.29.0" }
-eclipse-ui-forms = { module ="org.eclipse.platform:org.eclipse.ui.forms", version = "3.11.600" }
+eclipse-swt = { module = "org.eclipse.platform:org.eclipse.swt", version.ref = "eclipse-swt" }
+eclipse-jface = { module = "org.eclipse.platform:org.eclipse.jface", version.ref = "eclipse-jface" }
+eclipse-ui-forms = { module = "org.eclipse.platform:org.eclipse.ui.forms", version.ref = "eclipse-ui-forms" }
 
 [bundles]
 junit-jupiter = ["junit-jupiter-api", "junit-jupiter-engine"]

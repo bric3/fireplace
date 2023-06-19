@@ -206,7 +206,7 @@ configure(listOf(project(":fireplace-swt-experiment-app"), project(":fireplace-s
                 }
 
                 substitute(module("org.eclipse.platform:org.eclipse.swt.\${osgi.platform}"))
-                    .using(module("org.eclipse.platform:org.eclipse.swt.$osId.$archId:${rootProject.libs.versions.swt.get()}"))
+                    .using(module("org.eclipse.platform:org.eclipse.swt.$osId.$archId:${rootProject.libs.versions.eclipse.swt.get()}"))
                     .because("The maven property '\${osgi.platform}' that appear in the artifact coordinate is not handled by Gradle, it is required to replace the dependency")
             }
         }
