@@ -24,5 +24,5 @@ tasks.test {
 
 tasks.withType(JavaCompile::class) {
     options.compilerArgs.addAll(arrayOf("-Xlint"))
-    options.release.set(11)
+    options.release.set(17)
 }
