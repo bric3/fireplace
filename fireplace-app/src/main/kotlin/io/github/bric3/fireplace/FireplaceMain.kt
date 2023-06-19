@@ -7,6 +7,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
+@file:JvmName("FireplaceMain")
 package io.github.bric3.fireplace
 
 import io.github.bric3.fireplace.jfr.ProfileContentPanel

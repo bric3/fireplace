@@ -18,6 +18,8 @@ import javax.swing.event.MouseInputListener;
 import java.awt.*;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
+import java.awt.event.FocusEvent;
+import java.awt.event.FocusListener;
 import java.awt.event.HierarchyEvent;
 import java.awt.event.MouseEvent;
 import java.awt.geom.Area;
@@ -172,14 +174,24 @@ public class FlamegraphView<T> {
     }
 
     /**
-     * Represents a custom actions when zooming
+     * Listener for hovered frames.
      *
      * @param <T> The type of the node data.
      */
     public interface HoverListener<T> {
+        /**
+         * @param previousHoveredFrame The previous frame that was hovered, or {@code null} if the mouse is exiting the component.
+         * @param prevHoveredFrameRectangle The rectangle of the previous hovered frame, or {@code null} if the mouse is exiting the component.
+         * @param e The mouse event
+         */
         default void onStopHover(FrameBox<T> previousHoveredFrame, Rectangle prevHoveredFrameRectangle, MouseEvent e) {
         }
 
+        /**
+         * @param frame The frame that is hovered.
+         * @param hoveredFrameRectangle The rectangle of the hovered frame.
+         * @param e The mouse event
+         */
         void onFrameHover(FrameBox<T> frame, Rectangle hoveredFrameRectangle, MouseEvent e);
 
         /**
@@ -275,7 +287,7 @@ public class FlamegraphView<T> {
                     private final Dimension oldViewPortSize = new Dimension(); // reusable
                     private final Dimension flamegraphSize = new Dimension(); // reusable
                     private final Point flamegraphLocation = new Point(); // reusable
-                    
+
                     @Override
                     public void layoutContainer(Container parent) {
                         // Custom layout code to handle container shrinking.
@@ -797,12 +809,13 @@ public class FlamegraphView<T> {
      *
      * @param <T>
      */
-    private static class FlamegraphScrollPaneMouseInputListener<T> implements MouseInputListener {
+    private static class FlamegraphScrollPaneMouseInputListener<T> implements MouseInputListener, FocusListener {
         private Point pressedPoint;
         private final FlamegraphCanvas<T> canvas;
         private Rectangle hoveredFrameRectangle;
         private HoverListener<T> hoverListener;
         private FrameBox<T> hoveredFrame;
+        private final Rectangle tmpBounds = new Rectangle(); // reusable
 
         public FlamegraphScrollPaneMouseInputListener(FlamegraphCanvas<T> canvas) {
             this.canvas = canvas;
@@ -867,7 +880,7 @@ public class FlamegraphView<T> {
                 // find zoom target then do an animated transition
                 canvas.getFlamegraphRenderEngine().flatMap(fgp -> fgp.calculateZoomTargetForFrameAt(
                         (Graphics2D) canvas.getGraphics(),
-                        canvas.getBounds(),
+                        canvas.getBounds(tmpBounds),
                         canvas.getVisibleRect(),
                         latestMouseLocation
                 )).ifPresent(zoomTarget -> zoom(canvas, zoomTarget));
@@ -877,7 +890,7 @@ public class FlamegraphView<T> {
             canvas.getFlamegraphRenderEngine()
                   .ifPresent(fgp -> fgp.toggleSelectedFrameAt(
                           (Graphics2D) viewPort.getView().getGraphics(),
-                          canvas.getBounds(),
+                          canvas.getBounds(tmpBounds),
                           latestMouseLocation,
                           (frame, r) -> canvas.repaint()
                   ));
@@ -891,17 +904,23 @@ public class FlamegraphView<T> {
         @Override
         public void mouseExited(MouseEvent e) {
             if ((e.getSource() instanceof JScrollPane)) {
+                var source = (JScrollPane) e.getSource();
                 hoveredFrameRectangle = null;
                 hoveredFrame = null;
                 canvas.getFlamegraphRenderEngine()
                       .ifPresent(fgp -> fgp.stopHover(
                               (Graphics2D) canvas.getGraphics(),
-                              canvas.getBounds(),
+                              canvas.getBounds(tmpBounds),
                               canvas::repaint
                       ));
                 canvas.repaint();
-                if (hoverListener != null) {
-                    hoverListener.onStopHover(hoveredFrame, hoveredFrameRectangle, e);
+
+                // mouse exit is triggered when the pointer leaves the scroll pane and enters the canvas
+                // this part is only interested to pass event when the pointer leaves the scroll pane area
+                var latestMouseLocation = MouseInfo.getPointerInfo().getLocation();
+                SwingUtilities.convertPointFromScreen(latestMouseLocation, source);
+                if (hoverListener != null && !source.getBounds(tmpBounds).contains(latestMouseLocation)) {
+                    hoverListener.onStopHover(hoveredFrame, null, e);
                 }
             }
         }
@@ -931,9 +950,10 @@ public class FlamegraphView<T> {
             canvas.getFlamegraphRenderEngine()
                   .ifPresent(fgp -> {
                       var canvasGraphics = (Graphics2D) canvas.getGraphics();
+                      var canvasBounds = canvas.getBounds(tmpBounds);
                       fgp.getFrameAt(
                                  canvasGraphics,
-                                 canvas.getBounds(),
+                                 canvasBounds,
                                  latestMouseLocation
                          )
                          .ifPresentOrElse(
@@ -941,13 +961,13 @@ public class FlamegraphView<T> {
                                      fgp.hoverFrame(
                                              frame,
                                              canvasGraphics,
-                                             canvas.getBounds(),
+                                             canvasBounds,
                                              canvas::repaint
                                      );
                                      canvas.setToolTipText(frame);
                                      hoveredFrameRectangle = fgp.getFrameRectangle(
                                              canvasGraphics,
-                                             canvas.getBounds(),
+                                             canvasBounds,
                                              frame
                                      );
                                      hoveredFrame = frame;
@@ -958,7 +978,7 @@ public class FlamegraphView<T> {
                                  () -> {
                                      fgp.stopHover(
                                              canvasGraphics,
-                                             canvas.getBounds(),
+                                             canvasBounds,
                                              canvas::repaint
                                      );
                                      var prevHoveredFrameRectangle = hoveredFrameRectangle;
@@ -977,9 +997,24 @@ public class FlamegraphView<T> {
             this.hoverListener = hoveringListener;
         }
 
+        @Override
+        public void focusGained(FocusEvent e) {
+            // no op
+        }
+
+        @Override
+        public void focusLost(FocusEvent e) {
+            // idea is to stop hover when focus is lost
+            // if (hoverListener != null) {
+            //     System.out.println("stop hover because focus lost");
+            //     hoverListener.onStopHover(hoveredFrame, hoveredFrameRectangle,e);
+            // }
+        }
+
         public void install(JScrollPane sp) {
             sp.addMouseListener(this);
             sp.addMouseMotionListener(this);
+            sp.addFocusListener(this);
         }
     }
 
