@@ -22,7 +22,7 @@ batik = "1.17"
 
 eclipse-swt = "3.124.100"
 eclipse-jface = "3.31.0"
-eclipse-ui-forms = "3.12.0"
+eclipse-ui-forms = "3.13.0"
 
 kotlin-coroutines = "1.7.3"
 
