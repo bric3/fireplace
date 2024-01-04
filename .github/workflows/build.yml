@@ -50,7 +50,7 @@ jobs:
           path: "**/build/reports/*"
 
       - name: Upload Test Report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: junit-test-results
@@ -96,7 +96,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Download Test Report
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: junit-test-results
       - name: Publish Test Report
