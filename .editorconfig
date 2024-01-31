@@ -799,7 +799,7 @@ ij_html_text_wrap = normal
 indent_size = 0
 ij_continuation_indent_size = 4
 ij_visual_guides = none
-ij_http request_call_parameters_wrap = normal
+ij_http-request_call_parameters_wrap = normal
 
 [{*.java,*.jbang}]
 ij_visual_guides = none
