@@ -37,7 +37,7 @@ jobs:
 
       - name: Setup Gradle
         id: build-gradle
-        uses: gradle/gradle-build-action@v2
+        uses: gradle/gradle-build-action@v3
 
       - name: Build with Gradle
         run: ./gradlew build --stacktrace
@@ -71,7 +71,7 @@ jobs:
             })
 
       - name: Publish snapshot when on master
-        uses: gradle/gradle-build-action@v2
+        uses: gradle/gradle-build-action@v3
         if: success() && github.event_name != 'pull_request' && github.ref == 'refs/heads/master'
         env:
           ORG_GRADLE_PROJECT_signingKey: ${{ secrets.ORG_GRADLE_PROJECT_SIGNINGKEY }}
