@@ -14,7 +14,7 @@ fun properties(key: String, defaultValue: Any? = null) = (project.findProperty(k
 plugins {
     id("com.github.hierynomus.license") version "0.16.1"
     id("com.javiersc.semver.gradle.plugin") version "0.4.0-alpha.1"
-    id("biz.aQute.bnd.builder") version "6.4.0" apply false
+    id("biz.aQute.bnd.builder") version "7.0.0" apply false
     `maven-publish`
 }
 
