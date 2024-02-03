@@ -26,17 +26,17 @@ jobs:
         with:
           java-version: '19'
           distribution: 'zulu'
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
       - name: Publish to Staging Repository
-        uses: gradle/gradle-build-action@v2
         if: success()
         env:
           ORG_GRADLE_PROJECT_signingKey: ${{ secrets.ORG_GRADLE_PROJECT_SIGNINGKEY }}
           ORG_GRADLE_PROJECT_signingPassword: ${{ secrets.ORG_GRADLE_PROJECT_SIGNINGPASSWORD }}
           ORG_GRADLE_PROJECT_ossrhUsername: ${{ secrets.ORG_GRADLE_PROJECT_OSSRHUSERNAME }}
           ORG_GRADLE_PROJECT_ossrhPassword: ${{ secrets.ORG_GRADLE_PROJECT_OSSRHPASSWORD }}
-        with:
-          # com.javiersc.semver.gradle.plugin should pick the actual tag
-          arguments: publish -Ppublish.central=true
+        # com.javiersc.semver.gradle.plugin should pick the actual tag
+        run: ./gradlew publish -Ppublish.central=true
 
 # Don't forget to deploy the release to central
 # * 'Close' the repo to trigger the evaluations of to components against the requirements
