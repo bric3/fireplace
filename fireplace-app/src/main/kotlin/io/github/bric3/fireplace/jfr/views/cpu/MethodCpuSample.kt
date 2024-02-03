@@ -11,8 +11,11 @@ package io.github.bric3.fireplace.jfr.views.cpu
 
 import io.github.bric3.fireplace.jfr.support.JFRLoaderBinder
 import io.github.bric3.fireplace.jfr.support.JfrAnalyzer
+import io.github.bric3.fireplace.ui.CPU_BASE
 import io.github.bric3.fireplace.ui.ThreadFlamegraphView
+import io.github.bric3.fireplace.ui.ViewPanel.Priority
 
+@Priority(CPU_BASE + 1)
 class MethodCpuSample(jfrBinder: JFRLoaderBinder) : ThreadFlamegraphView(jfrBinder) {
     override val identifier = "CPU"
     override val eventSelector = JfrAnalyzer::executionSamples

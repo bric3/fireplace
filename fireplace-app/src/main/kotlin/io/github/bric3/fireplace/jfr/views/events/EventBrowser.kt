@@ -10,24 +10,21 @@
 package io.github.bric3.fireplace.jfr.views.events
 
 import io.github.bric3.fireplace.jfr.support.JFRLoaderBinder
+import io.github.bric3.fireplace.ui.JFR_BASE
 import io.github.bric3.fireplace.ui.ViewPanel
+import io.github.bric3.fireplace.ui.ViewPanel.Priority
 import io.github.bric3.fireplace.ui.toolkit.autoSize
 import org.openjdk.jmc.common.item.IItemCollection
 import org.openjdk.jmc.common.item.ItemCollectionToolkit
 import java.awt.BorderLayout
 import java.util.function.Consumer
 import java.util.function.Function
-import javax.swing.JPanel
-import javax.swing.JScrollPane
-import javax.swing.JSplitPane
-import javax.swing.JTabbedPane
-import javax.swing.JTable
-import javax.swing.JTree
+import javax.swing.*
 import javax.swing.tree.DefaultMutableTreeNode
 import javax.swing.tree.TreePath
 import javax.swing.tree.TreeSelectionModel
 
-
+@Priority(JFR_BASE + 1)
 class EventBrowser(private val jfrBinder: JFRLoaderBinder) : ViewPanel {
     private var events: IItemCollection = ItemCollectionToolkit.EMPTY
     override val identifier: String = "Event Browser"

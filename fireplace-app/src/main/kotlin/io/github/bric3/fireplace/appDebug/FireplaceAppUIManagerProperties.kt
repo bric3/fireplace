@@ -7,14 +7,14 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
-package io.github.bric3.fireplace.jfr.views.appDebug
+package io.github.bric3.fireplace.appDebug
 
 import io.github.bric3.fireplace.Utils
-import io.github.bric3.fireplace.ui.toolkit.simpleReadOnlyTable
 import io.github.bric3.fireplace.ui.ViewPanel
-import javax.swing.UIManager
+import io.github.bric3.fireplace.ui.toolkit.simpleReadOnlyTable
+import javax.swing.*
 
-class AppUIManagerProperties : ViewPanel {
+class FireplaceAppUIManagerProperties : ViewPanel {
     override val identifier: String = "App UIManager properties"
 
     override val view by lazy {
@@ -41,6 +41,6 @@ class AppUIManagerProperties : ViewPanel {
     }
 
     companion object {
-        fun isActive(): Boolean = Utils.isFireplaceDebug
+        fun isActive() = Utils.isFireplaceDebug || Utils.isFireplaceSwingDebug
     }
 }

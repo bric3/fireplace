@@ -9,9 +9,16 @@
  */
 package io.github.bric3.fireplace.ui
 
-import javax.swing.JComponent
+import javax.swing.*
 
 interface ViewPanel {
+    annotation class Priority(val value: Int)
     val identifier: String
     val view: JComponent
 }
+
+const val CPU_BASE = 100
+const val MEMORY_BASE = 200
+const val PROCESS_INFO_BASE = 300
+const val JVM_BASE = 400
+const val JFR_BASE = 900

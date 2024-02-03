@@ -9,8 +9,11 @@
 #
 
 [versions]
+annotations = "24.1.0"
 flatlaf = "3.3"
 darklaf = "3.0.2"
+classgraph = "4.8.165"
+
 radiance-animation = "7.0.1"
 
 jmc-flightrecorder = "8.3.1"
@@ -18,6 +21,7 @@ jmc-flightrecorder = "8.3.1"
 junit-jupiter = "5.10.1"
 assertj = "3.25.2"
 
+# Used for SVG export
 batik = "1.17"
 
 eclipse-swt = "3.124.200"
@@ -27,10 +31,12 @@ eclipse-ui-forms = "3.13.100"
 kotlin-coroutines = "1.7.3"
 
 [libraries]
+annotations = { group = "org.jetbrains", name = "annotations", version.ref = "annotations" }
 flatlaf = { module = "com.formdev:flatlaf", version.ref = "flatlaf" }
 flatlaf-extras = { module = "com.formdev:flatlaf-extras", version.ref = "flatlaf" }
 darklaf-platform-preferences = { module = "com.github.weisj:darklaf-platform-preferences", version.ref = "darklaf" }
 darklaf-platform-decorations = { module = "com.github.weisj:darklaf-platform-decorations", version.ref = "darklaf" }
+classgraph = { module = "io.github.classgraph:classgraph", version.ref = "classgraph" }
 radiance-animation = { module = "org.pushing-pixels:radiance-animation", version.ref = "radiance-animation" }
 
 flightrecorder = { module = "org.openjdk.jmc:flightrecorder", version.ref = "jmc-flightrecorder" }

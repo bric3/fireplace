@@ -9,36 +9,43 @@
  */
 package io.github.bric3.fireplace.jfr
 
+import io.github.bric3.fireplace.appDebug.FireplaceAppSystemProperties
+import io.github.bric3.fireplace.appDebug.FireplaceAppUIManagerProperties
 import io.github.bric3.fireplace.jfr.support.JFRLoaderBinder
-import io.github.bric3.fireplace.jfr.views.appDebug.AppSystemProperties
-import io.github.bric3.fireplace.jfr.views.appDebug.AppUIManagerProperties
-import io.github.bric3.fireplace.jfr.views.cpu.MethodCpuSample
-import io.github.bric3.fireplace.jfr.views.events.EventBrowser
-import io.github.bric3.fireplace.jfr.views.general.NativeLibraries
-import io.github.bric3.fireplace.jfr.views.general.SystemProperties
-import io.github.bric3.fireplace.jfr.views.memory.Allocations
+import io.github.bric3.fireplace.ui.ViewPanel
+import io.github.bric3.fireplace.ui.ViewPanel.Priority
+import io.github.classgraph.ClassGraph
 import java.awt.BorderLayout
-import javax.swing.JPanel
-import javax.swing.JSplitPane
-import javax.swing.JTree
+import javax.swing.*
 import javax.swing.tree.DefaultMutableTreeNode
 import javax.swing.tree.TreePath
 import javax.swing.tree.TreeSelectionModel
 
 
 internal class ProfileContentPanel(private val jfrBinder: JFRLoaderBinder) : JPanel(BorderLayout()) {
-    private val views = buildList {
-        add(MethodCpuSample(jfrBinder))
-        add(Allocations(jfrBinder))
-        add(SystemProperties(jfrBinder))
-        add(NativeLibraries(jfrBinder))
-        add(EventBrowser(jfrBinder))
-
-        if (AppSystemProperties.isActive()) {
-            add(AppSystemProperties())
+    private fun listViewPanels() = ClassGraph()
+        .enableAllInfo()
+        .acceptPackages(javaClass.packageName)
+        .scan()
+        .use { scanResult ->
+            scanResult.getClassesImplementing(ViewPanel::class.java)
+                .standardClasses
+                .filter { !it.isAbstract }
+                .asSequence()
+                .map { it.loadClass(ViewPanel::class.java) }
+                .sortedBy { it.getAnnotation(Priority::class.java)?.value ?: 100_000 }
+                .map { it.getDeclaredConstructor(JFRLoaderBinder::class.java).newInstance(jfrBinder) }
+                .toList()
         }
-        if (AppUIManagerProperties.isActive()) {
-            add(AppUIManagerProperties())
+
+    private val views = buildList {
+        addAll(listViewPanels())
+
+        if (FireplaceAppSystemProperties.isActive()) {
+            add(FireplaceAppSystemProperties())
+        }
+        if (FireplaceAppUIManagerProperties.isActive()) {
+            add(FireplaceAppUIManagerProperties())
         }
     }.associateByTo(LinkedHashMap()) { it.identifier }
 

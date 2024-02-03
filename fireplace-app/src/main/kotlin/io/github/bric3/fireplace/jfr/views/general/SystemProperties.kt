@@ -11,11 +11,14 @@ package io.github.bric3.fireplace.jfr.views.general
 
 import io.github.bric3.fireplace.jfr.support.JFRLoaderBinder
 import io.github.bric3.fireplace.jfr.support.JfrAnalyzer
-import io.github.bric3.fireplace.ui.toolkit.simpleReadOnlyTable
+import io.github.bric3.fireplace.ui.PROCESS_INFO_BASE
 import io.github.bric3.fireplace.ui.ViewPanel
+import io.github.bric3.fireplace.ui.ViewPanel.Priority
+import io.github.bric3.fireplace.ui.toolkit.simpleReadOnlyTable
 import io.github.bric3.fireplace.ui.toolkit.unwrappedTable
-import javax.swing.JComponent
+import javax.swing.*
 
+@Priority(PROCESS_INFO_BASE + 1)
 class SystemProperties(private val jfrBinder: JFRLoaderBinder) : ViewPanel {
     override val identifier = "System properties"
 
