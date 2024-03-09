@@ -12,7 +12,7 @@
 annotations = "24.1.0"
 flatlaf = "3.4"
 darklaf = "3.0.2"
-classgraph = "4.8.167"
+classgraph = "4.8.168"
 
 radiance-animation = "7.0.1"
 
