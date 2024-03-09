@@ -26,7 +26,7 @@ repositories {
 }
 
 dependencies {
-    implementation(libs.annotations)
+    implementation(libs.jetbrains.annotations)
     implementation(projects.fireplaceSwing)
     implementation(projects.fireplaceSwingAnimation)
     implementation(libs.classgraph)
@@ -39,7 +39,7 @@ dependencies {
     testRuntimeOnly(libs.junit.jupiter.engine)
 }
 
-val javaVersion = 19
+val javaVersion = 21
 java {
     toolchain {
         languageVersion.set(JavaLanguageVersion.of(javaVersion))

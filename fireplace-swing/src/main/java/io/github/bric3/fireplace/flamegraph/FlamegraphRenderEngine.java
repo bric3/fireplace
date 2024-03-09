@@ -42,6 +42,11 @@ import java.util.stream.Collectors;
  * @see FrameRenderer
  */
 class FlamegraphRenderEngine<T> {
+    /**
+     * Default value of the icicle mode.
+     */
+    static final boolean DEFAULT_ICICLE_MODE = true;
+
     private final int minimapFrameBoxHeight = 1;
     /**
      * The minimum width threshold for a frame to be rendered.
@@ -109,7 +114,10 @@ class FlamegraphRenderEngine<T> {
      */
     private final WeakHashMap<Integer, Integer> visibleDepthCache = new WeakHashMap<>();
 
-    private boolean icicle = true;
+    /**
+     * Flag whether this engine will render the flamegraph in icicle mode.
+     */
+    private boolean icicle = DEFAULT_ICICLE_MODE;
 
 
     /**

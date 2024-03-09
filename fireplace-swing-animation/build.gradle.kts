@@ -11,6 +11,7 @@ description = "Animate zoom transitions of a flamegraph or iciclegraph swing com
 
 dependencies {
     implementation(projects.fireplaceSwing)
+    implementation(libs.jetbrains.annotations)
     implementation(libs.radiance.animation)
 }
 

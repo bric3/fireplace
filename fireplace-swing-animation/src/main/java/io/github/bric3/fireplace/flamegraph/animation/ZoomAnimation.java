@@ -13,6 +13,7 @@ import io.github.bric3.fireplace.flamegraph.FlamegraphView;
 import io.github.bric3.fireplace.flamegraph.FlamegraphView.ZoomAction;
 import io.github.bric3.fireplace.flamegraph.FlamegraphView.ZoomableComponent;
 import io.github.bric3.fireplace.flamegraph.ZoomTarget;
+import org.jetbrains.annotations.NotNull;
 import org.pushingpixels.radiance.animation.api.Timeline;
 import org.pushingpixels.radiance.animation.api.ease.Sine;
 import org.pushingpixels.radiance.animation.api.swing.EventDispatchThreadTimelineCallbackAdapter;
@@ -61,7 +62,10 @@ public class ZoomAnimation implements ZoomAction {
     }
 
     @Override
-    public boolean zoom(ZoomableComponent zoomableComponent, ZoomTarget zoomTarget) {
+    public boolean zoom(
+            @NotNull ZoomableComponent zoomableComponent,
+            @NotNull ZoomTarget zoomTarget
+    ) {
         System.getLogger(zoomableComponent.getClass().getName()).log(System.Logger.Level.DEBUG, () -> "zoom to " + zoomTarget);
         if (!isAnimateZoomTransitions()) {
             return false;

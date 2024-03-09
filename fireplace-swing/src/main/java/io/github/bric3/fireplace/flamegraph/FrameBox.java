@@ -9,6 +9,9 @@
  */
 package io.github.bric3.fireplace.flamegraph;
 
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+
 import java.util.List;
 import java.util.Objects;
 import java.util.function.Function;
@@ -33,15 +36,16 @@ public class FrameBox<T> {
     /**
      * The underlying node in the flame graph.
      */
+    @NotNull
     public final T actualNode;
 
     /**
-     * The left edge of the frame in the range [0.0 - 1.0].
+     * The left edge of the frame in the range {@code [0.0-1.0]}.
      */
     public final double startX;
 
     /**
-     * The right edge of the frame in the range [0.0 - 1.0].
+     * The right edge of the frame in the range {@code [0.0-1.0]}.
      */
     public final double endX;
 
@@ -54,11 +58,11 @@ public class FrameBox<T> {
      * Creates a new instance.
      *
      * @param actualNode the underlying node.
-     * @param startX     the left edge of the frame in the range [0.0 - 1.0]
-     * @param endX       the right edge of the frame in the range [0.0 - 1.0]
+     * @param startX     the left edge of the frame in the range {@code [0.0-1.0]}
+     * @param endX       the right edge of the frame in the range {@code [0.0-1.0]}
      * @param stackDepth the depth of the frame in the call stack.
      */
-    public FrameBox(T actualNode, double startX, double endX, int stackDepth) {
+    public FrameBox(@NotNull T actualNode, double startX, double endX, int stackDepth) {
         if (startX > endX || startX < 0.0 || endX > 1.0) {
             throw new IllegalArgumentException("Invalid frame coordinates, should be 0 <= startX <= endX <= 1, actual values: startX=" + startX + ", endX=" + endX);
         }
@@ -69,6 +73,14 @@ public class FrameBox<T> {
         this.startX = startX;
         this.endX = endX;
         this.stackDepth = stackDepth;
+    }
+
+    /**
+     * Whether this frame is the root of the flamegraph.
+     * @return {@code true} if this frame is the root of the flamegraph.
+     */
+    public boolean isRoot() {
+        return stackDepth == 0;
     }
 
     /**
@@ -115,13 +127,14 @@ public class FrameBox<T> {
      * @param <T>         The node type.
      */
     public static <T> void flattenAndCalculateCoordinate(
-            List<FrameBox<T>> accumulator,
-            T fromNode,
-            Function<T, List<T>> getChildren,
-            ToDoubleFunction<T> nodeWeight,
+            @NotNull List<@NotNull FrameBox<@NotNull T>> accumulator,
+            @NotNull T fromNode,
+            @NotNull Function<@NotNull T, @Nullable List<@NotNull T>> getChildren,
+            @NotNull ToDoubleFunction<@NotNull T> nodeWeight,
             double startX,
             double endX,
-            int depth) {
+            int depth
+    ) {
         flattenAndCalculateCoordinate(
                 accumulator,
                 fromNode,
@@ -165,11 +178,11 @@ public class FrameBox<T> {
      * @param depth           The node depth.
      */
     public static <T> void flattenAndCalculateCoordinate(
-            List<FrameBox<T>> accumulator,
-            T fromNode,
-            Function<T, List<T>> getChildren,
-            ToDoubleFunction<T> nodeWeight,
-            ToDoubleFunction<T> totalNodeWeight,
+            @NotNull List<@NotNull FrameBox<@NotNull T>> accumulator,
+            @NotNull T fromNode,
+            @NotNull Function<@NotNull T, @Nullable List<@NotNull T>> getChildren,
+            @NotNull ToDoubleFunction<@NotNull T> nodeWeight,
+            @NotNull ToDoubleFunction<@NotNull T> totalNodeWeight,
             double startX,
             double endX,
             int depth
@@ -190,9 +203,5 @@ public class FrameBox<T> {
             flattenAndCalculateCoordinate(accumulator, node, getChildren, nodeWeight, startX, endX, depth);
             startX = endX;
         }
-    }
-
-    public boolean isRoot() {
-        return stackDepth == 0;
     }
 }

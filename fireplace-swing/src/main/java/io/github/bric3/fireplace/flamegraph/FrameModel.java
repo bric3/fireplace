@@ -10,6 +10,9 @@
 
 package io.github.bric3.fireplace.flamegraph;
 
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
@@ -23,9 +26,13 @@ import java.util.Objects;
 public class FrameModel<T> {
     public static final FrameModel<?> EMPTY = new FrameModel<>(Collections.emptyList());
 
+    @NotNull
     public final String title;
-    public final List<FrameBox<T>> frames;
-    public final FrameEquality<T> frameEquality;
+    @NotNull
+    public final List<@NotNull FrameBox<@NotNull T>> frames;
+    @NotNull
+    public final FrameEquality<@NotNull T> frameEquality;
+    @Nullable
     public String description;
 
     /**
@@ -41,7 +48,7 @@ public class FrameModel<T> {
      *
      * @param frames The list of {@code FrameBox} objects.
      */
-    public FrameModel(List<FrameBox<T>> frames) {
+    public FrameModel(@NotNull List<@NotNull FrameBox<@NotNull T>> frames) {
         this("", (a, b) -> Objects.equals(a.actualNode, b.actualNode), frames);
     }
 
@@ -57,9 +64,9 @@ public class FrameModel<T> {
      * @param frames        The list of {@code FrameBox} objects.
      */
     public FrameModel(
-            String title,
-            FrameEquality<T> frameEquality,
-            List<FrameBox<T>> frames
+            @NotNull String title,
+            @NotNull FrameEquality<@NotNull T> frameEquality,
+            @NotNull List<@NotNull FrameBox<@NotNull T>> frames
     ) {
         this.title = Objects.requireNonNull(title, "title");
         this.frames = Objects.requireNonNull(frames, "frames");
@@ -67,7 +74,8 @@ public class FrameModel<T> {
     }
 
     @SuppressWarnings("unchecked")
-    public static <T> FrameModel<T> empty() {
+    @NotNull
+    public static <T> FrameModel<@NotNull T> empty() {
         return (FrameModel<T>) EMPTY;
     }
 
@@ -77,7 +85,7 @@ public class FrameModel<T> {
      * @param <T> The type of the actual node object.
      */
     public interface FrameEquality<T> {
-        boolean equal(FrameBox<T> a, FrameBox<T> b);
+        boolean equal(FrameBox<@NotNull T> a, FrameBox<@NotNull T> b);
     }
 
     /**
@@ -89,7 +97,8 @@ public class FrameModel<T> {
      * @param description The text that describes the flamegraph.
      * @return this
      */
-    public FrameModel<T> withDescription(String description) {
+    @NotNull
+    public FrameModel<@NotNull T> withDescription(@NotNull String description) {
         this.description = Objects.requireNonNull(description, "description");
         return this;
     }

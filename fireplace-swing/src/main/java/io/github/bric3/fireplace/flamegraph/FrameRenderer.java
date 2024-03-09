@@ -11,6 +11,7 @@
 package io.github.bric3.fireplace.flamegraph;
 
 import io.github.bric3.fireplace.core.ui.StringClipper;
+import org.jetbrains.annotations.NotNull;
 
 import java.awt.*;
 import java.awt.geom.Rectangle2D;
@@ -27,9 +28,12 @@ import static io.github.bric3.fireplace.flamegraph.FrameRenderingFlags.isMinimap
  * @see FlamegraphRenderEngine
  */
 class FrameRenderer<T> {
-    private FrameTextsProvider<T> frameTextsProvider;
-    private FrameFontProvider<T> frameFontProvider;
-    private FrameColorProvider<T> frameColorProvider;
+    @NotNull
+    private FrameTextsProvider<@NotNull T> frameTextsProvider;
+    @NotNull
+    private FrameFontProvider<@NotNull T> frameFontProvider;
+    @NotNull
+    private FrameColorProvider<@NotNull T> frameColorProvider;
 
     /**
      * The space in pixels between the frame label text and the frame's border.
@@ -52,9 +56,9 @@ class FrameRenderer<T> {
      * @param frameColorProvider provides foreground and background color given a frame and some flags
      */
     public FrameRenderer(
-            FrameTextsProvider<T> frameTextsProvider,
-            FrameColorProvider<T> frameColorProvider,
-            FrameFontProvider<T> frameFontProvider
+            @NotNull FrameTextsProvider<@NotNull T> frameTextsProvider,
+            @NotNull FrameColorProvider<@NotNull T> frameColorProvider,
+            @NotNull FrameFontProvider<@NotNull T> frameFontProvider
     ) {
         this.frameTextsProvider = Objects.requireNonNull(frameTextsProvider, "nodeToTextProvider");
         this.frameColorProvider = Objects.requireNonNull(frameColorProvider, "frameColorProvider");
@@ -85,13 +89,14 @@ class FrameRenderer<T> {
     /**
      * The stroke used to draw a border around the hovered frame.
      */
+    @NotNull
     public Stroke frameBorderStroke = new BasicStroke(frameBorderWidth);
 
-    public int getFrameBoxHeight(Graphics2D g2) {
+    public int getFrameBoxHeight(@NotNull Graphics2D g2) {
         return g2.getFontMetrics(frameFontProvider.getFont(null, 0)).getAscent() + (frameTextPadding * 2) + frameGapWidth * 2;
     }
 
-    public float getFrameBoxTextOffset(Graphics2D g2) {
+    public float getFrameBoxTextOffset(@NotNull Graphics2D g2) {
         return getFrameBoxHeight(g2) - (g2.getFontMetrics(frameFontProvider.getFont(null, 0)).getDescent() / 2f) - frameTextPadding - frameGapWidth;
     }
 
@@ -106,11 +111,11 @@ class FrameRenderer<T> {
      * @param flags                 The rendering flags (minimap, selection, hovered, highlight).
      */
     void paintFrame(
-            Graphics2D g2,
-            FrameModel<T> frameModel,
-            Rectangle2D frameRect,
-            FrameBox<T> frame,
-            Rectangle2D paintableIntersection,
+            @NotNull Graphics2D g2,
+            @NotNull FrameModel<@NotNull T> frameModel,
+            @NotNull Rectangle2D frameRect,
+            @NotNull FrameBox<@NotNull T> frame,
+            @NotNull Rectangle2D paintableIntersection,
             int flags
     ) {
         boolean minimapMode = isMinimapMode(flags);
@@ -147,9 +152,9 @@ class FrameRenderer<T> {
     }
 
     private void paintFrameRectangle(
-            Graphics2D g2,
-            Rectangle2D frameRect,
-            Color bgColor,
+            @NotNull Graphics2D g2,
+            @NotNull Rectangle2D frameRect,
+            @NotNull Color bgColor,
             boolean minimapMode
     ) {
         var gapThickness = minimapMode ?
@@ -168,11 +173,11 @@ class FrameRenderer<T> {
 
     // layout text
     private String calculateFrameText(
-            Graphics2D g2,
-            Font font,
+            @NotNull Graphics2D g2,
+            @NotNull Font font,
             double targetWidth,
-            FrameModel<T> frameModel,
-            FrameBox<T> frame
+            @NotNull FrameModel<@NotNull T> frameModel,
+            @NotNull FrameBox<@NotNull T> frame
     ) {
         var metrics = g2.getFontMetrics(font);
 
@@ -208,27 +213,30 @@ class FrameRenderer<T> {
         return textCandidate;
     }
 
-    public void setFrameTextsProvider(FrameTextsProvider<T> frameTextsProvider) {
+    public void setFrameTextsProvider(@NotNull FrameTextsProvider<@NotNull T> frameTextsProvider) {
         this.frameTextsProvider = Objects.requireNonNull(frameTextsProvider, "frameTextsProvider");
     }
 
-    public FrameTextsProvider<T> getFrameTextsProvider() {
+    @NotNull
+    public FrameTextsProvider<@NotNull T> getFrameTextsProvider() {
         return frameTextsProvider;
     }
 
-    public void setFrameFontProvider(FrameFontProvider<T> frameFontProvider) {
+    public void setFrameFontProvider(@NotNull FrameFontProvider<@NotNull T> frameFontProvider) {
         this.frameFontProvider = Objects.requireNonNull(frameFontProvider, "frameFontProvider");
     }
 
-    public FrameFontProvider<T> getFrameFontProvider() {
+    @NotNull
+    public FrameFontProvider<@NotNull T> getFrameFontProvider() {
         return frameFontProvider;
     }
 
-    public void setFrameColorProvider(FrameColorProvider<T> frameColorProvider) {
+    public void setFrameColorProvider(@NotNull FrameColorProvider<@NotNull T> frameColorProvider) {
         this.frameColorProvider = Objects.requireNonNull(frameColorProvider, "frameColorProvider");
     }
 
-    public FrameColorProvider<T> getFrameColorProvider() {
+    @NotNull
+    public FrameColorProvider<@NotNull T> getFrameColorProvider() {
         return frameColorProvider;
     }
 }

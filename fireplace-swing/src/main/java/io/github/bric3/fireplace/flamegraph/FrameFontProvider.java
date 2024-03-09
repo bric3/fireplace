@@ -10,6 +10,9 @@
 
 package io.github.bric3.fireplace.flamegraph;
 
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+
 import java.awt.*;
 
 import static io.github.bric3.fireplace.flamegraph.FrameRenderingFlags.isHighlightedFrame;
@@ -35,9 +38,11 @@ public interface FrameFontProvider<T> {
      * @param flags The flags
      * @return The font to use for the frame and flags.
      */
-    Font getFont(FrameBox<T> frame, int flags);
+    @NotNull
+    Font getFont(@Nullable FrameBox<@NotNull T> frame, int flags);
 
-    static <T> FrameFontProvider<T> defaultFontProvider() {
+    @NotNull
+    static <T> FrameFontProvider<@NotNull T> defaultFontProvider() {
         return new FrameFontProvider<>() {
             /**
              * The font used to display frame labels
@@ -58,22 +63,23 @@ public interface FrameFontProvider<T> {
 
             /**
              * If a frame is clipped, we'll shift the label to make it visible but show it with
-             * a modified (italicised by default) font to highlight that the frame is only partially
+             * a modified (italicized by default) font to highlight that the frame is only partially
              * visible.
              */
             private final Font italicBold = new Font(Font.SANS_SERIF, Font.ITALIC | Font.BOLD, 12);
 
             @Override
-            public Font getFont(FrameBox<T> frame, int flags) {
+            @NotNull
+            public Font getFont(@Nullable FrameBox<@NotNull T> frame, int flags) {
                 if (frame != null && frame.isRoot()) {
                     return bold;
                 }
 
                 if (isHighlightedFrame(flags)) {
-                    // when parent frame are larger than view port
+                    // when parent frames are larger than view port
                     return isPartialFrame(flags) ? italicBold : bold;
                 }
-                // when parent frame are larger than view port
+                // when parent frames are larger than view port
                 return isPartialFrame(flags) ? italic : regular;
             }
         };

@@ -13,6 +13,10 @@ plugins {
     `jvm-test-suite`
 }
 
+dependencies {
+    implementation(libs.jetbrains.annotations)
+}
+
 tasks {
     withType(JavaCompile::class) {
         options.release.set(11)

@@ -9,7 +9,7 @@
 #
 
 [versions]
-annotations = "24.1.0"
+jetbrains-annotations = "24.1.0"
 flatlaf = "3.4"
 darklaf = "3.0.2"
 classgraph = "4.8.168"
@@ -31,7 +31,7 @@ eclipse-ui-forms = "3.13.100"
 kotlin-coroutines = "1.8.0"
 
 [libraries]
-annotations = { group = "org.jetbrains", name = "annotations", version.ref = "annotations" }
+jetbrains-annotations = { group = "org.jetbrains", name = "annotations", version.ref = "jetbrains-annotations" }
 flatlaf = { module = "com.formdev:flatlaf", version.ref = "flatlaf" }
 flatlaf-extras = { module = "com.formdev:flatlaf-extras", version.ref = "flatlaf" }
 darklaf-platform-preferences = { module = "com.github.weisj:darklaf-platform-preferences", version.ref = "darklaf" }

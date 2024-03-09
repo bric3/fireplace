@@ -11,6 +11,7 @@ package io.github.bric3.fireplace.flamegraph;
 
 import io.github.bric3.fireplace.core.ui.Colors;
 import io.github.bric3.fireplace.core.ui.LightDarkColor;
+import org.jetbrains.annotations.NotNull;
 
 import java.awt.*;
 import java.util.Objects;
@@ -41,7 +42,7 @@ import static io.github.bric3.fireplace.flamegraph.FrameRenderingFlags.isMinimap
  *
  * @param <T> The actual type of frame.
  */
-public class DimmingFrameColorProvider<T> implements FrameColorProvider<T> {
+public class DimmingFrameColorProvider<T> implements FrameColorProvider<@NotNull T> {
     public static final Color DIMMED_TEXT_COLOR = new LightDarkColor(
             Colors.rgba(28, 43, 52, 0.68f),
             Colors.rgba(255, 255, 255, 0.51f)
@@ -51,7 +52,8 @@ public class DimmingFrameColorProvider<T> implements FrameColorProvider<T> {
             new Color(0xFFEAF6FC),
             new Color(0xFF091222)
     );
-    private final Function<FrameBox<T>, Color> baseColorFunction;
+    @NotNull
+    private final Function<@NotNull FrameBox<@NotNull T>, @NotNull Color> baseColorFunction;
 
     /**
      * Single instance to avoid too many allocations, only for the main canvas.
@@ -77,12 +79,13 @@ public class DimmingFrameColorProvider<T> implements FrameColorProvider<T> {
      * @see #withRootBackgroundColor(Color)
      * @see #withDimmedTextColor(Color)
      */
-    public DimmingFrameColorProvider(Function<FrameBox<T>, Color> baseColorFunction) {
+    public DimmingFrameColorProvider(@NotNull Function<@NotNull FrameBox<@NotNull T>, @NotNull Color> baseColorFunction) {
         this.baseColorFunction = baseColorFunction;
     }
 
     @Override
-    public ColorModel getColors(FrameBox<T> frame, int flags) {
+    @NotNull
+    public ColorModel getColors(@NotNull FrameBox<@NotNull T> frame, int flags) {
         Color backgroundColor;
         Color baseBackgroundColor;
         Color foreground;
@@ -128,7 +131,7 @@ public class DimmingFrameColorProvider<T> implements FrameColorProvider<T> {
      * @param backgroundColor The background color of the frame to alter.
      * @return The hovered background color.
      */
-    private Color hoverBackground(Color backgroundColor) {
+    private @NotNull Color hoverBackground(@NotNull Color backgroundColor) {
         return Colors.isDarkMode() ?
                Colors.brighter(backgroundColor, 1.1f, 0.95f) :
                Colors.darker(backgroundColor, 1.25f);
@@ -140,7 +143,7 @@ public class DimmingFrameColorProvider<T> implements FrameColorProvider<T> {
      * @param backgroundColor The background color of the frame to alter.
      * @return The hovered background color.
      */
-    private Color hoverSiblingBackground(Color backgroundColor) {
+    private @NotNull Color hoverSiblingBackground(@NotNull Color backgroundColor) {
         return hoverBackground(backgroundColor);
     }
 
@@ -150,7 +153,7 @@ public class DimmingFrameColorProvider<T> implements FrameColorProvider<T> {
      * @param backgroundColor The background color to dim.
      * @return The dimmed color.
      */
-    protected Color dimmedBackground(Color backgroundColor) {
+    protected @NotNull Color dimmedBackground(@NotNull Color backgroundColor) {
         return cachedDim(backgroundColor);
     }
 
@@ -180,16 +183,18 @@ public class DimmingFrameColorProvider<T> implements FrameColorProvider<T> {
                     && (highlightedFrame || focusedFrame));
     }
 
-    private Color cachedDim(Color color) {
+    private @NotNull Color cachedDim(@NotNull Color color) {
         return dimmedColorCache.computeIfAbsent(color, Colors::dim);
     }
 
-    public DimmingFrameColorProvider<T> withRootBackgroundColor(Color rootBackgroundColor) {
+    @NotNull
+    public DimmingFrameColorProvider<T> withRootBackgroundColor(@NotNull Color rootBackgroundColor) {
         this.rootBackGroundColor = Objects.requireNonNull(rootBackgroundColor);
         return this;
     }
 
-    public DimmingFrameColorProvider<T> withDimmedTextColor(Color dimmedTextColor) {
+    @NotNull
+    public DimmingFrameColorProvider<T> withDimmedTextColor(@NotNull Color dimmedTextColor) {
         this.dimmedTextColor = Objects.requireNonNull(dimmedTextColor);
         return this;
     }

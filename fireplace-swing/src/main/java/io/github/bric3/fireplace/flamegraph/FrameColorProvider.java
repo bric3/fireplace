@@ -10,6 +10,8 @@
 package io.github.bric3.fireplace.flamegraph;
 
 import io.github.bric3.fireplace.core.ui.Colors;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.awt.*;
 import java.util.Objects;
@@ -29,7 +31,9 @@ import static io.github.bric3.fireplace.flamegraph.FrameRenderingFlags.isHovered
 @FunctionalInterface
 public interface FrameColorProvider<T> {
     class ColorModel {
+        @Nullable
         public Color background;
+        @Nullable
         public Color foreground;
 
         /**
@@ -38,12 +42,20 @@ public interface FrameColorProvider<T> {
          * @param background The background color of the frame.
          * @param foreground The foreground color of the frame.
          */
-        public ColorModel(Color background, Color foreground) {
+        public ColorModel(@Nullable Color background, @Nullable Color foreground) {
             this.background = background;
             this.foreground = foreground;
         }
 
-        public ColorModel set(Color background, Color foreground) {
+        /**
+         * Set the background and foreground colors on this instance.
+         *
+         * @param background The background color of the frame.
+         * @param foreground The foreground color of the frame.
+         * @return this
+         */
+        @NotNull
+        public ColorModel set(@Nullable Color background, @Nullable Color foreground) {
             this.background = background;
             this.foreground = foreground;
             return this;
@@ -66,9 +78,11 @@ public interface FrameColorProvider<T> {
      * @param flags The flags
      * @return The color model for this frame
      */
-    ColorModel getColors(FrameBox<T> frame, int flags) ;
+    @NotNull
+    ColorModel getColors(@NotNull FrameBox<@NotNull T> frame, int flags) ;
 
-    static <T> FrameColorProvider<T> defaultColorProvider(Function<FrameBox<T>, Color> frameBaseColorFunction) {
+    @NotNull
+    static <T> FrameColorProvider<@NotNull T> defaultColorProvider(@NotNull Function<@NotNull FrameBox<@NotNull T>, @NotNull Color> frameBaseColorFunction) {
         Objects.requireNonNull(frameBaseColorFunction, "frameColorFunction");
         return new FrameColorProvider<>() {
             /**
@@ -79,7 +93,8 @@ public interface FrameColorProvider<T> {
             private final ColorModel reusableDataStructure = new ColorModel(null, null);
 
             @Override
-            public ColorModel getColors(FrameBox<T> frame, int flags) {
+            @NotNull
+            public ColorModel getColors(@NotNull FrameBox<@NotNull T> frame, int flags) {
                 Color baseBackgroundColor = frameBaseColorFunction.apply(frame);
                 Color backgroundColor = baseBackgroundColor;
 
