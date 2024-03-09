@@ -11,6 +11,7 @@ package io.github.bric3.fireplace.ui
 
 import io.github.bric3.fireplace.Utils
 import io.github.bric3.fireplace.core.ui.Colors
+import io.github.bric3.fireplace.core.ui.Colors.Palette
 import io.github.bric3.fireplace.core.ui.LightDarkColor
 import io.github.bric3.fireplace.core.ui.SwingUtils
 import io.github.bric3.fireplace.flamegraph.ColorMapper
@@ -38,16 +39,8 @@ import java.util.function.Consumer
 import java.util.function.Function
 import java.util.stream.Collectors.joining
 import java.util.stream.Collectors.toCollection
-import javax.swing.BoxLayout
-import javax.swing.JButton
-import javax.swing.JCheckBox
-import javax.swing.JComboBox
-import javax.swing.JComponent
-import javax.swing.JPanel
-import javax.swing.JTextField
-import javax.swing.JToggleButton
+import javax.swing.*
 import javax.swing.Timer
-import javax.swing.ToolTipManager
 
 class FlamegraphPane : JPanel(BorderLayout()) {
     private var jfrFlamegraphView: FlamegraphView<Node>
@@ -67,10 +60,10 @@ class FlamegraphPane : JPanel(BorderLayout()) {
             jfrFlamegraphView.setMinimapShadeColorSupplier { it }
         }
         val zoomAnimation = ZoomAnimation().also { it.install(jfrFlamegraphView) }
-        val colorPaletteJComboBox = JComboBox(Colors.Palette.values()).apply {
+        val colorPaletteJComboBox = JComboBox(Palette.entries.toTypedArray()).apply {
             selectedItem = defaultColorPalette
         }
-        val colorModeJComboBox = JComboBox(JfrFrameColorMode.values()).apply {
+        val colorModeJComboBox = JComboBox(JfrFrameColorMode.entries.toTypedArray()).apply {
             selectedItem = defaultFrameColorMode
         }
 
@@ -81,7 +74,7 @@ class FlamegraphPane : JPanel(BorderLayout()) {
                         *(colorPaletteJComboBox.selectedItem as Colors.Palette).colors()
                     )
                 )
-            jfrFlamegraphView.frameColorProvider = DimmingFrameColorProvider(frameBoxColorFunction)
+            jfrFlamegraphView.setFrameColorProvider(DimmingFrameColorProvider(frameBoxColorFunction))
             jfrFlamegraphView.requestRepaint()
         }.also {
             colorPaletteJComboBox.addActionListener(it)
