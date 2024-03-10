@@ -605,7 +605,7 @@ class FlamegraphRenderEngine<T> {
      * @param point    the coordinates at which to look for a frame.
      * @return An optional zoom target.
      */
-    public Optional<ZoomTarget> calculateZoomTargetForFrameAt(
+    public Optional<ZoomTarget<@NotNull T>> calculateZoomTargetForFrameAt(
             Graphics2D g2,
             Rectangle2D bounds,
             Rectangle2D viewRect,

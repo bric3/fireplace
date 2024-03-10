@@ -11,6 +11,7 @@ package io.github.bric3.fireplace.flamegraph;
 
 import io.github.bric3.fireplace.core.ui.JScrollPaneWithBackButton;
 import io.github.bric3.fireplace.core.ui.MouseInputListenerWorkaroundForToolTipEnabledComponent;
+import org.jetbrains.annotations.ApiStatus.Experimental;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -22,12 +23,12 @@ import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
 import java.awt.event.FocusEvent;
 import java.awt.event.FocusListener;
-import java.awt.event.HierarchyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseWheelEvent;
 import java.awt.geom.Area;
 import java.awt.image.BufferedImage;
+import java.lang.System.Logger.Level;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -115,15 +116,13 @@ public class FlamegraphView<T> {
      * as well as trigger other behavior on the canvas.
      */
     @NotNull
-    private final FlamegraphScrollPaneMouseInputListener<T> scrollPaneListener;
+    private final FlamegraphView.FlamegraphHoveringScrollPaneMouseListener<T> scrollPaneListener;
 
     /**
      * The precomputed list of frames.
      */
     @NotNull
     private FrameModel<T> framesModel = FrameModel.empty();
-
-    private ZoomModel<T> zoomModel = new ZoomModel<>();
 
     /**
      * Display mode for this stack-frame tree.
@@ -186,41 +185,6 @@ public class FlamegraphView<T> {
          */
         @NotNull
         Point getLocation();
-    }
-
-    public static class ZoomModel<T> {
-        /**
-         * The current zoom target, it allows to keep track of the current zoom target.
-         * So when the view is resized, the zoom ratio can be recomputed from this target.
-         */
-        @Nullable
-        private ZoomTarget<T> currentZoomTarget = null;
-
-        /**
-         * Internal field to track the last user interaction
-         * of the user that leads to a modification of the position ratio.
-         *
-         * Either the last zoom, the last mouse drag, or the last scroll (trackpad included).
-         */
-        private double lastUserInteractionPositionRatio = 0.0;
-
-        public void setCurrentZoomTarget(@Nullable ZoomTarget<T> currentZoomTarget) {
-            this.currentZoomTarget = currentZoomTarget;
-
-            if (currentZoomTarget == null || currentZoomTarget.targetFrame == null) {
-                lastUserInteractionPositionRatio = 0.0;
-            } else {
-                lastUserInteractionPositionRatio = currentZoomTarget.targetFrame.startX;
-            }
-        }
-
-        public @Nullable ZoomTarget<T> getCurrentZoomTarget() {
-            return currentZoomTarget;
-        }
-
-        private double getLastUserInteractionPositionRatio() {
-            return lastUserInteractionPositionRatio;
-        }
     }
 
     /**
@@ -290,31 +254,17 @@ public class FlamegraphView<T> {
     }
 
     /**
-     * Internal access to the {@code FlamegraphView} from the canvas.
-     *
-     * @param component the <code>JComponent</code>
-     * @param <T>       The type of the node data.
-     * @return The {@code FlamegraphView} instance that crated this JComponent or empty.
-     */
-    @SuppressWarnings("unchecked")
-    @NotNull
-    private static <T> FlamegraphView<@NotNull T> fromInternal(@NotNull FlamegraphCanvas<T> component) {
-        return (FlamegraphView<T>) component.getClientProperty(OWNER_KEY);
-    }
-
-    /**
      * Creates an empty flame graph.
      * To use in Swing just access the {@link #component} field.
      */
     public FlamegraphView() {
         canvas = new FlamegraphCanvas<>(this);
         canvas.putClientProperty(OWNER_KEY, this);
-        scrollPaneListener = new FlamegraphScrollPaneMouseInputListener<>(canvas);
+        scrollPaneListener = new FlamegraphHoveringScrollPaneMouseListener<>(canvas);
         var scrollPane = createScrollPane();
         scrollPane.putClientProperty(OWNER_KEY, this);
         var layeredScrollPane = JScrollPaneWithBackButton.create(
                 () -> {
-
                     // Code to tweak the actions
                     // https://stackoverflow.com/a/71009104/48136
                     // see javax.swing.plaf.basic.BasicScrollPaneUI.Actions
@@ -356,6 +306,9 @@ public class FlamegraphView<T> {
         var viewport = new JViewport() {
             @Override
             protected LayoutManager createLayoutManager() {
+                // Custom layout manager to handle the viewport resizing
+                // Since the canvas size expands or shrink proportionally to the viewport,
+                // a special handling is necessary when the VP is resized.
                 return new ViewportLayout() {
                     private final Dimension oldViewPortSize = new Dimension(); // reusable
                     private final Dimension flamegraphSize = new Dimension(); // reusable
@@ -400,8 +353,6 @@ public class FlamegraphView<T> {
                                         flamegraphSize,
                                         vpSize.width
                                 );
-
-                                // check view position?
                             } else {
                                 // compute scale factor
                                 double scaleFactor = FlamegraphRenderEngine.getScaleFactor(
@@ -421,13 +372,11 @@ public class FlamegraphView<T> {
 
                             // if view position X > 0
                             //   the fg is zoomed
-                            //   => compute the position ratio
+                            //   => get the latest position ratio resulting from user interaction
                             //   => apply ratio to the current fg width
-
                             int oldFlamegraphX = Math.abs(flamegraphLocation.x);
                             if (oldFlamegraphX > 0) {
-                                // compute scale factor
-                                double positionRatio = FlamegraphView.fromInternal(canvas).zoomModel.getLastUserInteractionPositionRatio();
+                                double positionRatio = canvas.zoomModel.getLastUserInteractionPositionRatio();
 
                                 flamegraphLocation.x = Math.abs((int) (positionRatio * flamegraphSize.width));
                                 flamegraphLocation.y = Math.abs(flamegraphLocation.y);
@@ -856,7 +805,8 @@ public class FlamegraphView<T> {
             return;
         }
 
-        FlamegraphView.fromInternal(canvas).zoomModel.setCurrentZoomTarget(zoomTarget);
+        // Set the zoom model to the Zoom Target
+        canvas.zoomModel.setCurrentZoomTarget(zoomTarget);
 
         // adjust zoom target location for horizontal scrollbar height if canvas bigger than viewRect
         if (canvas.getMode() == Mode.FLAMEGRAPH) {
@@ -897,225 +847,7 @@ public class FlamegraphView<T> {
         canvas.repaint();
     }
 
-    /**
-     * The internal mouse listener that is attached to the scrollPane.
-     * <p>
-     * This listener will be responsible to trigger some behaviors on the canvas itself.
-     * </p>
-     *
-     * @param <T>
-     */
-    private static class FlamegraphScrollPaneMouseInputListener<T> implements MouseInputListener, FocusListener {
-        private Point pressedPoint;
-        private final FlamegraphCanvas<T> canvas;
-        private Rectangle hoveredFrameRectangle;
-        private HoverListener<T> hoverListener;
-        private FrameBox<T> hoveredFrame;
-        private final Rectangle tmpBounds = new Rectangle(); // reusable
-
-        public FlamegraphScrollPaneMouseInputListener(@NotNull FlamegraphCanvas<@NotNull T> canvas) {
-            this.canvas = canvas;
-        }
-
-        @Override
-        public void mouseDragged(@NotNull MouseEvent e) {
-            if ((e.getSource() instanceof JScrollPane) && pressedPoint != null) {
-                var scrollPane = (JScrollPane) e.getComponent();
-                var viewPort = scrollPane.getViewport();
-                if (viewPort == null) {
-                    return;
-                }
-
-                var dx = e.getX() - pressedPoint.x;
-                var dy = e.getY() - pressedPoint.y;
-                var viewPortViewPosition = viewPort.getViewPosition();
-                viewPort.setViewPosition(new Point(Math.max(0, viewPortViewPosition.x - dx),
-                                                   Math.max(0, viewPortViewPosition.y - dy)));
-                pressedPoint = e.getPoint();
-                e.consume();
-            }
-        }
-
-        @Override
-        public void mousePressed(@NotNull MouseEvent e) {
-            if (SwingUtilities.isLeftMouseButton(e)) {
-                // don't drag canvas if the mouse was interacting within minimap
-                if (canvas.isInsideMinimap(SwingUtilities.convertPoint(e.getComponent(), e.getPoint(), canvas))) {
-                    pressedPoint = null;
-                    return;
-                }
-                pressedPoint = e.getPoint();
-            }
-        }
-
-        @Override
-        public void mouseReleased(@NotNull MouseEvent e) {
-            pressedPoint = null;
-        }
-
-        @Override
-        public void mouseClicked(@NotNull MouseEvent e) {
-            if (!SwingUtilities.isLeftMouseButton(e) && e.getSource() instanceof JScrollPane) {
-                return;
-            }
-            var scrollPane = (JScrollPane) e.getComponent();
-            var viewPort = scrollPane.getViewport();
-
-            // this seems to enable key navigation
-            scrollPane.requestFocus();
-
-            var latestMouseLocation = MouseInfo.getPointerInfo().getLocation();
-            SwingUtilities.convertPointFromScreen(latestMouseLocation, canvas);
-
-            if (canvas.isInsideMinimap(latestMouseLocation)) {
-                // bail out
-                return;
-            }
-
-            if (e.getClickCount() == 2) {
-                // find zoom target then do an animated transition
-                canvas.getFlamegraphRenderEngine().flatMap(fgp -> fgp.calculateZoomTargetForFrameAt(
-                        (Graphics2D) canvas.getGraphics(),
-                        canvas.getBounds(tmpBounds),
-                        canvas.getVisibleRect(),
-                        latestMouseLocation
-                )).ifPresent(zoomTarget -> zoom(canvas, zoomTarget));
-                return;
-            }
-
-            canvas.getFlamegraphRenderEngine()
-                  .ifPresent(fgp -> fgp.toggleSelectedFrameAt(
-                          (Graphics2D) viewPort.getView().getGraphics(),
-                          canvas.getBounds(tmpBounds),
-                          latestMouseLocation,
-                          (frame, r) -> canvas.repaint()
-                  ));
-        }
-
-
-        @Override
-        public void mouseEntered(@NotNull MouseEvent e) {
-        }
-
-        @Override
-        public void mouseExited(@NotNull MouseEvent e) {
-            if ((e.getSource() instanceof JScrollPane)) {
-                var source = (JScrollPane) e.getSource();
-                hoveredFrameRectangle = null;
-                hoveredFrame = null;
-                canvas.getFlamegraphRenderEngine()
-                      .ifPresent(fgp -> fgp.stopHover(
-                              (Graphics2D) canvas.getGraphics(),
-                              canvas.getBounds(tmpBounds),
-                              canvas::repaint
-                      ));
-                canvas.repaint();
-
-                // mouse exit is triggered when the pointer leaves the scroll pane and enters the canvas
-                // this part is only interested to pass event when the pointer leaves the scroll pane area
-                var latestMouseLocation = MouseInfo.getPointerInfo().getLocation();
-                SwingUtilities.convertPointFromScreen(latestMouseLocation, source);
-                if (hoverListener != null && !source.getBounds(tmpBounds).contains(latestMouseLocation)) {
-                    hoverListener.onStopHover(hoveredFrame, null, e);
-                }
-            }
-        }
-
-        @Override
-        public void mouseMoved(@NotNull MouseEvent e) {
-            var latestMouseLocation = MouseInfo.getPointerInfo().getLocation();
-            SwingUtilities.convertPointFromScreen(latestMouseLocation, canvas);
-
-            if (canvas.isInsideMinimap(latestMouseLocation)) {
-                if (hoverListener != null) {
-                    hoverListener.onStopHover(hoveredFrame, hoveredFrameRectangle, e);
-                }
-                // bail out
-                return;
-            }
-
-            // handle hovering
-            if (hoveredFrameRectangle != null && hoveredFrameRectangle.contains(latestMouseLocation)) {
-                // still hovering the same frame, avoid unnecessary work
-                // and reuse what we got before
-                if (hoverListener != null) {
-                    hoverListener.onFrameHover(hoveredFrame, hoveredFrameRectangle, e);
-                }
-                return;
-            }
-            canvas.getFlamegraphRenderEngine()
-                  .ifPresent(fgp -> {
-                      var canvasGraphics = (Graphics2D) canvas.getGraphics();
-                      var canvasBounds = canvas.getBounds(tmpBounds);
-                      fgp.getFrameAt(
-                                 canvasGraphics,
-                                 canvasBounds,
-                                 latestMouseLocation
-                         )
-                         .ifPresentOrElse(
-                                 frame -> {
-                                     fgp.hoverFrame(
-                                             frame,
-                                             canvasGraphics,
-                                             canvasBounds,
-                                             canvas::repaint
-                                     );
-                                     canvas.setToolTipText(frame);
-                                     hoveredFrameRectangle = fgp.getFrameRectangle(
-                                             canvasGraphics,
-                                             canvasBounds,
-                                             frame
-                                     );
-                                     hoveredFrame = frame;
-                                     if (hoverListener != null) {
-                                         hoverListener.onFrameHover(frame, hoveredFrameRectangle, e);
-                                     }
-                                 },
-                                 () -> {
-                                     fgp.stopHover(
-                                             canvasGraphics,
-                                             canvasBounds,
-                                             canvas::repaint
-                                     );
-                                     var prevHoveredFrameRectangle = hoveredFrameRectangle;
-                                     var prevHoveredFrame = hoveredFrame;
-                                     hoveredFrameRectangle = null;
-                                     hoveredFrame = null;
-                                     if (hoverListener != null) {
-                                         hoverListener.onStopHover(prevHoveredFrame, prevHoveredFrameRectangle, e);
-                                     }
-                                 }
-                         );
-                  });
-        }
-
-        public void setHoverListener(HoverListener<T> hoveringListener) {
-            this.hoverListener = hoveringListener;
-        }
-
-        @Override
-        public void focusGained(@NotNull FocusEvent e) {
-            // no op
-        }
-
-        @Override
-        public void focusLost(@NotNull FocusEvent e) {
-            // idea is to stop hover when focus is lost
-            // if (hoverListener != null) {
-            //     System.out.println("stop hover because focus lost");
-            //     hoverListener.onStopHover(hoveredFrame, hoveredFrameRectangle,e);
-            // }
-        }
-
-        public void install(@NotNull JScrollPane sp) {
-            sp.addMouseListener(this);
-            sp.addMouseMotionListener(this);
-            sp.addFocusListener(this);
-        }
-    }
-
     static class FlamegraphCanvas<T> extends JPanel implements ZoomableComponent<T> {
-
         public static final String GRAPH_MODE = "mode";
         @Nullable
         private Image minimap;
@@ -1124,6 +856,7 @@ public class FlamegraphView<T> {
         private FlamegraphRenderEngine<@NotNull T> flamegraphRenderEngine;
         @Nullable
         private BiFunction<@NotNull FrameModel<@NotNull T>, @NotNull FrameBox<@NotNull T>, @NotNull String> tooltipToTextFunction;
+        @NotNull
         private Dimension flamegraphDimension = new Dimension();
 
         /**
@@ -1145,6 +878,8 @@ public class FlamegraphView<T> {
         private BiConsumer<@NotNull FrameBox<@NotNull T>, @NotNull MouseEvent> selectedFrameConsumer;
         @NotNull
         private final FlamegraphView<@NotNull T> flamegraphView;
+        private final ZoomModel<T> zoomModel = new ZoomModel<>();
+        
         private long lastDrawTime;
 
         public FlamegraphCanvas(@NotNull FlamegraphView<@NotNull T> flamegraphView) {
@@ -1161,36 +896,12 @@ public class FlamegraphView<T> {
         }
 
         @Override
-        public void doLayout() {
-            Rectangle bounds = getBounds();
-            double delta = getParent().getWidth() - getVisibleRect().getWidth();
-            // TODO capture position in view rect
-
-            if (delta < 0) {
-
-            }
-            Point location = getLocation();
-
-
-            super.doLayout();
-        }
-
-        @Override
         public void addNotify() {
             super.addNotify();
             var fgCanvas = this;
 
-            fgCanvas.addHierarchyListener(e -> {
-                boolean b = (e.getChangeFlags() & HierarchyEvent.DISPLAYABILITY_CHANGED) != 0;
-                if (b && !e.getComponent().isDisplayable()) {
-                    fgCanvas.getParent();
-                    // todo
-                }
-            });
-
-
-            // Adjust the width of the canvas to the width of the view rect, when
-            // the scroll bar is made visible, this prevents the horizontal scrollbar
+            // Adjusts the width of the canvas to the width of the view-rect when
+            // the scrollbar is made visible, this prevents the horizontal scrollbar
             // from appearing on first display, see #96.
             // Since a scrollbar is made visible once, this listener is called only once,
             // which is the intended behavior (otherwise it affects zooming).
@@ -1204,12 +915,12 @@ public class FlamegraphView<T> {
 
                     @Override
                     public void componentShown(ComponentEvent e) {
-                        // On the first display the flamegraph has the same width as the enclosing container
+                        // On the first display, the flamegraph has the same width as the enclosing container,
                         // but if flamegraph is zoomed-in the canvas width will be different.
                         // * So don't run this listener to prevent the canvas from being wrongly resized
-                        // if the model didn't change.
+                        //   if the model didn't change.
                         // * The guard uses the hash code of the model because the model can be changed,
-                        // and running this listener is necessary to prevent the horizontal scrollbar as well.
+                        //   and running this listener is necessary to prevent the horizontal scrollbar as well.
                         if (fgCanvas.flamegraphRenderEngine != null
                             && fgCanvas.flamegraphRenderEngine.getFrameModel() != null) {
                             int newHashCode = fgCanvas.flamegraphRenderEngine.getFrameModel().hashCode();
@@ -1226,53 +937,52 @@ public class FlamegraphView<T> {
                             }
 
                             // Adjust the width of the canvas to the width of the viewport rect
-                            // to prevent the horizontal scrollbar from appearing on first display.
+                            // to prevent the horizontal scrollbar from appearing on the first display.
                             fgCanvas.setSize(viewport.getViewRect().width, getHeight());
                         });
                     }
                 });
-                fgCanvas.addPropertyChangeListener(GRAPH_MODE, evt -> {
-                    SwingUtilities.invokeLater(() -> {
-                        var value = vsb.getValue();
-                        var bounds = fgCanvas.getBounds();
-                        var visibleRect = fgCanvas.getVisibleRect();
 
-                        // This computes the new view location based on the current view location
-                        switch ((Mode) evt.getNewValue()) {
-                            case ICICLEGRAPH:
-                                vsb.setValue(
-                                        value == vsb.getMaximum() ?
-                                        vsb.getMinimum() :
-                                        bounds.height - Math.abs(bounds.y) - visibleRect.height
-                                );
-                                break;
-                            case FLAMEGRAPH:
-                                vsb.setValue(
-                                        value == vsb.getMinimum() ?
-                                        vsb.getMaximum() :
-                                        bounds.height - visibleRect.height - value
-                                );
-                                break;
-                        }
-                        fgCanvas.triggerMinimapGeneration();
-                    });
-                });
-
-                fgCanvas.addPropertyChangeListener("preferredSize", evt -> {
-                    var preferredSize = (Dimension) evt.getNewValue();
-                    SwingUtilities.invokeLater(() -> {
-                        // trigger minimap generation, when the flamegraph is zoomed, more
-                        // frame become visible, and this may make the visible depth higher,
-                        // this allows to update the minimap when more details are available.
-                        if (isVisible() && showMinimap
-                            // && preferredSize.width > minimapBounds.width
-                            // && preferredSize.height > minimapBounds.height
-                        ) {
-                            fgCanvas.triggerMinimapGeneration();
-                        }
-                    });
-                });
+                installMinimapTriggers(fgCanvas, vsb);
             }
+        }
+
+        private void installMinimapTriggers(FlamegraphCanvas<T> fgCanvas, JScrollBar vsb) {
+            fgCanvas.addPropertyChangeListener(GRAPH_MODE, evt -> SwingUtilities.invokeLater(() -> {
+                var value = vsb.getValue();
+                var bounds = fgCanvas.getBounds();
+                var visibleRect = fgCanvas.getVisibleRect();
+
+                // This computes the new view location based on the current view location
+                switch ((Mode) evt.getNewValue()) {
+                    case ICICLEGRAPH:
+                        vsb.setValue(
+                                value == vsb.getMaximum() ?
+                                vsb.getMinimum() :
+                                bounds.height - Math.abs(bounds.y) - visibleRect.height
+                        );
+                        break;
+                    case FLAMEGRAPH:
+                        vsb.setValue(
+                                value == vsb.getMinimum() ?
+                                vsb.getMaximum() :
+                                bounds.height - visibleRect.height - value
+                        );
+                        break;
+                }
+                fgCanvas.triggerMinimapGeneration();
+            }));
+
+            fgCanvas.addPropertyChangeListener("preferredSize", evt -> {
+                SwingUtilities.invokeLater(() -> {
+                    // trigger minimap generation, when the flamegraph is zoomed, more
+                    // frames become visible, and this may make the visible depth higher,
+                    // this allows updating the minimap when more details are available.
+                    if (isVisible() && showMinimap) {
+                        fgCanvas.triggerMinimapGeneration();
+                    }
+                });
+            });
         }
 
         @Override
@@ -1303,6 +1013,7 @@ public class FlamegraphView<T> {
             return preferredSize;
         }
 
+        @SuppressWarnings("UnusedReturnValue")
         @NotNull
         protected Dimension updateFlamegraphDimension(@NotNull Dimension dimension, int flamegraphWidth) {
             var flamegraphHeight = flamegraphRenderEngine.computeVisibleFlamegraphHeight(
@@ -1515,7 +1226,8 @@ public class FlamegraphView<T> {
                 SwingUtilities.invokeLater(() -> this.setMinimapImage(minimapImage));
             }).handle((__, t) -> {
                 if (t != null) {
-                    t.printStackTrace(); // no thumbnail
+                    System.getLogger(FlamegraphCanvas.class.getName())
+                          .log(Level.ERROR, "Error generating minimap, no thumbnail", t);
                 }
                 return null;
             });
@@ -1749,6 +1461,230 @@ public class FlamegraphView<T> {
         }
     }
 
+    /**
+     * The internal mouse listener that is attached to the scrollPane.
+     * <p>
+     * This listener will be responsible to trigger some behaviors on the canvas itself :
+     * * Dragging the canvas
+     * * Double-clicking on the canvas, if it's a frame
+     * * Hovering frames
+     * </p>
+     *
+     * @see HoverListener
+     * @param <T>
+     */
+    private static class FlamegraphHoveringScrollPaneMouseListener<T> implements MouseInputListener, FocusListener {
+        private Point pressedPoint;
+        private final FlamegraphCanvas<T> canvas;
+        private Rectangle hoveredFrameRectangle;
+        private HoverListener<T> hoverListener;
+        private FrameBox<T> hoveredFrame;
+        private final Rectangle tmpBounds = new Rectangle(); // reusable
+
+        public FlamegraphHoveringScrollPaneMouseListener(@NotNull FlamegraphCanvas<@NotNull T> canvas) {
+            this.canvas = canvas;
+        }
+
+        @Override
+        public void mouseDragged(@NotNull MouseEvent e) {
+            if ((e.getSource() instanceof JScrollPane) && pressedPoint != null) {
+                var scrollPane = (JScrollPane) e.getComponent();
+                var viewPort = scrollPane.getViewport();
+                if (viewPort == null) {
+                    return;
+                }
+
+                var dx = e.getX() - pressedPoint.x;
+                var dy = e.getY() - pressedPoint.y;
+                var viewPortViewPosition = viewPort.getViewPosition();
+                viewPort.setViewPosition(new Point(Math.max(0, viewPortViewPosition.x - dx),
+                                                   Math.max(0, viewPortViewPosition.y - dy)));
+                pressedPoint = e.getPoint();
+                e.consume();
+            }
+        }
+
+        @Override
+        public void mousePressed(@NotNull MouseEvent e) {
+            if (SwingUtilities.isLeftMouseButton(e)) {
+                // don't drag canvas if the mouse was interacting within minimap
+                if (canvas.isInsideMinimap(SwingUtilities.convertPoint(e.getComponent(), e.getPoint(), canvas))) {
+                    pressedPoint = null;
+                    return;
+                }
+                pressedPoint = e.getPoint();
+            }
+        }
+
+        @Override
+        public void mouseReleased(@NotNull MouseEvent e) {
+            pressedPoint = null;
+        }
+
+        @Override
+        public void mouseClicked(@NotNull MouseEvent e) {
+            if (!SwingUtilities.isLeftMouseButton(e) && e.getSource() instanceof JScrollPane) {
+                return;
+            }
+            var scrollPane = (JScrollPane) e.getComponent();
+            var viewPort = scrollPane.getViewport();
+
+            // this seems to enable key navigation
+            scrollPane.requestFocus();
+
+            var latestMouseLocation = MouseInfo.getPointerInfo().getLocation();
+            SwingUtilities.convertPointFromScreen(latestMouseLocation, canvas);
+
+            if (canvas.isInsideMinimap(latestMouseLocation)) {
+                // bail out
+                return;
+            }
+
+            if (e.getClickCount() == 2) {
+                // find zoom target then do an animated transition
+                canvas.getFlamegraphRenderEngine().flatMap(fgp -> fgp.calculateZoomTargetForFrameAt(
+                        (Graphics2D) canvas.getGraphics(),
+                        canvas.getBounds(tmpBounds),
+                        canvas.getVisibleRect(),
+                        latestMouseLocation
+                )).ifPresent(zoomTarget -> zoom(canvas, zoomTarget));
+                return;
+            }
+
+            canvas.getFlamegraphRenderEngine()
+                  .ifPresent(fgp -> fgp.toggleSelectedFrameAt(
+                          (Graphics2D) viewPort.getView().getGraphics(),
+                          canvas.getBounds(tmpBounds),
+                          latestMouseLocation,
+                          (frame, r) -> canvas.repaint()
+                  ));
+        }
+
+
+        @Override
+        public void mouseEntered(@NotNull MouseEvent e) {
+        }
+
+        @Override
+        public void mouseExited(@NotNull MouseEvent e) {
+            if ((e.getSource() instanceof JScrollPane)) {
+                var source = (JScrollPane) e.getSource();
+                hoveredFrameRectangle = null;
+                hoveredFrame = null;
+                canvas.getFlamegraphRenderEngine()
+                      .ifPresent(fgp -> fgp.stopHover(
+                              (Graphics2D) canvas.getGraphics(),
+                              canvas.getBounds(tmpBounds),
+                              canvas::repaint
+                      ));
+                canvas.repaint();
+
+                // mouse exit is triggered when the pointer leaves the scroll pane and enters the canvas
+                // this part is only interested to pass event when the pointer leaves the scroll pane area
+                var latestMouseLocation = MouseInfo.getPointerInfo().getLocation();
+                SwingUtilities.convertPointFromScreen(latestMouseLocation, source);
+                if (hoverListener != null && !source.getBounds(tmpBounds).contains(latestMouseLocation)) {
+                    hoverListener.onStopHover(hoveredFrame, null, e);
+                }
+            }
+        }
+
+        @Override
+        public void mouseMoved(@NotNull MouseEvent e) {
+            var latestMouseLocation = MouseInfo.getPointerInfo().getLocation();
+            SwingUtilities.convertPointFromScreen(latestMouseLocation, canvas);
+
+            if (canvas.isInsideMinimap(latestMouseLocation)) {
+                if (hoverListener != null) {
+                    hoverListener.onStopHover(hoveredFrame, hoveredFrameRectangle, e);
+                }
+                // bail out
+                return;
+            }
+
+            // handle frame hovering
+            // =====================
+            // still hovering the same frame, avoid unnecessary work
+            // and reuse what we got before
+            if (hoveredFrameRectangle != null && hoveredFrameRectangle.contains(latestMouseLocation)) {
+                if (hoverListener != null) {
+                    hoverListener.onFrameHover(hoveredFrame, hoveredFrameRectangle, e);
+                }
+                return;
+            }
+            // Find hovered frame, repaint previous hovered frame and current hovered frame
+            // configure tooltip, invoke hover listener
+            canvas.getFlamegraphRenderEngine()
+                  .ifPresent(fgp -> {
+                      var canvasGraphics = (Graphics2D) canvas.getGraphics();
+                      var canvasBounds = canvas.getBounds(tmpBounds);
+                      fgp.getFrameAt(
+                                 canvasGraphics,
+                                 canvasBounds,
+                                 latestMouseLocation
+                         )
+                         .ifPresentOrElse(
+                                 frame -> {
+                                     fgp.hoverFrame(
+                                             frame,
+                                             canvasGraphics,
+                                             canvasBounds,
+                                             canvas::repaint
+                                     );
+                                     canvas.setToolTipText(frame);
+                                     hoveredFrameRectangle = fgp.getFrameRectangle(
+                                             canvasGraphics,
+                                             canvasBounds,
+                                             frame
+                                     );
+                                     hoveredFrame = frame;
+                                     if (hoverListener != null) {
+                                         hoverListener.onFrameHover(frame, hoveredFrameRectangle, e);
+                                     }
+                                 },
+                                 () -> {
+                                     fgp.stopHover(
+                                             canvasGraphics,
+                                             canvasBounds,
+                                             canvas::repaint
+                                     );
+                                     var prevHoveredFrameRectangle = hoveredFrameRectangle;
+                                     var prevHoveredFrame = hoveredFrame;
+                                     hoveredFrameRectangle = null;
+                                     hoveredFrame = null;
+                                     if (hoverListener != null) {
+                                         hoverListener.onStopHover(prevHoveredFrame, prevHoveredFrameRectangle, e);
+                                     }
+                                 }
+                         );
+                  });
+        }
+
+        public void setHoverListener(HoverListener<T> hoveringListener) {
+            this.hoverListener = hoveringListener;
+        }
+
+        @Override
+        public void focusGained(@NotNull FocusEvent e) {
+            // no op
+        }
+
+        @Override
+        public void focusLost(@NotNull FocusEvent e) {
+            // idea is to stop hover when focus is lost
+            // if (hoverListener != null) {
+            //     System.out.println("stop hover because focus lost");
+            //     hoverListener.onStopHover(hoveredFrame, hoveredFrameRectangle,e);
+            // }
+        }
+
+        public void install(@NotNull JScrollPane sp) {
+            sp.addMouseListener(this);
+            sp.addMouseMotionListener(this);
+            sp.addFocusListener(this);
+        }
+    }
+
     private static class UserPositionRecorderMouseAdapter extends MouseAdapter {
         private final Point canvasLocation = new Point();
         private final FlamegraphCanvas<?> canvas;
@@ -1770,14 +1706,58 @@ public class FlamegraphView<T> {
         private void recordLastPositionAfterUserInteraction() {
             int width = canvas.getWidth();
             canvas.getLocation(canvasLocation);
-            FlamegraphView.fromInternal(canvas)
-                    .zoomModel
-                    .lastUserInteractionPositionRatio = (double) canvasLocation.x / (double) width;
+            canvas.zoomModel.setLastUserInteractionPositionRatio((double) canvasLocation.x / (double) width);
         }
 
         public void install(JScrollPane scrollPane) {
             scrollPane.addMouseListener(this); // regular mouse
             scrollPane.addMouseWheelListener(this); // mousewheel and trackpad
+        }
+    }
+
+
+    /**
+     * The zoom model is responsible to keep track
+     * of the current zoom target and the last user interaction.
+     * 
+     * @param <T>
+     */
+    @Experimental
+    private static class ZoomModel<T> {
+        /**
+         * The current zoom target, it allows to keep track of the current zoom target.
+         * So when the view is resized, the zoom ratio can be recomputed from this target.
+         */
+        @Nullable
+        private ZoomTarget<T> currentZoomTarget = null;
+
+        /**
+         * Internal field to track the last user interaction
+         * of the user that leads to a modification of the position ratio.
+         * Either the last zoom, the last mouse drag, or the last scroll (trackpad included).
+         */
+        private double lastUserInteractionPositionRatio = 0.0;
+
+        public void setCurrentZoomTarget(@Nullable ZoomTarget<T> currentZoomTarget) {
+            this.currentZoomTarget = currentZoomTarget;
+
+            if (currentZoomTarget == null || currentZoomTarget.targetFrame == null) {
+                lastUserInteractionPositionRatio = 0.0;
+            } else {
+                lastUserInteractionPositionRatio = currentZoomTarget.targetFrame.startX;
+            }
+        }
+
+        public @Nullable ZoomTarget<T> getCurrentZoomTarget() {
+            return currentZoomTarget;
+        }
+
+        public void setLastUserInteractionPositionRatio(double lastUserInteractionPositionRatio) {
+            this.lastUserInteractionPositionRatio = lastUserInteractionPositionRatio;
+        }
+
+        private double getLastUserInteractionPositionRatio() {
+            return lastUserInteractionPositionRatio;
         }
     }
 }
