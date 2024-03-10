@@ -23,7 +23,9 @@ import java.awt.event.ComponentEvent;
 import java.awt.event.FocusEvent;
 import java.awt.event.FocusListener;
 import java.awt.event.HierarchyEvent;
+import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.awt.event.MouseWheelEvent;
 import java.awt.geom.Area;
 import java.awt.image.BufferedImage;
 import java.util.List;
@@ -121,6 +123,8 @@ public class FlamegraphView<T> {
     @NotNull
     private FrameModel<T> framesModel = FrameModel.empty();
 
+    private ZoomModel<T> zoomModel = new ZoomModel<>();
+
     /**
      * Display mode for this stack-frame tree.
      */
@@ -146,16 +150,16 @@ public class FlamegraphView<T> {
          * @param zoomTarget        the zoom target.
          * @return Whether zooming has been performed.
          */
-        boolean zoom(
-                @NotNull ZoomableComponent zoomableComponent,
-                @NotNull ZoomTarget zoomTarget
+        <T> boolean zoom(
+                @NotNull ZoomableComponent<T> zoomableComponent,
+                @NotNull ZoomTarget<T> zoomTarget
         );
     }
 
     /**
      * Represents a zoomable JComponent.
      */
-    public interface ZoomableComponent {
+    public interface ZoomableComponent<T> {
         /**
          * Actually perform the zooming operation on the component.
          *
@@ -165,7 +169,7 @@ public class FlamegraphView<T> {
          *
          * @param zoomTarget The zoom target.
          */
-        void zoom(@NotNull ZoomTarget zoomTarget);
+        void zoom(@NotNull ZoomTarget<T> zoomTarget);
 
         /**
          * @return the width of the component.
@@ -180,7 +184,43 @@ public class FlamegraphView<T> {
         /**
          * @return the location of the component in the parent container.
          */
-        @NotNull Point getLocation();
+        @NotNull
+        Point getLocation();
+    }
+
+    public static class ZoomModel<T> {
+        /**
+         * The current zoom target, it allows to keep track of the current zoom target.
+         * So when the view is resized, the zoom ratio can be recomputed from this target.
+         */
+        @Nullable
+        private ZoomTarget<T> currentZoomTarget = null;
+
+        /**
+         * Internal field to track the last user interaction
+         * of the user that leads to a modification of the position ratio.
+         *
+         * Either the last zoom, the last mouse drag, or the last scroll (trackpad included).
+         */
+        private double lastUserInteractionPositionRatio = 0.0;
+
+        public void setCurrentZoomTarget(@Nullable ZoomTarget<T> currentZoomTarget) {
+            this.currentZoomTarget = currentZoomTarget;
+
+            if (currentZoomTarget == null || currentZoomTarget.targetFrame == null) {
+                lastUserInteractionPositionRatio = 0.0;
+            } else {
+                lastUserInteractionPositionRatio = currentZoomTarget.targetFrame.startX;
+            }
+        }
+
+        public @Nullable ZoomTarget<T> getCurrentZoomTarget() {
+            return currentZoomTarget;
+        }
+
+        private double getLastUserInteractionPositionRatio() {
+            return lastUserInteractionPositionRatio;
+        }
     }
 
     /**
@@ -190,9 +230,9 @@ public class FlamegraphView<T> {
      */
     public interface HoverListener<T> {
         /**
-         * @param previousHoveredFrame The previous frame that was hovered, or {@code null} if the mouse is exiting the component.
+         * @param previousHoveredFrame      The previous frame that was hovered, or {@code null} if the mouse is exiting the component.
          * @param prevHoveredFrameRectangle The rectangle of the previous hovered frame, or {@code null} if the mouse is exiting the component.
-         * @param e The mouse event
+         * @param e                         The mouse event
          */
         default void onStopHover(
                 @Nullable FrameBox<@NotNull T> previousHoveredFrame,
@@ -201,9 +241,9 @@ public class FlamegraphView<T> {
         ) {}
 
         /**
-         * @param frame The frame that is hovered.
+         * @param frame                 The frame that is hovered.
          * @param hoveredFrameRectangle The rectangle of the hovered frame.
-         * @param e The mouse event
+         * @param e                     The mouse event
          */
         void onFrameHover(
                 @NotNull FrameBox<@NotNull T> frame,
@@ -250,6 +290,19 @@ public class FlamegraphView<T> {
     }
 
     /**
+     * Internal access to the {@code FlamegraphView} from the canvas.
+     *
+     * @param component the <code>JComponent</code>
+     * @param <T>       The type of the node data.
+     * @return The {@code FlamegraphView} instance that crated this JComponent or empty.
+     */
+    @SuppressWarnings("unchecked")
+    @NotNull
+    private static <T> FlamegraphView<@NotNull T> fromInternal(@NotNull FlamegraphCanvas<T> component) {
+        return (FlamegraphView<T>) component.getClientProperty(OWNER_KEY);
+    }
+
+    /**
      * Creates an empty flame graph.
      * To use in Swing just access the {@link #component} field.
      */
@@ -273,7 +326,8 @@ public class FlamegraphView<T> {
                     scrollPane.getHorizontalScrollBar().setUnitIncrement(16);
                     scrollPaneListener.install(scrollPane);
                     new MouseInputListenerWorkaroundForToolTipEnabledComponent(scrollPane).install(canvas);
-                    canvas.linkListenerTo(scrollPane);
+                    canvas.setupListeners(scrollPane);
+
 
                     return scrollPane;
                 }
@@ -311,17 +365,16 @@ public class FlamegraphView<T> {
                     public void layoutContainer(Container parent) {
                         // Custom layout code to handle container shrinking.
                         // The default view port layout asks the preferred size
-                        // of the view.
-                        // But that cannot work since the canvas won;t update
-                        // its width, it receives its size from the layout container.
+                        // of the view, but that cannot work since the canvas won't update
+                        // its width, as it receives its size from the layout container.
                         //
                         // However, the default algorithm only updates the size
                         // after it has received the preferred size, or if the
                         // viewport got bigger.
                         //
                         // This code makes the necessary query to the canvas to
-                        // asks if it needs a new size given the viewport width change,
-                        // in order to keep the same zoom factor.
+                        // ask if it needs a new size given the viewport width change,
+                        // to keep the same zoom factor.
                         //
                         // The view location is also updated.
 
@@ -348,7 +401,7 @@ public class FlamegraphView<T> {
                                         vpSize.width
                                 );
 
-                                // check view position ?
+                                // check view position?
                             } else {
                                 // compute scale factor
                                 double scaleFactor = FlamegraphRenderEngine.getScaleFactor(
@@ -374,8 +427,9 @@ public class FlamegraphView<T> {
                             int oldFlamegraphX = Math.abs(flamegraphLocation.x);
                             if (oldFlamegraphX > 0) {
                                 // compute scale factor
-                                double positionRatio = (double) oldFlamegraphX / (double) oldFlamegraphWidth;
-                                flamegraphLocation.x = Math.abs((int) Math.round(positionRatio * flamegraphSize.width));
+                                double positionRatio = FlamegraphView.fromInternal(canvas).zoomModel.getLastUserInteractionPositionRatio();
+
+                                flamegraphLocation.x = Math.abs((int) (positionRatio * flamegraphSize.width));
                                 flamegraphLocation.y = Math.abs(flamegraphLocation.y);
 
                                 vp.setViewPosition(flamegraphLocation);
@@ -446,7 +500,7 @@ public class FlamegraphView<T> {
      *
      * @return The frame colors provider, may return <code>null</code> if renderer not configured.
      */
-    @Nullable
+    @Nullable // TODO make it non-nullable for kotlin
     public FrameColorProvider<@NotNull T> getFrameColorProvider() {
         return canvas.getFlamegraphRenderEngine()
                      .map(fgp -> fgp.getFrameRenderer()
@@ -471,7 +525,7 @@ public class FlamegraphView<T> {
      *
      * @return The frame font provider, may return <code>null</code> if renderer not configured.
      */
-    @Nullable
+    @Nullable // TODO make it non-nullable for kotlin
     public FrameFontProvider<@NotNull T> getFrameFontProvider() {
         return canvas.getFlamegraphRenderEngine()
                      .map(fgp -> fgp.getFrameRenderer()
@@ -480,7 +534,7 @@ public class FlamegraphView<T> {
     }
 
     /**
-     * Replaces the frame to texts candidate provider.
+     * Replaces the frame to text candidates provider.
      *
      * @param frameTextsProvider A provider that takes a frame and returns its colors.
      * @see FrameTextsProvider
@@ -496,7 +550,7 @@ public class FlamegraphView<T> {
      *
      * @return The frame texts candidate provider, may return <code>null</code> if renderer not configured.
      */
-    @Nullable
+    @Nullable // TODO make it non-nullable for kotlin
     public FrameTextsProvider<@NotNull T> getFrameTextsProvider() {
         return canvas.getFlamegraphRenderEngine()
                      .map(fgp -> fgp.getFrameRenderer()
@@ -784,16 +838,30 @@ public class FlamegraphView<T> {
         zoom(canvas, canvas.getFrameZoomTarget(frame));
     }
 
-    private static <T> void zoom(@NotNull FlamegraphCanvas<@NotNull T> canvas, @Nullable ZoomTarget zoomTarget) {
+    /**
+     * Higher level zoom op that operates on the view and model.
+     * <p>
+     * This method will call under the hood {@link FlamegraphCanvas#zoom(ZoomTarget)}.
+     * Possibly a zoom override ({@link #overrideZoomAction(ZoomAction)} will be set up and may be call instead,
+     * but under the hood this will call {@link FlamegraphCanvas#zoom(ZoomTarget)} via it's
+     * {@link ZoomableComponent#zoom(ZoomTarget)}.
+     *
+     * @param canvas     the canvas.
+     * @param zoomTarget the zoom target.
+     * @param <T>        the type of the node data.
+     */
+    private static <T> void zoom(@NotNull FlamegraphCanvas<@NotNull T> canvas, @Nullable ZoomTarget<@NotNull T> zoomTarget) {
         if (zoomTarget == null) {
-            // NOP
+            // NOOP
             return;
         }
+
+        FlamegraphView.fromInternal(canvas).zoomModel.setCurrentZoomTarget(zoomTarget);
 
         // adjust zoom target location for horizontal scrollbar height if canvas bigger than viewRect
         if (canvas.getMode() == Mode.FLAMEGRAPH) {
             var visibleRect = canvas.getVisibleRect();
-            JViewport viewPort = (JViewport) SwingUtilities.getUnwrappedParent(canvas);
+            var viewPort = (JViewport) SwingUtilities.getUnwrappedParent(canvas);
             var scrollPane = (JScrollPane) viewPort.getParent();
 
             var hsb = scrollPane.getHorizontalScrollBar();
@@ -862,7 +930,7 @@ public class FlamegraphView<T> {
                 var dy = e.getY() - pressedPoint.y;
                 var viewPortViewPosition = viewPort.getViewPosition();
                 viewPort.setViewPosition(new Point(Math.max(0, viewPortViewPosition.x - dx),
-                        Math.max(0, viewPortViewPosition.y - dy)));
+                                                   Math.max(0, viewPortViewPosition.y - dy)));
                 pressedPoint = e.getPoint();
                 e.consume();
             }
@@ -1046,7 +1114,7 @@ public class FlamegraphView<T> {
         }
     }
 
-    static class FlamegraphCanvas<T> extends JPanel implements ZoomableComponent {
+    static class FlamegraphCanvas<T> extends JPanel implements ZoomableComponent<T> {
 
         public static final String GRAPH_MODE = "mode";
         @Nullable
@@ -1098,7 +1166,7 @@ public class FlamegraphView<T> {
             double delta = getParent().getWidth() - getVisibleRect().getWidth();
             // TODO capture position in view rect
 
-            if(delta < 0) {
+            if (delta < 0) {
 
             }
             Point location = getLocation();
@@ -1466,7 +1534,7 @@ public class FlamegraphView<T> {
                     minimapBounds.height + minimapInset * 2);
         }
 
-        public void linkListenerTo(@NotNull JScrollPane scrollPane) {
+        public void setupListeners(@NotNull JScrollPane scrollPane) {
             var mouseAdapter = new MouseInputAdapter() {
                 private Point pressedPoint;
 
@@ -1556,6 +1624,9 @@ public class FlamegraphView<T> {
             };
             this.addMouseListener(mouseAdapter);
             this.addMouseMotionListener(mouseAdapter);
+
+            // TODO Record last position after user interaction
+            new UserPositionRecorderMouseAdapter(this).install(scrollPane);
         }
 
         void setFlamegraphRenderEngine(@NotNull FlamegraphRenderEngine<@NotNull T> flamegraphRenderEngine) {
@@ -1623,7 +1694,7 @@ public class FlamegraphView<T> {
         }
 
         @Nullable
-        public ZoomTarget getResetZoomTarget() {
+        public ZoomTarget<@NotNull T> getResetZoomTarget() {
             var graphics = (Graphics2D) getGraphics();
             if (graphics == null) {
                 return null;
@@ -1637,16 +1708,17 @@ public class FlamegraphView<T> {
                     visibleRect.width
             );
 
-            return new ZoomTarget(
+            return new ZoomTarget<>(
                     0,
                     getMode() == Mode.FLAMEGRAPH ? -(bounds.height - visibleRect.height) : 0,
                     visibleRect.width,
-                    newHeight
+                    newHeight,
+                    null
             );
         }
 
         @Nullable
-        public ZoomTarget getFrameZoomTarget(@NotNull FrameBox<T> frame) {
+        public ZoomTarget<@NotNull T> getFrameZoomTarget(@NotNull FrameBox<T> frame) {
             var graphics = (Graphics2D) getGraphics();
             if (graphics == null) {
                 return null;
@@ -1662,12 +1734,50 @@ public class FlamegraphView<T> {
             );
         }
 
+        /**
+         * Internal zoom operation only on the canvas.
+         * Changing this will trigger a layout of the wrapping JViewPort/JScrollPane
+         *
+         * @param zoomTarget The zoom target.
+         */
         @Override
-        public void zoom(@NotNull ZoomTarget zoomTarget) {
+        public void zoom(@NotNull ZoomTarget<@NotNull T> zoomTarget) {
             // Changing the size triggers a revalidation, which triggers a layout
             // Not calling setBounds from the Timeline may provoke EDT violations
             // however calling invokeLater makes the animation out of order, and not smooth.
             setBounds(zoomTarget);
+        }
+    }
+
+    private static class UserPositionRecorderMouseAdapter extends MouseAdapter {
+        private final Point canvasLocation = new Point();
+        private final FlamegraphCanvas<?> canvas;
+
+        public <T> UserPositionRecorderMouseAdapter(FlamegraphCanvas<T> canvas) {
+            this.canvas = canvas;
+        }
+
+        @Override
+        public void mouseReleased(MouseEvent e) {
+            recordLastPositionAfterUserInteraction();
+        }
+
+        @Override
+        public void mouseWheelMoved(MouseWheelEvent e) {
+            recordLastPositionAfterUserInteraction();
+        }
+
+        private void recordLastPositionAfterUserInteraction() {
+            int width = canvas.getWidth();
+            canvas.getLocation(canvasLocation);
+            FlamegraphView.fromInternal(canvas)
+                    .zoomModel
+                    .lastUserInteractionPositionRatio = (double) canvasLocation.x / (double) width;
+        }
+
+        public void install(JScrollPane scrollPane) {
+            scrollPane.addMouseListener(this); // regular mouse
+            scrollPane.addMouseWheelListener(this); // mousewheel and trackpad
         }
     }
 }

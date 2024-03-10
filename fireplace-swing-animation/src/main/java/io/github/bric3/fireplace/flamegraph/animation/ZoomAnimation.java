@@ -62,9 +62,9 @@ public class ZoomAnimation implements ZoomAction {
     }
 
     @Override
-    public boolean zoom(
-            @NotNull ZoomableComponent zoomableComponent,
-            @NotNull ZoomTarget zoomTarget
+    public <T> boolean zoom(
+            @NotNull ZoomableComponent<T> zoomableComponent,
+            @NotNull ZoomTarget<T> zoomTarget
     ) {
         System.getLogger(zoomableComponent.getClass().getName()).log(System.Logger.Level.DEBUG, () -> "zoom to " + zoomTarget);
         if (!isAnimateZoomTransitions()) {
@@ -75,8 +75,9 @@ public class ZoomAnimation implements ZoomAction {
         double deltaW = zoomTarget.width - startW;
         double deltaH = zoomTarget.height - startH;
 
-        int startX = zoomableComponent.getLocation().x;
-        int startY = zoomableComponent.getLocation().y;
+        var location = zoomableComponent.getLocation();
+        int startX = location.x;
+        int startY = location.y;
         double deltaX = zoomTarget.x - startX;
         double deltaY = zoomTarget.y - startY;
 
@@ -86,7 +87,12 @@ public class ZoomAnimation implements ZoomAction {
                 .setEase(new Sine())
                 .addCallback(new EventDispatchThreadTimelineCallbackAdapter() {
                     @Override
-                    public void onTimelineStateChanged(Timeline.TimelineState oldState, Timeline.TimelineState newState, float durationFraction, float timelinePosition) {
+                    public void onTimelineStateChanged(
+                            Timeline.TimelineState oldState,
+                            Timeline.TimelineState newState,
+                            float durationFraction,
+                            float timelinePosition
+                    ) {
                         if (newState.equals(Timeline.TimelineState.DONE)) {
                             // throw in a final update to the target position, because the last pulse
                             // might not have reached exactly timelinePosition = 1.0...
@@ -95,12 +101,16 @@ public class ZoomAnimation implements ZoomAction {
                     }
 
                     @Override
-                    public void onTimelinePulse(float durationFraction, float timelinePosition) {
-                        zoomableComponent.zoom(new ZoomTarget(
+                    public void onTimelinePulse(
+                            float durationFraction,
+                            float timelinePosition
+                    ) {
+                        zoomableComponent.zoom(new ZoomTarget<>(
                                 startX + (int) (timelinePosition * deltaX),
                                 startY + (int) (timelinePosition * deltaY),
                                 (int) (startW + timelinePosition * deltaW),
-                                (int) (startH + timelinePosition * deltaH)
+                                (int) (startH + timelinePosition * deltaH),
+                                zoomTarget.targetFrame
                         ));
                     }
                 })

@@ -10,6 +10,8 @@
 package io.github.bric3.fireplace.flamegraph;
 
 import io.github.bric3.fireplace.core.ui.Colors;
+import org.jetbrains.annotations.ApiStatus.Experimental;
+import org.jetbrains.annotations.NotNull;
 
 import java.awt.*;
 import java.awt.geom.Rectangle2D;
@@ -633,11 +635,13 @@ class FlamegraphRenderEngine<T> {
      * @param contextLeftRight the contextual frames on the left and right (unused at this time)
      * @return A zoom target.
      */
-    public ZoomTarget calculateZoomTargetFrame(
+    @Experimental
+    @NotNull
+    public ZoomTarget<@NotNull T> calculateZoomTargetFrame(
             Graphics2D g2,
             Rectangle2D bounds,
             Rectangle2D viewRect,
-            FrameBox<T> frame,
+            FrameBox<@NotNull T> frame,
             int contextBefore,
             int contextLeftRight
     ) {
@@ -672,11 +676,12 @@ class FlamegraphRenderEngine<T> {
                                     (int) (frameY + frameBoxHeight - viewRect.getHeight())
                             );
 
-        return new ZoomTarget(
+        return new ZoomTarget<>(
                 - (int) (frame.startX * newCanvasWidth),
                 - viewLocationY,
                 newCanvasWidth,
-                newCanvasHeight
+                newCanvasHeight,
+                frame
         );
     }
 
