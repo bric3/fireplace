@@ -10,6 +10,8 @@
 
 package io.github.bric3.fireplace.flamegraph;
 
+import org.jetbrains.annotations.NotNull;
+
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.awt.image.RenderedImage;
@@ -40,7 +42,7 @@ import java.util.function.IntConsumer;
  * @see FlamegraphView
  */
 public class FlamegraphImage<T> {
-    private final FlamegraphRenderEngine<T> fre;
+    private final FlamegraphRenderEngine<@NotNull T> fre;
 
     /**
      * Create the flamegraph image util.
@@ -60,9 +62,9 @@ public class FlamegraphImage<T> {
      * @param frameFontProvider  The frame font provider.
      */
     public FlamegraphImage(
-            FrameTextsProvider<T> frameTextsProvider,
-            FrameColorProvider<T> frameColorProvider,
-            FrameFontProvider<T> frameFontProvider
+            @NotNull FrameTextsProvider<@NotNull T> frameTextsProvider,
+            @NotNull FrameColorProvider<@NotNull T> frameColorProvider,
+            @NotNull FrameFontProvider<@NotNull T> frameFontProvider
     ) {
         this.fre = new FlamegraphRenderEngine<>(new FrameRenderer<>(
                 Objects.requireNonNull(frameTextsProvider),
@@ -79,7 +81,12 @@ public class FlamegraphImage<T> {
      * @param width      The wanted width of the image, the height is computed from this width.
      * @return The flamegraph rendered image.
      */
-    public RenderedImage generate(FrameModel<T> frameModel, FlamegraphView.Mode mode, int width) {
+    @NotNull
+    public RenderedImage generate(
+            @NotNull FrameModel<@NotNull T> frameModel,
+            @NotNull FlamegraphView.Mode mode,
+            int width
+    ) {
         try {
             fre.init(Objects.requireNonNull(frameModel));
 
@@ -131,11 +138,11 @@ public class FlamegraphImage<T> {
      * @param onHeightComputed Callback when the height has been computed.
      */
     public void generate(
-            FrameModel<T> frameModel,
-            FlamegraphView.Mode mode,
+            @NotNull FrameModel<@NotNull T> frameModel,
+            @NotNull FlamegraphView.Mode mode,
             int width,
-            Graphics2D g2,
-            IntConsumer onHeightComputed
+            @NotNull Graphics2D g2,
+            @NotNull IntConsumer onHeightComputed
     ) {
         try {
             fre.init(Objects.requireNonNull(frameModel));

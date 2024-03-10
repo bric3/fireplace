@@ -12,6 +12,7 @@ package io.github.bric3.fireplace.flamegraph;
 import io.github.bric3.fireplace.core.ui.Colors;
 import org.jetbrains.annotations.ApiStatus.Experimental;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.awt.*;
 import java.awt.geom.Rectangle2D;
@@ -64,6 +65,7 @@ class FlamegraphRenderEngine<T> {
     /**
      * The color used to draw a border around the hovered frame.
      */
+    // TODO move to renderer
     public final Supplier<Color> frameBorderColor = () -> Colors.panelForeground;
 
     /**
@@ -72,18 +74,20 @@ class FlamegraphRenderEngine<T> {
      */
     private boolean showHoveredSiblings = true;
 
-
+    @NotNull
     private final FrameRenderer<T> frameRenderer;
 
+    @Nullable
     private FrameBox<T> hoveredFrame;
+    @Nullable
     private FrameBox<T> selectedFrame;
 
-
+    @NotNull
     private Set<FrameBox<T>> toHighlight = Collections.emptySet();
+    @NotNull
     private Set<FrameBox<T>> hoveredSiblingFrames = Collections.emptySet();
-
-
-    private FrameModel<T> frameModel;
+    @NotNull
+    private FrameModel<T> frameModel = FrameModel.empty();
     private int depth;
 
     public int getVisibleDepth() {
@@ -133,20 +137,24 @@ class FlamegraphRenderEngine<T> {
      * @param frameRenderer a configured single frame renderer.
      * @see #init(FrameModel)
      */
-    public FlamegraphRenderEngine(FrameRenderer<T> frameRenderer) {
+    public FlamegraphRenderEngine(@NotNull FrameRenderer<@NotNull T> frameRenderer) {
         this.frameRenderer = Objects.requireNonNull(frameRenderer, "frameRenderer");
         reset();
     }
 
     /**
-     * Initializes the render with the given frame model.
+     * Initializes the render with the given frame model,
+     * also resets the other states.
      *
      * @param frameModel the frames to be displayed.
      * @see #reset()
      */
-    public FlamegraphRenderEngine<T> init(FrameModel<T> frameModel) {
+    @NotNull
+    public FlamegraphRenderEngine<@NotNull T> init(@NotNull FrameModel<@NotNull T> frameModel) {
         this.frameModel = Objects.requireNonNull(frameModel, "frameModel");
-        this.depth = frameModel.frames.stream().mapToInt(fb -> fb.stackDepth).max().orElse(0) + 1;
+        // Coerce the depth to be at least 1 (for the root frame)
+        // TODO tweak that behavior for the butterfly mode
+        depth = frameModel.frames.stream().mapToInt(fb -> fb.stackDepth).max().orElse(0) + 1;
         visibleDepth = depth;
         visibleDepthCache.clear();
         selectedFrame = null;
@@ -161,7 +169,8 @@ class FlamegraphRenderEngine<T> {
      *
      * @see #init(FrameModel)
      */
-    public FlamegraphRenderEngine<T> reset() {
+    @NotNull
+    public FlamegraphRenderEngine<@NotNull T> reset() {
         this.frameModel = FrameModel.empty();
         this.depth = 1;
         visibleDepth = 1;
@@ -199,7 +208,7 @@ class FlamegraphRenderEngine<T> {
      * @return The height of the visible frames in this flamegraph
      */
     public int computeVisibleFlamegraphHeight(
-            Graphics2D g2,
+            @NotNull Graphics2D g2,
             int canvasWidth
     ) {
         return computeVisibleFlamegraphHeight(g2, canvasWidth, false);
@@ -215,7 +224,7 @@ class FlamegraphRenderEngine<T> {
      * @return The height of the visible frames in this flamegraph
      */
     public int computeVisibleFlamegraphHeight(
-            Graphics2D g2,
+            @NotNull Graphics2D g2,
             int canvasWidth,
             boolean update
     ) {
@@ -255,7 +264,11 @@ class FlamegraphRenderEngine<T> {
      * @param bounds   the flame graph bounds ({@code null} not permitted).
      * @param viewRect the subset that is being viewed/rendered ({@code null} not permitted).
      */
-    public void paint(Graphics2D g2, Rectangle2D bounds, Rectangle2D viewRect) {
+    public void paint(
+            @NotNull Graphics2D g2,
+            @NotNull Rectangle2D bounds,
+            @NotNull Rectangle2D viewRect
+    ) {
         internalPaint(g2, bounds, viewRect, false, icicle);
     }
 
@@ -266,7 +279,11 @@ class FlamegraphRenderEngine<T> {
      * @param g2       the graphics target ({@code null} not permitted).
      * @param size     the flame graph bounds ({@code null} not permitted).
      */
-    public void paintToImage(Graphics2D g2, Rectangle2D size, boolean icicle) {
+    public void paintToImage(
+            @NotNull Graphics2D g2,
+            @NotNull Rectangle2D size,
+            boolean icicle
+    ) {
         internalPaint(g2, size, size, false, icicle);
     }
 
@@ -276,14 +293,17 @@ class FlamegraphRenderEngine<T> {
      * @param g2     the graphics target ({@code null} not permitted).
      * @param bounds the bounds ({@code null} not permitted).
      */
-    public void paintMinimap(Graphics2D g2, Rectangle2D bounds) {
+    public void paintMinimap(
+            @NotNull Graphics2D g2,
+            @NotNull Rectangle2D bounds
+    ) {
         internalPaint(g2, bounds, bounds, true, icicle);
     }
 
     private void internalPaint(
-            Graphics2D g2,
-            Rectangle2D bounds,
-            Rectangle2D viewRect,
+            @NotNull Graphics2D g2,
+            @NotNull Rectangle2D bounds,
+            @NotNull Rectangle2D viewRect,
             boolean minimapMode,
             boolean icicle
     ) {
@@ -381,7 +401,12 @@ class FlamegraphRenderEngine<T> {
         g2d.dispose();
     }
 
-    private static int computeFrameRectY(Rectangle2D bounds, int frameBoxHeight, int stackDepth, boolean icicle) {
+    private static int computeFrameRectY(
+            @NotNull Rectangle2D bounds,
+            int frameBoxHeight,
+            int stackDepth,
+            boolean icicle
+    ) {
         if (icicle) {
             return frameBoxHeight * stackDepth;
         }
@@ -392,17 +417,17 @@ class FlamegraphRenderEngine<T> {
     }
 
     private void checkReady() {
-        assert frameModel != null : "The flamegraph is not initialized, call init(FrameModel) first";
+        assert !Objects.equals(frameModel, FrameModel.empty()) : "The flamegraph is not initialized, call init(FrameModel) first";
     }
 
     // TODO move to FrameRenderer
     private void paintHoveredFrameBorder(
-            Graphics2D g2,
-            Rectangle2D bounds,
-            Rectangle2D viewRect,
+            @NotNull Graphics2D g2,
+            @NotNull Rectangle2D bounds,
+            @NotNull Rectangle2D viewRect,
             double flameGraphWidth,
             int frameBoxHeight,
-            Rectangle2D frameRect,
+            @NotNull Rectangle2D frameRect,
             boolean icicle
     ) {
         if (hoveredFrame == null || !paintHoveredFrameBorder) {
@@ -441,7 +466,7 @@ class FlamegraphRenderEngine<T> {
         }
     }
 
-    private void identifyDisplayScale(Graphics2D g2) {
+    private void identifyDisplayScale(@NotNull Graphics2D g2) {
         // if > 1 we're on a HiDPI display
         // https://github.com/libgdx/libgdx/commit/2bc16a08961dd303afe2d1c8df96a50d8cd639db
         var transform = g2.getTransform();
@@ -458,10 +483,11 @@ class FlamegraphRenderEngine<T> {
      * @param frame  the frame ({@code null} not permitted)
      * @return The bounds for the specified frame.
      */
+    @NotNull
     public Rectangle getFrameRectangle(
-            Graphics2D g2,
-            Rectangle2D bounds,
-            FrameBox<T> frame
+            @NotNull Graphics2D g2,
+            @NotNull Rectangle2D bounds,
+            @NotNull FrameBox<@NotNull T> frame
     ) {
         checkReady();
         // TODO delegate to frame renderer ?
@@ -486,10 +512,10 @@ class FlamegraphRenderEngine<T> {
      * @param point  the point of interest ({@code null} not permitted).
      * @return An optional frame box.
      */
-    public Optional<FrameBox<T>> getFrameAt(
-            Graphics2D g2,
-            Rectangle2D bounds,
-            Point point
+    public Optional<FrameBox<@NotNull T>> getFrameAt(
+            @NotNull Graphics2D g2,
+            @NotNull Rectangle2D bounds,
+            @NotNull Point point
     ) {
         checkReady();
 
@@ -505,7 +531,7 @@ class FlamegraphRenderEngine<T> {
                                 .findFirst();
     }
 
-    private int computeFrameDepth(Graphics2D g2, Rectangle2D bounds, Point point) {
+    private int computeFrameDepth(@NotNull Graphics2D g2, @NotNull Rectangle2D bounds, @NotNull Point point) {
         if (icicle) {
             return point.y / frameRenderer.getFrameBoxHeight(g2);
         }
@@ -522,10 +548,10 @@ class FlamegraphRenderEngine<T> {
      * @param toggleConsumer the function that is called to notify about the frame selection ({@code null} not permitted).
      */
     public void toggleSelectedFrameAt(
-            Graphics2D g2,
-            Rectangle2D bounds,
-            Point point,
-            BiConsumer<FrameBox<T>, Rectangle> toggleConsumer
+            @NotNull Graphics2D g2,
+            @NotNull Rectangle2D bounds,
+            @NotNull Point point,
+            @NotNull BiConsumer<@NotNull FrameBox<@NotNull T>, @NotNull Rectangle> toggleConsumer
     ) {
         getFrameAt(g2, bounds, point)
                 .ifPresent(frame -> {
@@ -537,23 +563,19 @@ class FlamegraphRenderEngine<T> {
     /**
      * Toggles the hover status of the frame
      *
-     * @param frame         the hovered frame, or null to clear old hover
+     * @param frame         the hovered frame, ({@code null} not permitted), use {@link #stopHover(Graphics2D, Rectangle2D, Consumer)} to clear old hover
      * @param g2            the graphics target ({@code null} not permitted).
      * @param bounds        the bounds in which the full flame graph is rendered ({@code null} not permitted).
      * @param hoverConsumer the function that is called to notify about the frame selection ({@code null} not permitted).
      */
     public void hoverFrame(
-            FrameBox<T> frame,
-            Graphics2D g2,
-            Rectangle2D bounds,
-            Consumer<Rectangle> hoverConsumer
+            @NotNull FrameBox<@NotNull T> frame,
+            @NotNull Graphics2D g2,
+            @NotNull Rectangle2D bounds,
+            @NotNull Consumer<@NotNull Rectangle> hoverConsumer
     ) {
         checkReady();
 
-        if (frame == null) {
-            stopHover(g2, bounds, hoverConsumer);
-            return;
-        }
         var oldHoveredFrame = hoveredFrame;
         if (frame == oldHoveredFrame) {
             return;
@@ -561,18 +583,20 @@ class FlamegraphRenderEngine<T> {
         var oldHoveredSiblingFrames = hoveredSiblingFrames;
         hoveredFrame = frame;
         hoveredSiblingFrames = getSiblingFrames(frame);
-        if (hoverConsumer != null) {
-            hoveredSiblingFrames.forEach(hovered -> hoverConsumer.accept(getFrameRectangle(g2, bounds, hovered)));
-            if (oldHoveredFrame != null) {
-                oldHoveredSiblingFrames.forEach(hovered -> hoverConsumer.accept(getFrameRectangle(g2, bounds, hovered)));
-            }
+        hoveredSiblingFrames.forEach(hovered -> hoverConsumer.accept(getFrameRectangle(g2, bounds, hovered)));
+        if (oldHoveredFrame != null) {
+            oldHoveredSiblingFrames.forEach(hovered -> hoverConsumer.accept(getFrameRectangle(g2, bounds, hovered)));
         }
     }
 
     /**
      * Clears the hovered frame (to indicate that no frame is hovered).
      */
-    public void stopHover(Graphics2D g2, Rectangle2D bounds, Consumer<Rectangle> hoverConsumer) {
+    public void stopHover(
+            @NotNull Graphics2D g2,
+            @NotNull Rectangle2D bounds,
+            @NotNull Consumer<@NotNull Rectangle> hoverConsumer
+    ) {
         checkReady();
 
         var oldHoveredFrame = hoveredFrame;
@@ -584,7 +608,8 @@ class FlamegraphRenderEngine<T> {
         }
     }
 
-    private Set<FrameBox<T>> getSiblingFrames(FrameBox<T> frame) {
+    @NotNull
+    private Set<@NotNull FrameBox<@NotNull T>> getSiblingFrames(@NotNull FrameBox<@NotNull T> frame) {
         if (!showHoveredSiblings) {
             return Set.of(frame);
         }
@@ -638,10 +663,10 @@ class FlamegraphRenderEngine<T> {
     @Experimental
     @NotNull
     public ZoomTarget<@NotNull T> calculateZoomTargetFrame(
-            Graphics2D g2,
-            Rectangle2D bounds,
-            Rectangle2D viewRect,
-            FrameBox<@NotNull T> frame,
+            @NotNull Graphics2D g2,
+            @NotNull Rectangle2D bounds,
+            @NotNull Rectangle2D viewRect,
+            @NotNull FrameBox<@NotNull T> frame,
             int contextBefore,
             int contextLeftRight
     ) {
@@ -702,7 +727,8 @@ class FlamegraphRenderEngine<T> {
         return visibleWidth / (canvasWidth * frameWidthX);
     }
 
-    public void setHighlightFrames(Set<FrameBox<T>> toHighlight, String searchedText) {
+    // TODO model the searched text in renderer
+    public void setHighlightFrames(@NotNull Set<@NotNull FrameBox<@NotNull T>> toHighlight, @Nullable String searchedText) {
         this.toHighlight = Objects.requireNonNull(toHighlight);
     }
 
@@ -714,7 +740,7 @@ class FlamegraphRenderEngine<T> {
         return showHoveredSiblings;
     }
 
-    public FrameRenderer<T> getFrameRenderer() {
+    public @NotNull FrameRenderer<@NotNull T> getFrameRenderer() {
         return frameRenderer;
     }
 
@@ -726,7 +752,7 @@ class FlamegraphRenderEngine<T> {
         return icicle;
     }
 
-    public FrameModel<T> getFrameModel() {
+    public @NotNull FrameModel<@NotNull T> getFrameModel() {
         return frameModel;
     }
 }

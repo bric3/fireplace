@@ -10,6 +10,7 @@
 package io.github.bric3.fireplace.jfr.support
 
 import io.github.bric3.fireplace.core.ui.LightDarkColor
+import io.github.bric3.fireplace.flamegraph.ColorMapper
 import io.github.bric3.fireplace.flamegraph.FrameBox
 import org.openjdk.jmc.common.IMCFrame
 import org.openjdk.jmc.flightrecorder.stacktrace.tree.Node
@@ -23,7 +24,7 @@ import java.util.regex.Pattern
 enum class JfrFrameColorMode {
     BY_PACKAGE {
         private val runtimePrefixes = Pattern.compile("(java\\.|javax\\.|sun\\.|com\\.sun\\.|com\\.oracle\\.|com\\.ibm\\.|jdk\\.)")
-        public override fun getJfrNodeColor(colorMapper: Function<Any, Color>, frameNode: Node): Color {
+        public override fun getJfrNodeColor(colorMapper: ColorMapper<Any?>, frameNode: Node): Color {
             if (frameNode.isRoot) {
                 return rootNodeColor
             }
@@ -43,7 +44,7 @@ enum class JfrFrameColorMode {
         }
     },
     BY_MODULE {
-        public override fun getJfrNodeColor(colorMapper: Function<Any, Color>, frameNode: Node): Color {
+        public override fun getJfrNodeColor(colorMapper: ColorMapper<Any?>, frameNode: Node): Color {
             return if (frameNode.isRoot) {
                 rootNodeColor
             } else {
@@ -52,7 +53,7 @@ enum class JfrFrameColorMode {
         }
     },
     BY_FRAME_TYPE {
-        public override fun getJfrNodeColor(colorMapper: Function<Any, Color>, frameNode: Node): Color {
+        public override fun getJfrNodeColor(colorMapper: ColorMapper<Any?>, frameNode: Node): Color {
             if (frameNode.isRoot) {
                 return rootNodeColor
             }
@@ -65,8 +66,8 @@ enum class JfrFrameColorMode {
         }
     };
 
-    protected abstract fun getJfrNodeColor(colorMapper: Function<Any, Color>, frameNode: Node): Color
-    fun colorMapperUsing(colorMapper: Function<Any, Color>): Function<FrameBox<Node>, Color> {
+    protected abstract fun getJfrNodeColor(colorMapper: ColorMapper<Any?>, frameNode: Node): Color
+    fun colorMapperUsing(colorMapper: ColorMapper<Any?>): Function<FrameBox<Node>, Color> {
         return Function { frameNode -> getJfrNodeColor(colorMapper, frameNode.actualNode) }
     }
 

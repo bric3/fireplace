@@ -262,7 +262,9 @@ class FlamegraphPane : JPanel(BorderLayout()) {
                     },
                     Function { frame -> if (frame.isRoot) "" else frame.actualNode.frame.method.methodName }
                 ),
-                DimmingFrameColorProvider(defaultFrameColorMode.colorMapperUsing(ColorMapper.ofObjectHashUsing(*defaultColorPalette.colors()))),
+                DimmingFrameColorProvider(defaultFrameColorMode.colorMapperUsing(
+                    ColorMapper.ofObjectHashUsing(*defaultColorPalette.colors()))
+                ),
                 FrameFontProvider.defaultFontProvider()
             )
             flamegraphView.setTooltipTextFunction { frameModel, frame ->

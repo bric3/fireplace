@@ -9,15 +9,19 @@
  */
 package io.github.bric3.fireplace.flamegraph;
 
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+
 import java.awt.*;
 import java.util.Objects;
 import java.util.function.Function;
 
 /**
  * Named function to map a value to a color.
+ *
+ * @param <T> The type of the object to map to a color.
  */
-public interface ColorMapper<T> extends Function<T, Color> {
-
+public interface ColorMapper<T> extends Function<@Nullable T, @NotNull Color> {
     /**
      * Returns a {@code ColorMapper} instance that maps objects (using the hashCode) to colors
      * in the supplied palette.
@@ -26,7 +30,8 @@ public interface ColorMapper<T> extends Function<T, Color> {
      *
      * @return A color.
      */
-    static ColorMapper<Object> ofObjectHashUsing(Color... palette) {
+    @NotNull
+    static <T> ColorMapper<@Nullable T> ofObjectHashUsing(@NotNull Color... palette) {
         return o -> o == null ?
                         palette[0] :
                         palette[Math.abs(Objects.hashCode(o)) % palette.length];
@@ -39,7 +44,8 @@ public interface ColorMapper<T> extends Function<T, Color> {
      *
      * @return A color.
      */
-    default Color apply(T o) {
+    @NotNull
+    default Color apply(@Nullable T o) {
         return mapToColor(o);
     }
 
@@ -51,5 +57,6 @@ public interface ColorMapper<T> extends Function<T, Color> {
      *
      * @return The color.
      */
-    Color mapToColor(T o);
+    @NotNull
+    Color mapToColor(@Nullable T o);
 }
