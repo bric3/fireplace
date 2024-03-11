@@ -9,8 +9,11 @@
  */
 package io.github.bric3.fireplace.ui.toolkit
 
-import java.awt.*
-import javax.swing.JPanel
+import java.awt.Graphics
+import java.awt.Graphics2D
+import java.awt.GridBagLayout
+import java.awt.LayoutManager
+import javax.swing.*
 
 class JPanelWithPainter @JvmOverloads constructor(
     layout: LayoutManager = GridBagLayout(),

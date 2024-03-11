@@ -78,11 +78,12 @@ configure(fireplaceModules) {
                     )
                 )
             }
+
             manifest.attributes(
                 "Implementation-Title" to providers.provider { project.name },
                 "Implementation-Version" to providers.provider { project.version },
                 "Automatic-Module-Name" to providers.provider { project.name.replace('-', '.') },
-                "Created-By" to "${System.getProperty("java.version")} (${System.getProperty("java.specification.vendor")})",
+                "Created-By" to "${providers.systemProperty("java.version").get()} (${providers.systemProperty("java.specification.vendor").get()})",
             )
         }
 
