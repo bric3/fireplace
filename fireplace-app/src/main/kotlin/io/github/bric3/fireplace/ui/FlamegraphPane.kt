@@ -42,6 +42,7 @@ import java.util.stream.Collectors.toCollection
 import javax.swing.*
 import javax.swing.Timer
 
+@OptIn(ExperimentalStdlibApi::class)
 class FlamegraphPane : JPanel(BorderLayout()) {
     private var jfrFlamegraphView: FlamegraphView<Node>
     private var dataApplier: Consumer<FlamegraphView<Node>>? = null

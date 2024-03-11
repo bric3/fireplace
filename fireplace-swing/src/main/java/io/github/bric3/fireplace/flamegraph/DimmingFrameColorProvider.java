@@ -58,14 +58,14 @@ public class DimmingFrameColorProvider<T> implements FrameColorProvider<@NotNull
     /**
      * Single instance to avoid too many allocations, only for the main canvas.
      */
-    private final ColorModel reusedColorModelForMainCanvas = new ColorModel(null, null);
+    private final ColorModel reusedColorModelForMainCanvas = new ColorModel();
 
     /**
      * Single instance to avoid too many allocations, only for the minimap.
      * Since the minimap generation happens on a different thread, it is necessary
      * to have a separate instance.
      */
-    private final ColorModel reusedColorModelForMinimap = new ColorModel(null, null);
+    private final ColorModel reusedColorModelForMinimap = new ColorModel();
 
     private final ConcurrentHashMap<Color, Color> dimmedColorCache = new ConcurrentHashMap<>();
 
@@ -99,7 +99,10 @@ public class DimmingFrameColorProvider<T> implements FrameColorProvider<@NotNull
 
         if (isMinimapMode(flags)) {
             // Since minimap rendering can happen in a separate thread, we need to use a separate instance
-            return reusedColorModelForMinimap.set(backgroundColor, null);
+            return reusedColorModelForMinimap.set(
+                    backgroundColor,
+                    ColorModel.DEFAULT_FRAME_FOREGROUND_COLOR // fg is unused when rendering minimap
+            );
         }
 
         if (!rootNode && shouldDim(flags)) {

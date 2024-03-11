@@ -11,8 +11,8 @@ package io.github.bric3.fireplace.flamegraph;
 
 import io.github.bric3.fireplace.core.ui.Colors;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
+import javax.swing.*;
 import java.awt.*;
 import java.util.Objects;
 import java.util.function.Function;
@@ -31,10 +31,20 @@ import static io.github.bric3.fireplace.flamegraph.FrameRenderingFlags.isHovered
 @FunctionalInterface
 public interface FrameColorProvider<T> {
     class ColorModel {
-        @Nullable
+        public static Color DEFAULT_FRAME_BACKGROUND_COLOR = UIManager.getColor("Button.background");
+        public static Color DEFAULT_FRAME_FOREGROUND_COLOR = UIManager.getColor("Button.foreground");
+
+        @NotNull
         public Color background;
-        @Nullable
+        @NotNull
         public Color foreground;
+
+        /**
+         * Create a color model with the default colors.
+         */
+        public ColorModel() {
+            this(DEFAULT_FRAME_BACKGROUND_COLOR, DEFAULT_FRAME_FOREGROUND_COLOR);
+        }
 
         /**
          * Data-structure that hold the computed colors for a frame.
@@ -42,7 +52,7 @@ public interface FrameColorProvider<T> {
          * @param background The background color of the frame.
          * @param foreground The foreground color of the frame.
          */
-        public ColorModel(@Nullable Color background, @Nullable Color foreground) {
+        public ColorModel(@NotNull Color background, @NotNull Color foreground) {
             this.background = background;
             this.foreground = foreground;
         }
@@ -55,7 +65,7 @@ public interface FrameColorProvider<T> {
          * @return this
          */
         @NotNull
-        public ColorModel set(@Nullable Color background, @Nullable Color foreground) {
+        public ColorModel set(@NotNull Color background, @NotNull Color foreground) {
             this.background = background;
             this.foreground = foreground;
             return this;
@@ -90,7 +100,7 @@ public interface FrameColorProvider<T> {
              */
             private final Color highlightedColor = new Color(0xFFFFE771, true);
 
-            private final ColorModel reusableDataStructure = new ColorModel(null, null);
+            private final ColorModel reusableDataStructure = new ColorModel();
 
             @Override
             @NotNull

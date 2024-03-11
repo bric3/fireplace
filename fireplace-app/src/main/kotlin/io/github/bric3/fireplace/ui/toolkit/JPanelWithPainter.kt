@@ -9,7 +9,6 @@
  */
 package io.github.bric3.fireplace.ui.toolkit
 
-import io.github.bric3.fireplace.ui.toolkit.Painter
 import java.awt.*
 import javax.swing.JPanel
 
