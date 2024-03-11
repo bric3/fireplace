@@ -17,6 +17,9 @@ concurrency:
   group: ci-tests-${{ github.ref }}-1
   cancel-in-progress: true
 
+env:
+  # https://docs.github.com/en/developers/webhooks-and-events/webhook-events-and-payloads#pull_request
+  GITHUB_PR_NUMBER: ${{github.event.pull_request.number}}
 jobs:
   build:
     runs-on: ubuntu-latest

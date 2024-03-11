@@ -25,15 +25,15 @@ class FlamegraphViewTest {
         assertSoftly(softly -> {
             softly.assertThat(fg.getFrameModel()).isEqualTo(FrameModel.empty());
             softly.assertThat(fg.getFrames()).isEmpty();
-            softly.assertThat(fg.isFrameGapEnabled()).isFalse();
+            softly.assertThat(fg.isFrameGapEnabled()).isTrue();
 
             softly.assertThat(fg.getMode()).isEqualTo(Mode.ICICLEGRAPH);
             softly.assertThat(fg.isShowMinimap()).isTrue();
-            softly.assertThat(fg.isShowHoveredSiblings()).isFalse();
+            softly.assertThat(fg.isShowHoveredSiblings()).isTrue();
 
-            softly.assertThat(fg.getFrameColorProvider()).isEqualTo(null);
-            softly.assertThat(fg.getFrameFontProvider()).isEqualTo(null);
-            softly.assertThat(fg.getFrameTextsProvider()).isEqualTo(null);
+            softly.assertThat(fg.getFrameColorProvider()).isNotNull();
+            softly.assertThat(fg.getFrameFontProvider()).isNotNull();
+            softly.assertThat(fg.getFrameTextsProvider()).isNotNull();
         });
 
         // after configuration
@@ -65,7 +65,7 @@ class FlamegraphViewTest {
             softly.assertThat(fg.getFrameFontProvider()).isEqualTo(frameFontProvider2);
 
 
-            var frameModel = new FrameModel<String>(
+            var frameModel = new FrameModel<>(
                     "title",
                     (a, b) -> Objects.equals(a.actualNode, b.actualNode),
                     List.of(new FrameBox<>("frame1", 0.0, 0.5, 1))
@@ -76,8 +76,8 @@ class FlamegraphViewTest {
 
 
             // non configured
-            fg.setFrameGapEnabled(true);
-            softly.assertThat(fg.isFrameGapEnabled()).isTrue();
+            fg.setFrameGapEnabled(false);
+            softly.assertThat(fg.isFrameGapEnabled()).isFalse();
 
             fg.setMode(Mode.FLAMEGRAPH);
             softly.assertThat(fg.getMode()).isEqualTo(Mode.FLAMEGRAPH);
@@ -85,8 +85,8 @@ class FlamegraphViewTest {
             fg.setShowMinimap(false);
             softly.assertThat(fg.isShowMinimap()).isFalse();
 
-            fg.setShowHoveredSiblings(true);
-            softly.assertThat(fg.isShowHoveredSiblings()).isTrue();
+            fg.setShowHoveredSiblings(false);
+            softly.assertThat(fg.isShowHoveredSiblings()).isFalse();
         });
     }
 }

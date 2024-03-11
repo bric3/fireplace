@@ -27,6 +27,7 @@ import static io.github.bric3.fireplace.flamegraph.FrameRenderingFlags.isMinimap
  * @see FlamegraphView
  * @see FlamegraphRenderEngine
  */
+// TODO allow delegating the rendering to a custom renderer
 class FrameRenderer<T> {
     @NotNull
     private FrameTextsProvider<@NotNull T> frameTextsProvider;
@@ -119,10 +120,17 @@ class FrameRenderer<T> {
             int flags
     ) {
         boolean minimapMode = isMinimapMode(flags);
-        // var bgColor = tweakBgColor(frameColorFunction.apply(frame), flags);
         var colorModel = frameColorProvider.getColors(frame, flags);
 
-        paintFrameRectangle(g2, frameRect, colorModel.background, minimapMode);
+        paintFrameRectangle(
+                g2,
+                frameRect,
+                Objects.requireNonNull(
+                        colorModel.background,
+                        "colorModel.background is nullable; however, at when rendering it is not anymore allowed"
+                ),
+                minimapMode
+        );
         if (minimapMode) {
             return;
         }
@@ -142,7 +150,10 @@ class FrameRenderer<T> {
         }
 
         g2.setFont(frameFont);
-        g2.setColor(colorModel.foreground);
+        g2.setColor(Objects.requireNonNull(
+                colorModel.foreground,
+                "colorModel.background is nullable; however, at when rendering it is not anymore allowed"
+        ));
         g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
         g2.drawString(
                 text,
