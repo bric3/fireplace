@@ -37,7 +37,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
-import java.util.function.Function;
 import java.util.function.Supplier;
 
 import static java.lang.Boolean.TRUE;
@@ -259,6 +258,12 @@ public class FlamegraphView<T> {
      */
     public FlamegraphView() {
         canvas = new FlamegraphCanvas<>(this);
+        // default configuration
+        setRenderConfiguration(
+                FrameTextsProvider.of(frameBox -> frameBox.actualNode.toString()),
+                FrameColorProvider.defaultColorProvider(f -> UIManager.getColor("Button.background")),
+                FrameFontProvider.defaultFontProvider()
+        );
         canvas.putClientProperty(OWNER_KEY, this);
         scrollPaneListener = new FlamegraphHoveringScrollPaneMouseListener<>(canvas);
         var scrollPane = createScrollPane();
@@ -440,8 +445,8 @@ public class FlamegraphView<T> {
      */
     public void setFrameColorProvider(@NotNull FrameColorProvider<@NotNull T> frameColorProvider) {
         this.canvas.getFlamegraphRenderEngine()
-                   .ifPresent(fgp -> fgp.getFrameRenderer()
-                                        .setFrameColorProvider(frameColorProvider));
+                   .getFrameRenderer()
+                   .setFrameColorProvider(frameColorProvider);
     }
 
     /**
@@ -449,12 +454,11 @@ public class FlamegraphView<T> {
      *
      * @return The frame colors provider, may return <code>null</code> if renderer not configured.
      */
-    @Nullable // TODO make it non-nullable for kotlin
+    @NotNull
     public FrameColorProvider<@NotNull T> getFrameColorProvider() {
         return canvas.getFlamegraphRenderEngine()
-                     .map(fgp -> fgp.getFrameRenderer()
-                                    .getFrameColorProvider())
-                     .orElse(null);
+                     .getFrameRenderer()
+                     .getFrameColorProvider();
     }
 
     /**
@@ -465,8 +469,8 @@ public class FlamegraphView<T> {
      */
     public void setFrameFontProvider(@NotNull FrameFontProvider<@NotNull T> frameFontProvider) {
         this.canvas.getFlamegraphRenderEngine()
-                   .ifPresent(fgp -> fgp.getFrameRenderer()
-                                        .setFrameFontProvider(frameFontProvider));
+                   .getFrameRenderer()
+                   .setFrameFontProvider(frameFontProvider);
     }
 
     /**
@@ -474,12 +478,11 @@ public class FlamegraphView<T> {
      *
      * @return The frame font provider, may return <code>null</code> if renderer not configured.
      */
-    @Nullable // TODO make it non-nullable for kotlin
+    @NotNull
     public FrameFontProvider<@NotNull T> getFrameFontProvider() {
         return canvas.getFlamegraphRenderEngine()
-                     .map(fgp -> fgp.getFrameRenderer()
-                                    .getFrameFontProvider())
-                     .orElse(null);
+                     .getFrameRenderer()
+                     .getFrameFontProvider();
     }
 
     /**
@@ -490,8 +493,8 @@ public class FlamegraphView<T> {
      */
     public void setFrameTextsProvider(@NotNull FrameTextsProvider<@NotNull T> frameTextsProvider) {
         this.canvas.getFlamegraphRenderEngine()
-                   .ifPresent(fgp -> fgp.getFrameRenderer()
-                                        .setFrameTextsProvider(frameTextsProvider));
+                   .getFrameRenderer()
+                   .setFrameTextsProvider(frameTextsProvider);
     }
 
     /**
@@ -499,12 +502,11 @@ public class FlamegraphView<T> {
      *
      * @return The frame texts candidate provider, may return <code>null</code> if renderer not configured.
      */
-    @Nullable // TODO make it non-nullable for kotlin
+    @NotNull
     public FrameTextsProvider<@NotNull T> getFrameTextsProvider() {
         return canvas.getFlamegraphRenderEngine()
-                     .map(fgp -> fgp.getFrameRenderer()
-                                    .getFrameTextsProvider())
-                     .orElse(null);
+                     .getFrameRenderer()
+                     .getFrameTextsProvider();
     }
 
     /**
@@ -514,7 +516,8 @@ public class FlamegraphView<T> {
      */
     public void setFrameGapEnabled(boolean frameGapEnabled) {
         canvas.getFlamegraphRenderEngine()
-              .ifPresent(fgp -> fgp.getFrameRenderer().setDrawingFrameGap(frameGapEnabled));
+              .getFrameRenderer()
+              .setDrawingFrameGap(frameGapEnabled);
     }
 
     /**
@@ -524,8 +527,8 @@ public class FlamegraphView<T> {
      */
     public boolean isFrameGapEnabled() {
         return canvas.getFlamegraphRenderEngine()
-                     .map(fgp -> fgp.getFrameRenderer().isDrawingFrameGap())
-                     .orElse(false);
+                     .getFrameRenderer()
+                     .isDrawingFrameGap();
     }
 
     /**
@@ -562,8 +565,7 @@ public class FlamegraphView<T> {
      * @param showHoveredSiblings {@code true} to show the siblings of the hovered frame, {@code false} otherwise.
      */
     public void setShowHoveredSiblings(boolean showHoveredSiblings) {
-        canvas.getFlamegraphRenderEngine()
-              .ifPresent(fre -> fre.setShowHoveredSiblings(showHoveredSiblings));
+        canvas.getFlamegraphRenderEngine().setShowHoveredSiblings(showHoveredSiblings);
     }
 
     /**
@@ -573,8 +575,7 @@ public class FlamegraphView<T> {
      */
     public boolean isShowHoveredSiblings() {
         return canvas.getFlamegraphRenderEngine()
-                     .map(FlamegraphRenderEngine::isShowHoveredSiblings)
-                     .orElse(false);
+                     .isShowHoveredSiblings();
     }
 
     /**
@@ -646,9 +647,9 @@ public class FlamegraphView<T> {
      */
     public void setModel(@NotNull FrameModel<@NotNull T> frameModel) {
         framesModel = Objects.requireNonNull(frameModel);
-        canvas.getFlamegraphRenderEngine().ifPresent(fre -> fre.init(frameModel));
+        canvas.getFlamegraphRenderEngine().init(frameModel);
 
-        // force invalidation of the canvas so that the scrollpane will fetch the new preferredSize
+        // force invalidation of the canvas so that the scroll-pane will fetch the new preferredSize
         // otherwise old cached preferredSize will be used.
         canvas.invalidate();
         component.revalidate();
@@ -656,7 +657,7 @@ public class FlamegraphView<T> {
     }
 
     /**
-     * Configures the rendering of {@link FlamegraphView}.
+     * Configures a new rendering engine of {@link FlamegraphView}.
      *
      * <p>
      * When this method is invoked after a model has been set this request
@@ -664,7 +665,7 @@ public class FlamegraphView<T> {
      * </p>
      *
      * <p>
-     * In particular this function defines the behavior to access the typed data:
+     * In particular, this function defines the behavior to access the typed data:
      * <ul>
      *     <li>Possible string candidates to display in frames, those are
      *     selected based on the available space</li>
@@ -717,8 +718,7 @@ public class FlamegraphView<T> {
     public void clear() {
         framesModel = FrameModel.empty();
 
-        canvas.getFlamegraphRenderEngine()
-              .ifPresent(FlamegraphRenderEngine::reset);
+        canvas.getFlamegraphRenderEngine().reset();
         canvas.revalidate();
         canvas.repaint();
     }
@@ -843,7 +843,7 @@ public class FlamegraphView<T> {
         Objects.requireNonNull(framesToHighlight);
         Objects.requireNonNull(searched);
         canvas.getFlamegraphRenderEngine()
-              .ifPresent(painter -> painter.setHighlightFrames(framesToHighlight, searched));
+              .setHighlightFrames(framesToHighlight, searched);
         canvas.repaint();
     }
 
@@ -879,7 +879,7 @@ public class FlamegraphView<T> {
         @NotNull
         private final FlamegraphView<@NotNull T> flamegraphView;
         private final ZoomModel<T> zoomModel = new ZoomModel<>();
-        
+
         private long lastDrawTime;
 
         public FlamegraphCanvas(@NotNull FlamegraphView<@NotNull T> flamegraphView) {
@@ -1345,8 +1345,9 @@ public class FlamegraphView<T> {
             this.flamegraphRenderEngine = flamegraphRenderEngine;
         }
 
-        Optional<FlamegraphRenderEngine<@NotNull T>> getFlamegraphRenderEngine() {
-            return Optional.ofNullable(flamegraphRenderEngine);
+        @NotNull
+        FlamegraphRenderEngine<@NotNull T> getFlamegraphRenderEngine() {
+            return flamegraphRenderEngine;
         }
 
         public void setToolTipTextFunction(@NotNull BiFunction<@NotNull FrameModel<@NotNull T>, FrameBox<@NotNull T>, @NotNull String> tooltipTextFunction) {
@@ -1380,17 +1381,13 @@ public class FlamegraphView<T> {
                 return;
             }
 
-            getFlamegraphRenderEngine().ifPresent(fre -> fre.setIcicle(Mode.ICICLEGRAPH == mode));
+            getFlamegraphRenderEngine().setIcicle(Mode.ICICLEGRAPH == mode);
             firePropertyChange(GRAPH_MODE, oldMode, mode);
         }
 
         @NotNull
         public FlamegraphView.Mode getMode() {
-            Function<Boolean, Mode> toFlamegraphViewMode = isIcicle -> isIcicle ? Mode.ICICLEGRAPH : Mode.FLAMEGRAPH;
-            return getFlamegraphRenderEngine()
-                    .map(FlamegraphRenderEngine::isIcicle)
-                    .map(toFlamegraphViewMode)
-                    .orElse(toFlamegraphViewMode.apply(FlamegraphRenderEngine.DEFAULT_ICICLE_MODE));
+            return getFlamegraphRenderEngine().isIcicle() ? Mode.ICICLEGRAPH : Mode.FLAMEGRAPH;
         }
 
         public void setPopupConsumer(
@@ -1470,8 +1467,8 @@ public class FlamegraphView<T> {
      * * Hovering frames
      * </p>
      *
-     * @see HoverListener
      * @param <T>
+     * @see HoverListener
      */
     private static class FlamegraphHoveringScrollPaneMouseListener<T> implements MouseInputListener, FocusListener {
         private Point pressedPoint;
@@ -1542,22 +1539,22 @@ public class FlamegraphView<T> {
 
             if (e.getClickCount() == 2) {
                 // find zoom target then do an animated transition
-                canvas.getFlamegraphRenderEngine().flatMap(fgp -> fgp.calculateZoomTargetForFrameAt(
+                canvas.getFlamegraphRenderEngine().calculateZoomTargetForFrameAt(
                         (Graphics2D) canvas.getGraphics(),
                         canvas.getBounds(tmpBounds),
                         canvas.getVisibleRect(),
                         latestMouseLocation
-                )).ifPresent(zoomTarget -> zoom(canvas, zoomTarget));
+                ).ifPresent(zoomTarget -> zoom(canvas, zoomTarget));
                 return;
             }
 
             canvas.getFlamegraphRenderEngine()
-                  .ifPresent(fgp -> fgp.toggleSelectedFrameAt(
+                  .toggleSelectedFrameAt(
                           (Graphics2D) viewPort.getView().getGraphics(),
                           canvas.getBounds(tmpBounds),
                           latestMouseLocation,
                           (frame, r) -> canvas.repaint()
-                  ));
+                  );
         }
 
 
@@ -1572,11 +1569,11 @@ public class FlamegraphView<T> {
                 hoveredFrameRectangle = null;
                 hoveredFrame = null;
                 canvas.getFlamegraphRenderEngine()
-                      .ifPresent(fgp -> fgp.stopHover(
+                      .stopHover(
                               (Graphics2D) canvas.getGraphics(),
                               canvas.getBounds(tmpBounds),
                               canvas::repaint
-                      ));
+                      );
                 canvas.repaint();
 
                 // mouse exit is triggered when the pointer leaves the scroll pane and enters the canvas
@@ -1614,50 +1611,48 @@ public class FlamegraphView<T> {
             }
             // Find hovered frame, repaint previous hovered frame and current hovered frame
             // configure tooltip, invoke hover listener
-            canvas.getFlamegraphRenderEngine()
-                  .ifPresent(fgp -> {
-                      var canvasGraphics = (Graphics2D) canvas.getGraphics();
-                      var canvasBounds = canvas.getBounds(tmpBounds);
-                      fgp.getFrameAt(
-                                 canvasGraphics,
-                                 canvasBounds,
-                                 latestMouseLocation
-                         )
-                         .ifPresentOrElse(
-                                 frame -> {
-                                     fgp.hoverFrame(
-                                             frame,
-                                             canvasGraphics,
-                                             canvasBounds,
-                                             canvas::repaint
-                                     );
-                                     canvas.setToolTipText(frame);
-                                     hoveredFrameRectangle = fgp.getFrameRectangle(
-                                             canvasGraphics,
-                                             canvasBounds,
-                                             frame
-                                     );
-                                     hoveredFrame = frame;
-                                     if (hoverListener != null) {
-                                         hoverListener.onFrameHover(frame, hoveredFrameRectangle, e);
-                                     }
-                                 },
-                                 () -> {
-                                     fgp.stopHover(
-                                             canvasGraphics,
-                                             canvasBounds,
-                                             canvas::repaint
-                                     );
-                                     var prevHoveredFrameRectangle = hoveredFrameRectangle;
-                                     var prevHoveredFrame = hoveredFrame;
-                                     hoveredFrameRectangle = null;
-                                     hoveredFrame = null;
-                                     if (hoverListener != null) {
-                                         hoverListener.onStopHover(prevHoveredFrame, prevHoveredFrameRectangle, e);
-                                     }
-                                 }
-                         );
-                  });
+            var fgp = canvas.getFlamegraphRenderEngine();
+            var canvasGraphics = (Graphics2D) canvas.getGraphics();
+            var canvasBounds = canvas.getBounds(tmpBounds);
+            fgp.getFrameAt(
+                       canvasGraphics,
+                       canvasBounds,
+                       latestMouseLocation
+               )
+               .ifPresentOrElse(
+                       frame -> {
+                           fgp.hoverFrame(
+                                   frame,
+                                   canvasGraphics,
+                                   canvasBounds,
+                                   canvas::repaint
+                           );
+                           canvas.setToolTipText(frame);
+                           hoveredFrameRectangle = fgp.getFrameRectangle(
+                                   canvasGraphics,
+                                   canvasBounds,
+                                   frame
+                           );
+                           hoveredFrame = frame;
+                           if (hoverListener != null) {
+                               hoverListener.onFrameHover(frame, hoveredFrameRectangle, e);
+                           }
+                       },
+                       () -> {
+                           fgp.stopHover(
+                                   canvasGraphics,
+                                   canvasBounds,
+                                   canvas::repaint
+                           );
+                           var prevHoveredFrameRectangle = hoveredFrameRectangle;
+                           var prevHoveredFrame = hoveredFrame;
+                           hoveredFrameRectangle = null;
+                           hoveredFrame = null;
+                           if (hoverListener != null) {
+                               hoverListener.onStopHover(prevHoveredFrame, prevHoveredFrameRectangle, e);
+                           }
+                       }
+               );
         }
 
         public void setHoverListener(HoverListener<T> hoveringListener) {
@@ -1719,7 +1714,7 @@ public class FlamegraphView<T> {
     /**
      * The zoom model is responsible to keep track
      * of the current zoom target and the last user interaction.
-     * 
+     *
      * @param <T>
      */
     @Experimental

@@ -74,7 +74,7 @@ class FlamegraphPane : JPanel(BorderLayout()) {
                         *(colorPaletteJComboBox.selectedItem as Colors.Palette).colors()
                     )
                 )
-            jfrFlamegraphView.setFrameColorProvider(DimmingFrameColorProvider(frameBoxColorFunction))
+            jfrFlamegraphView.frameColorProvider = DimmingFrameColorProvider(frameBoxColorFunction)
             jfrFlamegraphView.requestRepaint()
         }.also {
             colorPaletteJComboBox.addActionListener(it)
