@@ -25,7 +25,7 @@ assertj = "3.25.3"
 batik = "1.17"
 
 eclipse-swt = "3.124.200"
-eclipse-jface = "3.32.0"
+eclipse-jface = "3.33.0"
 eclipse-ui-forms = "3.13.200"
 
 kotlin-coroutines = "1.8.0"
