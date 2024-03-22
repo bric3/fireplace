@@ -1,4 +1,4 @@
-name: CI-release
+name: CI-release ${{ github.event.inputs.tag || github.event.release.tag_name }}
 
 on:
   # Release event https://docs.github.com/en/actions/learn-github-actions/events-that-trigger-workflows#release
@@ -14,8 +14,12 @@ on:
         description: 'Tag to release'
         required: true
 
+
+# Environment variables
+# https://docs.github.com/en/actions/learn-github-actions/variables
+
 jobs:
-  publish:
+  release-publish:
     runs-on: ubuntu-latest
     steps:
       - name: Check semver version in tag
@@ -51,3 +55,5 @@ jobs:
 # * 'Close' the repo to trigger the evaluations of to components against the requirements
 # * 'Release' the repo
 # https://central.sonatype.org/publish/release/
+# If any errors occur, check the FAQ
+# https://central.sonatype.org/faq/400-error/

@@ -159,8 +159,8 @@ configure(fireplaceModules) {
         repositories {
             maven {
                 if (providers.gradleProperty("publish.central").orNull.toBoolean()) {
-                    val isGithubRelease =
-                        providers.environmentVariable("GITHUB_EVENT_NAME").get().equals("release", true)
+                    val isGithubRelease = providers.environmentVariable("GITHUB_JOB").get()
+                        .equals("release-publish", true)
                     name = "central"
                     setUrl(isSnapshot.map { snap ->
                         uri(
