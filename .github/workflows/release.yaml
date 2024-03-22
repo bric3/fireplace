@@ -2,8 +2,11 @@ name: CI-release
 
 on:
   # Release event https://docs.github.com/en/actions/learn-github-actions/events-that-trigger-workflows#release
+  # Note: The `prereleased` type will not trigger for pre-releases published from draft releases, but the `published`
+  # type will trigger. If you want a workflow to run when stable and pre-releases publish, subscribe to `published`
+  # instead of `released` and `prereleased`.
   release:
-    types: [ prereleased, released ]
+    types: [ published ]
 
 jobs:
   publish:
