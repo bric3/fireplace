@@ -1,4 +1,4 @@
-name: CI-release ${{ github.event.inputs.tag || github.event.release.tag_name }}
+name: CI-release
 
 on:
   # Release event https://docs.github.com/en/actions/learn-github-actions/events-that-trigger-workflows#release
