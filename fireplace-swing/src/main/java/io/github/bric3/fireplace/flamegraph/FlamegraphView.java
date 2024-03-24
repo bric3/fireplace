@@ -359,19 +359,11 @@ public class FlamegraphView<T> {
                                         vpSize.width
                                 );
                             } else {
-                                // compute scale factor
-                                double scaleFactor = FlamegraphRenderEngine.getScaleFactor(
-                                        oldVpWidth,
-                                        oldFlamegraphWidth,
-                                        1.0
-                                );
-
                                 // scale the fg size with the new viewport width
                                 canvas.updateFlamegraphDimension(
                                         flamegraphSize,
-                                        (int) Math.round(vpSize.width / scaleFactor)
+                                        (int) (((double) vpSize.width) / canvas.zoomModel.getLastScaleFactor())
                                 );
-
                             }
                             vp.setViewSize(flamegraphSize);
 
@@ -381,7 +373,7 @@ public class FlamegraphView<T> {
                             //   => apply ratio to the current fg width
                             int oldFlamegraphX = Math.abs(flamegraphLocation.x);
                             if (oldFlamegraphX > 0) {
-                                double positionRatio = canvas.zoomModel.getLastUserInteractionPositionRatio();
+                                double positionRatio = canvas.zoomModel.getLastUserInteractionStartX();
 
                                 flamegraphLocation.x = Math.abs((int) (positionRatio * flamegraphSize.width));
                                 flamegraphLocation.y = Math.abs(flamegraphLocation.y);
@@ -390,7 +382,7 @@ public class FlamegraphView<T> {
                             }
                         } else {
                             super.layoutContainer(parent);
-                            // update the sizes
+                            // capture the sizes
                             vp.getSize(oldViewPortSize);
                             canvas.getSize(flamegraphSize);
                             canvas.getLocation(flamegraphLocation);
@@ -806,7 +798,7 @@ public class FlamegraphView<T> {
         }
 
         // Set the zoom model to the Zoom Target
-        canvas.zoomModel.setCurrentZoomTarget(zoomTarget);
+        canvas.zoomModel.recordLastPositionFromZoomTarget(canvas, zoomTarget);
 
         // adjust zoom target location for horizontal scrollbar height if canvas bigger than viewRect
         if (canvas.getMode() == Mode.FLAMEGRAPH) {
@@ -1681,7 +1673,6 @@ public class FlamegraphView<T> {
     }
 
     private static class UserPositionRecorderMouseAdapter extends MouseAdapter {
-        private final Point canvasLocation = new Point();
         private final FlamegraphCanvas<?> canvas;
 
         public <T> UserPositionRecorderMouseAdapter(FlamegraphCanvas<T> canvas) {
@@ -1690,18 +1681,12 @@ public class FlamegraphView<T> {
 
         @Override
         public void mouseReleased(MouseEvent e) {
-            recordLastPositionAfterUserInteraction();
+            canvas.zoomModel.recordLastPositionFromUserInteraction(canvas);
         }
 
         @Override
         public void mouseWheelMoved(MouseWheelEvent e) {
-            recordLastPositionAfterUserInteraction();
-        }
-
-        private void recordLastPositionAfterUserInteraction() {
-            int width = canvas.getWidth();
-            canvas.getLocation(canvasLocation);
-            canvas.zoomModel.setLastUserInteractionPositionRatio((double) canvasLocation.x / (double) width);
+            canvas.zoomModel.recordLastPositionFromUserInteraction(canvas);
         }
 
         public void install(JScrollPane scrollPane) {
@@ -1731,28 +1716,66 @@ public class FlamegraphView<T> {
          * of the user that leads to a modification of the position ratio.
          * Either the last zoom, the last mouse drag, or the last scroll (trackpad included).
          */
-        private double lastUserInteractionPositionRatio = 0.0;
+        private double lastUserInteractionStartX = 0.0;
+        private double lastUserInteractionEndX = 0.0;
+        private double lastScaleFactor = 1.0;
 
-        public void setCurrentZoomTarget(@Nullable ZoomTarget<T> currentZoomTarget) {
+        private final Rectangle canvasVisibleRect = new Rectangle(); // reused
+
+        public void recordLastPositionFromZoomTarget(
+                JPanel canvas,
+                @Nullable ZoomTarget<T> currentZoomTarget
+        ) {
             this.currentZoomTarget = currentZoomTarget;
 
             if (currentZoomTarget == null || currentZoomTarget.targetFrame == null) {
-                lastUserInteractionPositionRatio = 0.0;
+                lastUserInteractionStartX = 0.0;
+                lastUserInteractionEndX = 1.0;
+                lastScaleFactor = 1.0;
             } else {
-                lastUserInteractionPositionRatio = currentZoomTarget.targetFrame.startX;
+                lastUserInteractionStartX = currentZoomTarget.targetFrame.startX;
+                lastUserInteractionEndX = currentZoomTarget.targetFrame.endX;
+                
+                canvas.computeVisibleRect(canvasVisibleRect);
+                this.lastScaleFactor = FlamegraphRenderEngine.getScaleFactor(
+                        canvasVisibleRect.width,
+                        currentZoomTarget.width,
+                        1.0
+                );
             }
+
+        }
+
+        public void recordLastPositionFromUserInteraction(JPanel canvas) {
+            int width = canvas.getWidth();
+            canvas.computeVisibleRect(canvasVisibleRect);
+            this.lastUserInteractionStartX = (double) canvasVisibleRect.x / (double) width;
+            this.lastUserInteractionEndX = ((double) canvasVisibleRect.x + canvasVisibleRect.width) / (double) width;
+            this.lastScaleFactor = FlamegraphRenderEngine.getScaleFactor(
+                    canvasVisibleRect.width,
+                    width,
+                    1.0
+            );
         }
 
         public @Nullable ZoomTarget<T> getCurrentZoomTarget() {
             return currentZoomTarget;
         }
 
-        public void setLastUserInteractionPositionRatio(double lastUserInteractionPositionRatio) {
-            this.lastUserInteractionPositionRatio = lastUserInteractionPositionRatio;
+        private double getLastUserInteractionStartX() {
+            return lastUserInteractionStartX;
         }
 
-        private double getLastUserInteractionPositionRatio() {
-            return lastUserInteractionPositionRatio;
+        private double getLastUserInteractionEndX() {
+            return lastUserInteractionEndX;
+        }
+
+        private double getLastUserInteractionWidthX() {
+            return lastUserInteractionEndX - lastUserInteractionStartX;
+        }
+
+        public double getLastScaleFactor() {
+            return lastScaleFactor;
         }
     }
 }

@@ -228,8 +228,6 @@ class FlamegraphRenderEngine<T> {
             int canvasWidth,
             boolean update
     ) {
-        checkReady();
-
         var visibleDepth = visibleDepthCache.computeIfAbsent(canvasWidth, width -> {
             // as this method is invoked during layout, the dimension can be 0
             if (canvasWidth == 0) {
