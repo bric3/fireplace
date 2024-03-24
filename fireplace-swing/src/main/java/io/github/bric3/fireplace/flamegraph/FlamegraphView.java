@@ -50,7 +50,7 @@ import static java.lang.Boolean.TRUE;
  * {@link FrameBox}.
  * </p>
  * <p>
- * It can be used is as follows:
+ * It can be used as follows:
  * <pre><code>
  * var flamegraphView = new FlamegraphView&lt;MyNode&gt;();
  * flamegraphView.setShowMinimap(false);
@@ -341,30 +341,24 @@ public class FlamegraphView<T> {
                         int oldVpWidth = oldViewPortSize.width;
                         var vpSize = vp.getSize(oldViewPortSize);
 
+                        // Never show the horizontal scrollbar when the scale factor is 1.0
+                        // Only change it when necessary
+                        int horizontalScrollBarPolicy = jScrollPane.getHorizontalScrollBarPolicy();
+                        double lastScaleFactor = canvas.zoomModel.getLastScaleFactor();
+                        int newPolicy = lastScaleFactor == 1.0 ?
+                                     ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER :
+                                     ScrollPaneConstants.HORIZONTAL_SCROLLBAR_AS_NEEDED;
+                        if (horizontalScrollBarPolicy != newPolicy) {
+                            jScrollPane.setHorizontalScrollBarPolicy(newPolicy);
+                        }
+
                         // view port has been resized
                         if (vpSize.width != oldVpWidth) {
-                            // if old fg width == old vp width
-                            //   the scaleFactor is 1.0
-                            //   => recompute the fg size
-                            // if old fg width > old vp width
-                            //   the scaleFactor is > 1.0
-                            //   => compute the scaleFactor
-                            //   => scale the fg size using the current vp width
-                            // if old fg width < old vp width
-                            //   ==> do nothing
-                            int oldFlamegraphWidth = flamegraphSize.width;
-                            if (oldFlamegraphWidth == oldVpWidth) {
-                                canvas.updateFlamegraphDimension(
-                                        flamegraphSize,
-                                        vpSize.width
-                                );
-                            } else {
-                                // scale the fg size with the new viewport width
-                                canvas.updateFlamegraphDimension(
-                                        flamegraphSize,
-                                        (int) (((double) vpSize.width) / canvas.zoomModel.getLastScaleFactor())
-                                );
-                            }
+                            // scale the fg size with the new viewport width
+                            canvas.updateFlamegraphDimension(
+                                    flamegraphSize,
+                                    (int) (((double) vpSize.width) / lastScaleFactor)
+                            );
                             vp.setViewSize(flamegraphSize);
 
                             // if view position X > 0
@@ -571,7 +565,7 @@ public class FlamegraphView<T> {
     }
 
     /**
-     * Sets the display mode, either {@link Mode#FLAMEGRAPH} or {@link Mode#ICICLEGRAPH}.
+     * Sets the display mode, either {@link FlamegraphView.Mode#FLAMEGRAPH} or {@link Mode#ICICLEGRAPH}.
      *
      * @param mode The display mode.
      */
@@ -758,7 +752,7 @@ public class FlamegraphView<T> {
         canvas.triggerMinimapGeneration();
     }
 
-    public void overrideZoomAction(@NotNull ZoomAction zoomActionOverride) {
+    public void overrideZoomAction(@NotNull FlamegraphView.ZoomAction zoomActionOverride) {
         Objects.requireNonNull(zoomActionOverride);
         this.canvas.zoomActionOverride = zoomActionOverride;
     }
@@ -783,9 +777,9 @@ public class FlamegraphView<T> {
      * Higher level zoom op that operates on the view and model.
      * <p>
      * This method will call under the hood {@link FlamegraphCanvas#zoom(ZoomTarget)}.
-     * Possibly a zoom override ({@link #overrideZoomAction(ZoomAction)} will be set up and may be call instead,
+     * Possibly a zoom override ({@link #overrideZoomAction(FlamegraphView.ZoomAction)} will be set up and may be call instead,
      * but under the hood this will call {@link FlamegraphCanvas#zoom(ZoomTarget)} via it's
-     * {@link ZoomableComponent#zoom(ZoomTarget)}.
+     * {@link FlamegraphView.ZoomableComponent#zoom(ZoomTarget)}.
      *
      * @param canvas     the canvas.
      * @param zoomTarget the zoom target.
@@ -914,7 +908,7 @@ public class FlamegraphView<T> {
                         // * The guard uses the hash code of the model because the model can be changed,
                         //   and running this listener is necessary to prevent the horizontal scrollbar as well.
                         if (fgCanvas.flamegraphRenderEngine != null
-                            && fgCanvas.flamegraphRenderEngine.getFrameModel() != null) {
+                            && !fgCanvas.flamegraphRenderEngine.getFrameModel().frames.isEmpty()) {
                             int newHashCode = fgCanvas.flamegraphRenderEngine.getFrameModel().hashCode();
                             if (newHashCode == frameModelHashCode) {
                                 return;
@@ -1079,7 +1073,7 @@ public class FlamegraphView<T> {
         }
 
         private void paintMinimap(@NotNull Graphics g, @NotNull Rectangle visibleRect) {
-            if (flamegraphDimension != null && showMinimap && minimap != null) {
+            if (showMinimap && minimap != null) {
                 var g2 = (Graphics2D) g.create(
                         visibleRect.x + minimapBounds.x,
                         visibleRect.y + visibleRect.height - minimapBounds.height - minimapBounds.y,
@@ -1295,10 +1289,6 @@ public class FlamegraphView<T> {
                 }
 
                 private void processMinimapMouseEvent(@NotNull MouseEvent e) {
-                    if (flamegraphDimension == null) {
-                        return;
-                    }
-
                     var pt = e.getPoint();
                     if (!(e.getComponent() instanceof FlamegraphView.FlamegraphCanvas)) {
                         return;
@@ -1329,7 +1319,6 @@ public class FlamegraphView<T> {
             this.addMouseListener(mouseAdapter);
             this.addMouseMotionListener(mouseAdapter);
 
-            // TODO Record last position after user interaction
             new UserPositionRecorderMouseAdapter(this).install(scrollPane);
         }
 
@@ -1460,7 +1449,7 @@ public class FlamegraphView<T> {
      * </p>
      *
      * @param <T>
-     * @see HoverListener
+     * @see FlamegraphView.HoverListener
      */
     private static class FlamegraphHoveringScrollPaneMouseListener<T> implements MouseInputListener, FocusListener {
         private Point pressedPoint;
@@ -1713,11 +1702,21 @@ public class FlamegraphView<T> {
 
         /**
          * Internal field to track the last user interaction
-         * of the user that leads to a modification of the position ratio.
-         * Either the last zoom, the last mouse drag, or the last scroll (trackpad included).
+         * of the user that leads to a modification of the position ratio on the interval [0.0, 1.0].
+         * This is also referred to as <em>startX</em>.
+         * Modified either the last zoom, the last mouse drag, or the last scroll (trackpad included).
          */
         private double lastUserInteractionStartX = 0.0;
+        /**
+         * Internal field to track the last user interaction
+         * of the user that leads to a modification of the end position on the interval [0.0, 1.0].
+         * This is also referred to as <em>endX</em>.
+         * Modified either the last zoom, the last mouse drag, or the last scroll (trackpad included).
+         */
         private double lastUserInteractionEndX = 0.0;
+        /**
+         * The scale factor resulting from the last user interaction.
+         */
         private double lastScaleFactor = 1.0;
 
         private final Rectangle canvasVisibleRect = new Rectangle(); // reused
@@ -1735,7 +1734,7 @@ public class FlamegraphView<T> {
             } else {
                 lastUserInteractionStartX = currentZoomTarget.targetFrame.startX;
                 lastUserInteractionEndX = currentZoomTarget.targetFrame.endX;
-                
+
                 canvas.computeVisibleRect(canvasVisibleRect);
                 this.lastScaleFactor = FlamegraphRenderEngine.getScaleFactor(
                         canvasVisibleRect.width,

@@ -27,7 +27,7 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 /**
- * Engine that paint a flamegraph.
+ * Engine that paints a flamegraph.
  *
  * <p>
  * This controls the global flamegraph rendering, and allow to
@@ -185,7 +185,6 @@ class FlamegraphRenderEngine<T> {
      * @return The height.
      */
     public int computeVisibleFlamegraphMinimapHeight(int thumbnailWidth) {
-        checkReady();
         assert thumbnailWidth > 0 : "minimap width must be superior to 0";
 
         // Somewhat it is a best-effort to draw something that shows
@@ -305,7 +304,6 @@ class FlamegraphRenderEngine<T> {
             boolean minimapMode,
             boolean icicle
     ) {
-        checkReady();
         if (frameModel.frames.isEmpty()) {
             return;
         }
@@ -515,7 +513,9 @@ class FlamegraphRenderEngine<T> {
             @NotNull Rectangle2D bounds,
             @NotNull Point point
     ) {
-        checkReady();
+        if (frameModel.frames.isEmpty()) {
+            return Optional.empty();
+        }
 
         int depth = computeFrameDepth(g2, bounds, point);
         double xLocation = point.x / bounds.getWidth();
@@ -572,7 +572,9 @@ class FlamegraphRenderEngine<T> {
             @NotNull Rectangle2D bounds,
             @NotNull Consumer<@NotNull Rectangle> hoverConsumer
     ) {
-        checkReady();
+        if (frameModel.frames.isEmpty()) {
+            return;
+        }
 
         var oldHoveredFrame = hoveredFrame;
         if (frame == oldHoveredFrame) {
@@ -595,7 +597,9 @@ class FlamegraphRenderEngine<T> {
             @NotNull Rectangle2D bounds,
             @NotNull Consumer<@NotNull Rectangle> hoverConsumer
     ) {
-        checkReady();
+        if (frameModel.frames.isEmpty()) {
+            return;
+        }
 
         var oldHoveredFrame = hoveredFrame;
         var oldHoveredSiblingFrame = hoveredSiblingFrames;
@@ -634,7 +638,9 @@ class FlamegraphRenderEngine<T> {
             Rectangle2D viewRect,
             Point point
     ) {
-        checkReady();
+        if (frameModel.frames.isEmpty()) {
+            return Optional.empty();
+        }
 
         return getFrameAt(g2, bounds, point).map(frame -> {
             // TODO refactor to make frame selection explicit, possibly via toggleSelectedFrameAt
