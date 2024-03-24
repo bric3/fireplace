@@ -42,7 +42,7 @@ java {
 }
 
 application {
-    mainClass.set("com.github.bric3.fireplace.FirePlaceSwtMain")
+    mainClass.set("io.github.bric3.fireplace.swt.FirePlaceSwtMain")
 }
 
 tasks.jar {
@@ -75,6 +75,7 @@ tasks.withType<JavaExec>().configureEach {
     javaLauncher.set(javaToolchains.launcherFor(java.toolchain))
 
     if (DefaultNativePlatform.getCurrentOperatingSystem().isMacOsX) {
+        logger.lifecycle("Adding JVM arg -XstartOnFirstThread")
         jvmArgs("-XstartOnFirstThread")
     }
 

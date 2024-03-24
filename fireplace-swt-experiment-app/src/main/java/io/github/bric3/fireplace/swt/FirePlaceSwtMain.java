@@ -7,11 +7,17 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
-package io.github.bric3.fireplace;
+package io.github.bric3.fireplace.swt;
 
 import io.github.bric3.fireplace.core.ui.Colors;
 import io.github.bric3.fireplace.core.ui.Colors.Palette;
-import io.github.bric3.fireplace.flamegraph.*;
+import io.github.bric3.fireplace.flamegraph.ColorMapper;
+import io.github.bric3.fireplace.flamegraph.DimmingFrameColorProvider;
+import io.github.bric3.fireplace.flamegraph.FlamegraphView;
+import io.github.bric3.fireplace.flamegraph.FrameBox;
+import io.github.bric3.fireplace.flamegraph.FrameFontProvider;
+import io.github.bric3.fireplace.flamegraph.FrameModel;
+import io.github.bric3.fireplace.flamegraph.FrameTextsProvider;
 import io.github.bric3.fireplace.flamegraph.animation.ZoomAnimation;
 import io.github.bric3.fireplace.swt_awt.EmbeddingComposite;
 import io.github.bric3.fireplace.swt_awt.SWTKeyLogger;
@@ -28,7 +34,11 @@ import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Shell;
-import org.openjdk.jmc.common.item.*;
+import org.openjdk.jmc.common.item.IItem;
+import org.openjdk.jmc.common.item.IItemCollection;
+import org.openjdk.jmc.common.item.IItemIterable;
+import org.openjdk.jmc.common.item.IType;
+import org.openjdk.jmc.common.item.ItemFilters;
 import org.openjdk.jmc.common.util.FormatToolkit;
 import org.openjdk.jmc.flightrecorder.CouldNotLoadRecordingException;
 import org.openjdk.jmc.flightrecorder.JfrLoaderToolkit;
@@ -42,11 +52,14 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
 import static java.util.stream.Collectors.joining;
-import static java.util.stream.Collectors.toUnmodifiableList;
 
 public class FirePlaceSwtMain {
 
@@ -238,6 +251,7 @@ public class FirePlaceSwtMain {
 
     private void loadJfr(String[] args, Label text) {
         var jfrFiles = Arrays.stream(args)
+                             .map(path -> path.replace("$HOME", System.getProperty("user.home")))
                              .map(Path::of)
                              .filter(path -> {
                                  var exists = Files.exists(path);
@@ -248,7 +262,7 @@ public class FirePlaceSwtMain {
                              })
                              .peek(path -> System.out.println("Loading " + path))
                              .map(Path::toFile)
-                             .collect(toUnmodifiableList());
+                             .toList();
 
         if (jfrFiles.isEmpty()) {
             System.err.println("No JFR files specified");
