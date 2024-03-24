@@ -47,7 +47,7 @@ java {
 }
 
 application {
-    mainClass.set("com.github.bric3.fireplace.FireplaceMain")
+    mainClass.set("io.github.bric3.fireplace.FireplaceMain")
 }
 
 tasks.jar {

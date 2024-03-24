@@ -27,16 +27,13 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.util.*
 import java.util.stream.Collectors.toUnmodifiableList
-import javax.swing.BorderFactory
-import javax.swing.JFrame
-import javax.swing.JPanel
-import javax.swing.JTextField
-import javax.swing.SwingUtilities
+import javax.swing.*
 
 fun main(args: Array<String>) {
     System.getProperties().forEach { k: Any, v: Any -> println("$k = $v") }
     val paths = Arrays.stream(args)
         .filter { arg -> !arg.matches("-NSRequiresAquaSystemAppearance|[Ff]alse|[Nn][Oo]|0".toRegex()) }
+        .map { it.replace("\$HOME", System.getProperty("user.home")) }
         .map(Path::of)
         .filter { path ->
             Files.exists(path).also {
