@@ -1109,8 +1109,8 @@ public class FlamegraphView<T> {
 
                 {
                     // Zoom zone
-                    double zoomZoneScaleX = (double) minimapBounds.width / flamegraphDimension.width;
-                    double zoomZoneScaleY = (double) minimapBounds.height / flamegraphDimension.height;
+                    double zoomZoneScaleX = ((double) minimapBounds.width) / ((double) flamegraphDimension.width);
+                    double zoomZoneScaleY = ((double) minimapBounds.height) / ((double) flamegraphDimension.height);
 
                     int x = (int) (visibleRect.x * zoomZoneScaleX);
                     int y = (int) (visibleRect.y * zoomZoneScaleY);
