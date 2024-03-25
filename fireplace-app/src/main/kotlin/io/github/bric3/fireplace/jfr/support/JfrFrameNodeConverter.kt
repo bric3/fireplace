@@ -11,7 +11,7 @@ package io.github.bric3.fireplace.jfr.support
 
 import io.github.bric3.fireplace.flamegraph.FrameBox
 import org.openjdk.jmc.flightrecorder.stacktrace.tree.Node
-import org.openjdk.jmc.flightrecorder.stacktrace.tree.StacktraceTreeModel
+import java.util.function.ToDoubleFunction
 
 /**
  * Creates an array of FlameNodes that live in the [0.0, 1.0] world space on the X axis and the depth of the stack representing
@@ -20,11 +20,11 @@ import org.openjdk.jmc.flightrecorder.stacktrace.tree.StacktraceTreeModel
  * The root of the flame graph will always be full width.
  */
 object JfrFrameNodeConverter {
-    fun convert(model: StacktraceTreeModel): List<FrameBox<Node>> {
+    fun convert(node: Node): List<FrameBox<Node>> {
         val nodes = mutableListOf<FrameBox<Node>>()
         FrameBox.flattenAndCalculateCoordinate(
             nodes,
-            model.root,
+            node,
             Node::getChildren,
             Node::getCumulativeWeight,
             { it.children.stream().mapToDouble(Node::getCumulativeWeight).sum() },
@@ -35,4 +35,26 @@ object JfrFrameNodeConverter {
         assert(nodes[0].actualNode.isRoot) { "First node should be the root node" }
         return nodes
     }
+
+    fun convertButterfly(
+        node: io.github.bric3.fireplace.jfr.tree.Node,
+        nodeWeightFunction: ToDoubleFunction<io.github.bric3.fireplace.jfr.tree.Node>
+    ): MutableList<FrameBox<io.github.bric3.fireplace.jfr.tree.Node>> {
+        val nodes = mutableListOf<FrameBox<io.github.bric3.fireplace.jfr.tree.Node>>()
+        FrameBox.flattenAndCalculateCoordinate(
+            nodes,
+            node,
+            io.github.bric3.fireplace.jfr.tree.Node::getChildren,
+            nodeWeightFunction,
+            { it.children.stream().mapToDouble(nodeWeightFunction).sum() },
+            0.0,
+            1.0,
+            0
+        )
+        assert(nodes[0].actualNode.isRoot) { "First node should be the root node" }
+        return nodes
+    }
+
+    fun predecessorsWeight() = io.github.bric3.fireplace.jfr.tree.Node::getWeight
+    fun successorsWeight() = io.github.bric3.fireplace.jfr.tree.Node::getCumulativeWeight
 }
