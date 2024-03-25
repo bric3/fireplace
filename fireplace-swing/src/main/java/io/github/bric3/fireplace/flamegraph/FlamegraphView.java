@@ -791,9 +791,6 @@ public class FlamegraphView<T> {
             return;
         }
 
-        // Set the zoom model to the Zoom Target
-        canvas.zoomModel.recordLastPositionFromZoomTarget(canvas, zoomTarget);
-
         // adjust zoom target location for horizontal scrollbar height if canvas bigger than viewRect
         if (canvas.getMode() == Mode.FLAMEGRAPH) {
             var visibleRect = canvas.getVisibleRect();
@@ -802,9 +799,15 @@ public class FlamegraphView<T> {
 
             var hsb = scrollPane.getHorizontalScrollBar();
             if (!hsb.isVisible() && visibleRect.getWidth() < zoomTarget.getWidth()) {
-                zoomTarget.y -= hsb.getPreferredSize().height;
+                var modifiedRect = zoomTarget.getTargetBounds();
+                modifiedRect.y -= hsb.getPreferredSize().height;
+
+                zoomTarget = new ZoomTarget<>(modifiedRect, zoomTarget.targetFrame);
             }
         }
+
+        // Set the zoom model to the Zoom Target
+        canvas.zoomModel.recordLastPositionFromZoomTarget(canvas, zoomTarget);
 
         if (canvas.zoomActionOverride == null || !canvas.zoomActionOverride.zoom(canvas, zoomTarget)) {
             canvas.zoom(zoomTarget);
@@ -1435,7 +1438,7 @@ public class FlamegraphView<T> {
             // Changing the size triggers a revalidation, which triggers a layout
             // Not calling setBounds from the Timeline may provoke EDT violations
             // however calling invokeLater makes the animation out of order, and not smooth.
-            setBounds(zoomTarget);
+            setBounds(zoomTarget.getTargetBounds());
         }
     }
 
@@ -1738,7 +1741,7 @@ public class FlamegraphView<T> {
                 canvas.computeVisibleRect(canvasVisibleRect);
                 this.lastScaleFactor = FlamegraphRenderEngine.getScaleFactor(
                         canvasVisibleRect.width,
-                        currentZoomTarget.width,
+                        currentZoomTarget.getWidth(),
                         1.0
                 );
             }

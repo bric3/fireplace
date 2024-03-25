@@ -14,12 +14,13 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.awt.*;
-import java.util.Objects;
 
 /**
  * Represents a target for zooming.
  */
-public class ZoomTarget<T> extends Rectangle {
+public class ZoomTarget<T> {
+    private final Rectangle targetBounds = new Rectangle();
+
     @Nullable
     public final FrameBox<@NotNull T> targetFrame;
 
@@ -33,7 +34,7 @@ public class ZoomTarget<T> extends Rectangle {
      * @param targetFrame The target frame.
      */
     public ZoomTarget(int x, int y, int width, int height, @Nullable FrameBox<@NotNull T> targetFrame) {
-        super(x, y, width, height);
+        this.targetBounds.setBounds(x, y, width, height);
         this.targetFrame = targetFrame;
     }
 
@@ -42,8 +43,44 @@ public class ZoomTarget<T> extends Rectangle {
      *
      * @param bounds The target canvas bounds.
      */
-    public ZoomTarget(Rectangle bounds, @Nullable FrameBox<@NotNull T> targetFrame) {
-        super(Objects.requireNonNull(bounds));
+    public ZoomTarget(@NotNull Rectangle bounds, @Nullable FrameBox<@NotNull T> targetFrame) {
+        this.targetBounds.setBounds(bounds);
         this.targetFrame = targetFrame;
+    }
+
+    /**
+     * Returns the target bounds.
+     *
+     * @return The target bounds.
+     */
+    public Rectangle getTargetBounds() {
+        return targetBounds.getBounds();
+    }
+
+    /**
+     * Returns the target frame.
+     *
+     * @param rect The target bounds.
+     * @return The target frame.
+     */
+    public Rectangle getTargetBounds(@NotNull Rectangle rect) {
+        rect.setBounds(targetBounds);
+        return rect;
+    }
+
+    public double getWidth() {
+        return targetBounds.width;
+    }
+
+    public double getHeight() {
+        return targetBounds.height;
+    }
+
+    public double getX() {
+        return targetBounds.x;
+    }
+
+    public double getY() {
+        return targetBounds.y;
     }
 }

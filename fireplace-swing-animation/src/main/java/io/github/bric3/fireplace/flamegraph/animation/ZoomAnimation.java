@@ -72,14 +72,14 @@ public class ZoomAnimation implements ZoomAction {
         }
         int startW = zoomableComponent.getWidth();
         int startH = zoomableComponent.getHeight();
-        double deltaW = zoomTarget.width - startW;
-        double deltaH = zoomTarget.height - startH;
+        double deltaW = zoomTarget.getWidth() - startW;
+        double deltaH = zoomTarget.getHeight() - startH;
 
         var location = zoomableComponent.getLocation();
         int startX = location.x;
         int startY = location.y;
-        double deltaX = zoomTarget.x - startX;
-        double deltaY = zoomTarget.y - startY;
+        double deltaX = zoomTarget.getX() - startX;
+        double deltaY = zoomTarget.getY() - startY;
 
 
         Timeline.builder()
