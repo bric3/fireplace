@@ -23,6 +23,8 @@ import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
 import java.awt.event.FocusEvent;
 import java.awt.event.FocusListener;
+import java.awt.event.KeyAdapter;
+import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseWheelEvent;
@@ -346,8 +348,8 @@ public class FlamegraphView<T> {
                         int horizontalScrollBarPolicy = jScrollPane.getHorizontalScrollBarPolicy();
                         double lastScaleFactor = canvas.zoomModel.getLastScaleFactor();
                         int newPolicy = lastScaleFactor == 1.0 ?
-                                     ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER :
-                                     ScrollPaneConstants.HORIZONTAL_SCROLLBAR_AS_NEEDED;
+                                        ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER :
+                                        ScrollPaneConstants.HORIZONTAL_SCROLLBAR_AS_NEEDED;
                         if (horizontalScrollBarPolicy != newPolicy) {
                             jScrollPane.setHorizontalScrollBarPolicy(newPolicy);
                         }
@@ -1322,7 +1324,7 @@ public class FlamegraphView<T> {
             this.addMouseListener(mouseAdapter);
             this.addMouseMotionListener(mouseAdapter);
 
-            new UserPositionRecorderMouseAdapter(this).install(scrollPane);
+            new UserPositionRecorder(this).install(scrollPane);
         }
 
         void setFlamegraphRenderEngine(@NotNull FlamegraphRenderEngine<@NotNull T> flamegraphRenderEngine) {
@@ -1664,10 +1666,10 @@ public class FlamegraphView<T> {
         }
     }
 
-    private static class UserPositionRecorderMouseAdapter extends MouseAdapter {
+    private static class UserPositionRecorder extends MouseAdapter {
         private final FlamegraphCanvas<?> canvas;
 
-        public <T> UserPositionRecorderMouseAdapter(FlamegraphCanvas<T> canvas) {
+        public <T> UserPositionRecorder(FlamegraphCanvas<T> canvas) {
             this.canvas = canvas;
         }
 
@@ -1682,8 +1684,25 @@ public class FlamegraphView<T> {
         }
 
         public void install(JScrollPane scrollPane) {
-            scrollPane.addMouseListener(this); // regular mouse
+            scrollPane.addMouseListener(this); // regular mouse drag
             scrollPane.addMouseWheelListener(this); // mousewheel and trackpad
+            scrollPane.getHorizontalScrollBar().addMouseListener(this); // horizontal scrollbar interactions
+
+            var registeredKeyStrokes = scrollPane.getRegisteredKeyStrokes();
+            scrollPane.addKeyListener(new KeyAdapter() { // key presses
+                @Override
+                public void keyReleased(KeyEvent e) {
+                    for (KeyStroke keyStroke : registeredKeyStrokes) {
+                        //noinspection MagicConstant
+                        if (e.getKeyCode() == keyStroke.getKeyCode()
+                            && e.getModifiersEx() == keyStroke.getModifiers()
+                        ) {
+                            canvas.zoomModel.recordLastPositionFromUserInteraction(canvas);
+                            break;
+                        }
+                    }
+                }
+            });
         }
     }
 
