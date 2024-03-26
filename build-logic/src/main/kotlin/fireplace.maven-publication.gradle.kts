@@ -77,17 +77,17 @@ publishing {
                 }
             }
 
-            // if (isGithubRelease) {
-            //     logger.lifecycle("Publishing to GitHubPackages")
-            //     maven {
-            //         name = "GitHubPackages"
-            //         url = uri("https://maven.pkg.github.com/bric3/fireplace")
-            //         credentials {
-            //             username = providers.environmentVariable("GITHUB_USER").get()
-            //             password = providers.environmentVariable("GITHUB_TOKEN").get()
-            //         }
-            //     }
-            // }
+            if (isGithubRelease) {
+                logger.lifecycle("Publishing to GitHubPackages")
+                maven {
+                    name = "GitHubPackages"
+                    url = uri("https://maven.pkg.github.com/bric3/fireplace")
+                    credentials {
+                        username = providers.environmentVariable("GITHUB_USER").get()
+                        password = providers.environmentVariable("GITHUB_TOKEN").get()
+                    }
+                }
+            }
         } else {
             maven {
                 name = "build-dir"
