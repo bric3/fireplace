@@ -7,16 +7,13 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
+plugins {
+    id("fireplace.published-java-library")
+}
+
 description = "Animate zoom transitions of a flamegraph or iciclegraph swing component"
 
 dependencies {
-    implementation(projects.fireplaceSwing)
-    implementation(libs.jetbrains.annotations)
+    api(projects.fireplaceSwing)
     implementation(libs.radiance.animation)
-}
-
-tasks {
-    withType(JavaCompile::class) {
-        options.release.set(11)
-    }
 }

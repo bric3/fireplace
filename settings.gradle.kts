@@ -13,6 +13,7 @@ plugins {
 }
 
 rootProject.name = "fireplace"
+includeBuild("build-logic")
 include(
     "fireplace-swing",
     "fireplace-swing-animation",

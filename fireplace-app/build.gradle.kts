@@ -7,23 +7,17 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
-
-fun properties(key: String) = project.findProperty(key).toString()
-
-description = "Swing app that uses fireplace-swing"
-
 plugins {
-    id("application")
-    id("com.github.johnrengelman.shadow") version "8.1.1"
+    id("fireplace.application")
+    id("fireplace.licence-report")
+    // fork of com.github.johnrengelman.shadow with support for recent versions of Java and Gradle
+    // https://github.com/johnrengelman/shadow/pull/876
+    // https://github.com/johnrengelman/shadow/issues/908
+    id("io.github.goooler.shadow") version "8.1.7"
     kotlin("jvm") version "1.9.23"
 }
 
-repositories {
-    mavenCentral()
-    maven {
-        url = uri("https://oss.sonatype.org/content/repositories/snapshots/")
-    }
-}
+description = "Opens a JFR file to inspect its content."
 
 dependencies {
     implementation(libs.jetbrains.annotations)
@@ -34,64 +28,31 @@ dependencies {
     implementation(libs.bundles.darklaf)
     implementation(libs.flightrecorder)
     implementation(libs.bundles.kotlinx.coroutines)
-
-    testImplementation(libs.junit.jupiter.api)
-    testRuntimeOnly(libs.junit.jupiter.engine)
-}
-
-val javaVersion = 21
-java {
-    toolchain {
-        languageVersion.set(JavaLanguageVersion.of(javaVersion))
-    }
 }
 
 application {
     mainClass.set("io.github.bric3.fireplace.FireplaceMain")
 }
 
-tasks.jar {
-    manifest.attributes(
-        "Implementation-Title" to project.name,
-        "Implementation-Version" to project.version,
-        "Automatic-Module-Name" to project.name.replace('-', '.'),
-        "Created-By" to "${providers.systemProperty("java.version").get()} (${providers.systemProperty("java.specification.vendor").get()})",
-    )
-}
-
-tasks.test {
-    useJUnitPlatform()
-}
-
-tasks.withType(JavaCompile::class) {
-    options.compilerArgs.addAll(arrayOf("-Xlint"))
-    options.release.set(javaVersion)
-}
-
-
-// Due to https://github.com/gradle/gradle/issues/18426, tasks are not declared in the TaskContainerScope
-tasks.withType<JavaExec>().configureEach {
-    group = "class-with-main"
-    classpath(sourceSets.main.get().runtimeClasspath)
-
-    jvmArgs(
-        "-ea",
-        "-XX:+UnlockDiagnosticVMOptions",
-        "-XX:+DebugNonSafepoints",
-        "-XX:NativeMemoryTracking=summary",
-    )
-    // Need to set the toolchain https://github.com/gradle/gradle/issues/16791
-    javaLauncher.set(javaToolchains.launcherFor(java.toolchain))  // Project toolchain
-
-    projectDir.resolve(properties("hotswap-agent-location")).let {
-        if (it.exists() && properties("dcevm-enabled").toBoolean()) {
-            // DCEVM
-            jvmArgs(
-                "-XX:+IgnoreUnrecognizedVMOptions",
-                "-XX:+AllowEnhancedClassRedefinition",
-                "-XX:HotswapAgent=external",
-                "-javaagent:$it"
-            )
-        }
+tasks.shadowJar {
+    archiveClassifier.set("shaded")
+    dependsOn(tasks.generateLicenseReport)
+    from(tasks.generateLicenseReport.map { it.outputFolder }) {
+        include("*.md")
+        include("*.txt")
+    }
+    // TODO relocation ?
+    // val newLocation = "io.github.bric3.fireplace.shaded_.do_not_use"
+    // relocate("kotlin", "$newLocation.kotlin")
+    // relocate("kotlinx", "$newLocation.kotlinx")
+    // relocate("org.jetbrains", "$newLocation.org.jetbrains")
+    // relocate("org.intellij", "$newLocation.org.intellij")
+    dependencies {
+        // Remove all Kotlin metadata so that it looks like an ordinary Java Jar
+        exclude("**/*.kotlin_metadata")
+        exclude("**/*.kotlin_module")
+        exclude("**/*.kotlin_builtins")
+        // Eliminate dependencies' pom files
+        exclude("**/pom.*")
     }
 }

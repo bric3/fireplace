@@ -28,7 +28,15 @@ eclipse-swt = "3.125.0"
 eclipse-jface = "3.33.0"
 eclipse-ui-forms = "3.13.200"
 
+# Kotlin
+kotlin = "1.9.23"
 kotlin-coroutines = "1.8.0"
+
+# Gradle plugins
+bnd = "7.0.0"
+test-logger = "4.0.0"
+semver = "0.5.0"
+license-report = "2.6"
 
 [libraries]
 jetbrains-annotations = { group = "org.jetbrains", name = "annotations", version.ref = "jetbrains-annotations" }
@@ -54,6 +62,13 @@ batik-dom = { module = "org.apache.xmlgraphics:batik-dom", version.ref = "batik"
 eclipse-swt = { module = "org.eclipse.platform:org.eclipse.swt", version.ref = "eclipse-swt" }
 eclipse-jface = { module = "org.eclipse.platform:org.eclipse.jface", version.ref = "eclipse-jface" }
 eclipse-ui-forms = { module = "org.eclipse.platform:org.eclipse.ui.forms", version.ref = "eclipse-ui-forms" }
+
+# Gradle plugins for build-logic
+gradlePlugin-kotlin-jvm = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin", version.ref = "kotlin" }
+gradlePlugin-testLogger = { module = "com.adarshr:gradle-test-logger-plugin", version.ref = "test-logger" }
+gradlePlugin-bnd = { module = "biz.aQute.bnd.builder:biz.aQute.bnd.builder.gradle.plugin", version.ref = "bnd" }
+gradlePlugin-semver = { module = "com.javiersc.semver:semver-gradle-plugin", version.ref = "semver" }
+gradlePlugin-licenceReport = { module = " com.github.jk1.dependency-license-report:com.github.jk1.dependency-license-report.gradle.plugin", version.ref = "license-report" }
 
 [bundles]
 junit-jupiter = ["junit-jupiter-api", "junit-jupiter-engine"]

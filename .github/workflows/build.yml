@@ -32,10 +32,10 @@ jobs:
       #      - name: debug
       #        run: echo "${{ toJSON(github.event)}}"
 
-      - name: Set up JDK 11
+      - name: Set up JDK
         uses: actions/setup-java@v4
         with:
-          java-version: '19'
+          java-version: '21'
           distribution: 'zulu'
 
       - name: Setup Gradle
