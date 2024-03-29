@@ -30,6 +30,7 @@ import java.awt.event.MouseEvent;
 import java.awt.event.MouseWheelEvent;
 import java.awt.geom.Area;
 import java.awt.image.BufferedImage;
+import java.beans.PropertyChangeListener;
 import java.lang.System.Logger.Level;
 import java.util.List;
 import java.util.Objects;
@@ -289,7 +290,7 @@ public class FlamegraphView<T> {
                     return scrollPane;
                 }
         );
-        canvas.addPropertyChangeListener(FlamegraphCanvas.GRAPH_MODE, evt -> {
+        canvas.addPropertyChangeListener(FlamegraphCanvas.GRAPH_MODE_PROPERTY, evt -> {
             var mode = (Mode) evt.getNewValue();
             layeredScrollPane.firePropertyChange(
                     JScrollPaneWithBackButton.BACK_TO_DIRECTION,
@@ -635,7 +636,7 @@ public class FlamegraphView<T> {
      */
     public void setModel(@NotNull FrameModel<@NotNull T> frameModel) {
         framesModel = Objects.requireNonNull(frameModel);
-        canvas.getFlamegraphRenderEngine().init(frameModel);
+        canvas.setModel(frameModel);
 
         // force invalidation of the canvas so that the scroll-pane will fetch the new preferredSize
         // otherwise old cached preferredSize will be used.
@@ -839,7 +840,9 @@ public class FlamegraphView<T> {
     }
 
     static class FlamegraphCanvas<T> extends JPanel implements ZoomableComponent<T> {
-        public static final String GRAPH_MODE = "mode";
+        public static final String GRAPH_MODE_PROPERTY = "mode";
+        public static final String SHOW_MINIMAP_PROPERTY = "minimap";
+        public static final String FRAME_MODEL_PROPERTY = "frameModel";
         @Nullable
         private Image minimap;
         @Nullable
@@ -935,17 +938,18 @@ public class FlamegraphView<T> {
                 });
 
                 installMinimapTriggers(fgCanvas, vsb);
+                installVerticalScrollBarListeners(fgCanvas, vsb);
             }
         }
 
-        private void installMinimapTriggers(FlamegraphCanvas<T> fgCanvas, JScrollBar vsb) {
-            fgCanvas.addPropertyChangeListener(GRAPH_MODE, evt -> SwingUtilities.invokeLater(() -> {
+        private void installVerticalScrollBarListeners(FlamegraphCanvas<T> fgCanvas, JScrollBar vsb) {
+            fgCanvas.addPropertyChangeListener(GRAPH_MODE_PROPERTY, evt -> SwingUtilities.invokeLater(() -> {
                 var value = vsb.getValue();
                 var bounds = fgCanvas.getBounds();
                 var visibleRect = fgCanvas.getVisibleRect();
 
                 // This computes the new view location based on the current view location
-                switch ((Mode) evt.getNewValue()) {
+                switch (fgCanvas.getMode()) {
                     case ICICLEGRAPH:
                         vsb.setValue(
                                 value == vsb.getMaximum() ?
@@ -961,19 +965,33 @@ public class FlamegraphView<T> {
                         );
                         break;
                 }
-                fgCanvas.triggerMinimapGeneration();
             }));
+        }
 
-            fgCanvas.addPropertyChangeListener("preferredSize", evt -> {
+        private void installMinimapTriggers(FlamegraphCanvas<T> fgCanvas, JScrollBar vsb) {
+            PropertyChangeListener triggerMinimapOnPropertyChange = evt -> {
+                var propertyName = evt.getPropertyName();
+                if (!propertyName.equals("preferredSize")
+                    && !propertyName.equals(GRAPH_MODE_PROPERTY)
+                    && !propertyName.equals(FRAME_MODEL_PROPERTY)
+                    && !propertyName.equals(SHOW_MINIMAP_PROPERTY)) {
+                    return;
+                }
+
                 SwingUtilities.invokeLater(() -> {
-                    // trigger minimap generation, when the flamegraph is zoomed, more
-                    // frames become visible, and this may make the visible depth higher,
-                    // this allows updating the minimap when more details are available.
-                    if (isVisible() && showMinimap) {
+                    if (fgCanvas.isVisible()) {
                         fgCanvas.triggerMinimapGeneration();
                     }
                 });
-            });
+            };
+            // trigger minimap generation, when the flamegraph is zoomed, more
+            // frames become visible, and this may make the visible depth higher,
+            // this allows updating the minimap when more details are available.
+            // fgCanvas.addPropertyChangeListener("preferredSize", triggerMinimapOnPropertyChange);
+            // fgCanvas.addPropertyChangeListener(GRAPH_MODE_PROPERTY, triggerMinimapOnPropertyChange);
+            // fgCanvas.addPropertyChangeListener(FRAME_MODEL_PROPERTY, triggerMinimapOnPropertyChange);
+            // fgCanvas.addPropertyChangeListener(SHOW_MINIMAP_PROPERTY, triggerMinimapOnPropertyChange);
+            fgCanvas.addPropertyChangeListener(triggerMinimapOnPropertyChange);
         }
 
         @Override
@@ -1353,8 +1371,7 @@ public class FlamegraphView<T> {
                 return;
             }
             this.showMinimap = showMinimap;
-            firePropertyChange("minimap", !showMinimap, showMinimap);
-            triggerMinimapGeneration();
+            firePropertyChange(SHOW_MINIMAP_PROPERTY, !showMinimap, showMinimap);
         }
 
         public boolean isShowMinimap() {
@@ -1368,12 +1385,23 @@ public class FlamegraphView<T> {
             }
 
             getFlamegraphRenderEngine().setIcicle(Mode.ICICLEGRAPH == mode);
-            firePropertyChange(GRAPH_MODE, oldMode, mode);
+            firePropertyChange(GRAPH_MODE_PROPERTY, oldMode, mode);
         }
 
         @NotNull
         public FlamegraphView.Mode getMode() {
             return getFlamegraphRenderEngine().isIcicle() ? Mode.ICICLEGRAPH : Mode.FLAMEGRAPH;
+        }
+
+        public void setModel(@NotNull FrameModel<@NotNull T> frameModel) {
+            var oldModel = getFlamegraphRenderEngine().getFrameModel();
+            // NOTE: Do an identity check to avoid walking the underneath data structure
+            if (frameModel == oldModel) {
+                return;
+            }
+
+            getFlamegraphRenderEngine().init(frameModel);
+            firePropertyChange(FRAME_MODEL_PROPERTY, oldModel, frameModel);
         }
 
         public void setPopupConsumer(
