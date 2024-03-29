@@ -22,9 +22,7 @@ import org.openjdk.jmc.flightrecorder.JfrAttributes
 import org.openjdk.jmc.flightrecorder.jdk.JdkAttributes
 import java.awt.event.MouseEvent
 import java.util.concurrent.CompletableFuture
-import javax.swing.DefaultListModel
-import javax.swing.JList
-import javax.swing.JSplitPane
+import javax.swing.*
 
 abstract class ThreadFlamegraphView(private val jfrBinder: JFRLoaderBinder) : ViewPanel {
     private var events: IItemCollection = ItemCollectionToolkit.EMPTY
@@ -97,7 +95,7 @@ abstract class ThreadFlamegraphView(private val jfrBinder: JFRLoaderBinder) : Vi
         }
 
 
-        JSplitPane(JSplitPane.HORIZONTAL_SPLIT, threadList, flameGraphPane).apply {
+        JSplitPane(JSplitPane.HORIZONTAL_SPLIT, JScrollPane(threadList), flameGraphPane).apply {
             autoSize(0.2)
         }
     }
