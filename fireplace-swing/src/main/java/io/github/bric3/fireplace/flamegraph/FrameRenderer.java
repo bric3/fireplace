@@ -16,7 +16,6 @@ import org.jetbrains.annotations.NotNull;
 import java.awt.*;
 import java.awt.geom.Rectangle2D;
 import java.util.Objects;
-import java.util.function.Function;
 
 import static io.github.bric3.fireplace.flamegraph.FrameRenderingFlags.isMinimapMode;
 
@@ -200,8 +199,10 @@ class FrameRenderer<T> {
                 return textCandidate;
             }
         } else {
-            for (Function<FrameBox<T>, String> nodeToTextCandidate : frameTextsProvider.frameToTextCandidates()) {
-                textCandidate = nodeToTextCandidate.apply(frame);
+            for (var nodeToTextCandidate : frameTextsProvider.frameToTextCandidates()) {
+                // While the function is supposed to return a non-null value, it is not enforced
+                // in byte code, so let's default to empty string
+                textCandidate = Objects.requireNonNullElse(nodeToTextCandidate.apply(frame), "");
                 var textBounds = metrics.getStringBounds(textCandidate, g2);
                 if (textBounds.getWidth() <= targetWidth) {
                     return textCandidate;
@@ -218,7 +219,7 @@ class FrameRenderer<T> {
         );
         var textBounds = metrics.getStringBounds(textCandidate, g2);
         if (textBounds.getWidth() > targetWidth || textCandidate.length() <= StringClipper.LONG_TEXT_PLACEHOLDER.length() + 1) {
-            // don't draw text, if too long or too short (like "r…")
+            // don't draw the text, if too long or too short (like "r…")
             return null;
         }
         return textCandidate;
