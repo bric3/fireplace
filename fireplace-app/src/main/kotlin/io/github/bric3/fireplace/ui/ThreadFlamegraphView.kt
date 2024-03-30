@@ -20,9 +20,11 @@ import org.openjdk.jmc.common.item.ItemCollectionToolkit
 import org.openjdk.jmc.common.unit.IQuantity
 import org.openjdk.jmc.flightrecorder.JfrAttributes
 import org.openjdk.jmc.flightrecorder.jdk.JdkAttributes
+import java.awt.Component
 import java.awt.event.MouseEvent
 import java.util.concurrent.CompletableFuture
 import javax.swing.*
+import kotlin.collections.Map.Entry
 
 abstract class ThreadFlamegraphView(private val jfrBinder: JFRLoaderBinder) : ViewPanel {
     private var events: IItemCollection = ItemCollectionToolkit.EMPTY
@@ -34,8 +36,7 @@ abstract class ThreadFlamegraphView(private val jfrBinder: JFRLoaderBinder) : Vi
     override val view by lazy {
         val flameGraphPane = FlamegraphPane()
 
-        val threadListModel = DefaultListModel<String>()
-        val threadList = object : JList<String>(threadListModel) {
+        val threadList = object : JList<Pair<String, List<IItem>>>() {
             override fun processMouseEvent(e: MouseEvent) {
                 // Clear selection on clicking in empty space
                 if ((e.id == MouseEvent.MOUSE_CLICKED || e.id == MouseEvent.MOUSE_PRESSED) &&
@@ -48,15 +49,31 @@ abstract class ThreadFlamegraphView(private val jfrBinder: JFRLoaderBinder) : Vi
                 }
             }
         }.apply {
+            cellRenderer = object : DefaultListCellRenderer() {
+                @Suppress("UNCHECKED_CAST")
+                override fun getListCellRendererComponent(
+                    list: JList<out Any>,
+                    value: Any,
+                    index: Int,
+                    isSelected: Boolean,
+                    cellHasFocus: Boolean
+                ): Component {
+                    val component = super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus)
+                    val (name, iItems) = value as Pair<String, List<IItem>>
+                    text = name
+                    return this
+                }
+            }
+
             addListSelectionListener {
                 val selectedValue = this.selectedValue
 
                 CompletableFuture.runAsync {
                     flameGraphPane.setStacktraceTreeModelAsync(
-                        when (selectedValue) {
-                            ALL_THREADS_LABEL, null -> events.stacktraceTreeModel()
-                            else -> selectedIndices.map { threadListModel[it] }
-                                .mapNotNull { threadMapping[it] }
+                        when (selectedValue.first) {
+                            ALL_THREADS_LABEL -> events.stacktraceTreeModel()
+                            else -> selectedValuesList.map { it.second }
+                                // .mapNotNull { threadMapping[it] }
                                 .flatten()
                                 .stacktraceTreeModel(nodeWeightAttribute)
                         }
@@ -64,7 +81,6 @@ abstract class ThreadFlamegraphView(private val jfrBinder: JFRLoaderBinder) : Vi
                 }
             }
         }
-
 
         jfrBinder.bindEvents(
             {
@@ -75,18 +91,20 @@ abstract class ThreadFlamegraphView(private val jfrBinder: JFRLoaderBinder) : Vi
                     JfrAttributes.EVENT_THREAD,
                     JdkAttributes.EVENT_THREAD_NAME
                 )
-                threadListModel.run {
-                    clear()
-                    addElement(ALL_THREADS_LABEL)
+                val threadListModel = DefaultListModel<Pair<String, List<IItem>>>().apply {
+                    addElement(ALL_THREADS_LABEL to emptyList())
                     addAll(
-                        threadMapping.keys.sortedWith(
-                            Comparator.nullsLast(
-                                Comparator.naturalOrder()
-                            )
+                        threadMapping.entries.map(Entry<String, List<IItem>>::toPair).sortedWith(
+                                Comparator.comparing(
+                                    Pair<String, List<IItem>>::first,
+                                    Comparator.nullsLast(Comparator.naturalOrder())
+                                )
                         )
                     )
                 }
-
+                SwingUtilities.invokeLater {
+                    threadList.model = threadListModel
+                }
                 events.stacktraceTreeModel(nodeWeightAttribute)
             }
         ) {
@@ -95,7 +113,7 @@ abstract class ThreadFlamegraphView(private val jfrBinder: JFRLoaderBinder) : Vi
         }
 
 
-        JSplitPane(JSplitPane.HORIZONTAL_SPLIT, JScrollPane(threadList), flameGraphPane).apply {
+        JSplitPane(JSplitPane.HORIZONTAL_SPLIT, threadList, flameGraphPane).apply {
             autoSize(0.2)
         }
     }
