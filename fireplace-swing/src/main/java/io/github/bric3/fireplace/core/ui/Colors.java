@@ -221,7 +221,7 @@ public class Colors {
         /**
          * Dark custom color palette.
          */
-        DARK_CUSTOM("#54B03B,2D8684,C2AB47,66CCB9,A1DD98,9D5B34,A190DA,623BB0,CF776E,DDD598,F2E30D"),
+        DARK_CUSTOM("#54B03B", "#2D8684", "#C2AB47", "#66CCB9", "#A1DD98", "#9D5B34", "#A190DA", "#623BB0", "#CF776E", "#DDD598", "#F2E30D"),
 
         /**
          * Dark rainbow color palette.
