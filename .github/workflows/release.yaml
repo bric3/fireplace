@@ -49,7 +49,7 @@ jobs:
           ORG_GRADLE_PROJECT_ossrhUsername: ${{ secrets.ORG_GRADLE_PROJECT_OSSRHUSERNAME }}
           ORG_GRADLE_PROJECT_ossrhPassword: ${{ secrets.ORG_GRADLE_PROJECT_OSSRHPASSWORD }}
         # com.javiersc.semver.gradle.plugin should pick the actual tag
-        run: ./gradlew publish -Ppublish.central=true
+        run: ./gradlew publish -Ppublish.central=true --stacktrace
 
 # Don't forget to deploy the release to central
 # * 'Close' the repo to trigger the evaluations of to components against the requirements
