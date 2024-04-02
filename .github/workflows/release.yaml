@@ -13,7 +13,24 @@ on:
       tag:
         description: 'Tag to release'
         required: true
+      dry-run:
+        description: Dry-run
+        required: false
+        default: true
+        type: boolean
 
+run-name: >- 
+  ${{ 
+    github.event_name == 'workflow_dispatch' && format(
+      '{0}: {1} {2}',
+      github.workflow,
+      inputs.tag,
+      fromJSON('["", " (dry-run)"]')[inputs.dry-run]
+    ) || '' 
+  }}
+
+# Ensure that only a single release automation workflow can run at a time.
+concurrency: Release automation
 
 # Environment variables
 # https://docs.github.com/en/actions/learn-github-actions/variables
@@ -51,7 +68,7 @@ jobs:
           ORG_GRADLE_PROJECT_githubUser: ${{ github.actor }}
           ORG_GRADLE_PROJECT_githubToken: ${{ secrets.GITHUB_TOKEN }}
         # com.javiersc.semver.gradle.plugin should pick the actual tag
-        run: ./gradlew publish -Ppublish.central=true --stacktrace
+        run: ./gradlew publish -Ppublish.central=${{ inputs.dry-run && 'false' || 'true' }} --stacktrace
 
 # Don't forget to deploy the release to central
 # * 'Close' the repo to trigger the evaluations of to components against the requirements
