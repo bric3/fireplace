@@ -74,14 +74,16 @@ publishing {
                 }
             }
 
-            if (isGithubRelease) {
-                logger.lifecycle("Publishing to GitHubPackages")
+            val ghUser = properties("githubUser")
+            val ghToken = properties("githubToken")
+            if (isGithubRelease && ghUser != "null" && ghToken != "null") {
+                logger.lifecycle("Will be publishing to GitHubPackages")
                 maven {
                     name = "GitHubPackages"
                     url = uri("https://maven.pkg.github.com/bric3/fireplace")
                     credentials {
-                        username = providers.environmentVariable("GITHUB_USER").get()
-                        password = providers.environmentVariable("GITHUB_TOKEN").get()
+                        username = ghUser
+                        password = ghToken
                     }
                 }
             }
@@ -99,9 +101,9 @@ publishing {
 signing {
     setRequired({ gradle.taskGraph.hasTask("publish") })
     useInMemoryPgpKeys(
-        // findProperty("signingKeyId") as? String,
-        findProperty("signingKey") as? String,
-        findProperty("signingPassword") as? String
+        // properties("signingKeyId") as? String,
+        properties("signingKey"),
+        properties("signingPassword") as? String
     )
     sign(publishing.publications)
 }

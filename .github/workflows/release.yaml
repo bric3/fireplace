@@ -48,6 +48,8 @@ jobs:
           ORG_GRADLE_PROJECT_signingPassword: ${{ secrets.ORG_GRADLE_PROJECT_SIGNINGPASSWORD }}
           ORG_GRADLE_PROJECT_ossrhUsername: ${{ secrets.ORG_GRADLE_PROJECT_OSSRHUSERNAME }}
           ORG_GRADLE_PROJECT_ossrhPassword: ${{ secrets.ORG_GRADLE_PROJECT_OSSRHPASSWORD }}
+          ORG_GRADLE_PROJECT_githubUser: ${{ github.actor }}
+          ORG_GRADLE_PROJECT_githubToken: ${{ secrets.GITHUB_TOKEN }}
         # com.javiersc.semver.gradle.plugin should pick the actual tag
         run: ./gradlew publish -Ppublish.central=true --stacktrace
 
