@@ -7,8 +7,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
-import com.javiersc.gradle.version.GradleVersion
-import com.javiersc.gradle.version.isSnapshot
+import com.javiersc.semver.project.gradle.plugin.extensions.isSnapshot
 
 plugins {
     `maven-publish`
@@ -59,8 +58,6 @@ publishing {
     repositories {
         val isGithubRelease = providers.environmentVariable("GITHUB_JOB").orNull
             .equals("release-publish", true)
-
-        val isSnapshot = providers.provider { GradleVersion(project.version.toString()).isSnapshot }
 
         val isPublishToCentral = providers.gradleProperty("publish.central").orNull.toBoolean()
 
