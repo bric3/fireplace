@@ -13,14 +13,26 @@ import java.awt.BorderLayout
 import java.awt.GridBagLayout
 import javax.swing.*
 
+
 class Hud(private val mainComponent: JComponent) {
-    private val dndPanel: JPanel = JPanelWithPainter(GridBagLayout(), Painter.blurOf(mainComponent)).apply {
+    private val backgroundPainter = Painter.compose(
+        Painter.blurOf(mainComponent),
+        Painter.translucent()
+    )
+
+    private val dndPanel: JPanel = JPanelWithPainter(
+        GridBagLayout(),
+        backgroundPainter
+    ).apply {
         add(JLabel("<html><font size=+4>Drag and drop JFR file here</font></html>"))
         isOpaque = false
         isVisible = false
     }
 
-    private val progressPanel: JPanel = JPanelWithPainter(BorderLayout(), Painter.blurOf(mainComponent)).apply {
+    private val progressPanel: JPanel = JPanelWithPainter(
+        BorderLayout(),
+        backgroundPainter
+    ).apply {
         add(
             JLabel("<html><font size=+4>Loading in progress</font></html>", SwingConstants.CENTER),
             BorderLayout.CENTER

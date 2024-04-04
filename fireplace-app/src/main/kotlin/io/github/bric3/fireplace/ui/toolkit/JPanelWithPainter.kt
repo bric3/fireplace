@@ -15,6 +15,11 @@ import java.awt.GridBagLayout
 import java.awt.LayoutManager
 import javax.swing.*
 
+/**
+ * A JPanel that paints its background using a [Painter].
+ *
+ * @see Painter
+ */
 class JPanelWithPainter @JvmOverloads constructor(
     layout: LayoutManager = GridBagLayout(),
     private val backgroundPainter: Painter
