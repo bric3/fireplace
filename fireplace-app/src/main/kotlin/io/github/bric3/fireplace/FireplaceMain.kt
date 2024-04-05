@@ -10,6 +10,7 @@
 @file:JvmName("FireplaceMain")
 package io.github.bric3.fireplace
 
+import com.formdev.flatlaf.extras.FlatInspector
 import io.github.bric3.fireplace.jfr.ProfileContentPanel
 import io.github.bric3.fireplace.jfr.support.JFRLoaderBinder
 import io.github.bric3.fireplace.jfr.support.JfrFilesDropHandler
@@ -20,6 +21,7 @@ import io.github.bric3.fireplace.ui.toolkit.AppearanceControl
 import io.github.bric3.fireplace.ui.toolkit.Hud
 import io.github.bric3.fireplace.ui.toolkit.TitleBar
 import java.awt.BorderLayout
+import java.awt.Desktop
 import java.awt.Dimension
 import java.awt.event.WindowAdapter
 import java.awt.event.WindowEvent
@@ -56,6 +58,37 @@ private fun initUI(jfrBinder: JFRLoaderBinder, cliPaths: List<Path>) {
         }
         EventDispatchThreadHangMonitor.initMonitoring()
     }
+
+    with(Desktop.getDesktop()) {
+        if (isSupported(Desktop.Action.APP_ABOUT)) {
+            setAboutHandler {
+                JOptionPane.showMessageDialog(
+                    null,
+                    """
+                    <html>
+                    <font size=+2><strong>Fireplace</strong> |</font> a JFR viewer
+
+                    <p>
+                    Version: 0.0.1<br>
+                    License: MPL 2.0<br>
+                    </p>
+                    </html>
+                    """.trimIndent(),
+                    "About Fireplace",
+                    JOptionPane.INFORMATION_MESSAGE
+                )
+            }
+        }
+        if (isSupported(Desktop.Action.APP_QUIT_HANDLER)) {
+            setQuitHandler { e, response ->
+                println("Quit handler called with $e and $response")
+                response.performQuit()
+            }
+        }
+        // if (FlatDesktop.isSupported(FlatDesktop.Action.APP_PREFERENCES)) { }
+    }
+    FlatInspector.install("ctrl shift alt X")
+
     SwingUtilities.invokeLater {
         val mainAppPanel = JPanel(BorderLayout()).apply {
             add(
