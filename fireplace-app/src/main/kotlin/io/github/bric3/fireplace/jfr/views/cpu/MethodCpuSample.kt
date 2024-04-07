@@ -38,8 +38,9 @@ class MethodCpuSample(jfrBinder: JFRLoaderBinder) : ThreadFlamegraphView(jfrBind
     override val bottomCharts: JComponent
         get() {
             val chart = Chart(
+                null,
                 LineChartRenderer().apply {
-                    setGradientFillColors(arrayOf(Color.RED, Color.YELLOW))
+                    gradientFillColors = arrayOf(Color.RED, Color.YELLOW)
                 }
             ).apply {
                 background = RectangleContent.blankCanvas { Colors.panelBackground }
@@ -100,21 +101,36 @@ class MethodCpuSample(jfrBinder: JFRLoaderBinder) : ThreadFlamegraphView(jfrBind
 
                     buildList {
                         if (cpuUserLoadValues.isNotEmpty()) {
-                            add(XYPercentageDataset(cpuUserLoadValues, "User CPU load"))
+                            add(
+                                XYPercentageDataset(
+                                    cpuUserLoadValues,
+                                    "User CPU load"
+                                )
+                            )
                         }
                         if (cpuSystemLoadValues.isNotEmpty()) {
-                            add(XYPercentageDataset(cpuSystemLoadValues, "System CPU load"))
+                            add(
+                                XYPercentageDataset(
+                                    cpuSystemLoadValues,
+                                    "System CPU load"
+                                )
+                            )
                         }
                         if (cpuTotalLoadValues.isNotEmpty()) {
-                            add(XYPercentageDataset(cpuTotalLoadValues, "Total CPU load"))
+                            add(
+                                XYPercentageDataset(
+                                    cpuTotalLoadValues,
+                                    "Total CPU load"
+                                )
+                            )
                         }
                     }
                 },
                 componentUpdate = {
                     if (it.isEmpty()) {
-                        chart.setDataset(null)
+                        chart.dataset = null
                     } else {
-                        it.stream().limit(1).forEach(chart::setDataset)
+                        it.stream().limit(1).forEach { chart.dataset = it }
                     }
 
                     chartComponent.apply {
