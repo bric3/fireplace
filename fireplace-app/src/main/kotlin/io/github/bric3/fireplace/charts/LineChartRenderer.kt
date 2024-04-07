@@ -32,7 +32,7 @@ class LineChartRenderer @JvmOverloads constructor(
      * a vertical gradient fill.
      * If `null`, no fill will be drawn.
      */
-    var fillColors: Array<Color>? = null
+    var fillColors: List<Color>? = null
 
     /**
      * The stroke for rendering the line.
@@ -139,7 +139,7 @@ class LineChartRenderer @JvmOverloads constructor(
          * @param bounds         the bounds (`null` not permitted).
          * @return A GradientPaint.
          */
-        fun verticalGradientPaint(gradientColors: Array<Color>, bounds: Rectangle2D): GradientPaint {
+        fun verticalGradientPaint(gradientColors: List<Color>, bounds: Rectangle2D): GradientPaint {
             require(gradientColors.size == 2) { "gradientColors must be non-null and have 2 colors" }
             return GradientPaint(
                 bounds.centerX.toFloat(), bounds.y.toFloat(), gradientColors[0],   // top

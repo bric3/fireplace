@@ -11,10 +11,10 @@ import javax.swing.*
  *
  * @param chart  the chart.
  */
-class ChartComponent(chart: Chart) : JComponent() {
+class ChartComponent(chart: Chart? = null) : JComponent() {
     private val propertyChangeSupport = PropertyChangeSupport(this)
 
-    private var chart = chart
+    var chart: Chart? = chart
         set(value) {
             val oldChart = field
             if (oldChart == value) {
@@ -30,6 +30,7 @@ class ChartComponent(chart: Chart) : JComponent() {
     init {
         border = null
         propertyChangeSupport.addPropertyChangeListener("chart") {
+            revalidate()
             repaint()
         }
     }
@@ -42,10 +43,12 @@ class ChartComponent(chart: Chart) : JComponent() {
      */
     override fun paintComponent(g: Graphics) {
         super.paintComponent(g)
-        val g2 = g as Graphics2D
-        getBounds(rect)
-        g.translate(-rect.x, -rect.y)
-        chart.draw(g2, rect)
-        g.translate(rect.x, rect.y)
+        chart?.let {
+            val g2 = g as Graphics2D
+            getBounds(rect)
+            g.translate(-rect.x, -rect.y)
+            it.draw(g2, rect)
+            g.translate(rect.x, rect.y)
+        }
     }
 }

@@ -1,5 +1,8 @@
 package io.github.bric3.fireplace.charts
 
+import io.github.bric3.fireplace.charts.ChartSpecification.LineRendererDescriptor
+import io.github.bric3.fireplace.charts.ChartSpecification.RendererDescriptor
+import java.awt.Color
 import java.awt.Graphics2D
 import java.awt.RenderingHints
 import java.awt.geom.Rectangle2D
@@ -12,24 +15,36 @@ import java.beans.PropertyChangeSupport
  */
 class Chart : RectangleContent {
     private val propertyChangeSupport = PropertyChangeSupport(this)
-    /**
-     * The dataset to be drawn on the chart.
-     */
-    var dataset: XYDataset? = null
+
+    var chartSpecifications: List<ChartSpecification> = emptyList()
         set(value) {
-            val oldDataset = field
-            if (oldDataset == value) {
+            val oldChartDatasetDescriptor = field
+            if (oldChartDatasetDescriptor == value) {
                 return
             }
 
             field = value
-            propertyChangeSupport.firePropertyChange("dataset", oldDataset, value)
+            propertyChangeSupport.firePropertyChange("charDatasetDescriptors", oldChartDatasetDescriptor, value)
         }
 
-    /**
-     * The renderer for the dataset.
-     */
-    private val renderer: ChartRenderer
+    // /**
+    //  * The dataset to be drawn on the chart.
+    //  */
+    // var dataset: XYDataset? = null
+    //     set(value) {
+    //         val oldDataset = field
+    //         if (oldDataset == value) {
+    //             return
+    //         }
+    //
+    //         field = value
+    //         propertyChangeSupport.firePropertyChange("dataset", oldDataset, value)
+    //     }
+
+    // /**
+    //  * The renderer for the dataset.
+    //  */
+    // private val renderer: ChartRenderer
 
     /**
      * A background painter for the chart, possibly `null`.
@@ -82,9 +97,12 @@ class Chart : RectangleContent {
      * @param dataset the dataset
      * @param renderer  the renderer (`null` not permitted).
      */
-    constructor(dataset: XYDataset?, renderer: ChartRenderer) {
-        this.dataset = dataset
-        this.renderer = renderer
+    // constructor(dataset: XYDataset?, renderer: ChartRenderer) {
+    //     this.dataset = dataset
+    //     this.renderer = renderer
+    // }
+    constructor(chartSpecifications: List<ChartSpecification>) {
+        this.chartSpecifications = chartSpecifications
     }
 
     fun addPropertyChangeListener(propertyName: String?, listener: PropertyChangeListener?) {
@@ -111,8 +129,26 @@ class Chart : RectangleContent {
         val plotArea = plotInsets.shrink(bounds)
 
         // get the renderer to draw its dataset in the inner bounds
-        if (dataset != null) {
-            renderer.draw(this, dataset!!, g2, plotArea)
+
+        chartSpecifications.forEach {
+            configureRenderer(it.renderer).draw(this, it.dataset, g2, plotArea)
+        }
+
+        // if (dataset != null) {
+        //     renderer.draw(this, dataset!!, g2, plotArea)
+        // }
+    }
+
+    val lineChartRenderer = LineChartRenderer()
+
+    private fun configureRenderer(rendererSpec: RendererDescriptor): ChartRenderer {
+        return when (rendererSpec) {
+            is LineRendererDescriptor -> lineChartRenderer.apply {
+                linePaint = rendererSpec.lineColor ?: Color.BLACK
+                fillColors = rendererSpec.fillColors
+            }
+
+            else -> error("Unsupported render spec")
         }
     }
 }

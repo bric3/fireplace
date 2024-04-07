@@ -11,11 +11,10 @@ package io.github.bric3.fireplace.jfr.views.cpu
 
 import io.github.bric3.fireplace.charts.Chart
 import io.github.bric3.fireplace.charts.ChartComponent
-import io.github.bric3.fireplace.charts.LineChartRenderer
-import io.github.bric3.fireplace.charts.RectangleContent
+import io.github.bric3.fireplace.charts.ChartSpecification
+import io.github.bric3.fireplace.charts.ChartSpecification.LineRendererDescriptor
 import io.github.bric3.fireplace.charts.XYDataset.XY
 import io.github.bric3.fireplace.charts.XYPercentageDataset
-import io.github.bric3.fireplace.core.ui.Colors
 import io.github.bric3.fireplace.jfr.support.JFRLoaderBinder
 import io.github.bric3.fireplace.jfr.support.JfrAnalyzer
 import io.github.bric3.fireplace.jfr.support.getMemberFromEvent
@@ -37,15 +36,15 @@ class MethodCpuSample(jfrBinder: JFRLoaderBinder) : ThreadFlamegraphView(jfrBind
     override val eventSelector = JfrAnalyzer::executionSamples
     override val bottomCharts: JComponent
         get() {
-            val chart = Chart(
-                null,
-                LineChartRenderer().apply {
-                    gradientFillColors = arrayOf(Color.RED, Color.YELLOW)
-                }
-            ).apply {
-                background = RectangleContent.blankCanvas { Colors.panelBackground }
-            }
-            val chartComponent = ChartComponent(chart).apply {
+            // val chart = Chart(
+            //     null,
+            //     LineChartRenderer().apply {
+            //         fillColors = arrayOf(Color.RED, Color.YELLOW)
+            //     }
+            // ).apply {
+            //     background = RectangleContent.blankCanvas { Colors.panelBackground }
+            // }
+            val chartComponent = ChartComponent().apply {
                 minimumSize = Dimension(99999, 84)
                 size = size.apply { height = 84 }
                 preferredSize = Dimension(99999, 84)
@@ -99,44 +98,54 @@ class MethodCpuSample(jfrBinder: JFRLoaderBinder) : ThreadFlamegraphView(jfrBind
                         }
                     }
 
-                    buildList {
-                        if (cpuUserLoadValues.isNotEmpty()) {
-                            add(
-                                XYPercentageDataset(
-                                    cpuUserLoadValues,
-                                    "User CPU load"
+
+                    Chart(
+                        listOf(
+                            ChartSpecification(
+                                XYPercentageDataset(cpuUserLoadValues, ""),
+                                "User CPU load",
+                                LineRendererDescriptor(
+                                    lineColor = Color.BLACK,
+                                    fillColors = listOf(Color.RED, Color.YELLOW),
                                 )
                             )
-                        }
-                        if (cpuSystemLoadValues.isNotEmpty()) {
-                            add(
-                                XYPercentageDataset(
-                                    cpuSystemLoadValues,
-                                    "System CPU load"
-                                )
-                            )
-                        }
-                        if (cpuTotalLoadValues.isNotEmpty()) {
-                            add(
-                                XYPercentageDataset(
-                                    cpuTotalLoadValues,
-                                    "Total CPU load"
-                                )
-                            )
-                        }
-                    }
+                        )
+                    )
+
+                    // buildList {
+                    //     if (cpuUserLoadValues.isNotEmpty()) {
+                    //         add(
+                    //             XYPercentageDataset(
+                    //                 cpuUserLoadValues,
+                    //                 "User CPU load"
+                    //             )
+                    //         )
+                    //     }
+                    //     if (cpuSystemLoadValues.isNotEmpty()) {
+                    //         add(
+                    //             XYPercentageDataset(
+                    //                 cpuSystemLoadValues,
+                    //                 "System CPU load"
+                    //             )
+                    //         )
+                    //     }
+                    //     if (cpuTotalLoadValues.isNotEmpty()) {
+                    //         add(
+                    //             XYPercentageDataset(
+                    //                 cpuTotalLoadValues,
+                    //                 "Total CPU load"
+                    //             )
+                    //         )
+                    //     }
+                    // }
                 },
                 componentUpdate = {
-                    if (it.isEmpty()) {
-                        chart.dataset = null
-                    } else {
-                        it.stream().limit(1).forEach { chart.dataset = it }
-                    }
-
-                    chartComponent.apply {
-                        revalidate()
-                        repaint()
-                    }
+                    // if (it.isEmpty()) {
+                    //     chart.dataset = null
+                    // } else {
+                    //     it.stream().limit(1).forEach { chart.dataset = it }
+                    // }
+                    chartComponent.chart = it
                 } // JdkFilters.THREAD_CPU_LOAD
             )
 
