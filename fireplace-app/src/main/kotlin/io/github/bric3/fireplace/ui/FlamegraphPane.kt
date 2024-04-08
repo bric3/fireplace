@@ -220,7 +220,7 @@ class FlamegraphPane : JPanel(BorderLayout()) {
     }
 
     private fun dataApplier(stacktraceTreeModel: StacktraceTreeModel): Consumer<FlamegraphView<Node>> {
-        val flatFrameList = JfrFrameNodeConverter.convert(stacktraceTreeModel)
+        val flatFrameList = JfrFrameNodeConverter.convert(stacktraceTreeModel.root)
         val title = stacktraceTreeModel.items
             .stream()
             .map { itemsIterable -> itemsIterable.type.identifier }

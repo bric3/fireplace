@@ -34,6 +34,7 @@ import javax.swing.*
 fun main(args: Array<String>) {
     System.getProperties().forEach { k: Any, v: Any -> println("$k = $v") }
     val paths = Arrays.stream(args)
+        // poor check for arg sequence `-NSRequiresAquaSystemAppearance false`
         .filter { arg -> !arg.matches("-NSRequiresAquaSystemAppearance|[Ff]alse|[Nn][Oo]|0".toRegex()) }
         .map { it.replace("\$HOME", System.getProperty("user.home")) }
         .map(Path::of)
@@ -123,7 +124,7 @@ private fun initUI(jfrBinder: JFRLoaderBinder, cliPaths: List<Path>) {
             hud.dnDTarget
         )
 
-        JFrame("FirePlace").run {
+        JFrame("Fireplace").run {
             defaultCloseOperation = JFrame.EXIT_ON_CLOSE
             size = Dimension(1400, 800)
             contentPane.add(hud.component)

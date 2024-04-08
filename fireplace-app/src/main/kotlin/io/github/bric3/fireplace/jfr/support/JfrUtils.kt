@@ -9,20 +9,16 @@
  */
 package io.github.bric3.fireplace.jfr.support
 
-import org.openjdk.jmc.common.item.IAttribute
-import org.openjdk.jmc.common.item.IItem
-import org.openjdk.jmc.common.item.IItemCollection
-import org.openjdk.jmc.common.item.IItemIterable
-import org.openjdk.jmc.common.item.IMemberAccessor
-import org.openjdk.jmc.common.item.IType
-import org.openjdk.jmc.common.item.ItemCollectionToolkit
-import org.openjdk.jmc.common.item.ItemFilters
+import io.github.bric3.fireplace.jfr.tree.StacktraceButterflyModel
+import org.openjdk.jmc.common.item.*
 import org.openjdk.jmc.common.unit.IFormatter
 import org.openjdk.jmc.common.unit.IQuantity
 import org.openjdk.jmc.flightrecorder.stacktrace.FrameSeparator
+import org.openjdk.jmc.flightrecorder.stacktrace.tree.AggregatableFrame
 import org.openjdk.jmc.flightrecorder.stacktrace.tree.StacktraceTreeModel
 import java.lang.invoke.MethodHandles
 import java.util.*
+import java.util.function.Predicate
 import java.util.stream.Collectors
 import java.util.stream.Collectors.joining
 import java.util.stream.StreamSupport
@@ -127,6 +123,13 @@ fun IItemCollection.stacktraceTreeModel(nodeWeightAttribute: IAttribute<IQuantit
         methodFrameSeparator,
         invertedStacks,
         nodeWeightAttribute
+    )
+}
+
+fun IItemCollection.stacktraceButterflyModel(nodeWeightAttribute: IAttribute<IQuantity>? = null, nodeSelector: Predicate<AggregatableFrame>): StacktraceButterflyModel {
+    return StacktraceButterflyModel.from(
+        this.stacktraceTreeModel(nodeWeightAttribute),
+        nodeSelector,
     )
 }
 

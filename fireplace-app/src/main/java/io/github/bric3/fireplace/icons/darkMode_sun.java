@@ -8,8 +8,8 @@ import java.util.Stack;
 import java.util.function.Function;
 
 /**
- * This class has been automatically generated using <a
- * href="https://github.com/kirill-grouchnikov/radiance">Radiance SVG transcoder</a>.
+ * This class has been automatically generated using
+ * <a href="https://github.com/kirill-grouchnikov/radiance">Radiance SVG transcoder</a>.
  */
 public class darkMode_sun implements GeneratedIcon {
     private Shape shape = null;
