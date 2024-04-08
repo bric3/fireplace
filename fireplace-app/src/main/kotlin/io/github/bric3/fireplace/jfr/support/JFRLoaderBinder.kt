@@ -21,7 +21,7 @@ import java.util.function.Consumer
 import java.util.function.Function
 import java.util.function.Supplier
 import java.util.stream.Collectors.toUnmodifiableList
-import javax.swing.SwingUtilities
+import javax.swing.*
 
 class JFRLoaderBinder {
     private val eventsBinders: MutableList<Consumer<IItemCollection>> = mutableListOf()
@@ -29,6 +29,7 @@ class JFRLoaderBinder {
     private lateinit var onLoadStart: Runnable
     private lateinit var onLoadEnd: Runnable
     private lateinit var eventSupplierFuture: CompletableFuture<Supplier<IItemCollection>>
+    private val jfrPaths = mutableListOf<Path>()
 
     /**
      * Bind a component to computed events.
@@ -41,6 +42,7 @@ class JFRLoaderBinder {
             CompletableFuture.supplyAsync { provider.apply(events) }
                 .whenComplete { result, throwable ->
                     if (throwable != null) {
+                        System.err.println("Error while computing events of $jfrPaths")
                         throwable.printStackTrace()
                     } else {
                         SwingUtilities.invokeLater { componentUpdate.accept(result) }
@@ -64,6 +66,10 @@ class JFRLoaderBinder {
     internal fun loadJfrFiles(jfrPaths: List<Path>) {
         if (jfrPaths.isEmpty()) {
             return
+        }
+        this.jfrPaths.run {
+            clear()
+            addAll(jfrPaths)
         }
         onLoadStart.run()
         CompletableFuture.runAsync {
