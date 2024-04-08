@@ -1,9 +1,18 @@
+/*
+ * Fireplace
+ *
+ * Copyright (c) 2021, Today - Brice Dutheil
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/.
+ */
 package io.github.bric3.fireplace.charts
 
 import java.awt.geom.Rectangle2D
 
 /**
- * An object representing rectangular padding or insets.  Padding defines additional area
+ * An object representing rectangular padding or insets. Padding defines additional area
  * outside a given rectangle, and insets defines an area inside a given rectangle.
  *
  * @param top    the top margin.

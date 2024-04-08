@@ -1,3 +1,12 @@
+/*
+ * Fireplace
+ *
+ * Copyright (c) 2021, Today - Brice Dutheil
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/.
+ */
 package io.github.bric3.fireplace.charts
 
 import io.github.bric3.fireplace.charts.ChartSpecification.LineRendererDescriptor
@@ -16,6 +25,11 @@ import java.beans.PropertyChangeSupport
 class Chart : RectangleContent {
     private val propertyChangeSupport = PropertyChangeSupport(this)
 
+    /**
+     * A list of cart specifications.
+     *
+     * @see ChartSpecification
+     */
     var chartSpecifications: List<ChartSpecification> = emptyList()
         set(value) {
             val oldChartDatasetDescriptor = field
@@ -26,25 +40,6 @@ class Chart : RectangleContent {
             field = value
             propertyChangeSupport.firePropertyChange("charDatasetDescriptors", oldChartDatasetDescriptor, value)
         }
-
-    // /**
-    //  * The dataset to be drawn on the chart.
-    //  */
-    // var dataset: XYDataset? = null
-    //     set(value) {
-    //         val oldDataset = field
-    //         if (oldDataset == value) {
-    //             return
-    //         }
-    //
-    //         field = value
-    //         propertyChangeSupport.firePropertyChange("dataset", oldDataset, value)
-    //     }
-
-    // /**
-    //  * The renderer for the dataset.
-    //  */
-    // private val renderer: ChartRenderer
 
     /**
      * A background painter for the chart, possibly `null`.
@@ -87,26 +82,22 @@ class Chart : RectangleContent {
             propertyChangeSupport.firePropertyChange("plotInsets", oldPlotInsets, value)
         }
 
-    // fixed xRange?  We can leave the renderer to look at the range of values in the dataset, but if there
-    // are multiple charts we might want them to have a consistent range.
-    // fixed yRange? 0-100 for example.
     /**
-     * Creates a new chart without dataset for the specified dataset and renderer.
-     * Set the dataset and renderer using the [.setDataset].
+     * Creates a new chart with the given specifications, dataset and renderer.
      *
-     * @param dataset the dataset
-     * @param renderer  the renderer (`null` not permitted).
+     * @param chartSpecifications The chart specifications
      */
-    // constructor(dataset: XYDataset?, renderer: ChartRenderer) {
-    //     this.dataset = dataset
-    //     this.renderer = renderer
-    // }
     constructor(chartSpecifications: List<ChartSpecification>) {
+        // TODO how to ensure consistent ranges across multiple charts?
         this.chartSpecifications = chartSpecifications
     }
 
-    fun addPropertyChangeListener(propertyName: String?, listener: PropertyChangeListener?) {
-        propertyChangeSupport.addPropertyChangeListener(propertyName, listener)
+    fun addPropertyChangeListener(listener: PropertyChangeListener?) {
+        propertyChangeSupport.addPropertyChangeListener(listener)
+    }
+
+    fun removePropertyChangeListener(listener: PropertyChangeListener?) {
+        propertyChangeSupport.removePropertyChangeListener(listener)
     }
 
     /**
@@ -128,18 +119,13 @@ class Chart : RectangleContent {
 
         val plotArea = plotInsets.shrink(bounds)
 
-        // get the renderer to draw its dataset in the inner bounds
-
         chartSpecifications.forEach {
+            // plot its dataset in the inner bounds
             configureRenderer(it.renderer).draw(this, it.dataset, g2, plotArea)
         }
-
-        // if (dataset != null) {
-        //     renderer.draw(this, dataset!!, g2, plotArea)
-        // }
     }
 
-    val lineChartRenderer = LineChartRenderer()
+    private val lineChartRenderer = LineChartRenderer()
 
     private fun configureRenderer(rendererSpec: RendererDescriptor): ChartRenderer {
         return when (rendererSpec) {

@@ -1,3 +1,12 @@
+/*
+ * Fireplace
+ *
+ * Copyright (c) 2021, Today - Brice Dutheil
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/.
+ */
 package io.github.bric3.fireplace.charts
 
 import java.awt.BasicStroke
@@ -19,7 +28,7 @@ import java.awt.geom.Rectangle2D
  */
 class LineChartRenderer @JvmOverloads constructor(
     stroke: Stroke = BasicStroke(
-        1.0f,
+        1.2f,
         BasicStroke.CAP_ROUND,
         BasicStroke.JOIN_ROUND
     ),
