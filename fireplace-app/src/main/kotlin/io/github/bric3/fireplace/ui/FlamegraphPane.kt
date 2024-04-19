@@ -17,6 +17,8 @@ import io.github.bric3.fireplace.core.ui.SwingUtils
 import io.github.bric3.fireplace.flamegraph.ColorMapper
 import io.github.bric3.fireplace.flamegraph.DimmingFrameColorProvider
 import io.github.bric3.fireplace.flamegraph.FlamegraphView
+import io.github.bric3.fireplace.flamegraph.FlamegraphView.HoverListener
+import io.github.bric3.fireplace.flamegraph.FrameBox
 import io.github.bric3.fireplace.flamegraph.FrameFontProvider
 import io.github.bric3.fireplace.flamegraph.FrameModel
 import io.github.bric3.fireplace.flamegraph.FrameTextsProvider
@@ -24,17 +26,19 @@ import io.github.bric3.fireplace.flamegraph.animation.ZoomAnimation
 import io.github.bric3.fireplace.jfr.support.JfrFrameColorMode
 import io.github.bric3.fireplace.jfr.support.JfrFrameColorMode.BY_PACKAGE
 import io.github.bric3.fireplace.jfr.support.JfrFrameNodeConverter
-import io.github.bric3.fireplace.ui.toolkit.BalloonToolTip
+import io.github.bric3.fireplace.ui.toolkit.FollowingTip
 import org.openjdk.jmc.common.util.FormatToolkit
 import org.openjdk.jmc.flightrecorder.stacktrace.tree.Node
 import org.openjdk.jmc.flightrecorder.stacktrace.tree.StacktraceTreeModel
 import java.awt.BorderLayout
+import java.awt.Rectangle
 import java.awt.event.ActionEvent
 import java.awt.event.ActionListener
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
 import java.util.*
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.atomic.AtomicReference
 import java.util.function.Consumer
 import java.util.function.Function
 import java.util.stream.Collectors.joining
@@ -52,7 +56,32 @@ class FlamegraphPane : JPanel(BorderLayout()) {
             isShowMinimap = defaultShowMinimap
             configureCanvas { component: JComponent -> registerToolTips(component) }
             putClientProperty(FlamegraphView.SHOW_STATS, true)
-            setTooltipComponentSupplier { BalloonToolTip() }
+
+            val ref = AtomicReference<FrameBox<Node>>()
+            setHoverListener(object : HoverListener<Node> {
+                override fun onFrameHover(frame: FrameBox<Node>, hoveredFrameRectangle: Rectangle, e: MouseEvent) {
+                    ref.set(frame)
+                }
+
+                override fun onStopHover(
+                    previousHoveredFrame: FrameBox<Node>?,
+                    prevHoveredFrameRectangle: Rectangle?,
+                    e: MouseEvent
+                ) {
+                    ref.set(null)
+                }
+            })
+
+            val cache = WeakHashMap<FrameBox<Node>, JComponent>()
+            FollowingTip().run {
+                enableFor(component) { _, _ ->
+                    val frameBox = ref.get() ?: return@enableFor null
+                    return@enableFor cache.computeIfAbsent(frameBox) {
+                        val tooltip = tooltipTextFunction.apply(frameModel, frameBox)
+                        JLabel(tooltip)
+                    }
+                }
+            }
         }
         val minimapShade = LightDarkColor(
             Colors.translucent_white_80,
@@ -182,7 +211,9 @@ class FlamegraphPane : JPanel(BorderLayout()) {
                 mode = if (defaultIcicleMode) FlamegraphView.Mode.ICICLEGRAPH else FlamegraphView.Mode.FLAMEGRAPH
                 icicleModeToggle.isSelected = defaultIcicleMode
                 minimapToggle.isSelected = defaultShowMinimap
-                configureCanvas { component: JComponent -> registerToolTips(component) }
+                configureCanvas { component: JComponent ->
+                    // registerToolTips(component)
+                }
                 putClientProperty(FlamegraphView.SHOW_STATS, true)
                 setMinimapShadeColorSupplier { minimapShade }
                 zoomAnimation.install(this)

@@ -531,6 +531,15 @@ public class FlamegraphView<T> {
     }
 
     /**
+     * Returns the color supplier for the minimap shade of {@link FlamegraphView}.
+     * @return The color supplier for the minimap shade, may return <code>null</code> if not set.
+     */
+    @Nullable
+    public Supplier<@NotNull Color> getMinimapShadeColorSupplier() {
+        return canvas.getMinimapShadeColorSupplier();
+    }
+
+    /**
      * Sets a flag that controls whether the minimap is visible.
      *
      * @param showMinimap {@code true} to show the minimap, {@code false} otherwise.
@@ -597,6 +606,15 @@ public class FlamegraphView<T> {
     }
 
     /**
+     * Returns the tooltip component supplier of {@link FlamegraphView}.
+     * @return the tooltip component supplier, may return <code>null</code> if not set.
+     */
+    @Nullable
+    public Supplier<@NotNull JToolTip> getTooltipComponentSupplier() {
+        return canvas.getTooltipComponentSupplier();
+    }
+
+    /**
      * Sets a callback that provides a reference to a frame when the user performs a
      * "popup" action on the frame graph (typically a right-click with the mouse).
      *
@@ -607,6 +625,15 @@ public class FlamegraphView<T> {
     }
 
     /**
+     * Returns the popup consumer of {@link FlamegraphView}.
+     * @return the popup consumer, may return <code>null</code> if not set.
+     */
+    @Nullable
+    public BiConsumer<@NotNull FrameBox<@NotNull T>, @NotNull MouseEvent> getPopupConsumer() {
+        return canvas.getPopupConsumer();
+    }
+
+    /**
      * Sets a callback that provides a reference to a frame when the user performs a
      * "popup" action on the frame graph (typically a right-click with the mouse).
      *
@@ -614,6 +641,15 @@ public class FlamegraphView<T> {
      */
     public void setSelectedFrameConsumer(@NotNull BiConsumer<@NotNull FrameBox<@NotNull T>, @NotNull MouseEvent> consumer) {
         canvas.setSelectedFrameConsumer(Objects.requireNonNull(consumer));
+    }
+
+    /**
+     * Returns the selected frame consumer of {@link FlamegraphView}.
+     * @return the selected frame consumer, may return <code>null</code> if not set.
+     */
+    @Nullable
+    public BiConsumer<@NotNull FrameBox<@NotNull T>, @NotNull MouseEvent> getSelectedFrameConsumer() {
+        return canvas.getSelectedFrameConsumer();
     }
 
     /**
@@ -699,6 +735,14 @@ public class FlamegraphView<T> {
             @NotNull BiFunction<@NotNull FrameModel<@NotNull T>, FrameBox<@NotNull T>, String> tooltipTextFunction
     ) {
         canvas.setToolTipTextFunction(Objects.requireNonNull(tooltipTextFunction));
+    }
+
+    /**
+     * Gets the tooltip text of {@link FlamegraphView}.
+     * @return The tooltipTextFunction for a frame, may return <code>null</code> if not set.
+     */
+    public BiFunction<@NotNull FrameModel<@NotNull T>, FrameBox<@NotNull T>, String> getTooltipTextFunction() {
+        return canvas.getToolTipTextFunction();
     }
 
     /**
@@ -1358,12 +1402,27 @@ public class FlamegraphView<T> {
             this.tooltipToTextFunction = tooltipTextFunction;
         }
 
+        @Nullable
+        public BiFunction<@NotNull FrameModel<@NotNull T>, FrameBox<@NotNull T>, @NotNull String> getToolTipTextFunction() {
+            return this.tooltipToTextFunction;
+        }
+
         public void setTooltipComponentSupplier(@NotNull Supplier<@NotNull JToolTip> tooltipComponentSupplier) {
             this.tooltipComponentSupplier = tooltipComponentSupplier;
         }
 
+        @Nullable
+        public Supplier<@NotNull JToolTip> getTooltipComponentSupplier() {
+            return tooltipComponentSupplier;
+        }
+
         public void setMinimapShadeColorSupplier(@NotNull Supplier<@NotNull Color> minimapShadeColorSupplier) {
             this.minimapShadeColorSupplier = minimapShadeColorSupplier;
+        }
+
+        @Nullable
+        public Supplier<@NotNull Color> getMinimapShadeColorSupplier() {
+            return minimapShadeColorSupplier;
         }
 
         public void showMinimap(boolean showMinimap) {
@@ -1410,10 +1469,20 @@ public class FlamegraphView<T> {
             this.popupConsumer = consumer;
         }
 
+        @Nullable
+        public BiConsumer<@NotNull FrameBox<@NotNull T>, @NotNull MouseEvent> getPopupConsumer() {
+            return popupConsumer;
+        }
+
         public void setSelectedFrameConsumer(
                 @NotNull BiConsumer<@NotNull FrameBox<@NotNull T>, @NotNull MouseEvent> consumer
         ) {
             this.selectedFrameConsumer = consumer;
+        }
+
+        @Nullable
+        public BiConsumer<@NotNull FrameBox<@NotNull T>, @NotNull MouseEvent> getSelectedFrameConsumer() {
+            return selectedFrameConsumer;
         }
 
         @Nullable
