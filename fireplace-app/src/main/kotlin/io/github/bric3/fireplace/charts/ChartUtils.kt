@@ -10,6 +10,7 @@
 package io.github.bric3.fireplace.charts
 
 import java.awt.Color
+import java.util.concurrent.TimeUnit.MILLISECONDS
 
 
 fun Color.withAlpha(alpha: Float) = Color(
@@ -18,3 +19,14 @@ fun Color.withAlpha(alpha: Float) = Color(
     blue,
     (alpha * 255).toInt()
 )
+
+fun presentableDuration(durationMs: Long): String {
+    val millis = durationMs % 1000L
+    val seconds = MILLISECONDS.toSeconds(durationMs) % 60L
+    val minutes = MILLISECONDS.toMinutes(durationMs) % 60L
+    val hours = MILLISECONDS.toHours(durationMs)
+    return String.format(
+        "%02d:%02d:%02d.%03d",
+        arrayOf(hours, minutes, seconds, millis)
+    )
+}
