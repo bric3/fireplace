@@ -21,7 +21,36 @@ import java.awt.event.MouseEvent.MOUSE_MOVED
 import java.util.*
 import javax.swing.*
 
-class FollowingTip {
+/**
+ * A tooltip that follows the mouse cursor.
+ */
+object FollowingTipService {
+    private val followingTip = FollowingTip()
+
+    fun <T : JComponent> enableFor(
+        component: T,
+        contentProvider: (c: T, MouseEvent) -> JComponent?
+    ) {
+        component.addHierarchyListener {
+            if (it.changed is JFrame) {
+                followingTip.attachToParent(component, contentProvider)
+                followingTip.activate()
+            }
+        }
+
+        component.addComponentListener(object : ComponentAdapter() {
+            override fun componentHidden(e: ComponentEvent) =
+                followingTip.deactivate()
+        })
+
+        component.addMouseListener(object : MouseAdapter() {
+            override fun mouseEntered(e: MouseEvent) = followingTip.activate()
+            override fun mouseExited(e: MouseEvent) = followingTip.deactivate()
+        })
+    }
+}
+
+private class FollowingTip {
     private lateinit var tipWindow: JWindow
     private val contentContainer = RoundedPanel(layout = BorderLayout(), radius = 10).apply {
         border = BorderFactory.createEmptyBorder(5, 5, 5, 5)
@@ -56,9 +85,9 @@ class FollowingTip {
                         tipWindow.isVisible = false
                         return@AWTEventListener
                     }
+
                     contentContainer.add(content)
                     contentContainer.bgColor = content.background
-                    contentContainer.repaint()
                     tipWindow.pack()
                     tipWindow.isVisible = true
                 }
@@ -77,7 +106,7 @@ class FollowingTip {
         }
     }
 
-    private fun <T : JComponent> attachToParent(c: T, contentProvider: (T, MouseEvent) -> JComponent?) {
+    fun <T : JComponent> attachToParent(c: T, contentProvider: (T, MouseEvent) -> JComponent?) {
         if (contentProviders.contains(c)) {
             return
         }
@@ -90,6 +119,7 @@ class FollowingTip {
             focusableWindowState = false
             contentPane.add(contentContainer)
             background = Color(0, true)
+            this.isLightweight
         }
     }
 
@@ -111,28 +141,6 @@ class FollowingTip {
         val window = tipWindow.owner
         window.toolkit.removeAWTEventListener(mouseHandler)
         tipWindow.isVisible = false
-    }
-
-    fun <T : JComponent> enableFor(
-        component: T,
-        contentProvider: (c: T, MouseEvent) -> JComponent?
-    ) {
-        component.addHierarchyListener {
-            if (it.changed is JFrame) {
-                attachToParent(component, contentProvider)
-                activate()
-            }
-        }
-
-        component.addComponentListener(object : ComponentAdapter() {
-            override fun componentHidden(e: ComponentEvent) =
-                deactivate()
-        })
-
-        component.addMouseListener(object : MouseAdapter() {
-            override fun mouseEntered(e: MouseEvent) = activate()
-            override fun mouseExited(e: MouseEvent) = deactivate()
-        })
     }
 }
 

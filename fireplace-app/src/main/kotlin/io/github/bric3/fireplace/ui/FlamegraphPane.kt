@@ -26,7 +26,7 @@ import io.github.bric3.fireplace.flamegraph.animation.ZoomAnimation
 import io.github.bric3.fireplace.jfr.support.JfrFrameColorMode
 import io.github.bric3.fireplace.jfr.support.JfrFrameColorMode.BY_PACKAGE
 import io.github.bric3.fireplace.jfr.support.JfrFrameNodeConverter
-import io.github.bric3.fireplace.ui.toolkit.FollowingTip
+import io.github.bric3.fireplace.ui.toolkit.FollowingTipService
 import org.openjdk.jmc.common.util.FormatToolkit
 import org.openjdk.jmc.flightrecorder.stacktrace.tree.Node
 import org.openjdk.jmc.flightrecorder.stacktrace.tree.StacktraceTreeModel
@@ -34,7 +34,6 @@ import java.awt.BorderLayout
 import java.awt.Rectangle
 import java.awt.event.ActionEvent
 import java.awt.event.ActionListener
-import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
 import java.util.*
 import java.util.concurrent.CompletableFuture
@@ -54,34 +53,7 @@ class FlamegraphPane : JPanel(BorderLayout()) {
     init {
         jfrFlamegraphView = getJfrFlamegraphView().apply {
             isShowMinimap = defaultShowMinimap
-            configureCanvas { component: JComponent -> registerToolTips(component) }
             putClientProperty(FlamegraphView.SHOW_STATS, true)
-
-            val ref = AtomicReference<FrameBox<Node>>()
-            setHoverListener(object : HoverListener<Node> {
-                override fun onFrameHover(frame: FrameBox<Node>, hoveredFrameRectangle: Rectangle, e: MouseEvent) {
-                    ref.set(frame)
-                }
-
-                override fun onStopHover(
-                    previousHoveredFrame: FrameBox<Node>?,
-                    prevHoveredFrameRectangle: Rectangle?,
-                    e: MouseEvent
-                ) {
-                    ref.set(null)
-                }
-            })
-
-            val cache = WeakHashMap<FrameBox<Node>, JComponent>()
-            FollowingTip().run {
-                enableFor(component) { _, _ ->
-                    val frameBox = ref.get() ?: return@enableFor null
-                    return@enableFor cache.computeIfAbsent(frameBox) {
-                        val tooltip = tooltipTextFunction.apply(frameModel, frameBox)
-                        JLabel(tooltip)
-                    }
-                }
-            }
         }
         val minimapShade = LightDarkColor(
             Colors.translucent_white_80,
@@ -211,9 +183,6 @@ class FlamegraphPane : JPanel(BorderLayout()) {
                 mode = if (defaultIcicleMode) FlamegraphView.Mode.ICICLEGRAPH else FlamegraphView.Mode.FLAMEGRAPH
                 icicleModeToggle.isSelected = defaultIcicleMode
                 minimapToggle.isSelected = defaultShowMinimap
-                configureCanvas { component: JComponent ->
-                    // registerToolTips(component)
-                }
                 putClientProperty(FlamegraphView.SHOW_STATS, true)
                 setMinimapShadeColorSupplier { minimapShade }
                 zoomAnimation.install(this)
@@ -294,63 +263,69 @@ class FlamegraphPane : JPanel(BorderLayout()) {
                     },
                     Function { frame -> if (frame.isRoot) "" else frame.actualNode.frame.method.methodName }
                 ),
-                DimmingFrameColorProvider(defaultFrameColorMode.colorMapperUsing(
-                    ColorMapper.ofObjectHashUsing(*defaultColorPalette.colors()))
+                DimmingFrameColorProvider(
+                    defaultFrameColorMode.colorMapperUsing(
+                        ColorMapper.ofObjectHashUsing(*defaultColorPalette.colors())
+                    )
                 ),
                 FrameFontProvider.defaultFontProvider()
             )
-            flamegraphView.setTooltipTextFunction { frameModel, frame ->
-                if (frame.isRoot) {
-                    return@setTooltipTextFunction frameModel.description
-                }
-                val method = frame.actualNode.frame.method
-                val desc = FormatToolkit.getHumanReadable(
-                    method,
-                    false,
-                    false,
-                    true,
-                    true,
-                    true,
-                    false,
-                    false
-                )
-                buildString {
-                    append("<html><b>")
-                    append(frame.actualNode.frame.humanReadableShortString)
-                    append("</b><br>")
-                    append(desc)
-                    append("<br><hr>")
-                    append(frame.actualNode.cumulativeWeight)
-                    append(" ")
-                    append(frame.actualNode.weight)
-                    append("<br>BCI: ")
-                    append(frame.actualNode.frame.bci ?: "N/A")
-                    append(" Line number: ")
-                    append(frame.actualNode.frame.frameLineNumber ?: "N/A")
-                    append("<br></html>")
+
+            val ref = AtomicReference<FrameBox<Node>>()
+            flamegraphView.setHoverListener(object : HoverListener<Node> {
+                override fun onFrameHover(
+                    frame: FrameBox<Node>,
+                    hoveredFrameRectangle: Rectangle, e: MouseEvent
+                ) = ref.set(frame)
+
+                override fun onStopHover(
+                    previousHoveredFrame: FrameBox<Node>?,
+                    prevHoveredFrameRectangle: Rectangle?,
+                    e: MouseEvent
+                ) = ref.set(null)
+            })
+
+            val cache = WeakHashMap<FrameBox<Node>, JComponent>()
+            FollowingTipService.enableFor(flamegraphView.component) { _, _ ->
+                val frameBox = ref.get() ?: return@enableFor null
+                return@enableFor cache.computeIfAbsent(frameBox) {
+                    getTooltipComponent(flamegraphView.frameModel, frameBox)
                 }
             }
+
             return flamegraphView
         }
 
-        private fun registerToolTips(component: JComponent) {
-            val defaultInitialDelay = ToolTipManager.sharedInstance().initialDelay
-            val defaultDismissDelay = ToolTipManager.sharedInstance().dismissDelay
-            val defaultReshowDelay = ToolTipManager.sharedInstance().reshowDelay
-            component.addMouseListener(object : MouseAdapter() {
-                override fun mouseEntered(me: MouseEvent) {
-                    ToolTipManager.sharedInstance().initialDelay = 1000
-                    ToolTipManager.sharedInstance().dismissDelay = 20000
-                    ToolTipManager.sharedInstance().reshowDelay = 1000
-                }
-
-                override fun mouseExited(me: MouseEvent) {
-                    ToolTipManager.sharedInstance().initialDelay = defaultInitialDelay
-                    ToolTipManager.sharedInstance().dismissDelay = defaultDismissDelay
-                    ToolTipManager.sharedInstance().reshowDelay = defaultReshowDelay
-                }
+        private fun getTooltipComponent(frameModel: FrameModel<Node>, frame: FrameBox<Node>): JLabel? {
+            if (frame.isRoot) {
+                return JLabel(frameModel.description)
+            }
+            val method = frame.actualNode.frame.method
+            val desc = FormatToolkit.getHumanReadable(
+                method,
+                false,
+                false,
+                true,
+                true,
+                true,
+                false,
+                false
+            )
+            return JLabel(buildString {
+                append("<html><b>")
+                append(frame.actualNode.frame.humanReadableShortString)
+                append("</b><br>")
+                append(desc)
+                append("<br><hr>")
+                append(frame.actualNode.cumulativeWeight)
+                append(" ")
+                append(frame.actualNode.weight)
+                append("<br>BCI: ")
+                append(frame.actualNode.frame.bci ?: "N/A")
+                append(" Line number: ")
+                append(frame.actualNode.frame.frameLineNumber ?: "N/A")
+                append("<br></html>")
             })
-            ToolTipManager.sharedInstance().registerComponent(component)
         }
     }
 }
