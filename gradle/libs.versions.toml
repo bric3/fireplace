@@ -12,7 +12,7 @@
 jetbrains-annotations = "24.1.0"
 flatlaf = "3.4.1"
 darklaf = "3.0.2"
-classgraph = "4.8.171"
+classgraph = "4.8.172"
 
 radiance-animation = "7.0.1"
 
