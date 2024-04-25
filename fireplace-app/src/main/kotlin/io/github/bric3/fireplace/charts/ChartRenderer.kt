@@ -10,6 +10,7 @@
 package io.github.bric3.fireplace.charts
 
 import java.awt.Graphics2D
+import java.awt.Point
 import java.awt.geom.Rectangle2D
 
 /**
@@ -27,5 +28,23 @@ interface ChartRenderer {
      * @param g2 the Java2D graphics target.
      * @param plotBounds the plot bounds.
      */
-    fun draw(chart: Chart, dataset: ChartDataset, g2: Graphics2D, plotBounds: Rectangle2D)
+    fun draw(chart: Chart, dataset: ChartDataset, g2: Graphics2D, plotBounds: Rectangle2D, mousePosition: Point?)
+
+    /**
+     * Draws a tracker line for the supplied dataset within the plot bounds of the supplied
+     * Java2D graphics target.  The chart can be used to provide some global attributes for the
+     * rendering (such as the x-range and y-range for display).
+     *
+     * @param chart the chart.
+     * @param dataset the dataset.
+     * @param g2 the Java2D graphics target.
+     * @param plotBounds the plot bounds.
+     */
+    fun drawTrackerLine(
+        chart: Chart,
+        dataset: ChartDataset,
+        g2: Graphics2D,
+        plotBounds: Rectangle2D,
+        mousePosition: Point?
+    ) { }
 }

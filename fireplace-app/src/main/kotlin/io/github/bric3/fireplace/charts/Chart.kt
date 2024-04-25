@@ -13,20 +13,24 @@ import io.github.bric3.fireplace.charts.ChartSpecification.LineRendererDescripto
 import io.github.bric3.fireplace.charts.ChartSpecification.RendererDescriptor
 import java.awt.Color
 import java.awt.Graphics2D
+import java.awt.Point
 import java.awt.RenderingHints
 import java.awt.geom.Rectangle2D
 import java.beans.PropertyChangeListener
 import java.beans.PropertyChangeSupport
 
 /**
- * A chart that can be inlaid into a small space.  Generally a chart will render a single dataset, but it is
- * also possible to overlay multiple renderer/dataset pairs in the same space.
+ * A chart that can be inlaid into a small space.
+ * Generally a chart will render a single dataset, but it is also possible to
+ * overlay multiple renderer/dataset pairs in the same space.
+ *
+ * @see ChartSpecification
  */
 class Chart : RectangleContent {
     private val propertyChangeSupport = PropertyChangeSupport(this)
 
     /**
-     * A list of cart specifications.
+     * A list of chart specification.
      *
      * @see ChartSpecification
      */
@@ -42,7 +46,7 @@ class Chart : RectangleContent {
         }
 
     /**
-     * A background painter for the chart, possibly `null`.
+     * A background painter for the chart.
      */
     var background: RectangleContent? = null
         set(value) {
@@ -106,11 +110,11 @@ class Chart : RectangleContent {
      * @param g2 the graphics target (`null` not permitted).
      * @param bounds the bounds within which the chart should be drawn.
      */
-    override fun draw(g2: Graphics2D, bounds: Rectangle2D) {
+    override fun draw(g2: Graphics2D, bounds: Rectangle2D, mousePosition: Point?) {
         // set up any rendering hints we want (should allow this to be controlled externally)
         g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
 
-        background?.draw(g2, bounds)
+        background?.draw(g2, bounds, mousePosition)
 
         // handle background, margin, border, insets and fill
         insets.applyInsets(bounds)
@@ -119,7 +123,12 @@ class Chart : RectangleContent {
 
         chartSpecifications.forEach {
             // plot its dataset in the inner bounds
-            configureRenderer(it.renderer).draw(this, it.dataset, g2, plotArea)
+            configureRenderer(it.renderer).drawTrackerLine(this, it.dataset, g2, plotArea, mousePosition)
+        }
+        
+        chartSpecifications.forEach {
+            // plot its dataset in the inner bounds
+            configureRenderer(it.renderer).draw(this, it.dataset, g2, plotArea, mousePosition)
         }
     }
 

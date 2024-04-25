@@ -9,9 +9,11 @@
  */
 package io.github.bric3.fireplace.charts
 
+import java.awt.AWTEvent
 import java.awt.Graphics
 import java.awt.Graphics2D
 import java.awt.Rectangle
+import java.awt.event.MouseEvent
 import java.beans.PropertyChangeSupport
 import javax.swing.*
 
@@ -37,6 +39,7 @@ class ChartComponent(chart: Chart? = null) : JComponent() {
     private val rect = Rectangle()
 
     init {
+        enableEvents(AWTEvent.MOUSE_EVENT_MASK or AWTEvent.MOUSE_MOTION_EVENT_MASK)
         border = null
         propertyChangeSupport.addPropertyChangeListener("chart") {
             revalidate()
@@ -45,8 +48,8 @@ class ChartComponent(chart: Chart? = null) : JComponent() {
     }
 
     /**
-     * Paints the component.  The chart will be drawn at a size matching the
-     * bounds of the component.
+     * Paints the component.
+     * The chart will be drawn at a size matching the bounds of the component.
      *
      * @param g the Java2D graphics target.
      */
@@ -56,8 +59,20 @@ class ChartComponent(chart: Chart? = null) : JComponent() {
             val g2 = g as Graphics2D
             getBounds(rect)
             g.translate(-rect.x, -rect.y)
-            it.draw(g2, rect)
+            it.draw(g2, rect, mousePosition)
             g.translate(rect.x, rect.y)
         }
+    }
+
+    override fun processMouseEvent(e: MouseEvent) {
+        // handle clicks?
+        super.processMouseEvent(e)
+    }
+
+    override fun processMouseMotionEvent(e: MouseEvent) {
+        if (e.id == MouseEvent.MOUSE_MOVED) {
+            repaint()
+        }
+        super.processMouseMotionEvent(e)
     }
 }

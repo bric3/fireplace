@@ -11,6 +11,7 @@ package io.github.bric3.fireplace.charts
 
 import java.awt.Color
 import java.awt.Graphics2D
+import java.awt.Point
 import java.awt.geom.Rectangle2D
 import java.util.function.Supplier
 
@@ -27,7 +28,7 @@ interface RectangleContent {
      * @param g2     the graphics target (`null` not permitted).
      * @param bounds the bounds (`null` not permitted).
      */
-    fun draw(g2: Graphics2D, bounds: Rectangle2D)
+    fun draw(g2: Graphics2D, bounds: Rectangle2D, mousePosition: Point?)
 
     companion object {
         /**
@@ -37,7 +38,7 @@ interface RectangleContent {
          */
         fun blankCanvas(color: Supplier<Color?>): RectangleContent {
             return object : RectangleContent {
-                override fun draw(g2: Graphics2D, bounds: Rectangle2D) {
+                override fun draw(g2: Graphics2D, bounds: Rectangle2D, mousePosition: Point?) {
                     g2.color = color.get()
                     g2.fill(bounds)
                 }

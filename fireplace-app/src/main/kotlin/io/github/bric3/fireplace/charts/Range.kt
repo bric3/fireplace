@@ -41,14 +41,13 @@ data class Range<T : Number>(val min: T, val max: T) {
     }
 
     /**
-     * Calculates a fractional value indicating where [v] lies along the
-     * range.
+     * Calculates a fractional value indicating where [v] lies along the range.
      * This will return 0.0 if the range has zero-length.
      *
      * @param v the value.
      * @return The fraction.
      */
-    fun calcFraction(v: T): Double {
+    fun ratioFor(v: T): Double {
         if (compare(max, min) > 0) {
             if (min is Double) {
                 return (v.toDouble() - min.toDouble()) / (max.toDouble() - min.toDouble())
