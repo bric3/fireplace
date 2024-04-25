@@ -8,7 +8,6 @@ import java.awt.Graphics
 import java.awt.Graphics2D
 import java.awt.LayoutManager
 import java.awt.RenderingHints
-import java.awt.Window
 import java.awt.event.AWTEventListener
 import java.awt.event.ComponentAdapter
 import java.awt.event.ComponentEvent
@@ -52,13 +51,15 @@ object FollowingTipService {
 
 private class FollowingTip {
     private lateinit var tipWindow: JWindow
+    private lateinit var tipPopup: Popup
     private val contentContainer = RoundedPanel(layout = BorderLayout(), radius = 10).apply {
         border = BorderFactory.createEmptyBorder(5, 5, 5, 5)
     }
     private val contentProviders = WeakHashMap<JComponent, (JComponent, MouseEvent) -> JComponent?>()
 
     private val mouseHandler = AWTEventListener { e: AWTEvent ->
-        require(::tipWindow.isInitialized) { "FollowingTip is not proper;y initialized" }
+        require(::tipWindow.isInitialized) { "FollowingTip is not properly initialized" }
+        require(::tipPopup.isInitialized) { "FollowingTip is not properly initialized" }
 
         val ownerWindow = tipWindow.owner
         val event: MouseEvent?
@@ -113,14 +114,13 @@ private class FollowingTip {
         @Suppress("UNCHECKED_CAST")
         contentProviders[c] = contentProvider as ((JComponent, MouseEvent) -> JComponent?)
 
+        // Use the window of PopupFactory as the tooltip window,
+        // because it creates a proper heavy-weight Window with everything set up,
+        // including double buffering disabled, which works better for the following tip.
         val parentWindow = SwingUtilities.getWindowAncestor(c)
-        tipWindow = JWindow(parentWindow).apply {
-            type = Window.Type.POPUP
-            focusableWindowState = false
-            contentPane.add(contentContainer)
-            background = Color(0, true)
-            this.isLightweight
-        }
+        val popupFactory = PopupFactory.getSharedInstance()
+        tipPopup = popupFactory.getPopup(parentWindow, contentContainer, 0, 0)
+        tipWindow = SwingUtilities.getWindowAncestor(contentContainer) as JWindow
     }
 
     fun activate() {
