@@ -9,6 +9,7 @@
  */
 package io.github.bric3.fireplace.charts
 
+import io.github.bric3.fireplace.core.ui.LightDarkColor
 import java.awt.BasicStroke
 import java.awt.Color
 import java.awt.GradientPaint
@@ -26,14 +27,14 @@ import java.awt.geom.Rectangle2D
  * @param stroke the line stroke.
  * @param paint  the line paint.
  */
-class LineChartRenderer @JvmOverloads constructor(
+class LineChartRenderer(
     stroke: Stroke = BasicStroke(
         1.2f,
         BasicStroke.CAP_ROUND,
         BasicStroke.JOIN_ROUND
     ),
-    paint: Paint = Color.BLACK
-) : ChartRenderer() {
+    paint: Paint = LightDarkColor(Color.BLACK, Color.WHITE),
+) : ChartRenderer {
 
     /**
      * The gradient fill colors, either `null`, one color, or at most two colors.
@@ -86,9 +87,7 @@ class LineChartRenderer @JvmOverloads constructor(
      * @param g2         the Java2D graphics target.
      * @param plotBounds the bounds within which the data should be rendered.
      */
-    override fun draw(chart: Chart, dataset: XYDataset, g2: Graphics2D, plotBounds: Rectangle2D) {
-        super.draw(chart, dataset, g2, plotBounds)
-
+    override fun draw(chart: Chart, dataset: ChartDataset, g2: Graphics2D, plotBounds: Rectangle2D) {
         // within the bounds, draw a line chart
         val itemCount = dataset.itemCount
         require(itemCount != 0) { "No data" }
@@ -106,8 +105,8 @@ class LineChartRenderer @JvmOverloads constructor(
         for (i in 0 until itemCount) {
             if (yRange.isZeroLength) continue
             val xx = plotBounds.x + xRange.calcFraction(dataset.xAt(i)) * plotBounds.width
-            // if (dataset.yAt(i) == null) continue
-            val yy = plotBounds.maxY - yRange.calcFraction(dataset.yAt(i)) * plotBounds.height
+            val yValue = dataset.yAt(i) ?: continue
+            val yy = plotBounds.maxY - yRange.calcFraction(yValue) * plotBounds.height
             if (i == 0) {
                 path.moveTo(xx, yy)
             } else {

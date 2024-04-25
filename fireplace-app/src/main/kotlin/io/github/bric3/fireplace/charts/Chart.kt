@@ -57,7 +57,7 @@ class Chart : RectangleContent {
     /**
      * The insets (applied after the background has been drawn).
      */
-    var insets: RectangleMargin = RectangleMargin(2.0, 2.0, 2.0, 2.0)
+    var insets = RectangleMargin(2.0, 2.0, 2.0, 2.0)
         set(value) {
             val oldInsets = field
             if (oldInsets == field) {
@@ -71,7 +71,7 @@ class Chart : RectangleContent {
      * The insets for the plot area (defaults to zero but can be modified to add space for
      * annotations etc).
      */
-    var plotInsets: RectangleMargin = RectangleMargin(0.0, 0.0, 0.0, 0.0)
+    var plotInsets = RectangleMargin(0.0, 0.0, 0.0, 0.0)
         set(value) {
             val oldPlotInsets = field
             if (oldPlotInsets == value) {
@@ -110,9 +110,7 @@ class Chart : RectangleContent {
         // set up any rendering hints we want (should allow this to be controlled externally)
         g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
 
-        if (background != null) {
-            background!!.draw(g2, bounds)
-        }
+        background?.draw(g2, bounds)
 
         // handle background, margin, border, insets and fill
         insets.applyInsets(bounds)

@@ -15,21 +15,18 @@ import kotlin.math.min
 
 /**
  * A dataset containing zero, one or many (x, y) data items.
+ *
+ * @param sourceItems the source items (`null` not permitted).
+ * @param label The label for the dataset.
  */
 open class XYDataset(
     sourceItems: List<XY<Long, Double>>,
-    val label: String
-) {
+    final override val label: String
+) : ChartDataset {
     private val items: List<XY<Long, Double>>
-    val rangeOfX: Range<Long>
-    val rangeOfY: Range<Double>
+    final override val rangeOfX: Range<Long>
+    final override val rangeOfY: Range<Double>
 
-    /**
-     * Creates a new dataset.
-     *
-     * @param sourceItems the source items (`null` not permitted).
-     * @param label The label for the dataset.
-     */
     init {
         // verify that none of the x-values is null or NaN ot INF
         // and while doing that record the mins and maxes
@@ -58,14 +55,14 @@ open class XYDataset(
         return yRange
     }
 
-    val itemCount: Int
+    override val itemCount: Int
         get() = items.size
 
-    fun xAt(index: Int): Long {
+    override fun xAt(index: Int): Long {
         return items[index].x
     }
 
-    fun yAt(index: Int): Double {
+    override fun yAt(index: Int): Double {
         return items[index].y
     }
 
@@ -99,7 +96,7 @@ open class XYDataset(
      *
      * @param <X> the type of the first object.
      * @param <Y> the type of the second object.
-    </Y></X> */
+     */
     @JvmRecord
-    data class XY<X : Number?, Y : Number?>(val x: X, val y: Y)
+    data class XY<X : Number, Y : Number>(val x: X, val y: Y)
 }
