@@ -35,6 +35,9 @@ class ChartComponent(chart: Chart? = null) : JComponent() {
             propertyChangeSupport.firePropertyChange("chart", oldChart, value)
         }
 
+    val toolTipComponent: JComponent?
+        get() = chart?.createToolTipComponent(getBounds(rect), mousePosition)
+
     /** A reusable rectangle to avoid creating work for the garbage collector.  */
     private val rect = Rectangle()
 

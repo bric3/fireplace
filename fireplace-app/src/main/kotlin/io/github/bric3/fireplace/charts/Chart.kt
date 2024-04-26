@@ -18,6 +18,7 @@ import java.awt.RenderingHints
 import java.awt.geom.Rectangle2D
 import java.beans.PropertyChangeListener
 import java.beans.PropertyChangeSupport
+import javax.swing.*
 
 /**
  * A chart that can be inlaid into a small space.
@@ -73,7 +74,7 @@ class Chart : RectangleContent {
 
     /**
      * The insets for the plot area (defaults to zero but can be modified to add space for
-     * annotations etc).
+     * annotations, etc.).
      */
     var plotInsets = RectangleMargin(0.0, 0.0, 0.0, 0.0)
         set(value) {
@@ -85,6 +86,26 @@ class Chart : RectangleContent {
             field = value
             propertyChangeSupport.firePropertyChange("plotInsets", oldPlotInsets, value)
         }
+
+    fun createToolTipComponent(bounds: Rectangle2D, mousePosition: Point?): JComponent? {
+        val plotArea = plotInsets.shrink(bounds)
+        val constituents = chartSpecifications.mapNotNull {
+            val toolTipComponentContributor = configureRenderer(it.renderer) as? ToolTipComponentContributor
+            toolTipComponentContributor?.createToolTipComponent(it, plotArea, mousePosition)
+        }
+        constituents.ifEmpty { return null }
+
+        return JPanel().apply {
+            layout = BoxLayout(this, BoxLayout.Y_AXIS)
+
+            constituents.forEachIndexed { index, it ->
+                add(it)
+                if (index < constituents.size - 1) {
+                    add(JSeparator())
+                }
+            }
+        }
+    }
 
     /**
      * Creates a new chart with the given specifications, dataset and renderer.
@@ -139,6 +160,7 @@ class Chart : RectangleContent {
             is LineRendererDescriptor -> lineChartRenderer.apply {
                 linePaint = rendererSpec.lineColor ?: Color.BLACK
                 fillColors = rendererSpec.fillColors
+                tooltipFunction = rendererSpec.tooltipFunction
             }
 
             else -> error("Unsupported render spec")

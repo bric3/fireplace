@@ -58,6 +58,10 @@ open class XYDataset(
     override val itemCount: Int
         get() = items.size
 
+    override fun xyAt(index: Int): XY<Long, Double> {
+        return items[index]
+    }
+
     override fun xAt(index: Int): Long {
         return items[index].x
     }

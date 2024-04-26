@@ -9,14 +9,10 @@
  */
 package io.github.bric3.fireplace.charts
 
-import io.github.bric3.fireplace.charts.XYDataset.XY
+import java.awt.Point
+import java.awt.geom.Rectangle2D
+import javax.swing.*
 
-interface ChartDataset {
-    val label: String
-    val rangeOfX: Range<Long>
-    val rangeOfY: Range<Double>
-    val itemCount: Int
-    fun xAt(index: Int): Long
-    fun yAt(index: Int): Double?
-    fun xyAt(index: Int): XY<Long, Double>
+interface ToolTipComponentContributor {
+    fun createToolTipComponent(chart: ChartSpecification, plotArea: Rectangle2D, mousePosition: Point?): JComponent?
 }

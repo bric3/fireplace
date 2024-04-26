@@ -9,6 +9,7 @@
  */
 package io.github.bric3.fireplace.charts
 
+import io.github.bric3.fireplace.charts.XYDataset.XY
 import io.github.bric3.fireplace.core.ui.Colors
 import io.github.bric3.fireplace.core.ui.LightDarkColor
 import io.github.bric3.fireplace.ui.toolkit.UIUtil
@@ -22,6 +23,7 @@ import java.awt.Stroke
 import java.awt.geom.Ellipse2D
 import java.awt.geom.Path2D
 import java.awt.geom.Rectangle2D
+import javax.swing.*
 import kotlin.math.abs
 
 
@@ -38,7 +40,7 @@ class LineChartRenderer(
         BasicStroke.JOIN_ROUND
     ),
     paint: Paint = LightDarkColor(Color.BLACK, Color.WHITE),
-) : ChartRenderer {
+) : ChartRenderer, ToolTipComponentContributor {
 
     /**
      * The gradient fill colors, either `null`, one color, or at most two colors.
@@ -57,6 +59,11 @@ class LineChartRenderer(
      * The paint for rendering the line.
      */
     var linePaint = paint
+
+    /**
+     * The tooltip function that will be called to create a tooltip component for a given XY value.
+     */
+    var tooltipFunction: (XY<Long, Double>, String) -> JComponent? = { _, _ -> null }
 
     /**
      * A shape that will be drawn at the point of the last value in the series.
@@ -225,6 +232,40 @@ class LineChartRenderer(
             g2.paint = Colors.panelBackground
             g2.draw(dotBorder)
         }
+    }
+
+    override fun createToolTipComponent(
+        chart: ChartSpecification,
+        plotBounds: Rectangle2D,
+        mousePosition: Point?
+    ): JComponent? {
+        val dataset = chart.dataset
+        val itemCount = dataset.itemCount
+        if (itemCount == 0) return null
+        val xRange = dataset.rangeOfX
+        var yRange = dataset.rangeOfY
+        if (includeZeroInYRange) {
+            yRange = yRange.include(0.0)
+        }
+
+        val hasContributor = mousePosition != null && mousePosition.x >= plotBounds.x && mousePosition.x <= plotBounds.maxX
+        if (!hasContributor) return null
+
+        var closestXY: XY<Long, Double>? = null
+        var closestItemX = Double.MAX_VALUE
+        for (i in 0 until itemCount) {
+            if (yRange.isZeroLength) continue
+            val xy = dataset.xyAt(i)
+            val xx = plotBounds.x + xRange.ratioFor(xy.x) * plotBounds.width
+            // discover the closest item to the mouse adjusted position
+            val distance = abs(xx - mousePosition!!.x)
+            if (distance < closestItemX) {
+                closestItemX = distance
+                closestXY = xy
+            }
+        }
+
+        return closestXY?.let { tooltipFunction(it, chart.label) }
     }
 
     companion object {

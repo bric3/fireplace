@@ -15,6 +15,8 @@ import io.github.bric3.fireplace.charts.ChartSpecification
 import io.github.bric3.fireplace.charts.ChartSpecification.LineRendererDescriptor
 import io.github.bric3.fireplace.charts.XYDataset.XY
 import io.github.bric3.fireplace.charts.XYPercentageDataset
+import io.github.bric3.fireplace.charts.presentablePercentage
+import io.github.bric3.fireplace.charts.presentableTime
 import io.github.bric3.fireplace.charts.withAlpha
 import io.github.bric3.fireplace.jfr.support.JFRLoaderBinder
 import io.github.bric3.fireplace.jfr.support.JfrAnalyzer
@@ -22,6 +24,8 @@ import io.github.bric3.fireplace.jfr.support.getMemberFromEvent
 import io.github.bric3.fireplace.ui.CPU_BASE
 import io.github.bric3.fireplace.ui.ThreadFlamegraphView
 import io.github.bric3.fireplace.ui.ViewPanel.Priority
+import io.github.bric3.fireplace.ui.toolkit.ColorIcon
+import io.github.bric3.fireplace.ui.toolkit.FollowingTipService
 import org.openjdk.jmc.common.IDisplayable
 import org.openjdk.jmc.common.unit.UnitLookup
 import org.openjdk.jmc.flightrecorder.JfrAttributes
@@ -41,6 +45,10 @@ class MethodCpuSample(jfrBinder: JFRLoaderBinder) : ThreadFlamegraphView(jfrBind
                 minimumSize = Dimension(99999, 84)
                 size = size.apply { height = 84 }
                 preferredSize = Dimension(99999, 84)
+
+                FollowingTipService.enableFor(this) { chart, _ ->
+                    chart.toolTipComponent
+                }
             }
 
             jfrBinder.bindEvents(
@@ -93,6 +101,12 @@ class MethodCpuSample(jfrBinder: JFRLoaderBinder) : ThreadFlamegraphView(jfrBind
 
                     Chart(
                         buildList {
+                            fun tooltipFunction(color: Color): (XY<Long, Double>, String) -> JComponent = { xy, label ->
+                                JLabel("<html>$label: <strong>${presentablePercentage(xy.y)}</strong> at <strong>${presentableTime(xy.x)}</strong></html>").apply {
+                                    icon = ColorIcon(14, color)
+                                }
+                            }
+
                             if (cpuUserLoadValues.isNotEmpty()) {
                                 add(
                                     ChartSpecification(
@@ -101,6 +115,7 @@ class MethodCpuSample(jfrBinder: JFRLoaderBinder) : ThreadFlamegraphView(jfrBind
                                         LineRendererDescriptor(
                                             lineColor = Color.GREEN,
                                             fillColors = listOf(Color.GREEN.withAlpha(0.4f), Color.GREEN.withAlpha(0.01f)),
+                                            tooltipFunction = tooltipFunction(Color.GREEN)
                                         )
                                     )
                                 )
@@ -113,6 +128,7 @@ class MethodCpuSample(jfrBinder: JFRLoaderBinder) : ThreadFlamegraphView(jfrBind
                                         LineRendererDescriptor(
                                             lineColor = Color.RED,
                                             fillColors = listOf(Color.RED.withAlpha(0.4f), Color.RED.withAlpha(0.01f)),
+                                            tooltipFunction = tooltipFunction(Color.RED)
                                         )
                                     )
                                 )
