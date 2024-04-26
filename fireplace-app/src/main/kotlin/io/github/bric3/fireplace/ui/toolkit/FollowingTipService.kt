@@ -9,8 +9,6 @@ import java.awt.Graphics2D
 import java.awt.LayoutManager
 import java.awt.RenderingHints
 import java.awt.event.AWTEventListener
-import java.awt.event.ComponentAdapter
-import java.awt.event.ComponentEvent
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
 import java.awt.event.MouseEvent.MOUSE_DRAGGED
@@ -30,22 +28,16 @@ object FollowingTipService {
         component: T,
         contentProvider: (c: T, MouseEvent) -> JComponent?
     ) {
+        // only attach when the component hierarchy is added to a JFrame
         component.addHierarchyListener {
             if (it.changed is JFrame) {
-                followingTip.attachToParent(component, contentProvider)
-                followingTip.activate()
+                followingTip.install(component, contentProvider)
             }
         }
+    }
 
-        component.addComponentListener(object : ComponentAdapter() {
-            override fun componentHidden(e: ComponentEvent) =
-                followingTip.deactivate()
-        })
-
-        component.addMouseListener(object : MouseAdapter() {
-            override fun mouseEntered(e: MouseEvent) = followingTip.activate()
-            override fun mouseExited(e: MouseEvent) = followingTip.deactivate()
-        })
+    fun disableFor(component: JComponent) {
+        followingTip.deinstall(component)
     }
 }
 
@@ -57,6 +49,14 @@ private class FollowingTip {
     }
     private val contentProviders = WeakHashMap<JComponent, (JComponent, MouseEvent) -> JComponent?>()
 
+    /**
+     * A dummy mouse listener that is used to make the component eligible to receive mouse events.
+     */
+    private val dummyMouseListener = object : MouseAdapter() {}
+
+    /**
+     * The mouse event handler that will update the tooltip position and content.
+     */
     private val mouseHandler = AWTEventListener { e: AWTEvent ->
         require(::tipWindow.isInitialized) { "FollowingTip is not properly initialized" }
         require(::tipPopup.isInitialized) { "FollowingTip is not properly initialized" }
@@ -107,40 +107,46 @@ private class FollowingTip {
         }
     }
 
-    fun <T : JComponent> attachToParent(c: T, contentProvider: (T, MouseEvent) -> JComponent?) {
-        if (contentProviders.contains(c)) {
-            return
-        }
+    fun <T : JComponent> install(component: T, contentProvider: (T, MouseEvent) -> JComponent?) {
         @Suppress("UNCHECKED_CAST")
-        contentProviders[c] = contentProvider as ((JComponent, MouseEvent) -> JComponent?)
+        contentProviders[component] = contentProvider as ((JComponent, MouseEvent) -> JComponent?)
 
+        // To receive mouse events, the component must be told to listen to mouse events,
+        // this can be done either from within (e.g., via the protected `Component::enableEvents(mask)`),
+        // or from outside (e.g., via `Component::addMouseListener`). Without this, the component
+        // will not be eligible to receive events (even those from the `AWTEventListener`).
+        component.addMouseListener(dummyMouseListener)
+
+        if (!::tipPopup.isInitialized) {
+            createTipWindow(component)
+            
+            tipWindow.owner.toolkit.addAWTEventListener(
+                mouseHandler,
+                AWTEvent.MOUSE_EVENT_MASK or AWTEvent.MOUSE_MOTION_EVENT_MASK
+            )
+        }
+    }
+
+    fun deinstall(component: JComponent) {
+        val location = tipWindow.locationOnScreen.apply {
+            SwingUtilities.convertPointFromScreen(this, component)
+        }
+        if (component.contains(location)) {
+            tipWindow.isVisible = false
+        }
+
+        contentProviders.remove(component)
+        component.removeMouseListener(dummyMouseListener)
+    }
+
+    private fun createTipWindow(component: JComponent) {
         // Use the window of PopupFactory as the tooltip window,
         // because it creates a proper heavy-weight Window with everything set up,
         // including double buffering disabled, which works better for the following tip.
-        val parentWindow = SwingUtilities.getWindowAncestor(c)
+        val parentWindow = SwingUtilities.getWindowAncestor(component)
         val popupFactory = PopupFactory.getSharedInstance()
         tipPopup = popupFactory.getPopup(parentWindow, contentContainer, 0, 0)
         tipWindow = SwingUtilities.getWindowAncestor(contentContainer) as JWindow
-    }
-
-    fun activate() {
-        val window = tipWindow.owner
-        window.toolkit.addAWTEventListener(
-            mouseHandler,
-            AWTEvent.MOUSE_EVENT_MASK or AWTEvent.MOUSE_MOTION_EVENT_MASK
-        )
-
-        val p = window.mousePosition
-        if (p != null) {
-            SwingUtilities.convertPointToScreen(p, window)
-            tipWindow.setLocation(p.x + 10, p.y + 10)
-        }
-    }
-
-    fun deactivate() {
-        val window = tipWindow.owner
-        window.toolkit.removeAWTEventListener(mouseHandler)
-        tipWindow.isVisible = false
     }
 }
 
@@ -161,10 +167,10 @@ private class RoundedPanel(
         graphics.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
 
         // Draws the rounded panel with borders.
-        graphics.color = bgColor ?: background
+        graphics.color = bgColor ?: UIUtil.Colors.backgroundColor
         graphics.fillRoundRect(0, 0, this.width - 1, this.height - 1, radius, radius)
 
-        graphics.color = borderColor ?: foreground
+        graphics.color = borderColor ?: UIUtil.Colors.borderColor
         graphics.drawRoundRect(0, 0, this.width - 1, this.height - 1, radius, radius)
     }
 }

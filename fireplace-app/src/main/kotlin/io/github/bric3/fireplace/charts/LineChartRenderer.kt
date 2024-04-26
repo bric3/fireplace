@@ -11,6 +11,7 @@ package io.github.bric3.fireplace.charts
 
 import io.github.bric3.fireplace.core.ui.Colors
 import io.github.bric3.fireplace.core.ui.LightDarkColor
+import io.github.bric3.fireplace.ui.toolkit.UIUtil
 import java.awt.BasicStroke
 import java.awt.Color
 import java.awt.GradientPaint
@@ -108,7 +109,7 @@ class LineChartRenderer(
         val centerX = plotBounds.x + xRange.ratioFor(dataset.xAt(closestItemIndex)) * plotBounds.width
         val centerY = plotBounds.maxY - yRange.ratioFor(dataset.yAt(closestItemIndex)!!) * plotBounds.height
 
-        g2.paint = Color.GRAY // TODO get color from chart
+        g2.paint = UIUtil.Colors.borderColor // TODO get color from chart
         g2.drawLine(
             centerX.toInt(),
             plotBounds.y.toInt(),
