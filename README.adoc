@@ -11,6 +11,9 @@ image:https://img.shields.io/maven-central/v/io.github.bric3.fireplace/fireplace
 </picture>
 ++++
 
+This flamegraph component is known to be used in [JDK Mission Control 9.0](https://github.com/openjdk/jmc) and in the [Datadog plugin for ItelliJ](https://github.com/DataDog/datadog-for-intellij-platform).
+
+
 == Usage
 
 .Example usage
