@@ -28,6 +28,7 @@ import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseWheelEvent;
+import java.awt.event.MouseWheelListener;
 import java.awt.geom.Area;
 import java.awt.image.BufferedImage;
 import java.beans.PropertyChangeListener;
@@ -1553,7 +1554,8 @@ public class FlamegraphView<T> {
      * @param <T>
      * @see FlamegraphView.HoverListener
      */
-    private static class FlamegraphHoveringScrollPaneMouseListener<T> implements MouseInputListener, FocusListener {
+    private static class FlamegraphHoveringScrollPaneMouseListener<T>
+            implements MouseInputListener, MouseWheelListener, FocusListener {
         private Point pressedPoint;
         private final FlamegraphCanvas<T> canvas;
         private Rectangle hoveredFrameRectangle;
@@ -1671,6 +1673,15 @@ public class FlamegraphView<T> {
 
         @Override
         public void mouseMoved(@NotNull MouseEvent e) {
+            handleMouseLocationChange(e);
+        }
+
+        @Override
+        public void mouseWheelMoved(@NotNull MouseWheelEvent e) {
+            handleMouseLocationChange(e);
+        }
+
+        private void handleMouseLocationChange(@NotNull MouseEvent e) {
             var latestMouseLocation = MouseInfo.getPointerInfo().getLocation();
             SwingUtilities.convertPointFromScreen(latestMouseLocation, canvas);
 
@@ -1760,6 +1771,9 @@ public class FlamegraphView<T> {
             sp.addMouseListener(this);
             sp.addMouseMotionListener(this);
             sp.addFocusListener(this);
+            // impl note, mouse wheel listener should be added on the scroll pane
+            // otherwise the scroll pane don't receive wheel events
+            sp.addMouseWheelListener(this);
         }
     }
 
