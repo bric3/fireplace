@@ -23,6 +23,7 @@ import org.openjdk.jmc.flightrecorder.stacktrace.FrameSeparator
 import org.openjdk.jmc.flightrecorder.stacktrace.tree.StacktraceTreeModel
 import java.lang.invoke.MethodHandles
 import java.util.*
+import java.util.function.Supplier
 import java.util.stream.Collectors
 import java.util.stream.Collectors.joining
 import java.util.stream.StreamSupport
@@ -138,7 +139,11 @@ fun Iterable<IItem>.toItemCollection(parallel: Boolean = false): IItemCollection
     return ItemCollectionToolkit.build(StreamSupport.stream(this.spliterator(), parallel))
 }
 
-fun <T, K> byThreads(events: IItemCollection, classifier: IAttribute<T>, subAttribute: IAttribute<K>? = null): Map<K, List<IItem>> {
+fun <T, K> byThreads(
+    events: IItemCollection,
+    classifier: IAttribute<T>,
+    subAttribute: IAttribute<K>? = null
+): Map<K, Supplier<List<IItem>>> {
     val mappingAttribute = subAttribute ?: classifier
 
     val hasEventThread = ItemFilters.hasAttribute(classifier)
@@ -159,8 +164,8 @@ fun <T, K> byThreads(events: IItemCollection, classifier: IAttribute<T>, subAttr
                     @Suppress("UNCHECKED_CAST")
                     it.first as K
                 },
-                { listOf(it.second) },
-                { a, b -> a + b }
+                { Supplier { listOf(it.second) } },
+                { a, b -> Supplier { a.get() + b.get() } }
             )
         )
 }

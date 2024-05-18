@@ -24,12 +24,13 @@ import java.awt.BorderLayout
 import java.awt.Component
 import java.awt.event.MouseEvent
 import java.util.concurrent.CompletableFuture
+import java.util.function.Supplier
 import javax.swing.*
 import kotlin.collections.Map.Entry
 
 abstract class ThreadFlamegraphView(protected val jfrBinder: JFRLoaderBinder) : ViewPanel {
     private var events: IItemCollection = ItemCollectionToolkit.EMPTY
-    private var threadMapping: Map<String, List<IItem>> = mapOf()
+    private var threadMapping: Map<String, Supplier<List<IItem>>> = mapOf()
     abstract override val identifier: String
     protected abstract val eventSelector: (IItemCollection) -> IItemCollection
     open val nodeWeightAttribute: IAttribute<IQuantity>? =
@@ -39,12 +40,13 @@ abstract class ThreadFlamegraphView(protected val jfrBinder: JFRLoaderBinder) : 
     override val view by lazy {
         val flameGraphPane = FlamegraphPane()
 
-        val threadList = object : JList<Pair<String, List<IItem>>>() {
+        val threadList = object : JList<Pair<String, Supplier<List<IItem>>>>() {
             override fun processMouseEvent(e: MouseEvent) {
                 // Clear selection on clicking in empty space
                 val cellBounds = this.getCellBounds(0, this.model.size - 1)
                 if ((e.id == MouseEvent.MOUSE_CLICKED || e.id == MouseEvent.MOUSE_PRESSED)
-                    && cellBounds != null && !cellBounds.contains(e.point)
+                    && cellBounds != null
+                    && !cellBounds.contains(e.point)
                 ) {
                     this.clearSelection()
                     e.consume()
@@ -63,7 +65,7 @@ abstract class ThreadFlamegraphView(protected val jfrBinder: JFRLoaderBinder) : 
                     cellHasFocus: Boolean
                 ): Component {
                     val component = super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus)
-                    val (name, iItems) = value as Pair<String, List<IItem>>
+                    val (name, iItems) = value as Pair<String, Supplier<List<IItem>>>
                     text = name
                     return this
                 }
@@ -76,7 +78,7 @@ abstract class ThreadFlamegraphView(protected val jfrBinder: JFRLoaderBinder) : 
                     flameGraphPane.setStacktraceTreeModelAsync(
                         when (selectedValue.first) {
                             ALL_THREADS_LABEL -> events.stacktraceTreeModel()
-                            else -> selectedValuesList.map { it.second }
+                            else -> selectedValuesList.map { it.second.get() }
                                 // .mapNotNull { threadMapping[it] }
                                 .flatten()
                                 .stacktraceTreeModel(nodeWeightAttribute)
@@ -102,12 +104,12 @@ abstract class ThreadFlamegraphView(protected val jfrBinder: JFRLoaderBinder) : 
                     JfrAttributes.EVENT_THREAD,
                     JdkAttributes.EVENT_THREAD_NAME
                 )
-                val threadListModel = DefaultListModel<Pair<String, List<IItem>>>().apply {
-                    addElement(ALL_THREADS_LABEL to emptyList())
+                val threadListModel = DefaultListModel<Pair<String, Supplier<List<IItem>>>>().apply {
+                    addElement(ALL_THREADS_LABEL to Supplier { emptyList() })
                     addAll(
-                        threadMapping.entries.map(Entry<String, List<IItem>>::toPair).sortedWith(
+                        threadMapping.entries.map(Entry<String, Supplier<List<IItem>>>::toPair).sortedWith(
                             Comparator.comparing(
-                                Pair<String, List<IItem>>::first,
+                                Pair<String, Supplier<List<IItem>>>::first,
                                 Comparator.nullsLast(Comparator.naturalOrder())
                             )
                         )
@@ -124,7 +126,7 @@ abstract class ThreadFlamegraphView(protected val jfrBinder: JFRLoaderBinder) : 
             }
         )
 
-        JSplitPane(JSplitPane.HORIZONTAL_SPLIT, threadList, charts).apply {
+        JSplitPane(JSplitPane.HORIZONTAL_SPLIT, JScrollPane(threadList), charts).apply {
             autoSize(0.2)
         }
     }
