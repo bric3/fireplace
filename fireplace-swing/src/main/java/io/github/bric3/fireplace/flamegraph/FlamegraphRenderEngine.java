@@ -136,6 +136,7 @@ class FlamegraphRenderEngine<T> {
      *
      * @param frameRenderer a configured single frame renderer.
      * @see #init(FrameModel)
+     * @see FrameRenderer
      */
     public FlamegraphRenderEngine(@NotNull FrameRenderer<@NotNull T> frameRenderer) {
         this.frameRenderer = Objects.requireNonNull(frameRenderer, "frameRenderer");

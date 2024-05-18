@@ -59,7 +59,7 @@ public abstract class FrameRenderingFlags {
     public static final int FOCUSED_FRAME = 1 << 6;
 
     /**
-     * The renderer is currently rendering a partial frame, e.g. it is larger
+     * The renderer is currently rendering a partial frame, e.g., it is larger
      * that the painting area.
      */
     public static final int PARTIAL_FRAME = 1 << 7;

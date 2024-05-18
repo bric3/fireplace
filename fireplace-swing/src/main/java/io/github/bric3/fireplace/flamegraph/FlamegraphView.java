@@ -93,7 +93,7 @@ import static java.lang.Boolean.TRUE;
  * @see FrameTextsProvider
  * @see FrameFontProvider
  * @see FlamegraphRenderEngine
- * @see FrameRenderer
+ * @see DefaultFrameRenderer
  */
 public class FlamegraphView<T> {
     /**
@@ -429,92 +429,115 @@ public class FlamegraphView<T> {
 
     /**
      * Replaces the frame colors provider.
+     * Deprecated, use {@link DefaultFrameRenderer#setFrameColorProvider(FrameColorProvider)}
      *
      * @param frameColorProvider A provider that takes a frame and returns its colors.
      * @see FrameColorProvider
      */
+    @Deprecated(forRemoval = true)
     public void setFrameColorProvider(@NotNull FrameColorProvider<@NotNull T> frameColorProvider) {
-        this.canvas.getFlamegraphRenderEngine()
-                   .getFrameRenderer()
-                   .setFrameColorProvider(frameColorProvider);
+        getDefaultFrameRenderer(this.canvas)
+                .setFrameColorProvider(frameColorProvider);
+    }
+
+    private @NotNull DefaultFrameRenderer<@NotNull T> getDefaultFrameRenderer(@NotNull FlamegraphCanvas<T> canvas) {
+        var flamegraphRenderEngine = canvas.getFlamegraphRenderEngine();
+        var frameRenderer = flamegraphRenderEngine.getFrameRenderer();
+
+        // if not a default renderer, replace it
+        if (!(frameRenderer instanceof DefaultFrameRenderer)) {
+            throw new IllegalStateException(
+                    "Deprecated method use, FrameRender is a '" + frameRenderer.getClass() +
+                    "' while this method operate on a DefaultFrameRenderer"
+            );
+        }
+        return (DefaultFrameRenderer<T>) frameRenderer;
     }
 
     /**
      * Returns the frame colors provider.
+     * Deprecated, use {@link DefaultFrameRenderer#getFrameColorProvider()}
      *
      * @return The frame colors provider, may return <code>null</code> if renderer not configured.
      */
+    @Deprecated(forRemoval = true)
     @NotNull
     public FrameColorProvider<@NotNull T> getFrameColorProvider() {
-        return canvas.getFlamegraphRenderEngine()
-                     .getFrameRenderer()
-                     .getFrameColorProvider();
+        return getDefaultFrameRenderer(canvas)
+                .getFrameColorProvider();
     }
 
     /**
      * Replaces the frame font provider.
+     * Deprecated, use {@link DefaultFrameRenderer#setFrameFontProvider(FrameFontProvider)}
      *
      * @param frameFontProvider A provider that takes a frame and returns its font.
      * @see FrameFontProvider
      */
+    @Deprecated(forRemoval = true)
     public void setFrameFontProvider(@NotNull FrameFontProvider<@NotNull T> frameFontProvider) {
-        this.canvas.getFlamegraphRenderEngine()
-                   .getFrameRenderer()
-                   .setFrameFontProvider(frameFontProvider);
+        getDefaultFrameRenderer(this.canvas)
+                .setFrameFontProvider(frameFontProvider);
     }
 
     /**
      * Returns the frane font provider.
+     * Deprecated, use {@link DefaultFrameRenderer#getFrameFontProvider()}
      *
      * @return The frame font provider, may return <code>null</code> if renderer not configured.
      */
+    @Deprecated(forRemoval = true)
     @NotNull
     public FrameFontProvider<@NotNull T> getFrameFontProvider() {
-        return canvas.getFlamegraphRenderEngine()
-                     .getFrameRenderer()
-                     .getFrameFontProvider();
+        return getDefaultFrameRenderer(canvas)
+                .getFrameFontProvider();
     }
 
     /**
      * Replaces the frame to text candidates provider.
+     * Deprecated, use {@link DefaultFrameRenderer#setFrameTextsProvider(FrameTextsProvider)}
      *
      * @param frameTextsProvider A provider that takes a frame and returns its colors.
      * @see FrameTextsProvider
      */
+    @Deprecated(forRemoval = true)
     public void setFrameTextsProvider(@NotNull FrameTextsProvider<@NotNull T> frameTextsProvider) {
-        this.canvas.getFlamegraphRenderEngine()
-                   .getFrameRenderer()
-                   .setFrameTextsProvider(frameTextsProvider);
+        getDefaultFrameRenderer(this.canvas)
+                .setFrameTextsProvider(frameTextsProvider);
     }
 
     /**
      * Returns the frame texts candidate provider.
+     * Deprecated, use {@link DefaultFrameRenderer#getFrameTextsProvider()}
      *
      * @return The frame texts candidate provider, may return <code>null</code> if renderer not configured.
      */
+    @Deprecated(forRemoval = true)
     @NotNull
     public FrameTextsProvider<@NotNull T> getFrameTextsProvider() {
-        return canvas.getFlamegraphRenderEngine()
-                     .getFrameRenderer()
-                     .getFrameTextsProvider();
+        return getDefaultFrameRenderer(canvas)
+                .getFrameTextsProvider();
     }
 
     /**
      * Toggle the display of a gap between frames.
+     * Deprecated, use {@link DefaultFrameRenderer#setDrawingFrameGap(boolean)}
      *
      * @param frameGapEnabled {@code true} to show a gap between frames, {@code false} otherwise.
      */
+    @Deprecated(forRemoval = true)
     public void setFrameGapEnabled(boolean frameGapEnabled) {
-        canvas.getFlamegraphRenderEngine()
-              .getFrameRenderer()
-              .setDrawingFrameGap(frameGapEnabled);
+        getDefaultFrameRenderer(canvas)
+                .setDrawingFrameGap(frameGapEnabled);
     }
 
     /**
      * Whether gap between frames is displayed.
+     * Deprecated, use {@link FrameRenderer#isDrawingFrameGap()}
      *
      * @return {@code true} if gap between frames is shown, {@code false} otherwise.
      */
+    @Deprecated(forRemoval = true)
     public boolean isFrameGapEnabled() {
         return canvas.getFlamegraphRenderEngine()
                      .getFrameRenderer()
@@ -533,6 +556,7 @@ public class FlamegraphView<T> {
 
     /**
      * Returns the color supplier for the minimap shade of {@link FlamegraphView}.
+     *
      * @return The color supplier for the minimap shade, may return <code>null</code> if not set.
      */
     @Nullable
@@ -608,6 +632,7 @@ public class FlamegraphView<T> {
 
     /**
      * Returns the tooltip component supplier of {@link FlamegraphView}.
+     *
      * @return the tooltip component supplier, may return <code>null</code> if not set.
      */
     @Nullable
@@ -627,6 +652,7 @@ public class FlamegraphView<T> {
 
     /**
      * Returns the popup consumer of {@link FlamegraphView}.
+     *
      * @return the popup consumer, may return <code>null</code> if not set.
      */
     @Nullable
@@ -646,6 +672,7 @@ public class FlamegraphView<T> {
 
     /**
      * Returns the selected frame consumer of {@link FlamegraphView}.
+     *
      * @return the selected frame consumer, may return <code>null</code> if not set.
      */
     @Nullable
@@ -699,22 +726,40 @@ public class FlamegraphView<T> {
      *     like the type of events, their number, etc.</li>
      *     <li>The frame background and foreground colors.</li>
      * </ul>
+     * <p>
+     * Deprecated, use {@link #setFrameRender(FrameRenderer)} with a ${@link DefaultFrameRenderer}.
      *
      * @param frameTextsProvider The function to display label in frames.
      * @param frameColorProvider The frame to background color function.
      * @param frameFontProvider  The frame font provider.
      */
+    @Deprecated(forRemoval = true)
     public void setRenderConfiguration(
             @NotNull FrameTextsProvider<@NotNull T> frameTextsProvider,
             @NotNull FrameColorProvider<@NotNull T> frameColorProvider,
             @NotNull FrameFontProvider<@NotNull T> frameFontProvider
     ) {
-        var flamegraphRenderEngine = new FlamegraphRenderEngine<>(
-                new FrameRenderer<>(
+        setFrameRender(
+                new DefaultFrameRenderer<T>(
                         frameTextsProvider,
                         frameColorProvider,
                         frameFontProvider
                 )
+        );
+    }
+
+    /**
+     * Configures the frame renderer of {@link FlamegraphView}.
+     *
+     * <p>
+     * This is the main entry point to configure the rendering of the flamegraph.
+     * </p>
+     *
+     * @param frameRenderer The frame renderer.
+     */
+    public void setFrameRender(FrameRenderer<T> frameRenderer) {
+        var flamegraphRenderEngine = new FlamegraphRenderEngine<>(
+                frameRenderer
         ).init(framesModel);
 
         canvas.setFlamegraphRenderEngine(flamegraphRenderEngine);
@@ -740,6 +785,7 @@ public class FlamegraphView<T> {
 
     /**
      * Gets the tooltip text of {@link FlamegraphView}.
+     *
      * @return The tooltipTextFunction for a frame, may return <code>null</code> if not set.
      */
     public BiFunction<@NotNull FrameModel<@NotNull T>, FrameBox<@NotNull T>, String> getTooltipTextFunction() {

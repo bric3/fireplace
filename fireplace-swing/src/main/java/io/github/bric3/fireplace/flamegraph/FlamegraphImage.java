@@ -66,7 +66,7 @@ public class FlamegraphImage<T> {
             @NotNull FrameColorProvider<@NotNull T> frameColorProvider,
             @NotNull FrameFontProvider<@NotNull T> frameFontProvider
     ) {
-        this.fre = new FlamegraphRenderEngine<>(new FrameRenderer<>(
+        this.fre = new FlamegraphRenderEngine<>(new DefaultFrameRenderer<>(
                 Objects.requireNonNull(frameTextsProvider),
                 Objects.requireNonNull(frameColorProvider),
                 Objects.requireNonNull(frameFontProvider)
@@ -74,7 +74,7 @@ public class FlamegraphImage<T> {
     }
 
     /**
-     * Make an image from the frames models.
+     * Make an image from the frame models.
      *
      * @param frameModel The frame model to render.
      * @param mode       The display mode of the graph.
