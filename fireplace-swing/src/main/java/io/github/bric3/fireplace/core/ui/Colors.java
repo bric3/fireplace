@@ -19,6 +19,7 @@ import java.util.regex.Pattern;
 /**
  * Various color related utilities.
  */
+@SuppressWarnings("unused")
 public class Colors {
     /**
      * Hue value position, in HSLA components.
@@ -361,6 +362,7 @@ public class Colors {
      */
     public static boolean isBright(Color color) {
         var brightness = brightness(color);
+        //noinspection UnnecessaryLocalVariable
         var isBright = brightness >= DARK_PERCEIVED_BRIGHTNESS_THRESHOLD;
         return isBright;
     }
@@ -442,13 +444,13 @@ public class Colors {
         var hslaDark = Arrays.copyOf(hslaLight, hslaLight.length);
 
         {
-            // darkmode
+            // dark mode
             // if color is grayish, keep the saturation, otherwise set it to 0.2
             hslaDark[S] = hslaDark[S] < 0.1f ? hslaDark[S] : 0.2f;
             hslaDark[L] = 0.2f;
         }
         {
-            // lightmode
+            // light mode
             // if color is grayish, keep the saturation, otherwise set it to 0.4
             hslaLight[S] = hslaLight[S] < 0.2 ? hslaLight[S] : 0.4f;
             hslaLight[L] = 0.93f;
@@ -464,7 +466,7 @@ public class Colors {
     private static final float BRIGHTER_FACTOR = 1 / DARKER_FACTOR;
 
     /**
-     * Brighten a color by lowering the luminance.
+     * Brighten the color by lowering the luminance.
      *
      * <p>
      * This differs from {@link Color#brighter()} as it computes
@@ -483,7 +485,7 @@ public class Colors {
     }
 
     /**
-     * Brighten a color by lowering the luminance.
+     * Brighten the color by lowering the luminance.
      *
      * <p>
      * This differs from {@link Color#brighter()} as it computes
@@ -512,7 +514,7 @@ public class Colors {
     }
 
     /**
-     * Darken a color by lowering the luminance.
+     * Darken the color by lowering the luminance.
      *
      * <p>
      * This differs from {@link Color#darker()} as it computes
