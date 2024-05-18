@@ -9,12 +9,14 @@ import java.awt.Graphics2D
 import java.awt.LayoutManager
 import java.awt.RenderingHints
 import java.awt.event.AWTEventListener
+import java.awt.event.FocusEvent
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
 import java.awt.event.MouseEvent.MOUSE_DRAGGED
 import java.awt.event.MouseEvent.MOUSE_ENTERED
 import java.awt.event.MouseEvent.MOUSE_EXITED
 import java.awt.event.MouseEvent.MOUSE_MOVED
+import java.awt.event.MouseEvent.MOUSE_WHEEL
 import java.util.*
 import javax.swing.*
 
@@ -65,7 +67,7 @@ private class FollowingTip {
         val event: MouseEvent?
         val component: Component
         when (e.id) {
-            MOUSE_ENTERED, MOUSE_MOVED, MOUSE_DRAGGED -> {
+            MOUSE_ENTERED, MOUSE_MOVED, MOUSE_DRAGGED, MOUSE_WHEEL -> {
                 event = e as MouseEvent
                 component = e.component
                 if (ownerWindow.isAncestorOf(component) && component is JComponent) {
@@ -103,6 +105,10 @@ private class FollowingTip {
                 }
             }
 
+            FocusEvent.FOCUS_LOST -> {
+                tipWindow.isVisible = false
+            }
+
             else -> {}
         }
     }
@@ -122,7 +128,10 @@ private class FollowingTip {
             
             tipWindow.owner.toolkit.addAWTEventListener(
                 mouseHandler,
-                AWTEvent.MOUSE_EVENT_MASK or AWTEvent.MOUSE_MOTION_EVENT_MASK
+                AWTEvent.MOUSE_EVENT_MASK
+                        or AWTEvent.MOUSE_MOTION_EVENT_MASK
+                        or AWTEvent.MOUSE_WHEEL_EVENT_MASK
+                        or AWTEvent.FOCUS_EVENT_MASK
             )
         }
     }
