@@ -321,6 +321,7 @@ class FlamegraphRenderEngine<T> {
         var frames = frameModel.frames;
         // paint root
         {
+            var rootFrameShape = frameRenderer.reusableFrameRect(); // reusable rectangle
             var rootFrame = frames.get(0);
 
             int internalPadding = 0; // Remove ?
@@ -328,13 +329,14 @@ class FlamegraphRenderEngine<T> {
             frameRect.width = ((int) (flameGraphWidth * rootFrame.endX)) - frameRect.x - internalPadding;
             frameRect.y = computeFrameRectY(bounds, frameBoxHeight, rootFrame.stackDepth, icicle);
             frameRect.height = frameBoxHeight;
+            rootFrameShape.setFrame(frameRect);
 
             var paintableIntersection = viewRect.createIntersection(frameRect);
             if (!paintableIntersection.isEmpty()) {
                 frameRenderer.paintFrame(
                         g2d,
                         frameModel,
-                        frameRect,
+                        rootFrameShape,
                         rootFrame,
                         paintableIntersection,
                         FrameRenderingFlags.toFlags(
@@ -352,6 +354,7 @@ class FlamegraphRenderEngine<T> {
         }
 
         // paint real flames
+        var frameShape = frameRenderer.reusableFrameRect(); // reusable rectangle
         for (int i = 1; i < frames.size(); i++) {
             var frame = frames.get(i);
 
@@ -364,13 +367,14 @@ class FlamegraphRenderEngine<T> {
 
             frameRect.y = computeFrameRectY(bounds, frameBoxHeight, frame.stackDepth, icicle);
             frameRect.height = frameBoxHeight;
+            frameShape.setFrame(frameRect);
 
             var paintableIntersection = viewRect.createIntersection(frameRect);
             if (!paintableIntersection.isEmpty()) {
                 frameRenderer.paintFrame(
                         g2d,
                         frameModel,
-                        frameRect,
+                        frameShape,
                         frame,
                         paintableIntersection,
                         // choose font depending on whether the left-side of the frame is clipped
@@ -392,6 +396,7 @@ class FlamegraphRenderEngine<T> {
         }
 
         if (!minimapMode) {
+            // TODO move to FrameRenderer
             paintHoveredFrameBorder(g2d, bounds, viewRect, flameGraphWidth, frameBoxHeight, frameRect, icicle);
         }
 

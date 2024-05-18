@@ -4,6 +4,7 @@ import org.jetbrains.annotations.NotNull;
 
 import java.awt.*;
 import java.awt.geom.Rectangle2D;
+import java.awt.geom.RectangularShape;
 
 /**
  * Single frame renderer.
@@ -56,9 +57,13 @@ public interface FrameRenderer<T> {
     void paintFrame(
             @NotNull Graphics2D g2,
             @NotNull FrameModel<T> frameModel,
-            @NotNull Rectangle2D frameRect,
+            @NotNull RectangularShape frameRect,
             @NotNull FrameBox<T> frame,
             @NotNull Rectangle2D paintableIntersection,
             int renderFlags
     );
+
+    default RectangularShape reusableFrameRect() {
+        return new Rectangle2D.Double();
+    }
 }

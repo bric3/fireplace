@@ -15,6 +15,8 @@ import org.jetbrains.annotations.NotNull;
 
 import java.awt.*;
 import java.awt.geom.Rectangle2D;
+import java.awt.geom.RectangularShape;
+import java.awt.geom.RoundRectangle2D;
 import java.util.Objects;
 
 import static io.github.bric3.fireplace.flamegraph.FrameRenderingFlags.isMinimapMode;
@@ -54,6 +56,11 @@ public class DefaultFrameRenderer<T> implements FrameRenderer<T> {
     private boolean drawingFrameGap = true;
 
     /**
+     * A flag that controls whether the frame is drawn with rounded corners.
+     */
+    private boolean roundedFrame = false;
+
+    /**
      * @param frameTextsProvider functions that create a label for a node
      * @param frameFontProvider  provides a font given a frame and some flags
      * @param frameColorProvider provides foreground and background color given a frame and some flags
@@ -69,41 +76,13 @@ public class DefaultFrameRenderer<T> implements FrameRenderer<T> {
     }
 
     /**
-     * Sets whether to draw a gap between each frame.
-     * @param drawingFrameGap true to draw a gap between each frame
-     */
-    public void setDrawingFrameGap(boolean drawingFrameGap) {
-        this.drawingFrameGap = drawingFrameGap;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public boolean isDrawingFrameGap() {
-        return drawingFrameGap;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public int getFrameBoxHeight(@NotNull Graphics2D g2) {
-        return g2.getFontMetrics(frameFontProvider.getFont(null, 0)).getAscent() + (frameTextPadding * 2) + getFrameGapWidth() * 2;
-    }
-
-    private float getFrameBoxTextOffset(@NotNull Graphics2D g2) {
-        return getFrameBoxHeight(g2) - (g2.getFontMetrics(frameFontProvider.getFont(null, 0)).getDescent() / 2f) - frameTextPadding - getFrameGapWidth();
-    }
-
-    /**
      * {@inheritDoc}
      */
     @Override
     public void paintFrame(
             @NotNull Graphics2D g2,
             @NotNull FrameModel<@NotNull T> frameModel,
-            @NotNull Rectangle2D frameRect,
+            @NotNull RectangularShape frameRect,
             @NotNull FrameBox<@NotNull T> frame,
             @NotNull Rectangle2D paintableIntersection,
             int renderFlags
@@ -153,7 +132,7 @@ public class DefaultFrameRenderer<T> implements FrameRenderer<T> {
 
     private void paintFrameRectangle(
             @NotNull Graphics2D g2,
-            @NotNull Rectangle2D frameRect,
+            @NotNull RectangularShape frameRect,
             @NotNull Color bgColor,
             boolean minimapMode
     ) {
@@ -165,7 +144,7 @@ public class DefaultFrameRenderer<T> implements FrameRenderer<T> {
         var y = frameRect.getY();
         var w = frameRect.getWidth() - gapThickness;
         var h = frameRect.getHeight() - gapThickness;
-        frameRect.setRect(x, y, w, h);
+        frameRect.setFrame(x, y, w, h);
 
         g2.setColor(bgColor);
         g2.fill(frameRect);
@@ -213,6 +192,57 @@ public class DefaultFrameRenderer<T> implements FrameRenderer<T> {
             return null;
         }
         return textCandidate;
+    }
+
+    @Override
+    public RectangularShape reusableFrameRect() {
+        return roundedFrame ? new RoundRectangle2D.Double(
+                0, 0, 0, 0, 5, 5
+        ) : new Rectangle2D.Double();
+    }
+
+    /**
+     * Sets whether to draw a gap between each frame.
+     * @param drawingFrameGap true to draw a gap between each frame
+     */
+    public void setDrawingFrameGap(boolean drawingFrameGap) {
+        this.drawingFrameGap = drawingFrameGap;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public boolean isDrawingFrameGap() {
+        return drawingFrameGap;
+    }
+
+    /**
+     * Whether the frame is drawn with rounded corners.
+     * @return true if the frame is drawn with rounded corners
+     */
+    public boolean isRoundedFrame() {
+        return roundedFrame;
+    }
+
+    /**
+     * Sets whether the frame is drawn with rounded corners.
+     * @param roundedFrame true if the frame is drawn with rounded corners
+     */
+    public void setRoundedFrame(boolean roundedFrame) {
+        this.roundedFrame = roundedFrame;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public int getFrameBoxHeight(@NotNull Graphics2D g2) {
+        return g2.getFontMetrics(frameFontProvider.getFont(null, 0)).getAscent() + (frameTextPadding * 2) + getFrameGapWidth() * 2;
+    }
+
+    private float getFrameBoxTextOffset(@NotNull Graphics2D g2) {
+        return getFrameBoxHeight(g2) - (g2.getFontMetrics(frameFontProvider.getFont(null, 0)).getDescent() / 2f) - frameTextPadding - getFrameGapWidth();
     }
 
     /**
