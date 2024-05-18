@@ -9,7 +9,7 @@ import java.awt.Graphics2D
 import java.awt.LayoutManager
 import java.awt.RenderingHints
 import java.awt.event.AWTEventListener
-import java.awt.event.FocusEvent
+import java.awt.event.FocusEvent.FOCUS_LOST
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
 import java.awt.event.MouseEvent.MOUSE_DRAGGED
@@ -17,6 +17,7 @@ import java.awt.event.MouseEvent.MOUSE_ENTERED
 import java.awt.event.MouseEvent.MOUSE_EXITED
 import java.awt.event.MouseEvent.MOUSE_MOVED
 import java.awt.event.MouseEvent.MOUSE_WHEEL
+import java.awt.event.WindowEvent.WINDOW_LOST_FOCUS
 import java.util.*
 import javax.swing.*
 
@@ -105,7 +106,7 @@ private class FollowingTip {
                 }
             }
 
-            FocusEvent.FOCUS_LOST -> {
+            WINDOW_LOST_FOCUS, FOCUS_LOST -> {
                 tipWindow.isVisible = false
             }
 
@@ -131,6 +132,7 @@ private class FollowingTip {
                 AWTEvent.MOUSE_EVENT_MASK
                         or AWTEvent.MOUSE_MOTION_EVENT_MASK
                         or AWTEvent.MOUSE_WHEEL_EVENT_MASK
+                        or AWTEvent.WINDOW_FOCUS_EVENT_MASK
                         or AWTEvent.FOCUS_EVENT_MASK
             )
         }
