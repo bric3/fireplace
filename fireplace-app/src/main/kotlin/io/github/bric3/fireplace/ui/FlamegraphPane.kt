@@ -129,11 +129,9 @@ class FlamegraphPane : JPanel(BorderLayout()) {
                                 val method = frame.actualNode.frame.method
                                 (method.methodName.contains(searched)
                                         || method.type.typeName.contains(searched)
-                                        || method.type.getPackage().name != null
-                                        && method.type.getPackage().name.contains(searched))
-                                        || method.type.getPackage().module != null
-                                        && method.type.getPackage().module.name.contains(searched)
-                                        || method.formalDescriptor.replace('/', '.').contains(searched)
+                                        || method.type.getPackage().name?.contains(searched) == true
+                                        || method.type.getPackage().module?.name?.contains(searched) == true
+                                        || method.formalDescriptor.replace('/', '.').contains(searched))
                             }
                             .collect(toCollection { Collections.newSetFromMap(IdentityHashMap()) })
                         jfrFlamegraphView.highlightFrames(matches, searched)
