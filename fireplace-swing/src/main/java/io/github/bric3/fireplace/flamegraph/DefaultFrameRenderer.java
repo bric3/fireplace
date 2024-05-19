@@ -10,15 +10,19 @@
 
 package io.github.bric3.fireplace.flamegraph;
 
+import io.github.bric3.fireplace.core.ui.Colors;
 import io.github.bric3.fireplace.core.ui.StringClipper;
 import org.jetbrains.annotations.NotNull;
 
+import javax.swing.*;
 import java.awt.*;
 import java.awt.geom.Rectangle2D;
 import java.awt.geom.RectangularShape;
 import java.awt.geom.RoundRectangle2D;
 import java.util.Objects;
+import java.util.function.Supplier;
 
+import static io.github.bric3.fireplace.flamegraph.FrameRenderingFlags.isHovered;
 import static io.github.bric3.fireplace.flamegraph.FrameRenderingFlags.isMinimapMode;
 
 /**
@@ -59,6 +63,21 @@ public class DefaultFrameRenderer<T> implements FrameRenderer<T> {
      * A flag that controls whether the frame is drawn with rounded corners.
      */
     private boolean roundedFrame = false;
+
+    /**
+     * A flag that controls whether a frame is drawn around the frame that the mouse pointer
+     * hovers over.
+     */
+    private boolean paintHoveredFrameBorder = false;
+
+    /**
+     * The color used to draw a border around the hovered frame.
+     */
+    // TODO move to FrameColorProvider / ColorModel
+    public final Supplier<Color> frameBorderColor = () -> {
+        var color = UIManager.getColor("Component.focusColor");
+        return color == null ? Colors.panelForeground : color;
+    };
 
     /**
      * @param frameTextsProvider functions that create a label for a node
@@ -113,21 +132,29 @@ public class DefaultFrameRenderer<T> implements FrameRenderer<T> {
                 frame
         );
 
-        if (text == null || text.isEmpty()) {
-            return;
+        if (text != null && !text.isBlank()) {
+            g2.setFont(frameFont);
+            g2.setColor(Objects.requireNonNull(
+                    colorModel.foreground,
+                    "colorModel.background is nullable; however, at when rendering it is not anymore allowed"
+            ));
+            var oldRenderingHint = g2.getRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING);
+            g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+            g2.drawString(
+                    text,
+                    (float) (paintableIntersection.getX() + frameTextPadding + frameBorderWidth),
+                    (float) (frameRect.getY() + getFrameBoxTextOffset(g2))
+            );
+
+            g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, oldRenderingHint);
         }
 
-        g2.setFont(frameFont);
-        g2.setColor(Objects.requireNonNull(
-                colorModel.foreground,
-                "colorModel.background is nullable; however, at when rendering it is not anymore allowed"
-        ));
-        g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
-        g2.drawString(
-                text,
-                (float) (paintableIntersection.getX() + frameTextPadding + frameBorderWidth),
-                (float) (frameRect.getY() + getFrameBoxTextOffset(g2))
-        );
+        if (isHovered(renderFlags)) {
+            paintHoveredFrameBorder(
+                    g2,
+                    frameRect
+            );
+        }
     }
 
     private void paintFrameRectangle(
@@ -149,6 +176,46 @@ public class DefaultFrameRenderer<T> implements FrameRenderer<T> {
         g2.setColor(bgColor);
         g2.fill(frameRect);
     }
+
+    private void paintHoveredFrameBorder(
+            @NotNull Graphics2D g2,
+            @NotNull RectangularShape frameRect
+    ) {
+        if (!paintHoveredFrameBorder) {
+            return;
+        }
+
+        /*
+         * DISCLAIMER: it happens that drawing perfectly aligned rect is very challenging with
+         * Graphics2D.
+         * 1. I t may depend on the current Screen scale (Retina is 2, other monitors like 1x)
+         *    g2.getTransform().getScaleX() / getScaleY(), (so in pixels that would 1 / scale)
+         * 2. When drawing a rectangle, it seems that the current sun implementation draws
+         *    the line on 50% outside and 50% inside. I don't know how to avoid that.
+         *
+         * In some of my tests, what is ok on a retina is ugly on a 1.x monitor,
+         * adjusting the rectangle with the scale wasn't very pretty, as sometimes
+         * the border starts inside the frame.
+         * Played with Area subtraction, but this wasn't successful.
+         */
+
+        var gapThickness = drawingFrameGap ? getFrameGapWidth() : 0;
+
+        var x = frameRect.getX() - (double) gapThickness / 2;
+        var y = frameRect.getY() - (double) gapThickness / 2;
+        var w = frameRect.getWidth() + (double) gapThickness;
+        var h = frameRect.getHeight() + (double) gapThickness;
+        frameRect.setFrame(x, y, w, h);
+
+        var prevStrokeControl = g2.getRenderingHint(RenderingHints.KEY_STROKE_CONTROL);
+
+        g2.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);
+        g2.setColor(frameBorderColor.get());
+        g2.draw(frameRect);
+
+        g2.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, prevStrokeControl);
+    }
+
 
     // layout text
     private String calculateFrameText(
@@ -203,6 +270,7 @@ public class DefaultFrameRenderer<T> implements FrameRenderer<T> {
 
     /**
      * Sets whether to draw a gap between each frame.
+     *
      * @param drawingFrameGap true to draw a gap between each frame
      */
     public void setDrawingFrameGap(boolean drawingFrameGap) {
@@ -219,6 +287,7 @@ public class DefaultFrameRenderer<T> implements FrameRenderer<T> {
 
     /**
      * Whether the frame is drawn with rounded corners.
+     *
      * @return true if the frame is drawn with rounded corners
      */
     public boolean isRoundedFrame() {
@@ -227,10 +296,28 @@ public class DefaultFrameRenderer<T> implements FrameRenderer<T> {
 
     /**
      * Sets whether the frame is drawn with rounded corners.
+     *
      * @param roundedFrame true if the frame is drawn with rounded corners
      */
     public void setRoundedFrame(boolean roundedFrame) {
         this.roundedFrame = roundedFrame;
+    }
+    
+    /**
+     * Sets whether to draw a border around the hovered frame.
+     *
+     * @param paintHoveredFrameBorder true to draw a border around the hovered frame
+     */
+    public void setPaintHoveredFrameBorder(boolean paintHoveredFrameBorder) {
+        this.paintHoveredFrameBorder = paintHoveredFrameBorder;
+    }
+
+    /**
+     * Whether to draw a border around the hovered frame.
+     * @return true if a border is drawn around the hovered frame
+     */
+    public boolean isPaintHoveredFrameBorder() {
+        return paintHoveredFrameBorder;
     }
 
     /**
@@ -247,6 +334,7 @@ public class DefaultFrameRenderer<T> implements FrameRenderer<T> {
 
     /**
      * Set the frame text provider.
+     *
      * @param frameTextsProvider the frame text provider
      */
     public void setFrameTextsProvider(@NotNull FrameTextsProvider<@NotNull T> frameTextsProvider) {
@@ -255,6 +343,7 @@ public class DefaultFrameRenderer<T> implements FrameRenderer<T> {
 
     /**
      * Get the frame text provider.
+     *
      * @return the frame text provider
      */
     @NotNull
@@ -264,6 +353,7 @@ public class DefaultFrameRenderer<T> implements FrameRenderer<T> {
 
     /**
      * Set the frame font provider.
+     *
      * @param frameFontProvider the frame font provider
      */
     public void setFrameFontProvider(@NotNull FrameFontProvider<@NotNull T> frameFontProvider) {
@@ -272,6 +362,7 @@ public class DefaultFrameRenderer<T> implements FrameRenderer<T> {
 
     /**
      * Get the frame font provider.
+     *
      * @return the frame font provider
      */
     @NotNull
@@ -281,6 +372,7 @@ public class DefaultFrameRenderer<T> implements FrameRenderer<T> {
 
     /**
      * Set the frame color provider.
+     *
      * @param frameColorProvider the frame color provider
      */
     public void setFrameColorProvider(@NotNull FrameColorProvider<@NotNull T> frameColorProvider) {
@@ -289,6 +381,7 @@ public class DefaultFrameRenderer<T> implements FrameRenderer<T> {
 
     /**
      * Get the frame color provider.
+     *
      * @return the frame color provider
      */
     @NotNull

@@ -9,7 +9,6 @@
  */
 package io.github.bric3.fireplace.flamegraph;
 
-import io.github.bric3.fireplace.core.ui.Colors;
 import org.jetbrains.annotations.ApiStatus.Experimental;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -23,7 +22,6 @@ import java.util.Set;
 import java.util.WeakHashMap;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
-import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 /**
@@ -55,18 +53,6 @@ class FlamegraphRenderEngine<T> {
      * The minimum width threshold for a frame to be rendered.
      */
     private final double frameWidthVisibilityThreshold = 2d;
-
-    /**
-     * A flag that controls whether a frame is drawn around the frame that the mouse pointer
-     * hovers over.
-     */
-    public final boolean paintHoveredFrameBorder = false;
-
-    /**
-     * The color used to draw a border around the hovered frame.
-     */
-    // TODO move to renderer
-    public final Supplier<Color> frameBorderColor = () -> Colors.panelForeground;
 
     /**
      * A flag that controls whether siblings of hovered frames are also rendered
@@ -395,11 +381,6 @@ class FlamegraphRenderEngine<T> {
             }
         }
 
-        if (!minimapMode) {
-            // TODO move to FrameRenderer
-            paintHoveredFrameBorder(g2d, bounds, viewRect, flameGraphWidth, frameBoxHeight, frameRect, icicle);
-        }
-
         g2d.dispose();
     }
 
@@ -420,52 +401,6 @@ class FlamegraphRenderEngine<T> {
 
     private void checkReady() {
         assert !Objects.equals(frameModel, FrameModel.empty()) : "The flamegraph is not initialized, call init(FrameModel) first";
-    }
-
-    // TODO move to FrameRenderer
-    private void paintHoveredFrameBorder(
-            @NotNull Graphics2D g2,
-            @NotNull Rectangle2D bounds,
-            @NotNull Rectangle2D viewRect,
-            double flameGraphWidth,
-            int frameBoxHeight,
-            @NotNull Rectangle2D frameRect,
-            boolean icicle
-    ) {
-        if (hoveredFrame == null || !paintHoveredFrameBorder) {
-            return;
-        }
-        var gapThickness = frameRenderer.isDrawingFrameGap() ? frameRenderer.getFrameGapWidth() : 0;
-
-        /*
-         * DISCLAIMER: it happens that drawing perfectly aligned rect is very difficult with
-         * Graphics2D.
-         * 1. I t may depend on the current Screen scale (Retina is 2, other monitors like 1x)
-         *    g2.getTransform().getScaleX() / getScaleY(), (so in pixels that would 1 / scale)
-         * 2. When drawing a rectangle, it seems that the current sun implementation draws
-         *    the line on 50% outside and 50% inside. I don;t know how to avoid that
-         *
-         * In some of my test what is ok on a retina is ugly on a 1.x monitor,
-         * adjusting the rectangle with the scale wasn't very pretty, as sometimes
-         * the border starts inside the frame.
-         * Played with Area subtraction, but this wasn't successful.
-         */
-
-        var x = flameGraphWidth * hoveredFrame.startX;
-        var y = computeFrameRectY(bounds, frameBoxHeight, hoveredFrame.stackDepth, icicle);
-        var w = (flameGraphWidth * hoveredFrame.endX) - x - gapThickness;
-        var h = frameBoxHeight - gapThickness;
-        frameRect.setRect(x, y, w, h);
-
-        if ((frameRect.getWidth() < frameWidthVisibilityThreshold)) {
-            return;
-        }
-
-        if (viewRect.intersects(frameRect)) {
-            g2.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);
-            g2.setColor(frameBorderColor.get());
-            g2.draw(frameRect);
-        }
     }
 
     private void identifyDisplayScale(@NotNull Graphics2D g2) {
