@@ -31,15 +31,7 @@ import java.awt.Rectangle
 import java.awt.Taskbar
 import java.awt.Toolkit
 import java.awt.Window
-import javax.swing.JButton
-import javax.swing.JCheckBox
-import javax.swing.JComponent
-import javax.swing.JFrame
-import javax.swing.JPanel
-import javax.swing.JRootPane
-import javax.swing.RootPaneContainer
-import javax.swing.SwingUtilities
-import javax.swing.UIManager
+import javax.swing.*
 
 @Suppress("unused")
 internal object AppearanceControl {
@@ -85,12 +77,14 @@ internal object AppearanceControl {
         // configure frame for transparency
         if (SystemInfo.isMac) {
             frame.rootPane.apply {
-                // allows to place swing components on the whole window
+                // Allow placing swing components on the whole window
                 putClientProperty("apple.awt.fullWindowContent", true)
-                // makes the title bar transparent
+                // Makes the title bar transparent
                 putClientProperty("apple.awt.transparentTitleBar", true)
-                // hide window title
+                // Hide window title
                 putClientProperty(DecorationsConstants.KEY_HIDE_TITLE, true)
+                // Allow to enter full screen when pressing Alt
+                putClientProperty("apple.awt.fullscreenable", true)
             }
         }
         ExternalLafDecorator.instance().install()
@@ -148,7 +142,7 @@ internal object AppearanceControl {
             System.setProperty(
                 "apple.laf.useScreenMenuBar",
                 "true"
-            ) // moves menu bar from JFrame window to top of screen
+            ) // moves menu bar from JFrame window to top of the screen
             System.setProperty("apple.awt.application.name", title) // application name used in screen menu bar
             // appearance of window title bars
             // possible values:

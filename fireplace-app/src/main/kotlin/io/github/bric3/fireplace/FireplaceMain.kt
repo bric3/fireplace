@@ -11,6 +11,7 @@
 package io.github.bric3.fireplace
 
 import com.formdev.flatlaf.extras.FlatInspector
+import com.github.weisj.darklaf.platform.SystemInfo
 import io.github.bric3.fireplace.jfr.ProfileContentPanel
 import io.github.bric3.fireplace.jfr.support.JFRLoaderBinder
 import io.github.bric3.fireplace.jfr.support.JfrFilesDropHandler
@@ -49,6 +50,8 @@ fun main(args: Array<String>) {
     initUI(jfrBinder, paths)
 }
 
+private const val APP_NAME = "FirePlace"
+
 private fun initUI(jfrBinder: JFRLoaderBinder, cliPaths: List<Path>) {
     if (Utils.isFireplaceSwingDebug) {
         if (System.getProperty("fireplace.swing.debug.thread.violation.checker") == "IJ") {
@@ -59,6 +62,12 @@ private fun initUI(jfrBinder: JFRLoaderBinder, cliPaths: List<Path>) {
         EventDispatchThreadHangMonitor.initMonitoring()
     }
 
+    if (SystemInfo.isMac) {
+        // This call has to happen before the Desktop toolkit is even initialized
+        // application name used in the screen menu bar
+        System.setProperty("apple.awt.application.name", APP_NAME)
+    }
+
     with(Desktop.getDesktop()) {
         if (isSupported(Desktop.Action.APP_ABOUT)) {
             setAboutHandler {
@@ -66,7 +75,7 @@ private fun initUI(jfrBinder: JFRLoaderBinder, cliPaths: List<Path>) {
                     null,
                     """
                     <html>
-                    <font size=+2><strong>Fireplace</strong> |</font> a JFR viewer
+                    <font size=+2><strong>$APP_NAME</strong> |</font> a JFR viewer
 
                     <p>
                     Version: 0.0.1<br>
@@ -123,7 +132,7 @@ private fun initUI(jfrBinder: JFRLoaderBinder, cliPaths: List<Path>) {
             hud.dnDTarget
         )
 
-        JFrame("FirePlace").run {
+        JFrame(APP_NAME).run {
             defaultCloseOperation = JFrame.EXIT_ON_CLOSE
             size = Dimension(1400, 800)
             contentPane.add(hud.component)
