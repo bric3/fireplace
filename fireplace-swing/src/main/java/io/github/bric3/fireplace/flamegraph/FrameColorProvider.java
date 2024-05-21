@@ -17,11 +17,11 @@ import java.awt.*;
 import java.util.Objects;
 import java.util.function.Function;
 
-import static io.github.bric3.fireplace.flamegraph.FrameRenderingFlags.isFocusedFrame;
 import static io.github.bric3.fireplace.flamegraph.FrameRenderingFlags.isFocusing;
 import static io.github.bric3.fireplace.flamegraph.FrameRenderingFlags.isHighlightedFrame;
 import static io.github.bric3.fireplace.flamegraph.FrameRenderingFlags.isHighlighting;
 import static io.github.bric3.fireplace.flamegraph.FrameRenderingFlags.isHovered;
+import static io.github.bric3.fireplace.flamegraph.FrameRenderingFlags.isInFocusedFlame;
 
 /**
  * Strategy for choosing the colors of a frame.
@@ -91,6 +91,16 @@ public interface FrameColorProvider<T> {
     @NotNull
     ColorModel getColors(@NotNull FrameBox<@NotNull T> frame, int flags) ;
 
+
+    /**
+     * Creates a default color provider that uses the given function to compute the base color of a frame.
+     *
+     * @param frameBaseColorFunction The function that computes the base color of a frame.
+     * @param <T> The type of the frame node (depends on the source of profiling data).
+     * @return A default color provider.
+     *
+     * @see DimmingFrameColorProvider
+     */
     @NotNull
     static <T> FrameColorProvider<@NotNull T> defaultColorProvider(@NotNull Function<@NotNull FrameBox<@NotNull T>, @NotNull Color> frameBaseColorFunction) {
         Objects.requireNonNull(frameBaseColorFunction, "frameColorFunction");
@@ -105,18 +115,26 @@ public interface FrameColorProvider<T> {
             @Override
             @NotNull
             public ColorModel getColors(@NotNull FrameBox<@NotNull T> frame, int flags) {
-                Color baseBackgroundColor = frameBaseColorFunction.apply(frame);
-                Color backgroundColor = baseBackgroundColor;
+                var baseBackgroundColor = frameBaseColorFunction.apply(frame);
+                var backgroundColor = baseBackgroundColor;
 
-                if (isFocusing(flags) && !isFocusedFrame(flags)) {
+                if (isFocusing(flags) && !isInFocusedFlame(flags)) {
                     backgroundColor = Colors.blend(baseBackgroundColor, Colors.translucent_black_80);
                 }
+
                 if (isHighlighting(flags)) {
                     backgroundColor = Colors.isDarkMode() ?
                             Colors.blend(backgroundColor, Colors.translucent_black_B0) :
                             Colors.blend(backgroundColor, Color.WHITE);
+                    
                     if (isHighlightedFrame(flags)) {
-                        backgroundColor = baseBackgroundColor;
+                        if (!isFocusing(flags)) {
+                            backgroundColor = baseBackgroundColor;
+                        } else if (isFocusing(flags) && isInFocusedFlame(flags)) {
+                            backgroundColor = baseBackgroundColor;
+                        }
+
+                        // backgroundColor = baseBackgroundColor;
                     }
                 }
                 if (isHovered(flags)) {

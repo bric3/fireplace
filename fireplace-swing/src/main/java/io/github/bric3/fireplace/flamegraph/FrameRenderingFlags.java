@@ -65,7 +65,7 @@ public abstract class FrameRenderingFlags {
     public static final int PARTIAL_FRAME = 1 << 7;
 
 
-    public static int toFlags(
+    static int toFlags(
             boolean minimapMode,
             boolean highlightingOn,
             boolean highlighted,
@@ -122,7 +122,7 @@ public abstract class FrameRenderingFlags {
         return (flags & FOCUSING) != 0;
     }
 
-    public static boolean isFocusedFrame(int flags) {
+    public static boolean isInFocusedFlame(int flags) {
         return (flags & FOCUSED_FRAME) != 0;
     }
 

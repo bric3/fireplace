@@ -370,7 +370,7 @@ public class Colors {
 
     /**
      * Produce a new color with the given alpha value.
-     *
+     * 
      * @param color The color
      * @param alpha The alpha value [0; 1]
      * @return The new color
@@ -483,6 +483,35 @@ public class Colors {
             // if color is grayish, keep the saturation, otherwise set it to 0.4
             hslaLight[S] = hslaLight[S] < 0.2 ? hslaLight[S] : 0.4f;
             hslaLight[L] = 0.93f;
+        }
+
+        return new LightDarkColor(
+                hsla(hslaLight[H], hslaLight[S], hslaLight[L], hslaLight[ALPHA]),
+                hsla(hslaDark[H], hslaDark[S], hslaDark[L], hslaDark[ALPHA])
+        );
+    }
+
+    /**
+     * Half-Dim the given color and returns a {@link #darkMode} aware color.
+     *
+     * @param color The color to half-dim
+     * @return The half-dimmed color ({@link #darkMode} aware)
+     */
+    public static Color halfDim(Color color) {
+        var hslaLight = hslaComponents(color);
+        var hslaDark = Arrays.copyOf(hslaLight, hslaLight.length);
+
+        {
+            // dark mode
+            // if color is grayish, keep the saturation, otherwise set it to 0.2
+            hslaDark[S] = hslaDark[S] < 0.1f ? hslaDark[S] : 0.2f;
+            hslaDark[L] = 0.48f;
+        }
+        {
+            // light mode
+            // if color is grayish, keep the saturation, otherwise set it to 0.4
+            hslaLight[S] = hslaLight[S] < 0.2 ? hslaLight[S] : 0.4f;
+            hslaLight[L] = 0.68f;
         }
 
         return new LightDarkColor(

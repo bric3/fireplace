@@ -18,12 +18,12 @@ import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 
-import static io.github.bric3.fireplace.flamegraph.FrameRenderingFlags.isFocusedFrame;
 import static io.github.bric3.fireplace.flamegraph.FrameRenderingFlags.isFocusing;
 import static io.github.bric3.fireplace.flamegraph.FrameRenderingFlags.isHighlightedFrame;
 import static io.github.bric3.fireplace.flamegraph.FrameRenderingFlags.isHighlighting;
 import static io.github.bric3.fireplace.flamegraph.FrameRenderingFlags.isHovered;
 import static io.github.bric3.fireplace.flamegraph.FrameRenderingFlags.isHoveredSibling;
+import static io.github.bric3.fireplace.flamegraph.FrameRenderingFlags.isInFocusedFlame;
 import static io.github.bric3.fireplace.flamegraph.FrameRenderingFlags.isMinimapMode;
 
 /**
@@ -68,6 +68,7 @@ public class DimmingFrameColorProvider<T> implements FrameColorProvider<@NotNull
     private final ColorModel reusedColorModelForMinimap = new ColorModel();
 
     private final ConcurrentHashMap<Color, Color> dimmedColorCache = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<Color, Color> halfDimmedColorCache = new ConcurrentHashMap<>();
 
     private Color rootBackGroundColor = ROOT_BACKGROUND_COLOR;
     private Color dimmedTextColor = DIMMED_TEXT_COLOR;
@@ -105,9 +106,17 @@ public class DimmingFrameColorProvider<T> implements FrameColorProvider<@NotNull
             );
         }
 
-        if (!rootNode && shouldDim(flags)) {
-            backgroundColor = dimmedBackground(backgroundColor);
+        boolean shouldDimFocusedFlame = isFocusing(flags) && isInFocusedFlame(flags) && !isHighlightedFrame(flags);
+        if (!rootNode && shouldDim(flags) && !shouldDimFocusedFlame) {
+            backgroundColor = dimmedBackground(baseBackgroundColor);
             foreground = dimmedTextColor;
+        } else if (!rootNode && shouldDimFocusedFlame) {
+            backgroundColor = halfDimmedBackground(baseBackgroundColor);
+            if (isHighlighting(flags) && !isHighlightedFrame(flags)) {
+                foreground = dimmedTextColor;
+            } else {
+                foreground = Colors.withAlpha(Colors.foregroundColor(backgroundColor), Colors.isDarkMode() ? 0.61f : 0.74f);
+            }
         } else {
             foreground = Colors.foregroundColor(backgroundColor);
         }
@@ -137,7 +146,7 @@ public class DimmingFrameColorProvider<T> implements FrameColorProvider<@NotNull
     private @NotNull Color hoverBackground(@NotNull Color backgroundColor) {
         return Colors.isDarkMode() ?
                Colors.brighter(backgroundColor, 1.1f, 0.95f) :
-               Colors.darker(backgroundColor, 1.25f);
+               Colors.darker(backgroundColor, 1.15f);
     }
 
     /**
@@ -157,37 +166,38 @@ public class DimmingFrameColorProvider<T> implements FrameColorProvider<@NotNull
      * @return The dimmed color.
      */
     protected @NotNull Color dimmedBackground(@NotNull Color backgroundColor) {
-        return cachedDim(backgroundColor);
+        return dimmedColorCache.computeIfAbsent(backgroundColor, Colors::dim);
+    }
+
+    private @NotNull Color halfDimmedBackground(Color backgroundColor) {
+        return halfDimmedColorCache.computeIfAbsent(backgroundColor, Colors::halfDim);
     }
 
     /**
      * Dim only if not highlighted or not focused
      * <p>
-     * - highlighting and not highlighted => dim
-     * - focusing and not focused => dim
-     * - highlighting and focusing
-     * - highlighted => nope
-     * - focusing => nope
+     * <ul>
+     *     <li>highlighting and not highlighted frames => dim</li>
+     *     <li>focusing and not in focused flames => dim</li>
+     *     <li>highlighting and focusing and in focused flame => dim</li>
+     *     <li>highlighting and focusing and not focused flame => nope</li>
+     *     <li>highlighted => nope</li>
+     *     <li>focusing => nope</li>
+     * </ul>
      */
     private boolean shouldDim(int flags) {
         var highlighting = isHighlighting(flags);
         var highlightedFrame = isHighlightedFrame(flags);
         var focusing = isFocusing(flags);
-        var focusedFrame = isFocusedFrame(flags);
-
+        var inFocusedFlame = isInFocusedFlame(flags);
 
         var dimmedForHighlighting = highlighting && !highlightedFrame;
-        var dimmedForFocus = focusing && !focusedFrame;
-
+        var dimmedForFocus = focusing && !inFocusedFlame;
 
         return (dimmedForHighlighting || dimmedForFocus)
-               && !(highlighting
-                    && focusing
-                    && (highlightedFrame || focusedFrame));
-    }
-
-    private @NotNull Color cachedDim(@NotNull Color color) {
-        return dimmedColorCache.computeIfAbsent(color, Colors::dim);
+               && !(focusing && inFocusedFlame) // don't dim frames that are in focused flame
+               // && !(highlighting && highlightedFrame) // this dim highlighted that are not in focused flame
+                ;
     }
 
     @NotNull

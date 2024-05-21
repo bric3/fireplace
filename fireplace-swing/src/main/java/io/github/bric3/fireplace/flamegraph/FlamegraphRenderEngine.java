@@ -175,8 +175,8 @@ class FlamegraphRenderEngine<T> {
         assert thumbnailWidth > 0 : "minimap width must be superior to 0";
 
         // Somewhat it is a best-effort to draw something that shows
-        // something representative. The canvas recompute this, if its
-        // size change so there's a chance the minimap can be updated
+        // something representative. The canvas recomputes this value if its
+        // size changes, so there's a chance the minimap can be updated
         // with higher details (previously invisible frames)
         return visibleDepth * minimapFrameBoxHeight;
     }

@@ -15,7 +15,9 @@ import org.jetbrains.annotations.Nullable;
 
 import java.awt.*;
 
+import static io.github.bric3.fireplace.flamegraph.FrameRenderingFlags.isFocusing;
 import static io.github.bric3.fireplace.flamegraph.FrameRenderingFlags.isHighlightedFrame;
+import static io.github.bric3.fireplace.flamegraph.FrameRenderingFlags.isInFocusedFlame;
 import static io.github.bric3.fireplace.flamegraph.FrameRenderingFlags.isPartialFrame;
 
 /**
@@ -75,10 +77,14 @@ public interface FrameFontProvider<T> {
                     return bold;
                 }
 
+                // if no focused frame, highlight any frame matching isHighlightedFrame
+                // else if focused frame, highlight the frame matching only if isFocusing
                 if (isHighlightedFrame(flags)) {
-                    // when parent frames are larger than view port
-                    return isPartialFrame(flags) ? italicBold : bold;
+                    if (!isFocusing(flags) || isInFocusedFlame(flags)) {
+                        return isPartialFrame(flags) ? italicBold : bold;
+                    }
                 }
+
                 // when parent frames are larger than view port
                 return isPartialFrame(flags) ? italic : regular;
             }

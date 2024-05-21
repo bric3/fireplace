@@ -727,7 +727,7 @@ public class FlamegraphView<T> {
      *     <li>The frame background and foreground colors.</li>
      * </ul>
      * <p>
-     * Deprecated, use {@link #setFrameRender(FrameRenderer)} with a ${@link DefaultFrameRenderer}.
+     * Deprecated, use {@link #setFrameRender(FrameRenderer)} with a {@link DefaultFrameRenderer}.
      *
      * @param frameTextsProvider The function to display label in frames.
      * @param frameColorProvider The frame to background color function.
