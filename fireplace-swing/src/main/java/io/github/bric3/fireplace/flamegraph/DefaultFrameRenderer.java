@@ -146,7 +146,9 @@ public class DefaultFrameRenderer<T> implements FrameRenderer<T> {
                     (float) (frameRect.getY() + getFrameBoxTextOffset(g2))
             );
 
-            g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, oldRenderingHint);
+            if (oldRenderingHint != null) {
+                g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, oldRenderingHint);
+            }
         }
 
         if (isHovered(renderFlags)) {
