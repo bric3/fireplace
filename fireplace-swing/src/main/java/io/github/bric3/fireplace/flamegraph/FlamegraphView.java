@@ -135,6 +135,11 @@ public class FlamegraphView<T> {
         FLAMEGRAPH, ICICLEGRAPH
     }
 
+    public enum FrameClickAction {
+        EXPAND_FRAME,
+        SELECT_FRAME,
+    }
+
     /**
      * Represents a custom action when zooming.
      */
@@ -625,6 +630,24 @@ public class FlamegraphView<T> {
     }
 
     /**
+     * Sets the frame click action.
+     *
+     * @param frameClickAction The zoom action.
+     */
+    public void setFrameClickAction(@NotNull FlamegraphView.FrameClickAction frameClickAction) {
+        canvas.setFrameClickBehavior(frameClickAction);
+    }
+
+    /**
+     * Returns the current frame click action.
+     *
+     * @return the current frame click action.
+     */
+    public @NotNull FlamegraphView.FrameClickAction getFrameClickAction() {
+        return canvas.getFrameClickBehavior();
+    }
+
+    /**
      * Replaces the default tooltip component.
      *
      * @param tooltipComponentSupplier The tooltip component supplier.
@@ -858,7 +881,7 @@ public class FlamegraphView<T> {
      * Reset the zoom to 1:1.
      */
     public void resetZoom() {
-        zoom(canvas, canvas.getResetZoomTarget());
+        zoom(canvas, canvas.getResetZoomTarget(false));
     }
 
     /**
@@ -958,6 +981,8 @@ public class FlamegraphView<T> {
         private boolean showMinimap = true;
         @Nullable
         private Supplier<@NotNull JToolTip> tooltipComponentSupplier;
+        @NotNull
+        public FrameClickAction frameClickBehavior = FrameClickAction.SELECT_FRAME;
         @Nullable
         private ZoomAction zoomActionOverride;
         @Nullable
@@ -966,6 +991,7 @@ public class FlamegraphView<T> {
         private BiConsumer<@NotNull FrameBox<@NotNull T>, @NotNull MouseEvent> selectedFrameConsumer;
         @NotNull
         private final FlamegraphView<@NotNull T> flamegraphView;
+        @NotNull
         private final ZoomModel<T> zoomModel = new ZoomModel<>();
 
         private long lastDrawTime;
@@ -1538,8 +1564,17 @@ public class FlamegraphView<T> {
             return selectedFrameConsumer;
         }
 
+        public void setFrameClickBehavior(@NotNull FrameClickAction frameClickBehavior) {
+            this.frameClickBehavior = frameClickBehavior;
+        }
+
+        @NotNull
+        public FrameClickAction getFrameClickBehavior() {
+            return frameClickBehavior;
+        }
+
         @Nullable
-        public ZoomTarget<@NotNull T> getResetZoomTarget() {
+        public ZoomTarget<@NotNull T> getResetZoomTarget(boolean resetHorizontalOnly) {
             var graphics = (Graphics2D) getGraphics();
             if (graphics == null) {
                 return null;
@@ -1553,9 +1588,12 @@ public class FlamegraphView<T> {
                     visibleRect.width
             );
 
+            int newY = resetHorizontalOnly ?
+                       bounds.y :
+                       (getMode() == Mode.FLAMEGRAPH ? -(bounds.height - visibleRect.height) : 0);
             return new ZoomTarget<>(
                     0,
-                    getMode() == Mode.FLAMEGRAPH ? -(bounds.height - visibleRect.height) : 0,
+                    newY,
                     visibleRect.width,
                     newHeight,
                     null
@@ -1674,32 +1712,62 @@ public class FlamegraphView<T> {
                 return;
             }
 
-            var flamegraphView = FlamegraphView.from(canvas).get();
+            switch (canvas.frameClickBehavior) {
+                case EXPAND_FRAME:
+                    if (e.getClickCount() == 1) {
+                        canvas.getFlamegraphRenderEngine()
+                              .toggleSelectedFrameAt(
+                                      (Graphics2D) viewPort.getView().getGraphics(),
+                                      canvas.getBounds(tmpBounds),
+                                      latestMouseLocation,
+                                      (frame, r) -> canvas.repaint()
+                              );
 
-            if (e.getClickCount() == 2) {
-                // find zoom target then do an animated transition
-                canvas.getFlamegraphRenderEngine().calculateZoomTargetForFrameAt(
-                        (Graphics2D) canvas.getGraphics(),
-                        canvas.getBounds(tmpBounds),
-                        canvas.getVisibleRect(),
-                        latestMouseLocation
-                ).ifPresent(zoomTarget -> {
-                    if (Objects.equals(canvas.getBounds(), zoomTarget.getTargetBounds())) {
-                        flamegraphView.resetZoom();
-                    } else {
-                        zoom(canvas, zoomTarget);
+                        // TODO broken on iciclegraph, both expand and shrink
+                        // this appear to be related to the horizontal scrollbar
+                        canvas.getFlamegraphRenderEngine().calculateHorizontalZoomTargetForFrameAt(
+                                (Graphics2D) canvas.getGraphics(),
+                                canvas.getBounds(tmpBounds),
+                                canvas.getVisibleRect(),
+                                latestMouseLocation
+                        ).ifPresent(zoomTarget -> {
+                            if (Objects.equals(canvas.getBounds(tmpBounds), zoomTarget.getTargetBounds())) {
+                                zoom(canvas, canvas.getResetZoomTarget(true));
+                            } else {
+                                zoom(canvas, zoomTarget);
+                            }
+                        });
                     }
-                });
-                return;
-            }
+                    break;
+                case SELECT_FRAME:
+                    if (e.getClickCount() == 2) {
+                        // find zoom target then do an animated transition
+                        canvas.getFlamegraphRenderEngine().calculateZoomTargetForFrameAt(
+                                (Graphics2D) canvas.getGraphics(),
+                                canvas.getBounds(tmpBounds),
+                                canvas.getVisibleRect(),
+                                latestMouseLocation
+                        ).ifPresent(zoomTarget -> {
+                            if (Objects.equals(canvas.getBounds(tmpBounds), zoomTarget.getTargetBounds())) {
+                                zoom(canvas, canvas.getResetZoomTarget(false));
+                            } else {
+                                zoom(canvas, zoomTarget);
+                            }
+                        });
+                        return;
+                    }
 
-            canvas.getFlamegraphRenderEngine()
-                  .toggleSelectedFrameAt(
-                          (Graphics2D) viewPort.getView().getGraphics(),
-                          canvas.getBounds(tmpBounds),
-                          latestMouseLocation,
-                          (frame, r) -> canvas.repaint()
-                  );
+                    if (e.getClickCount() == 1) {
+                        canvas.getFlamegraphRenderEngine()
+                              .toggleSelectedFrameAt(
+                                      (Graphics2D) viewPort.getView().getGraphics(),
+                                      canvas.getBounds(tmpBounds),
+                                      latestMouseLocation,
+                                      (frame, r) -> canvas.repaint()
+                              );
+                    }
+                    break;
+            }
         }
 
 
