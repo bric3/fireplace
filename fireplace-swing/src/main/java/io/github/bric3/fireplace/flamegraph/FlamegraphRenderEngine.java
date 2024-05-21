@@ -307,7 +307,7 @@ class FlamegraphRenderEngine<T> {
         var frames = frameModel.frames;
         // paint root
         {
-            var rootFrameShape = frameRenderer.reusableFrameRect(); // reusable rectangle
+            var rootFrameShape = frameRenderer.reusableFrameShape(); // reusable rectangle
             var rootFrame = frames.get(0);
 
             int internalPadding = 0; // Remove ?
@@ -321,9 +321,8 @@ class FlamegraphRenderEngine<T> {
             if (!paintableIntersection.isEmpty()) {
                 frameRenderer.paintFrame(
                         g2d,
-                        frameModel,
+                        rootFrame, frameModel,
                         rootFrameShape,
-                        rootFrame,
                         paintableIntersection,
                         FrameRenderingFlags.toFlags(
                                 minimapMode,
@@ -340,7 +339,7 @@ class FlamegraphRenderEngine<T> {
         }
 
         // paint real flames
-        var frameShape = frameRenderer.reusableFrameRect(); // reusable rectangle
+        var frameShape = frameRenderer.reusableFrameShape(); // reusable rectangle
         for (int i = 1; i < frames.size(); i++) {
             var frame = frames.get(i);
 
@@ -359,9 +358,8 @@ class FlamegraphRenderEngine<T> {
             if (!paintableIntersection.isEmpty()) {
                 frameRenderer.paintFrame(
                         g2d,
-                        frameModel,
+                        frame, frameModel,
                         frameShape,
-                        frame,
                         paintableIntersection,
                         // choose font depending on whether the left-side of the frame is clipped
                         FrameRenderingFlags.toFlags(

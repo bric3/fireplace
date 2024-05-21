@@ -100,9 +100,8 @@ public class DefaultFrameRenderer<T> implements FrameRenderer<T> {
     @Override
     public void paintFrame(
             @NotNull Graphics2D g2,
-            @NotNull FrameModel<@NotNull T> frameModel,
+            @NotNull FrameBox<@NotNull T> frame, @NotNull FrameModel<@NotNull T> frameModel,
             @NotNull RectangularShape frameRect,
-            @NotNull FrameBox<@NotNull T> frame,
             @NotNull Rectangle2D paintableIntersection,
             int renderFlags
     ) {
@@ -264,7 +263,7 @@ public class DefaultFrameRenderer<T> implements FrameRenderer<T> {
     }
 
     @Override
-    public RectangularShape reusableFrameRect() {
+    public RectangularShape reusableFrameShape() {
         return roundedFrame ? new RoundRectangle2D.Double(
                 0, 0, 0, 0, 5, 5
         ) : new Rectangle2D.Double();

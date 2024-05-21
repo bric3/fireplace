@@ -1,5 +1,6 @@
 package io.github.bric3.fireplace.flamegraph;
 
+import org.jetbrains.annotations.ApiStatus.Experimental;
 import org.jetbrains.annotations.NotNull;
 
 import java.awt.*;
@@ -13,6 +14,7 @@ import java.awt.geom.RectangularShape;
  * @see FlamegraphView
  */
 // TODO root frame renderer ?
+@Experimental
 public interface FrameRenderer<T> {
     /**
      * The size of the gap at between each side of a frame.
@@ -46,9 +48,9 @@ public interface FrameRenderer<T> {
      * using the {@link FrameRenderingFlags} methods.
      *
      * @param g2                    the graphics context
+     * @param frame                 the frame to paint
      * @param frameModel            the frame model
      * @param frameRect             the frame region (may fall outside visible area).
-     * @param frame                 the frame to paint
      * @param paintableIntersection the intersection between the frame rectangle and the visible region
      *                              (can be used to position the text label).
      * @param renderFlags           the rendering flags (minimap, selection, hovered, highlight, etc.)
@@ -56,14 +58,21 @@ public interface FrameRenderer<T> {
      */
     void paintFrame(
             @NotNull Graphics2D g2,
+            @NotNull FrameBox<T> frame,
             @NotNull FrameModel<T> frameModel,
             @NotNull RectangularShape frameRect,
-            @NotNull FrameBox<T> frame,
             @NotNull Rectangle2D paintableIntersection,
             int renderFlags
     );
 
-    default RectangularShape reusableFrameRect() {
+    /**
+     * A factory for the frame rectangle shape, this shape is reused.
+     * Usually the frame will be a standard rectangle; however, the implementation may want to
+     * use a different shape (e.g., a rounded rectangle).
+     * This instance is likely to be reused for each frame.
+     * @return a new instance of the frame shape.
+     */
+    default RectangularShape reusableFrameShape() {
         return new Rectangle2D.Double();
     }
 }
