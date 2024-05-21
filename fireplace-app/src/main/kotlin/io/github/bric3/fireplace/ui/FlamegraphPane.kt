@@ -79,6 +79,7 @@ class FlamegraphPane : JPanel(BorderLayout()) {
                     )
                 )
             jfrFlamegraphView.frameColorProvider = DimmingFrameColorProvider(frameBoxColorFunction)
+                .withDimNonFocusedFlame(false)
             jfrFlamegraphView.requestRepaint()
         }.also {
             colorPaletteJComboBox.addActionListener(it)
@@ -272,7 +273,7 @@ class FlamegraphPane : JPanel(BorderLayout()) {
                         defaultFrameColorMode.colorMapperUsing(
                             ColorMapper.ofObjectHashUsing(*defaultColorPalette.colors())
                         )
-                    ),
+                    ).withDimNonFocusedFlame(false),
                     FrameFontProvider.defaultFontProvider()
                 ).apply {
                     isPaintHoveredFrameBorder = defaultPaintHoveredFrameBorder
