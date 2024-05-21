@@ -72,6 +72,7 @@ public class DimmingFrameColorProvider<T> implements FrameColorProvider<@NotNull
 
     private Color rootBackGroundColor = ROOT_BACKGROUND_COLOR;
     private Color dimmedTextColor = DIMMED_TEXT_COLOR;
+    private boolean dimmedNonFocusedFlames = true;
 
     /**
      * Builds a basic frame color provider.
@@ -106,7 +107,7 @@ public class DimmingFrameColorProvider<T> implements FrameColorProvider<@NotNull
             );
         }
 
-        boolean shouldDimFocusedFlame = isFocusing(flags) && isInFocusedFlame(flags) && !isHighlightedFrame(flags);
+        var shouldDimFocusedFlame = shouldDimFocusedFlame(flags);
         if (!rootNode && shouldDim(flags) && !shouldDimFocusedFlame) {
             backgroundColor = dimmedBackground(baseBackgroundColor);
             foreground = dimmedTextColor;
@@ -174,6 +175,19 @@ public class DimmingFrameColorProvider<T> implements FrameColorProvider<@NotNull
     }
 
     /**
+     * Should dim the frame if it's in the focused flame.
+     *
+     * @param flags
+     * @return
+     */
+    private boolean shouldDimFocusedFlame(int flags) {
+        return dimmedNonFocusedFlames
+               && isFocusing(flags)
+               && isInFocusedFlame(flags)
+               && !isHighlightedFrame(flags);
+    }
+
+    /**
      * Dim only if not highlighted or not focused
      * <p>
      * <ul>
@@ -192,10 +206,11 @@ public class DimmingFrameColorProvider<T> implements FrameColorProvider<@NotNull
         var inFocusedFlame = isInFocusedFlame(flags);
 
         var dimmedForHighlighting = highlighting && !highlightedFrame;
-        var dimmedForFocus = focusing && !inFocusedFlame;
+        var dimmedForFocus = dimmedNonFocusedFlames && focusing && !inFocusedFlame;
+        var dimmedInFocusedFlame = dimmedNonFocusedFlames && focusing && inFocusedFlame;
 
         return (dimmedForHighlighting || dimmedForFocus)
-               && !(focusing && inFocusedFlame) // don't dim frames that are in focused flame
+               && !dimmedInFocusedFlame // don't dim frames that are in focused flame
                // && !(highlighting && highlightedFrame) // this dim highlighted that are not in focused flame
                 ;
     }
@@ -209,6 +224,12 @@ public class DimmingFrameColorProvider<T> implements FrameColorProvider<@NotNull
     @NotNull
     public DimmingFrameColorProvider<T> withDimmedTextColor(@NotNull Color dimmedTextColor) {
         this.dimmedTextColor = Objects.requireNonNull(dimmedTextColor);
+        return this;
+    }
+
+    @NotNull
+    public DimmingFrameColorProvider<T> withDimNonFocusedFlame(boolean dimmedNonFocusedFlames) {
+        this.dimmedNonFocusedFlames = dimmedNonFocusedFlames;
         return this;
     }
 }
