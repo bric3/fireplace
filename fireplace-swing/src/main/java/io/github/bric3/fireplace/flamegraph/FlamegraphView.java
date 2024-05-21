@@ -1668,6 +1668,8 @@ public class FlamegraphView<T> {
                 return;
             }
 
+            var flamegraphView = FlamegraphView.from(canvas).get();
+
             if (e.getClickCount() == 2) {
                 // find zoom target then do an animated transition
                 canvas.getFlamegraphRenderEngine().calculateZoomTargetForFrameAt(
@@ -1675,7 +1677,13 @@ public class FlamegraphView<T> {
                         canvas.getBounds(tmpBounds),
                         canvas.getVisibleRect(),
                         latestMouseLocation
-                ).ifPresent(zoomTarget -> zoom(canvas, zoomTarget));
+                ).ifPresent(zoomTarget -> {
+                    if (Objects.equals(canvas.getBounds(), zoomTarget.getTargetBounds())) {
+                        flamegraphView.resetZoom();
+                    } else {
+                        zoom(canvas, zoomTarget);
+                    }
+                });
                 return;
             }
 

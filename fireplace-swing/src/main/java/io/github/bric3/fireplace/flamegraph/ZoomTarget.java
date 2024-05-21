@@ -14,6 +14,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.awt.*;
+import java.util.Objects;
 
 /**
  * Represents a target for zooming.
@@ -82,5 +83,18 @@ public class ZoomTarget<T> {
 
     public double getY() {
         return targetBounds.y;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        ZoomTarget<?> that = (ZoomTarget<?>) o;
+        return Objects.equals(targetBounds, that.targetBounds) && Objects.equals(targetFrame, that.targetFrame);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(targetBounds, targetFrame);
     }
 }
