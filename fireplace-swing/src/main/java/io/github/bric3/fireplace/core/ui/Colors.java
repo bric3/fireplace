@@ -14,6 +14,7 @@ import io.github.bric3.fireplace.flamegraph.ColorMapper;
 import javax.swing.*;
 import java.awt.*;
 import java.util.Arrays;
+import java.util.Objects;
 import java.util.regex.Pattern;
 
 /**
@@ -365,6 +366,34 @@ public class Colors {
         //noinspection UnnecessaryLocalVariable
         var isBright = brightness >= DARK_PERCEIVED_BRIGHTNESS_THRESHOLD;
         return isBright;
+    }
+
+    /**
+     * Produce a new color with the given alpha value.
+     *
+     * @param color The color
+     * @param alpha The alpha value [0; 1]
+     * @return The new color
+     */
+    public static Color withAlpha(Color color, float alpha) {
+        return withAlpha(color, (int) (alpha * 255));
+    }
+
+    /**
+     * Produce a new color with the given alpha value.
+     *
+     * @param color The color
+     * @param alpha The alpha value [0; 255]
+     * @return The new color
+     */
+    public static Color withAlpha(Color color, int alpha) {
+        Objects.checkIndex(alpha, 256); // "Alpha value must be between 0 and 255"
+        return new Color(
+                color.getRed(),
+                color.getGreen(),
+                color.getBlue(),
+                alpha
+        );
     }
 
     /**

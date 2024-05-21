@@ -16,12 +16,7 @@ import java.time.format.DateTimeFormatter
 import java.util.concurrent.TimeUnit.MILLISECONDS
 
 
-fun Color.withAlpha(alpha: Float) = Color(
-    red,
-    green,
-    blue,
-    (alpha * 255).toInt()
-)
+fun Color.withAlpha(alpha: Float) = withAlpha((alpha * 255).toInt())
 
 fun Color.withAlpha(alpha: Int): Color {
     require(alpha in 0..255) { "Alpha value must be between 0 and 255" }
