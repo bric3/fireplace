@@ -15,6 +15,7 @@ import io.github.bric3.fireplace.core.ui.Colors.Palette
 import io.github.bric3.fireplace.core.ui.LightDarkColor
 import io.github.bric3.fireplace.core.ui.SwingUtils
 import io.github.bric3.fireplace.flamegraph.ColorMapper
+import io.github.bric3.fireplace.flamegraph.DefaultFrameRenderer
 import io.github.bric3.fireplace.flamegraph.DimmingFrameColorProvider
 import io.github.bric3.fireplace.flamegraph.FlamegraphView
 import io.github.bric3.fireplace.flamegraph.FlamegraphView.HoverListener
@@ -245,28 +246,30 @@ class FlamegraphPane : JPanel(BorderLayout()) {
         private const val defaultIcicleMode = true
         private fun getJfrFlamegraphView(): FlamegraphView<Node> {
             val flamegraphView = FlamegraphView<Node>()
-            flamegraphView.setRenderConfiguration(
-                FrameTextsProvider.of(
-                    Function { frame -> if (frame.isRoot) "root" else frame.actualNode.frame.humanReadableShortString },
-                    Function { frame ->
-                        if (frame.isRoot) "" else FormatToolkit.getHumanReadable(
-                            frame.actualNode.frame.method,
-                            false,
-                            false,
-                            false,
-                            false,
-                            true,
-                            false
+            flamegraphView.setFrameRender(
+                DefaultFrameRenderer(
+                    FrameTextsProvider.of(
+                        Function { frame -> if (frame.isRoot) "root" else frame.actualNode.frame.humanReadableShortString },
+                        Function { frame ->
+                            if (frame.isRoot) "" else FormatToolkit.getHumanReadable(
+                                frame.actualNode.frame.method,
+                                false,
+                                false,
+                                false,
+                                false,
+                                true,
+                                false
+                            )
+                        },
+                        Function { frame -> if (frame.isRoot) "" else frame.actualNode.frame.method.methodName }
+                    ),
+                    DimmingFrameColorProvider(
+                        defaultFrameColorMode.colorMapperUsing(
+                            ColorMapper.ofObjectHashUsing(*defaultColorPalette.colors())
                         )
-                    },
-                    Function { frame -> if (frame.isRoot) "" else frame.actualNode.frame.method.methodName }
-                ),
-                DimmingFrameColorProvider(
-                    defaultFrameColorMode.colorMapperUsing(
-                        ColorMapper.ofObjectHashUsing(*defaultColorPalette.colors())
-                    )
-                ),
-                FrameFontProvider.defaultFontProvider()
+                    ),
+                    FrameFontProvider.defaultFontProvider()
+                )
             )
 
             val ref = AtomicReference<FrameBox<Node>>()
