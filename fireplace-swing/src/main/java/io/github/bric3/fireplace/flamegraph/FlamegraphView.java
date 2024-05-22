@@ -16,6 +16,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import javax.swing.*;
+import javax.swing.border.EmptyBorder;
 import javax.swing.event.MouseInputAdapter;
 import javax.swing.event.MouseInputListener;
 import java.awt.*;
@@ -303,7 +304,7 @@ public class FlamegraphView<T> {
         });
 
         component = wrap(layeredScrollPane, bg -> {
-            scrollPane.setBorder(null);
+            scrollPane.setBorder(new EmptyBorder(0, 0, 0, 0));
             scrollPane.setBackground(bg);
             scrollPane.getVerticalScrollBar().setBackground(bg);
             scrollPane.getHorizontalScrollBar().setBackground(bg);

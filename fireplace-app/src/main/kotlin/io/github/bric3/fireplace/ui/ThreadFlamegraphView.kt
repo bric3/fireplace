@@ -26,6 +26,7 @@ import java.awt.event.MouseEvent
 import java.util.concurrent.CompletableFuture
 import java.util.function.Supplier
 import javax.swing.*
+import javax.swing.border.EmptyBorder
 import kotlin.collections.Map.Entry
 
 abstract class ThreadFlamegraphView(protected val jfrBinder: JFRLoaderBinder) : ViewPanel {
@@ -126,7 +127,13 @@ abstract class ThreadFlamegraphView(protected val jfrBinder: JFRLoaderBinder) : 
             }
         )
 
-        JSplitPane(JSplitPane.HORIZONTAL_SPLIT, JScrollPane(threadList), charts).apply {
+        JSplitPane(
+            JSplitPane.HORIZONTAL_SPLIT,
+            JScrollPane(threadList).apply {
+                border = EmptyBorder(0, 0, 0, 0)
+            },
+            charts
+        ).apply {
             autoSize(0.2)
         }
     }
