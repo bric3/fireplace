@@ -1031,12 +1031,15 @@ public class FlamegraphView<T> {
                     }
                 });
 
-                installMinimapTriggers(fgCanvas, vsb);
-                installVerticalScrollBarListeners(fgCanvas, vsb);
+                installMinimapTriggers(fgCanvas);
+                installGraphModeListener(fgCanvas, vsb);
             }
         }
 
-        private void installVerticalScrollBarListeners(FlamegraphCanvas<T> fgCanvas, JScrollBar vsb) {
+        private void installGraphModeListener(
+                FlamegraphCanvas<T> fgCanvas,
+                JScrollBar vsb
+        ) {
             fgCanvas.addPropertyChangeListener(GRAPH_MODE_PROPERTY, evt -> SwingUtilities.invokeLater(() -> {
                 var value = vsb.getValue();
                 var bounds = fgCanvas.getBounds();
@@ -1062,7 +1065,7 @@ public class FlamegraphView<T> {
             }));
         }
 
-        private void installMinimapTriggers(FlamegraphCanvas<T> fgCanvas, JScrollBar vsb) {
+        private void installMinimapTriggers(FlamegraphCanvas<T> fgCanvas) {
             PropertyChangeListener triggerMinimapOnPropertyChange = evt -> {
                 var propertyName = evt.getPropertyName();
                 if (!propertyName.equals("preferredSize")
