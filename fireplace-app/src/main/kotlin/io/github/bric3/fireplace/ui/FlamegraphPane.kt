@@ -19,6 +19,7 @@ import io.github.bric3.fireplace.flamegraph.ColorMapper
 import io.github.bric3.fireplace.flamegraph.DefaultFrameRenderer
 import io.github.bric3.fireplace.flamegraph.DimmingFrameColorProvider
 import io.github.bric3.fireplace.flamegraph.FlamegraphView
+import io.github.bric3.fireplace.flamegraph.FlamegraphView.FrameClickAction.EXPAND_FRAME
 import io.github.bric3.fireplace.flamegraph.FlamegraphView.HoverListener
 import io.github.bric3.fireplace.flamegraph.FrameBox
 import io.github.bric3.fireplace.flamegraph.FrameFontProvider
@@ -252,6 +253,7 @@ class FlamegraphPane : JPanel(BorderLayout()) {
         private const val defaultRoundedFrame = true
         private fun getJfrFlamegraphView(): FlamegraphView<Node> {
             val flamegraphView = FlamegraphView<Node>()
+            flamegraphView.frameClickAction = EXPAND_FRAME
             flamegraphView.setFrameRender(
                 DefaultFrameRenderer(
                     FrameTextsProvider.of(
