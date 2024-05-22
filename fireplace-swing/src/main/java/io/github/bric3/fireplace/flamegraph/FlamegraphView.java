@@ -352,6 +352,7 @@ public class FlamegraphView<T> {
                         var canvas = (FlamegraphCanvas<?>) vp.getView();
                         int oldVpWidth = oldViewPortSize.width;
                         var vpSize = vp.getSize(oldViewPortSize);
+                        var oldFlamegraphHeight = flamegraphSize.height;
 
                         double lastScaleFactor = canvas.zoomModel.getLastScaleFactor();
 
@@ -364,6 +365,16 @@ public class FlamegraphView<T> {
                             );
                             vp.setViewSize(flamegraphSize);
 
+                            // Handles the view location change when the flamegraph is changing its height,
+                            // i.e., there are less or more frames visible
+                            // First compute the last y offset from the bottom
+                            int flamegraphYFromBottom = oldFlamegraphHeight - Math.abs(flamegraphLocation.y);
+                            // then compute the new y offset from the bottom using the new flamegraph height
+                            int yLocation = canvas.getMode() == Mode.FLAMEGRAPH ?
+                                            flamegraphSize.height - flamegraphYFromBottom :
+                                            flamegraphLocation.y;
+                            flamegraphLocation.y = Math.abs(yLocation);
+
                             // if view position X > 0
                             //   the fg is zoomed
                             //   => get the latest position ratio resulting from user interaction
@@ -373,10 +384,9 @@ public class FlamegraphView<T> {
                                 double positionRatio = canvas.zoomModel.getLastUserInteractionStartX();
 
                                 flamegraphLocation.x = Math.abs((int) (positionRatio * flamegraphSize.width));
-                                flamegraphLocation.y = Math.abs(flamegraphLocation.y);
-
-                                vp.setViewPosition(flamegraphLocation);
                             }
+
+                            vp.setViewPosition(flamegraphLocation);
                         } else {
                             super.layoutContainer(parent);
                             // capture the sizes
