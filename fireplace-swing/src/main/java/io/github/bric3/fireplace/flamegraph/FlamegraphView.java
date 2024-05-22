@@ -59,10 +59,12 @@ import static java.lang.Boolean.TRUE;
  * <pre><code>
  * var flamegraphView = new FlamegraphView&lt;MyNode&gt;();
  * flamegraphView.setShowMinimap(false);
- * flamegraphView.setRenderConfiguration(
- *     frameTextProvider,           // string representation candidates
- *     frameColorProvider,          // color the frame
- *     frameFontProvider,           // returns a given font for a frame
+ * flamegraphView.setFrameRender(
+ *     new DefaultFrameRenderer(
+ *         frameTextProvider,           // string representation candidates
+ *         frameColorProvider,          // color the frame
+ *         frameFontProvider,           // returns a given font for a frame
+ *     )
  * );
  * flamegraphView.setTooltipTextFunction(
  *     frameToToolTipTextFunction   // text tooltip function
