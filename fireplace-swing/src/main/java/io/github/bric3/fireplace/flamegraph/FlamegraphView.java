@@ -353,16 +353,7 @@ public class FlamegraphView<T> {
                         int oldVpWidth = oldViewPortSize.width;
                         var vpSize = vp.getSize(oldViewPortSize);
 
-                        // Never show the horizontal scrollbar when the scale factor is 1.0
-                        // Only change it when necessary
-                        int horizontalScrollBarPolicy = jScrollPane.getHorizontalScrollBarPolicy();
                         double lastScaleFactor = canvas.zoomModel.getLastScaleFactor();
-                        int newPolicy = lastScaleFactor == 1.0 ?
-                                        ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER :
-                                        ScrollPaneConstants.HORIZONTAL_SCROLLBAR_AS_NEEDED;
-                        if (horizontalScrollBarPolicy != newPolicy) {
-                            jScrollPane.setHorizontalScrollBarPolicy(newPolicy);
-                        }
 
                         // view port has been resized
                         if (vpSize.width != oldVpWidth) {
@@ -392,6 +383,21 @@ public class FlamegraphView<T> {
                             vp.getSize(oldViewPortSize);
                             canvas.getSize(flamegraphSize);
                             canvas.getLocation(flamegraphLocation);
+                        }
+
+                        {
+                            // Never show the horizontal scrollbar when the scale factor is 1.0
+                            int newPolicy = lastScaleFactor == 1.0 ?
+                                            ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER :
+                                            ScrollPaneConstants.HORIZONTAL_SCROLLBAR_AS_NEEDED;
+                            // Only change it when necessary
+                            if (jScrollPane.getHorizontalScrollBarPolicy() != newPolicy) {
+                                jScrollPane.setHorizontalScrollBarPolicy(newPolicy);
+                            }
+
+                            // show the horizontal scrollbar if the flamegraph is wider than the viewport
+                            jScrollPane.getHorizontalScrollBar()
+                                       .setVisible(lastScaleFactor != 1.0 && oldVpWidth < flamegraphSize.width);
                         }
                     }
                 };
