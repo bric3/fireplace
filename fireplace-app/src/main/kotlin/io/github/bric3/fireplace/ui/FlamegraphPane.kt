@@ -9,6 +9,7 @@
  */
 package io.github.bric3.fireplace.ui
 
+import com.formdev.flatlaf.FlatClientProperties
 import io.github.bric3.fireplace.Utils
 import io.github.bric3.fireplace.core.ui.Colors
 import io.github.bric3.fireplace.core.ui.Colors.Palette
@@ -115,6 +116,9 @@ class FlamegraphPane : JPanel(BorderLayout()) {
             addActionListener { jfrFlamegraphView.resetZoom() }
         }
         val searchField = JTextField("").apply {
+            putClientProperty(FlatClientProperties.PLACEHOLDER_TEXT, "Search")
+            putClientProperty( FlatClientProperties.TEXT_FIELD_SHOW_CLEAR_BUTTON, true)
+
             addActionListener {
                 val searched = text
                 if (searched.isEmpty()) {
