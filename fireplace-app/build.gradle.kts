@@ -14,7 +14,7 @@ plugins {
     // https://github.com/johnrengelman/shadow/pull/876
     // https://github.com/johnrengelman/shadow/issues/908
     id("io.github.goooler.shadow") version "8.1.7"
-    kotlin("jvm") version "1.9.24"
+    kotlin("jvm") version "2.0.0"
 }
 
 description = "Opens a JFR file to inspect its content."
