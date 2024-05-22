@@ -96,6 +96,7 @@ import static java.lang.Boolean.TRUE;
  * @see FlamegraphRenderEngine
  * @see DefaultFrameRenderer
  */
+@SuppressWarnings("unused")
 public class FlamegraphView<T> {
     /**
      * Internal key to get the Flamegraph from the component.
@@ -927,6 +928,8 @@ public class FlamegraphView<T> {
             return;
         }
 
+        zoomTarget = canvas.adjustedZoomTargetForHsbVisibility(zoomTarget, false);
+
         // Set the zoom model to the Zoom Target
         canvas.zoomModel.recordLastPositionFromZoomTarget(canvas, zoomTarget);
 
@@ -1020,7 +1023,7 @@ public class FlamegraphView<T> {
             // from appearing on first display, see #96.
             // Since a scrollbar is made visible once, this listener is called only once,
             // which is the intended behavior (otherwise it affects zooming).
-            var parent = SwingUtilities.getUnwrappedParent(fgCanvas);
+            var parent = fgCanvas.getParent();
             if (parent instanceof JViewport) {
                 var viewport = (JViewport) parent;
                 var scrollPane = (JScrollPane) viewport.getParent();
@@ -1582,18 +1585,17 @@ public class FlamegraphView<T> {
             }
 
             var visibleRect = getVisibleRect();
-            var bounds = getBounds();
+            var canvasBounds = getBounds();
 
             var newHeight = flamegraphRenderEngine.computeVisibleFlamegraphHeight(
                     graphics,
                     visibleRect.width
             );
 
-            // flamegraphRenderEngine.fracalculateHorizontalZoomTargetForFrameAt()
             boolean isFlameGraph = getMode() == Mode.FLAMEGRAPH;
             int newY = resetHorizontalOnly ?
-                       (isFlameGraph ? bounds.y + 12 : bounds.y) :
-                       (isFlameGraph ? -(bounds.height - visibleRect.height) : 0);
+                       (isFlameGraph ? -(newHeight - (canvasBounds.height - Math.abs(canvasBounds.y))) : canvasBounds.y) :
+                       (isFlameGraph ? -(canvasBounds.height - visibleRect.height) : 0);
             return new ZoomTarget<>(
                     0,
                     newY,
@@ -1632,22 +1634,34 @@ public class FlamegraphView<T> {
             // Not calling setBounds from the Timeline may provoke EDT violations
             // however calling invokeLater makes the animation out of order, and not smooth.
 
-            // adjust zoom target location for horizontal scrollbar height if canvas bigger than viewRect
-            if (getMode() == Mode.FLAMEGRAPH) {
-                var visibleRect = getVisibleRect();
-                var viewPort = (JViewport) SwingUtilities.getUnwrappedParent(this);
-                var scrollPane = (JScrollPane) viewPort.getParent();
+            setBounds(zoomTarget.getTargetBounds());
+        }
+
+
+        /**
+         * Adjust the zoom target location for horizontal scrollbar height if canvas bigger than viewRect.
+         * This only applies to flamegraph mode.
+         *
+         * @param zoomTarget The zoom target.
+         * @return An adjusted zoom target instance, or the passed zoom target if no adjustment is needed.
+         */
+        private ZoomTarget<@NotNull T> adjustedZoomTargetForHsbVisibility(
+                @NotNull ZoomTarget<@NotNull T> zoomTarget,
+                boolean ignoreVisibility
+        ) {
+            if (this.getMode() == Mode.FLAMEGRAPH) {
+                var visibleRect = this.getVisibleRect();
+                var scrollPane = (JScrollPane) this.getParent().getParent();
 
                 var hsb = scrollPane.getHorizontalScrollBar();
-                if (!hsb.isVisible() && visibleRect.getWidth() < zoomTarget.getWidth()) {
+                if ((ignoreVisibility || !hsb.isVisible()) && visibleRect.getWidth() < zoomTarget.getWidth()) {
                     var modifiedRect = zoomTarget.getTargetBounds();
-                    modifiedRect.y -= hsb.getPreferredSize().height;
+                    modifiedRect.y += hsb.getPreferredSize().height;
 
                     zoomTarget = new ZoomTarget<>(modifiedRect, zoomTarget.targetFrame);
                 }
             }
-
-            setBounds(zoomTarget.getTargetBounds());
+            return zoomTarget;
         }
     }
 
@@ -1741,8 +1755,7 @@ public class FlamegraphView<T> {
                                 latestMouseLocation,
                                 (frame, r) -> canvas.repaint()
                         );
-
-                        // TODO broken on iciclegraph, both expand and shrink
+                        // TODO weird behavior on iciclegraph, both expand and shrink
                         // this appear to be related to the horizontal scrollbar
                         fgre.calculateHorizontalZoomTargetForFrameAt(
                                 (Graphics2D) canvas.getGraphics(),
