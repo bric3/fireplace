@@ -29,7 +29,7 @@ eclipse-jface = "3.33.0"
 eclipse-ui-forms = "3.13.200"
 
 # Kotlin
-kotlin = "1.9.24"
+kotlin = "2.0.0"
 kotlin-coroutines = "1.8.1"
 
 # Gradle plugins
