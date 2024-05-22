@@ -263,10 +263,12 @@ public class FlamegraphView<T> {
     public FlamegraphView() {
         canvas = new FlamegraphCanvas<>(this);
         // default configuration
-        setRenderConfiguration(
-                FrameTextsProvider.of(frameBox -> frameBox.actualNode.toString()),
-                FrameColorProvider.defaultColorProvider(f -> UIManager.getColor("Button.background")),
-                FrameFontProvider.defaultFontProvider()
+        setFrameRender(
+                new DefaultFrameRenderer<>(
+                    FrameTextsProvider.of(frameBox -> frameBox.actualNode.toString()),
+                    FrameColorProvider.defaultColorProvider(f -> UIManager.getColor("Button.background")),
+                    FrameFontProvider.defaultFontProvider()
+                )
         );
         canvas.putClientProperty(OWNER_KEY, this);
         scrollPaneListener = new FlamegraphHoveringScrollPaneMouseListener<>(canvas);
