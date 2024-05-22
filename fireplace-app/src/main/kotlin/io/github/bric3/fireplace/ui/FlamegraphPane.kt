@@ -117,7 +117,7 @@ class FlamegraphPane : JPanel(BorderLayout()) {
         }
         val searchField = JTextField("").apply {
             putClientProperty(FlatClientProperties.PLACEHOLDER_TEXT, "Search")
-            putClientProperty( FlatClientProperties.TEXT_FIELD_SHOW_CLEAR_BUTTON, true)
+            putClientProperty(FlatClientProperties.TEXT_FIELD_SHOW_CLEAR_BUTTON, true)
 
             addActionListener {
                 val searched = text
@@ -245,9 +245,10 @@ class FlamegraphPane : JPanel(BorderLayout()) {
     companion object {
         private val defaultColorPalette = Colors.Palette.DATADOG
         private val defaultFrameColorMode = BY_PACKAGE
-        private const val defaultPaintFrameBorder = true
+        private const val defaultPaintHoveredFrameBorder = false
         private const val defaultShowMinimap = true
         private const val defaultIcicleMode = true
+        private const val defaultRoundedFrame = true
         private fun getJfrFlamegraphView(): FlamegraphView<Node> {
             val flamegraphView = FlamegraphView<Node>()
             flamegraphView.setFrameRender(
@@ -273,7 +274,10 @@ class FlamegraphPane : JPanel(BorderLayout()) {
                         )
                     ),
                     FrameFontProvider.defaultFontProvider()
-                )
+                ).apply {
+                    isPaintHoveredFrameBorder = defaultPaintHoveredFrameBorder
+                    isRoundedFrame = defaultRoundedFrame
+                }
             )
 
             val ref = AtomicReference<FrameBox<Node>>()
