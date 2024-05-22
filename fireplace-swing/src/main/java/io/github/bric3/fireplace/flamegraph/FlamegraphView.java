@@ -271,9 +271,9 @@ public class FlamegraphView<T> {
         // default configuration
         setFrameRender(
                 new DefaultFrameRenderer<>(
-                    FrameTextsProvider.of(frameBox -> frameBox.actualNode.toString()),
-                    FrameColorProvider.defaultColorProvider(f -> UIManager.getColor("Button.background")),
-                    FrameFontProvider.defaultFontProvider()
+                        FrameTextsProvider.of(frameBox -> frameBox.actualNode.toString()),
+                        FrameColorProvider.defaultColorProvider(f -> UIManager.getColor("Button.background")),
+                        FrameFontProvider.defaultFontProvider()
                 )
         );
         canvas.putClientProperty(OWNER_KEY, this);
@@ -1720,11 +1720,11 @@ public class FlamegraphView<T> {
                 case EXPAND_FRAME:
                     if (e.getClickCount() == 1) {
                         fgre.toggleSelectedFrameAt(
-                                      (Graphics2D) viewPort.getView().getGraphics(),
-                                      canvas.getBounds(tmpBounds),
-                                      latestMouseLocation,
-                                      (frame, r) -> canvas.repaint()
-                              );
+                                (Graphics2D) viewPort.getView().getGraphics(),
+                                canvas.getBounds(tmpBounds),
+                                latestMouseLocation,
+                                (frame, r) -> canvas.repaint()
+                        );
 
                         // TODO broken on iciclegraph, both expand and shrink
                         // this appear to be related to the horizontal scrollbar
@@ -1762,11 +1762,11 @@ public class FlamegraphView<T> {
 
                     if (e.getClickCount() == 1) {
                         fgre.toggleSelectedFrameAt(
-                                      (Graphics2D) viewPort.getView().getGraphics(),
-                                      canvas.getBounds(tmpBounds),
-                                      latestMouseLocation,
-                                      (frame, r) -> canvas.repaint()
-                              );
+                                (Graphics2D) viewPort.getView().getGraphics(),
+                                canvas.getBounds(tmpBounds),
+                                latestMouseLocation,
+                                (frame, r) -> canvas.repaint()
+                        );
                     }
                     break;
             }
