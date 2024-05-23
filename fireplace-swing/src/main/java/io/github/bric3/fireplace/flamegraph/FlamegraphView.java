@@ -361,10 +361,27 @@ public class FlamegraphView<T> {
 
                         // view port has been resized
                         if (vpSize.width != oldVpWidth) {
+                            // Computes the dimension as if a vertical scrollbar was needed.
+                            //
+                            // Otherwise, the layout can enter a loop:
+                            // Because the view port width is called once with full width,
+                            // which computes a canvas with a taller dimension than viewport.
+                            // This triggers the horizontal scrollbar to be added, which
+                            // triggers another layout.
+                            // In this layout, the view port width is shorter by the scrollbar width,
+                            // which makes the canvas fitting in the view port,
+                            // which then triggers annoter layout that removes the vertical scrollbar,
+                            // and then starts again.
+                            //
+                            // Note the scrollbar visibility is updated at the end of this control block
+
+                            var vsb = jScrollPane.getVerticalScrollBar();
+                            int currentVpWidth = vpSize.width - (vsb.isVisible() ? 0 : vsb.getWidth());
+
                             // scale the fg size with the new viewport width
                             canvas.updateFlamegraphDimension(
                                     flamegraphSize,
-                                    (int) (((double) vpSize.width) / lastScaleFactor)
+                                    (int) (((double) currentVpWidth) / lastScaleFactor)
                             );
                             vp.setViewSize(flamegraphSize);
 
@@ -396,6 +413,20 @@ public class FlamegraphView<T> {
                             vp.getSize(oldViewPortSize);
                             canvas.getSize(flamegraphSize);
                             canvas.getLocation(flamegraphLocation);
+                        }
+                        
+                        {
+                            // Never show the vertical scrollbar when the flamegraph fits in the vp
+                            int newPolicy = flamegraphSize.height <= vpSize.height ?
+                                            ScrollPaneConstants.VERTICAL_SCROLLBAR_NEVER :
+                                            ScrollPaneConstants.VERTICAL_SCROLLBAR_ALWAYS;
+                            // Only change it when necessary
+                            if (jScrollPane.getVerticalScrollBarPolicy() != newPolicy) {
+                                jScrollPane.setVerticalScrollBarPolicy(newPolicy);
+                            }
+
+                            // show the horizontal scrollbar if the flamegraph is wider than the viewport
+                            jScrollPane.getVerticalScrollBar().setVisible(flamegraphSize.height > vpSize.height);
                         }
 
                         {
