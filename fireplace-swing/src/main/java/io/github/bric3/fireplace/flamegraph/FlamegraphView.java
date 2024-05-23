@@ -1747,13 +1747,14 @@ public class FlamegraphView<T> {
                 return;
             }
 
+            var canvasBounds = canvas.getBounds(tmpBounds);
             var fgre = canvas.getFlamegraphRenderEngine();
             switch (canvas.frameClickBehavior) {
                 case EXPAND_FRAME:
                     if (e.getClickCount() == 1) {
                         fgre.toggleSelectedFrameAt(
                                 (Graphics2D) viewPort.getView().getGraphics(),
-                                canvas.getBounds(tmpBounds),
+                                canvasBounds,
                                 latestMouseLocation,
                                 (frame, r) -> canvas.repaint()
                         );
@@ -1761,11 +1762,14 @@ public class FlamegraphView<T> {
                         // this appear to be related to the horizontal scrollbar
                         fgre.calculateHorizontalZoomTargetForFrameAt(
                                 (Graphics2D) canvas.getGraphics(),
-                                canvas.getBounds(tmpBounds),
+                                canvasBounds,
                                 canvas.getVisibleRect(),
                                 latestMouseLocation
                         ).ifPresent(zoomTarget -> {
-                            if (Objects.equals(canvas.getBounds(tmpBounds), zoomTarget.getTargetBounds())) {
+                            var targetBounds = zoomTarget.getTargetBounds();
+                            // Don't include height as the view rect might be taller that the flamegraph height
+                            if (canvasBounds.x == targetBounds.x && canvasBounds.y == targetBounds.y
+                                && canvasBounds.width == targetBounds.width) {
                                 zoom(canvas, canvas.getResetZoomTarget(true));
                             } else {
                                 zoom(canvas, zoomTarget);
@@ -1778,11 +1782,11 @@ public class FlamegraphView<T> {
                         // find zoom target then do an animated transition
                         fgre.calculateZoomTargetForFrameAt(
                                 (Graphics2D) canvas.getGraphics(),
-                                canvas.getBounds(tmpBounds),
+                                canvasBounds,
                                 canvas.getVisibleRect(),
                                 latestMouseLocation
                         ).ifPresent(zoomTarget -> {
-                            if (Objects.equals(canvas.getBounds(tmpBounds), zoomTarget.getTargetBounds())) {
+                            if (Objects.equals(canvasBounds, zoomTarget.getTargetBounds())) {
                                 zoom(canvas, canvas.getResetZoomTarget(false));
                             } else {
                                 zoom(canvas, zoomTarget);
@@ -1794,7 +1798,7 @@ public class FlamegraphView<T> {
                     if (e.getClickCount() == 1) {
                         fgre.toggleSelectedFrameAt(
                                 (Graphics2D) viewPort.getView().getGraphics(),
-                                canvas.getBounds(tmpBounds),
+                                canvasBounds,
                                 latestMouseLocation,
                                 (frame, r) -> canvas.repaint()
                         );
