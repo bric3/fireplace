@@ -19,7 +19,7 @@ radiance-animation = "7.0.1"
 jmc-flightrecorder = "9.0.0"
 
 junit-jupiter = "5.10.2"
-assertj = "3.25.3"
+assertj = "3.26.0"
 
 # Used for SVG export
 batik = "1.17"
