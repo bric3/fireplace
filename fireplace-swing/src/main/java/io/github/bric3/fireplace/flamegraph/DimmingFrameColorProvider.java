@@ -72,7 +72,7 @@ public class DimmingFrameColorProvider<T> implements FrameColorProvider<@NotNull
 
     private Color rootBackGroundColor = ROOT_BACKGROUND_COLOR;
     private Color dimmedTextColor = DIMMED_TEXT_COLOR;
-    private boolean dimmedNonFocusedFlames = true;
+    private boolean dimmedNonFocusedFlames = false;
 
     /**
      * Builds a basic frame color provider.
