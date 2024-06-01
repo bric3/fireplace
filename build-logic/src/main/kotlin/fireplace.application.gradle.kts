@@ -11,13 +11,18 @@
 plugins {
     application
     id("fireplace.tests")
+    id("org.jetbrains.kotlin.jvm")
 }
 
-val javaVersion = 21
+val javaVersion = 22
 java {
     toolchain {
         languageVersion.set(JavaLanguageVersion.of(javaVersion))
     }
+}
+
+kotlin {
+    jvmToolchain(javaVersion)
 }
 
 repositories {

@@ -21,6 +21,7 @@ repositories {
 }
 
 dependencies {
+    implementation(libs.gradlePlugin.kotlin.jvm)
     implementation(libs.gradlePlugin.bnd)
     implementation(libs.gradlePlugin.semver)
     implementation(libs.gradlePlugin.testLogger)
