@@ -383,6 +383,8 @@ public class FlamegraphView<T> {
                                     flamegraphSize,
                                     (int) (((double) currentVpWidth) / lastScaleFactor)
                             );
+                            // Ensure the canvas take up the whole height (helps when drawing the minimap)
+                            flamegraphSize.height = Math.max(vpSize.height, flamegraphSize.height);
                             vp.setViewSize(flamegraphSize);
 
                             // Handles the view location change when the flamegraph is changing its height,
