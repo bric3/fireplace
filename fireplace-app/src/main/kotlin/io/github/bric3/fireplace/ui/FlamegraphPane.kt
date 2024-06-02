@@ -9,14 +9,17 @@
  */
 package io.github.bric3.fireplace.ui
 
+import com.formdev.flatlaf.FlatClientProperties
 import io.github.bric3.fireplace.Utils
 import io.github.bric3.fireplace.core.ui.Colors
 import io.github.bric3.fireplace.core.ui.Colors.Palette
 import io.github.bric3.fireplace.core.ui.LightDarkColor
 import io.github.bric3.fireplace.core.ui.SwingUtils
 import io.github.bric3.fireplace.flamegraph.ColorMapper
+import io.github.bric3.fireplace.flamegraph.DefaultFrameRenderer
 import io.github.bric3.fireplace.flamegraph.DimmingFrameColorProvider
 import io.github.bric3.fireplace.flamegraph.FlamegraphView
+import io.github.bric3.fireplace.flamegraph.FlamegraphView.FrameClickAction.EXPAND_FRAME
 import io.github.bric3.fireplace.flamegraph.FlamegraphView.HoverListener
 import io.github.bric3.fireplace.flamegraph.FrameBox
 import io.github.bric3.fireplace.flamegraph.FrameFontProvider
@@ -77,6 +80,7 @@ class FlamegraphPane : JPanel(BorderLayout()) {
                     )
                 )
             jfrFlamegraphView.frameColorProvider = DimmingFrameColorProvider(frameBoxColorFunction)
+                .withDimNonFocusedFlame(false)
             jfrFlamegraphView.requestRepaint()
         }.also {
             colorPaletteJComboBox.addActionListener(it)
@@ -114,6 +118,9 @@ class FlamegraphPane : JPanel(BorderLayout()) {
             addActionListener { jfrFlamegraphView.resetZoom() }
         }
         val searchField = JTextField("").apply {
+            putClientProperty(FlatClientProperties.PLACEHOLDER_TEXT, "Search")
+            putClientProperty(FlatClientProperties.TEXT_FIELD_SHOW_CLEAR_BUTTON, true)
+
             addActionListener {
                 val searched = text
                 if (searched.isEmpty()) {
@@ -240,33 +247,40 @@ class FlamegraphPane : JPanel(BorderLayout()) {
     companion object {
         private val defaultColorPalette = Colors.Palette.DATADOG
         private val defaultFrameColorMode = BY_PACKAGE
-        private const val defaultPaintFrameBorder = true
+        private const val defaultPaintHoveredFrameBorder = false
         private const val defaultShowMinimap = true
         private const val defaultIcicleMode = true
+        private const val defaultRoundedFrame = true
         private fun getJfrFlamegraphView(): FlamegraphView<Node> {
             val flamegraphView = FlamegraphView<Node>()
-            flamegraphView.setRenderConfiguration(
-                FrameTextsProvider.of(
-                    Function { frame -> if (frame.isRoot) "root" else frame.actualNode.frame.humanReadableShortString },
-                    Function { frame ->
-                        if (frame.isRoot) "" else FormatToolkit.getHumanReadable(
-                            frame.actualNode.frame.method,
-                            false,
-                            false,
-                            false,
-                            false,
-                            true,
-                            false
+            flamegraphView.frameClickAction = EXPAND_FRAME
+            flamegraphView.setFrameRender(
+                DefaultFrameRenderer(
+                    FrameTextsProvider.of(
+                        Function { frame -> if (frame.isRoot) "root" else frame.actualNode.frame.humanReadableShortString },
+                        Function { frame ->
+                            if (frame.isRoot) "" else FormatToolkit.getHumanReadable(
+                                frame.actualNode.frame.method,
+                                false,
+                                false,
+                                false,
+                                false,
+                                true,
+                                false
+                            )
+                        },
+                        Function { frame -> if (frame.isRoot) "" else frame.actualNode.frame.method.methodName }
+                    ),
+                    DimmingFrameColorProvider(
+                        defaultFrameColorMode.colorMapperUsing(
+                            ColorMapper.ofObjectHashUsing(*defaultColorPalette.colors())
                         )
-                    },
-                    Function { frame -> if (frame.isRoot) "" else frame.actualNode.frame.method.methodName }
-                ),
-                DimmingFrameColorProvider(
-                    defaultFrameColorMode.colorMapperUsing(
-                        ColorMapper.ofObjectHashUsing(*defaultColorPalette.colors())
-                    )
-                ),
-                FrameFontProvider.defaultFontProvider()
+                    ).withDimNonFocusedFlame(false),
+                    FrameFontProvider.defaultFontProvider()
+                ).apply {
+                    isPaintHoveredFrameBorder = defaultPaintHoveredFrameBorder
+                    isRoundedFrame = defaultRoundedFrame
+                }
             )
 
             val ref = AtomicReference<FrameBox<Node>>()

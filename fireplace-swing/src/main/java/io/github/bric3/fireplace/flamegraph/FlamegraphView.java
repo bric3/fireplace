@@ -16,6 +16,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import javax.swing.*;
+import javax.swing.border.EmptyBorder;
 import javax.swing.event.MouseInputAdapter;
 import javax.swing.event.MouseInputListener;
 import java.awt.*;
@@ -58,10 +59,12 @@ import static java.lang.Boolean.TRUE;
  * <pre><code>
  * var flamegraphView = new FlamegraphView&lt;MyNode&gt;();
  * flamegraphView.setShowMinimap(false);
- * flamegraphView.setRenderConfiguration(
- *     frameTextProvider,           // string representation candidates
- *     frameColorProvider,          // color the frame
- *     frameFontProvider,           // returns a given font for a frame
+ * flamegraphView.setFrameRender(
+ *     new DefaultFrameRenderer(
+ *         frameTextProvider,           // string representation candidates
+ *         frameColorProvider,          // color the frame
+ *         frameFontProvider,           // returns a given font for a frame
+ *     )
  * );
  * flamegraphView.setTooltipTextFunction(
  *     frameToToolTipTextFunction   // text tooltip function
@@ -95,6 +98,7 @@ import static java.lang.Boolean.TRUE;
  * @see FlamegraphRenderEngine
  * @see DefaultFrameRenderer
  */
+@SuppressWarnings("unused")
 public class FlamegraphView<T> {
     /**
      * Internal key to get the Flamegraph from the component.
@@ -132,6 +136,11 @@ public class FlamegraphView<T> {
      */
     public enum Mode {
         FLAMEGRAPH, ICICLEGRAPH
+    }
+
+    public enum FrameClickAction {
+        EXPAND_FRAME,
+        SELECT_FRAME,
     }
 
     /**
@@ -263,10 +272,12 @@ public class FlamegraphView<T> {
     public FlamegraphView() {
         canvas = new FlamegraphCanvas<>(this);
         // default configuration
-        setRenderConfiguration(
-                FrameTextsProvider.of(frameBox -> frameBox.actualNode.toString()),
-                FrameColorProvider.defaultColorProvider(f -> UIManager.getColor("Button.background")),
-                FrameFontProvider.defaultFontProvider()
+        setFrameRender(
+                new DefaultFrameRenderer<>(
+                        FrameTextsProvider.of(frameBox -> frameBox.actualNode.toString()),
+                        FrameColorProvider.defaultColorProvider(f -> UIManager.getColor("Button.background")),
+                        FrameFontProvider.defaultFontProvider()
+                )
         );
         canvas.putClientProperty(OWNER_KEY, this);
         scrollPaneListener = new FlamegraphHoveringScrollPaneMouseListener<>(canvas);
@@ -301,7 +312,7 @@ public class FlamegraphView<T> {
         });
 
         component = wrap(layeredScrollPane, bg -> {
-            scrollPane.setBorder(null);
+            scrollPane.setBorder(new EmptyBorder(0, 0, 0, 0));
             scrollPane.setBackground(bg);
             scrollPane.getVerticalScrollBar().setBackground(bg);
             scrollPane.getHorizontalScrollBar().setBackground(bg);
@@ -344,26 +355,47 @@ public class FlamegraphView<T> {
                         var canvas = (FlamegraphCanvas<?>) vp.getView();
                         int oldVpWidth = oldViewPortSize.width;
                         var vpSize = vp.getSize(oldViewPortSize);
+                        var oldFlamegraphHeight = flamegraphSize.height;
 
-                        // Never show the horizontal scrollbar when the scale factor is 1.0
-                        // Only change it when necessary
-                        int horizontalScrollBarPolicy = jScrollPane.getHorizontalScrollBarPolicy();
                         double lastScaleFactor = canvas.zoomModel.getLastScaleFactor();
-                        int newPolicy = lastScaleFactor == 1.0 ?
-                                        ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER :
-                                        ScrollPaneConstants.HORIZONTAL_SCROLLBAR_AS_NEEDED;
-                        if (horizontalScrollBarPolicy != newPolicy) {
-                            jScrollPane.setHorizontalScrollBarPolicy(newPolicy);
-                        }
 
                         // view port has been resized
                         if (vpSize.width != oldVpWidth) {
+                            // Computes the dimension as if a vertical scrollbar was needed.
+                            //
+                            // Otherwise, the layout can enter a loop:
+                            // Because the view port width is called once with full width,
+                            // which computes a canvas with a taller dimension than viewport.
+                            // This triggers the horizontal scrollbar to be added, which
+                            // triggers another layout.
+                            // In this layout, the view port width is shorter by the scrollbar width,
+                            // which makes the canvas fitting in the view port,
+                            // which then triggers annoter layout that removes the vertical scrollbar,
+                            // and then starts again.
+                            //
+                            // Note the scrollbar visibility is updated at the end of this control block
+
+                            var vsb = jScrollPane.getVerticalScrollBar();
+                            int currentVpWidth = vpSize.width - (vsb.isVisible() ? 0 : vsb.getWidth());
+
                             // scale the fg size with the new viewport width
                             canvas.updateFlamegraphDimension(
                                     flamegraphSize,
-                                    (int) (((double) vpSize.width) / lastScaleFactor)
+                                    (int) (((double) currentVpWidth) / lastScaleFactor)
                             );
+                            // Ensure the canvas take up the whole height (helps when drawing the minimap)
+                            flamegraphSize.height = Math.max(vpSize.height, flamegraphSize.height);
                             vp.setViewSize(flamegraphSize);
+
+                            // Handles the view location change when the flamegraph is changing its height,
+                            // i.e., there are less or more frames visible
+                            // First compute the last y offset from the bottom
+                            int flamegraphYFromBottom = oldFlamegraphHeight - Math.abs(flamegraphLocation.y);
+                            // then compute the new y offset from the bottom using the new flamegraph height
+                            int yLocation = canvas.getMode() == Mode.FLAMEGRAPH ?
+                                            flamegraphSize.height - flamegraphYFromBottom :
+                                            flamegraphLocation.y;
+                            flamegraphLocation.y = Math.abs(yLocation);
 
                             // if view position X > 0
                             //   the fg is zoomed
@@ -374,16 +406,44 @@ public class FlamegraphView<T> {
                                 double positionRatio = canvas.zoomModel.getLastUserInteractionStartX();
 
                                 flamegraphLocation.x = Math.abs((int) (positionRatio * flamegraphSize.width));
-                                flamegraphLocation.y = Math.abs(flamegraphLocation.y);
-
-                                vp.setViewPosition(flamegraphLocation);
                             }
+
+                            vp.setViewPosition(flamegraphLocation);
                         } else {
                             super.layoutContainer(parent);
                             // capture the sizes
                             vp.getSize(oldViewPortSize);
                             canvas.getSize(flamegraphSize);
                             canvas.getLocation(flamegraphLocation);
+                        }
+                        
+                        {
+                            // Never show the vertical scrollbar when the flamegraph fits in the vp
+                            int newPolicy = flamegraphSize.height <= vpSize.height ?
+                                            ScrollPaneConstants.VERTICAL_SCROLLBAR_NEVER :
+                                            ScrollPaneConstants.VERTICAL_SCROLLBAR_ALWAYS;
+                            // Only change it when necessary
+                            if (jScrollPane.getVerticalScrollBarPolicy() != newPolicy) {
+                                jScrollPane.setVerticalScrollBarPolicy(newPolicy);
+                            }
+
+                            // show the horizontal scrollbar if the flamegraph is wider than the viewport
+                            jScrollPane.getVerticalScrollBar().setVisible(flamegraphSize.height > vpSize.height);
+                        }
+
+                        {
+                            // Never show the horizontal scrollbar when the scale factor is 1.0
+                            int newPolicy = lastScaleFactor == 1.0 ?
+                                            ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER :
+                                            ScrollPaneConstants.HORIZONTAL_SCROLLBAR_AS_NEEDED;
+                            // Only change it when necessary
+                            if (jScrollPane.getHorizontalScrollBarPolicy() != newPolicy) {
+                                jScrollPane.setHorizontalScrollBarPolicy(newPolicy);
+                            }
+
+                            // show the horizontal scrollbar if the flamegraph is wider than the viewport
+                            jScrollPane.getHorizontalScrollBar()
+                                       .setVisible(lastScaleFactor != 1.0 && oldVpWidth < flamegraphSize.width);
                         }
                     }
                 };
@@ -622,6 +682,24 @@ public class FlamegraphView<T> {
     }
 
     /**
+     * Sets the frame click action.
+     *
+     * @param frameClickAction The zoom action.
+     */
+    public void setFrameClickAction(@NotNull FlamegraphView.FrameClickAction frameClickAction) {
+        canvas.setFrameClickBehavior(frameClickAction);
+    }
+
+    /**
+     * Returns the current frame click action.
+     *
+     * @return the current frame click action.
+     */
+    public @NotNull FlamegraphView.FrameClickAction getFrameClickAction() {
+        return canvas.getFrameClickBehavior();
+    }
+
+    /**
      * Replaces the default tooltip component.
      *
      * @param tooltipComponentSupplier The tooltip component supplier.
@@ -855,7 +933,7 @@ public class FlamegraphView<T> {
      * Reset the zoom to 1:1.
      */
     public void resetZoom() {
-        zoom(canvas, canvas.getResetZoomTarget());
+        zoom(canvas, canvas.getResetZoomTarget(false));
     }
 
     /**
@@ -885,20 +963,7 @@ public class FlamegraphView<T> {
             return;
         }
 
-        // adjust zoom target location for horizontal scrollbar height if canvas bigger than viewRect
-        if (canvas.getMode() == Mode.FLAMEGRAPH) {
-            var visibleRect = canvas.getVisibleRect();
-            var viewPort = (JViewport) SwingUtilities.getUnwrappedParent(canvas);
-            var scrollPane = (JScrollPane) viewPort.getParent();
-
-            var hsb = scrollPane.getHorizontalScrollBar();
-            if (!hsb.isVisible() && visibleRect.getWidth() < zoomTarget.getWidth()) {
-                var modifiedRect = zoomTarget.getTargetBounds();
-                modifiedRect.y -= hsb.getPreferredSize().height;
-
-                zoomTarget = new ZoomTarget<>(modifiedRect, zoomTarget.targetFrame);
-            }
-        }
+        zoomTarget = canvas.adjustedZoomTargetForHsbVisibility(zoomTarget, false);
 
         // Set the zoom model to the Zoom Target
         canvas.zoomModel.recordLastPositionFromZoomTarget(canvas, zoomTarget);
@@ -955,6 +1020,8 @@ public class FlamegraphView<T> {
         private boolean showMinimap = true;
         @Nullable
         private Supplier<@NotNull JToolTip> tooltipComponentSupplier;
+        @NotNull
+        public FrameClickAction frameClickBehavior = FrameClickAction.SELECT_FRAME;
         @Nullable
         private ZoomAction zoomActionOverride;
         @Nullable
@@ -963,6 +1030,7 @@ public class FlamegraphView<T> {
         private BiConsumer<@NotNull FrameBox<@NotNull T>, @NotNull MouseEvent> selectedFrameConsumer;
         @NotNull
         private final FlamegraphView<@NotNull T> flamegraphView;
+        @NotNull
         private final ZoomModel<T> zoomModel = new ZoomModel<>();
 
         private long lastDrawTime;
@@ -990,7 +1058,7 @@ public class FlamegraphView<T> {
             // from appearing on first display, see #96.
             // Since a scrollbar is made visible once, this listener is called only once,
             // which is the intended behavior (otherwise it affects zooming).
-            var parent = SwingUtilities.getUnwrappedParent(fgCanvas);
+            var parent = fgCanvas.getParent();
             if (parent instanceof JViewport) {
                 var viewport = (JViewport) parent;
                 var scrollPane = (JScrollPane) viewport.getParent();
@@ -1028,12 +1096,15 @@ public class FlamegraphView<T> {
                     }
                 });
 
-                installMinimapTriggers(fgCanvas, vsb);
-                installVerticalScrollBarListeners(fgCanvas, vsb);
+                installMinimapTriggers(fgCanvas);
+                installGraphModeListener(fgCanvas, vsb);
             }
         }
 
-        private void installVerticalScrollBarListeners(FlamegraphCanvas<T> fgCanvas, JScrollBar vsb) {
+        private void installGraphModeListener(
+                FlamegraphCanvas<T> fgCanvas,
+                JScrollBar vsb
+        ) {
             fgCanvas.addPropertyChangeListener(GRAPH_MODE_PROPERTY, evt -> SwingUtilities.invokeLater(() -> {
                 var value = vsb.getValue();
                 var bounds = fgCanvas.getBounds();
@@ -1059,7 +1130,7 @@ public class FlamegraphView<T> {
             }));
         }
 
-        private void installMinimapTriggers(FlamegraphCanvas<T> fgCanvas, JScrollBar vsb) {
+        private void installMinimapTriggers(FlamegraphCanvas<T> fgCanvas) {
             PropertyChangeListener triggerMinimapOnPropertyChange = evt -> {
                 var propertyName = evt.getPropertyName();
                 if (!propertyName.equals("preferredSize")
@@ -1532,24 +1603,37 @@ public class FlamegraphView<T> {
             return selectedFrameConsumer;
         }
 
+        public void setFrameClickBehavior(@NotNull FrameClickAction frameClickBehavior) {
+            this.frameClickBehavior = frameClickBehavior;
+        }
+
+        @NotNull
+        public FrameClickAction getFrameClickBehavior() {
+            return frameClickBehavior;
+        }
+
         @Nullable
-        public ZoomTarget<@NotNull T> getResetZoomTarget() {
+        public ZoomTarget<@NotNull T> getResetZoomTarget(boolean resetHorizontalOnly) {
             var graphics = (Graphics2D) getGraphics();
             if (graphics == null) {
                 return null;
             }
 
             var visibleRect = getVisibleRect();
-            var bounds = getBounds();
+            var canvasBounds = getBounds();
 
             var newHeight = flamegraphRenderEngine.computeVisibleFlamegraphHeight(
                     graphics,
                     visibleRect.width
             );
 
+            boolean isFlameGraph = getMode() == Mode.FLAMEGRAPH;
+            int newY = resetHorizontalOnly ?
+                       (isFlameGraph ? -(newHeight - (canvasBounds.height - Math.abs(canvasBounds.y))) : canvasBounds.y) :
+                       (isFlameGraph ? -(canvasBounds.height - visibleRect.height) : 0);
             return new ZoomTarget<>(
                     0,
-                    getMode() == Mode.FLAMEGRAPH ? -(bounds.height - visibleRect.height) : 0,
+                    newY,
                     visibleRect.width,
                     newHeight,
                     null
@@ -1584,7 +1668,35 @@ public class FlamegraphView<T> {
             // Changing the size triggers a revalidation, which triggers a layout
             // Not calling setBounds from the Timeline may provoke EDT violations
             // however calling invokeLater makes the animation out of order, and not smooth.
+
             setBounds(zoomTarget.getTargetBounds());
+        }
+
+
+        /**
+         * Adjust the zoom target location for horizontal scrollbar height if canvas bigger than viewRect.
+         * This only applies to flamegraph mode.
+         *
+         * @param zoomTarget The zoom target.
+         * @return An adjusted zoom target instance, or the passed zoom target if no adjustment is needed.
+         */
+        private ZoomTarget<@NotNull T> adjustedZoomTargetForHsbVisibility(
+                @NotNull ZoomTarget<@NotNull T> zoomTarget,
+                boolean ignoreVisibility
+        ) {
+            if (this.getMode() == Mode.FLAMEGRAPH) {
+                var visibleRect = this.getVisibleRect();
+                var scrollPane = (JScrollPane) this.getParent().getParent();
+
+                var hsb = scrollPane.getHorizontalScrollBar();
+                if ((ignoreVisibility || !hsb.isVisible()) && visibleRect.getWidth() < zoomTarget.getWidth()) {
+                    var modifiedRect = zoomTarget.getTargetBounds();
+                    modifiedRect.y += hsb.getPreferredSize().height;
+
+                    zoomTarget = new ZoomTarget<>(modifiedRect, zoomTarget.targetFrame);
+                }
+            }
+            return zoomTarget;
         }
     }
 
@@ -1668,32 +1780,64 @@ public class FlamegraphView<T> {
                 return;
             }
 
-            var flamegraphView = FlamegraphView.from(canvas).get();
-
-            if (e.getClickCount() == 2) {
-                // find zoom target then do an animated transition
-                canvas.getFlamegraphRenderEngine().calculateZoomTargetForFrameAt(
-                        (Graphics2D) canvas.getGraphics(),
-                        canvas.getBounds(tmpBounds),
-                        canvas.getVisibleRect(),
-                        latestMouseLocation
-                ).ifPresent(zoomTarget -> {
-                    if (Objects.equals(canvas.getBounds(), zoomTarget.getTargetBounds())) {
-                        flamegraphView.resetZoom();
-                    } else {
-                        zoom(canvas, zoomTarget);
+            var canvasBounds = canvas.getBounds(tmpBounds);
+            var fgre = canvas.getFlamegraphRenderEngine();
+            switch (canvas.frameClickBehavior) {
+                case EXPAND_FRAME:
+                    if (e.getClickCount() == 1) {
+                        fgre.toggleSelectedFrameAt(
+                                (Graphics2D) viewPort.getView().getGraphics(),
+                                canvasBounds,
+                                latestMouseLocation,
+                                (frame, r) -> canvas.repaint()
+                        );
+                        // TODO weird behavior on iciclegraph, both expand and shrink
+                        // this appear to be related to the horizontal scrollbar
+                        fgre.calculateHorizontalZoomTargetForFrameAt(
+                                (Graphics2D) canvas.getGraphics(),
+                                canvasBounds,
+                                canvas.getVisibleRect(),
+                                latestMouseLocation
+                        ).ifPresent(zoomTarget -> {
+                            var targetBounds = zoomTarget.getTargetBounds();
+                            // Don't include height as the view rect might be taller that the flamegraph height
+                            if (canvasBounds.x == targetBounds.x && canvasBounds.y == targetBounds.y
+                                && canvasBounds.width == targetBounds.width) {
+                                zoom(canvas, canvas.getResetZoomTarget(true));
+                            } else {
+                                zoom(canvas, zoomTarget);
+                            }
+                        });
                     }
-                });
-                return;
-            }
+                    break;
+                case SELECT_FRAME:
+                    if (e.getClickCount() == 2) {
+                        // find zoom target then do an animated transition
+                        fgre.calculateZoomTargetForFrameAt(
+                                (Graphics2D) canvas.getGraphics(),
+                                canvasBounds,
+                                canvas.getVisibleRect(),
+                                latestMouseLocation
+                        ).ifPresent(zoomTarget -> {
+                            if (Objects.equals(canvasBounds, zoomTarget.getTargetBounds())) {
+                                zoom(canvas, canvas.getResetZoomTarget(false));
+                            } else {
+                                zoom(canvas, zoomTarget);
+                            }
+                        });
+                        return;
+                    }
 
-            canvas.getFlamegraphRenderEngine()
-                  .toggleSelectedFrameAt(
-                          (Graphics2D) viewPort.getView().getGraphics(),
-                          canvas.getBounds(tmpBounds),
-                          latestMouseLocation,
-                          (frame, r) -> canvas.repaint()
-                  );
+                    if (e.getClickCount() == 1) {
+                        fgre.toggleSelectedFrameAt(
+                                (Graphics2D) viewPort.getView().getGraphics(),
+                                canvasBounds,
+                                latestMouseLocation,
+                                (frame, r) -> canvas.repaint()
+                        );
+                    }
+                    break;
+            }
         }
 
 
