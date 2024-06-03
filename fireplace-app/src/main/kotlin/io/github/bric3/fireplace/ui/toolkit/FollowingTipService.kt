@@ -40,7 +40,7 @@ object FollowingTipService {
     }
 
     fun disableFor(component: JComponent) {
-        followingTip.deinstall(component)
+        followingTip.uninstall(component)
     }
 }
 
@@ -143,7 +143,7 @@ private class FollowingTip {
         }
     }
 
-    fun deinstall(component: JComponent) {
+    fun uninstall(component: JComponent) {
         val location = tipWindow.locationOnScreen.apply {
             SwingUtilities.convertPointFromScreen(this, component)
         }
