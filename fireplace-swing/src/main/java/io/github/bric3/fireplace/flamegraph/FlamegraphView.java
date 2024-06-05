@@ -1211,27 +1211,43 @@ public class FlamegraphView<T> {
             return dimension;
         }
 
+
+        private final Rectangle reusableMinimapRect = new Rectangle();
+        private final Rectangle reusableVisibleRect = new Rectangle();
+
+        private Rectangle computeMinimapRect() {
+            computeVisibleRect(reusableVisibleRect);
+            reusableMinimapRect.setBounds(
+                    reusableVisibleRect.x + minimapBounds.x,
+                    reusableVisibleRect.y + (getMode() == Mode.ICICLEGRAPH ? reusableVisibleRect.height - minimapBounds.height - minimapBounds.y : minimapBounds.y),
+                    minimapBounds.width + (2 * minimapInset),
+                    minimapBounds.height + (2 * minimapInset)
+            );
+
+            return reusableMinimapRect;
+        }
+
         @Override
         protected void paintComponent(@NotNull Graphics g) {
             long start = System.currentTimeMillis();
 
             super.paintComponent(g);
             var g2 = (Graphics2D) g.create();
-            var visibleRect = getVisibleRect();
+            computeVisibleRect(reusableVisibleRect);
             if (flamegraphRenderEngine == null) {
                 String message = "No data to display";
                 var font = g2.getFont();
                 // calculate center position
                 var bounds = g2.getFontMetrics(font).getStringBounds(message, g2);
-                int xx = visibleRect.x + (int) ((visibleRect.width - bounds.getWidth()) / 2.0);
-                int yy = visibleRect.y + (int) ((visibleRect.height + bounds.getHeight()) / 2.0);
+                int xx = reusableVisibleRect.x + (int) ((reusableVisibleRect.width - bounds.getWidth()) / 2.0);
+                int yy = reusableVisibleRect.y + (int) ((reusableVisibleRect.height + bounds.getHeight()) / 2.0);
                 g2.drawString(message, xx, yy);
                 g2.dispose();
                 return;
             }
 
-            flamegraphRenderEngine.paint(g2, getBounds(), visibleRect);
-            paintMinimap(g2, visibleRect);
+            flamegraphRenderEngine.paint(g2, getBounds(), reusableVisibleRect);
+            paintMinimap(g2, reusableVisibleRect);
 
             lastDrawTime = System.currentTimeMillis() - start;
             paintDetails(g2);
@@ -1270,13 +1286,14 @@ public class FlamegraphView<T> {
             }
         }
 
-        private void paintMinimap(@NotNull Graphics g, @NotNull Rectangle visibleRect) {
+        private void paintMinimap(@NotNull Graphics g, Rectangle visibleRect) {
             if (showMinimap && minimap != null) {
+                var minimapRect = computeMinimapRect();
                 var g2 = (Graphics2D) g.create(
-                        visibleRect.x + minimapBounds.x,
-                        visibleRect.y + visibleRect.height - minimapBounds.height - minimapBounds.y,
-                        minimapBounds.width + minimapInset * 2,
-                        minimapBounds.height + minimapInset * 2
+                        minimapRect.x,
+                        minimapRect.y,
+                        minimapRect.width,
+                        minimapRect.height
                 );
 
                 g2.setColor(getBackground());
@@ -1347,15 +1364,8 @@ public class FlamegraphView<T> {
             if (!showMinimap) {
                 return false;
             }
-            var visibleRect = getVisibleRect();
-            var rectangle = new Rectangle(
-                    visibleRect.x + minimapBounds.y,
-                    visibleRect.y + visibleRect.height - minimapBounds.height - minimapBounds.y,
-                    minimapBounds.width + 2 * minimapInset,
-                    minimapBounds.height + 2 * minimapInset
-            );
 
-            return rectangle.contains(point);
+            return computeMinimapRect().contains(point);
         }
 
         public void setToolTipText(FrameBox<T> frame) {
@@ -1423,11 +1433,7 @@ public class FlamegraphView<T> {
         }
 
         private void repaintMinimapArea() {
-            var visibleRect = getVisibleRect();
-            repaint(visibleRect.x + minimapBounds.x,
-                    visibleRect.y + visibleRect.height - minimapBounds.height - minimapBounds.y,
-                    minimapBounds.width + minimapInset * 2,
-                    minimapBounds.height + minimapInset * 2);
+            repaint(computeMinimapRect());
         }
 
         public void setupListeners(@NotNull JScrollPane scrollPane) {
@@ -1491,18 +1497,18 @@ public class FlamegraphView<T> {
                     if (!(e.getComponent() instanceof FlamegraphView.FlamegraphCanvas)) {
                         return;
                     }
+                    var canvas = (FlamegraphCanvas<?>) e.getComponent();
 
-                    var visibleRect = ((FlamegraphCanvas<?>) e.getComponent()).getVisibleRect();
 
                     double zoomZoneScaleX = (double) minimapBounds.width / flamegraphDimension.width;
                     double zoomZoneScaleY = (double) minimapBounds.height / flamegraphDimension.height;
+                    var minimapRect = canvas.computeMinimapRect();
 
-                    var h = (pt.x - (visibleRect.x + minimapBounds.x)) / zoomZoneScaleX;
+                    var h = (pt.x - minimapRect.x) / zoomZoneScaleX;
                     var horizontalBarModel = scrollPane.getHorizontalScrollBar().getModel();
                     horizontalBarModel.setValue((int) h - horizontalBarModel.getExtent());
 
-
-                    var v = (pt.y - (visibleRect.y + visibleRect.height - minimapBounds.height - minimapBounds.y)) / zoomZoneScaleY;
+                    var v = (pt.y - minimapRect.y) / zoomZoneScaleY;
                     var verticalBarModel = scrollPane.getVerticalScrollBar().getModel();
                     verticalBarModel.setValue((int) v - verticalBarModel.getExtent());
                 }
