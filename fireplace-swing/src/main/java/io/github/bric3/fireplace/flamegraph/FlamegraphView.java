@@ -352,7 +352,13 @@ public class FlamegraphView<T> {
                         // The view location is also updated.
 
                         var vp = (JViewport) parent;
-                        var canvas = (FlamegraphCanvas<?>) vp.getView();
+                        var view = vp.getView();
+                        if (!(view instanceof FlamegraphCanvas)) {
+                            // failsafe in case this layout is used elsewhere
+                            super.layoutContainer(parent);
+                        }
+
+                        var canvas = (FlamegraphCanvas<?>) view;
                         int oldVpWidth = oldViewPortSize.width;
                         var vpSize = vp.getSize(oldViewPortSize);
                         var oldFlamegraphHeight = flamegraphSize.height;
@@ -1097,13 +1103,17 @@ public class FlamegraphView<T> {
                 });
 
                 installMinimapTriggers(fgCanvas);
-                installGraphModeListener(fgCanvas, vsb);
+
+                var hsb = scrollPane.getHorizontalScrollBar();
+                installGraphModeListener(fgCanvas, scrollPane, vsb, hsb);
             }
         }
 
         private void installGraphModeListener(
                 FlamegraphCanvas<T> fgCanvas,
-                JScrollBar vsb
+                JScrollPane scrollPane,
+                JScrollBar vsb,
+                JScrollBar hsb
         ) {
             fgCanvas.addPropertyChangeListener(GRAPH_MODE_PROPERTY, evt -> SwingUtilities.invokeLater(() -> {
                 var value = vsb.getValue();
@@ -1113,6 +1123,8 @@ public class FlamegraphView<T> {
                 // This computes the new view location based on the current view location
                 switch (fgCanvas.getMode()) {
                     case ICICLEGRAPH:
+                        // use the component add rather than setHorizontalScrollBar which does more things
+                        scrollPane.add(hsb, ScrollPaneConstants.HORIZONTAL_SCROLLBAR);
                         vsb.setValue(
                                 value == vsb.getMaximum() ?
                                 vsb.getMinimum() :
@@ -1120,6 +1132,7 @@ public class FlamegraphView<T> {
                         );
                         break;
                     case FLAMEGRAPH:
+                        scrollPane.setColumnHeaderView(hsb);
                         vsb.setValue(
                                 value == vsb.getMinimum() ?
                                 vsb.getMaximum() :
