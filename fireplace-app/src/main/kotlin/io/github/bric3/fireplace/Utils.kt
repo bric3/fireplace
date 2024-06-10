@@ -66,12 +66,12 @@ object Utils {
             return block()
         }
 
-        val start: Long = System.currentTimeMillis()
+        val start: Long = System.nanoTime()
 
         try {
             return block()
         } finally {
-            val elapsed: Long = System.currentTimeMillis() - start
+            val elapsed: Long = (System.nanoTime() - start) / 1_000_000 // ns -> ms
             println("[${Thread.currentThread().name}] $name took $elapsed ms")
         }
     }

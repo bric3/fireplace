@@ -194,7 +194,7 @@ public final class EventDispatchThreadHangMonitor extends EventQueue {
         private final Thread eventDispatchThread = Thread.currentThread();
 
         // The last time in milliseconds at which we saw a dispatch on the above thread.
-        private long lastDispatchTimeMillis = System.currentTimeMillis();
+        private long lastDispatchTimeNanos = System.nanoTime();
 
         DispatchInfo() {
             // All initialization is done by the field initializers.
@@ -272,7 +272,7 @@ public final class EventDispatchThreadHangMonitor extends EventQueue {
          * Returns how long this dispatch has been going on (in milliseconds).
          */
         private long timeSoFar() {
-            return (System.currentTimeMillis() - lastDispatchTimeMillis);
+            return (System.nanoTime() - lastDispatchTimeNanos) / 1000000;
         }
 
         public void dispose() {
@@ -349,7 +349,7 @@ public final class EventDispatchThreadHangMonitor extends EventQueue {
             var currentEventDispatchThread = Thread.currentThread();
             for (var dispatchInfo : dispatches) {
                 if (dispatchInfo.eventDispatchThread == currentEventDispatchThread) {
-                    dispatchInfo.lastDispatchTimeMillis = System.currentTimeMillis();
+                    dispatchInfo.lastDispatchTimeNanos = System.nanoTime();
                 }
             }
         }
