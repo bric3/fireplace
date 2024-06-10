@@ -1229,7 +1229,7 @@ public class FlamegraphView<T> {
 
         @Override
         protected void paintComponent(@NotNull Graphics g) {
-            long start = System.currentTimeMillis();
+            long startNanos = System.nanoTime();
 
             super.paintComponent(g);
             var g2 = (Graphics2D) g.create();
@@ -1249,7 +1249,7 @@ public class FlamegraphView<T> {
             flamegraphRenderEngine.paint(g2, getBounds(), reusableVisibleRect);
             paintMinimap(g2, reusableVisibleRect);
 
-            lastDrawTime = System.currentTimeMillis() - start;
+            lastDrawTime = (System.nanoTime() - startNanos) / 1_000_000;
             paintDetails(g2);
             g2.dispose();
         }
