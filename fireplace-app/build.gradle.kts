@@ -13,7 +13,7 @@ plugins {
     // fork of com.github.johnrengelman.shadow with support for recent versions of Java and Gradle
     // https://github.com/johnrengelman/shadow/pull/876
     // https://github.com/johnrengelman/shadow/issues/908
-    id("io.github.goooler.shadow") version "8.1.7"
+    id("io.github.goooler.shadow") version "8.1.8"
     kotlin("jvm") version "2.0.0"
 }
 
