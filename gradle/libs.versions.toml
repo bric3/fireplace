@@ -35,7 +35,7 @@ kotlin-coroutines = "1.8.1"
 # Gradle plugins
 bnd = "7.0.0"
 test-logger = "4.0.0"
-semver = "0.5.1"
+semver = "0.6.0"
 license-report = "2.8"
 
 [libraries]
