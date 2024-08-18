@@ -8,7 +8,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 plugins {
-    `gradle-enterprise`
+    id("com.gradle.develocity") version "3.17.6"
     id("org.gradle.toolchains.foojay-resolver-convention") version ("0.10.0")
 }
 
