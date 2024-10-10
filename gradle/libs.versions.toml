@@ -22,7 +22,7 @@ junit-jupiter = "5.11.2"
 assertj = "3.26.3"
 
 # Used for SVG export
-batik = "1.17"
+batik = "1.18"
 
 eclipse-swt = "3.127.0"
 eclipse-jface = "3.35.0"
