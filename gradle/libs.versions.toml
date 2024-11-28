@@ -33,7 +33,7 @@ kotlin = "2.0.21"
 kotlin-coroutines = "1.9.0"
 
 # Gradle plugins
-bnd = "7.0.0"
+bnd = "7.1.0"
 test-logger = "4.0.0"
 semver = "0.8.0"
 license-report = "2.9"
