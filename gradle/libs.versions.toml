@@ -26,7 +26,7 @@ batik = "1.18"
 
 eclipse-swt = "3.127.0"
 eclipse-jface = "3.35.100"
-eclipse-ui-forms = "3.13.300"
+eclipse-ui-forms = "3.13.400"
 
 # Kotlin
 kotlin = "2.1.0"
