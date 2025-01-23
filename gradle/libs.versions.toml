@@ -9,7 +9,7 @@
 #
 
 [versions]
-jetbrains-annotations = "26.0.1"
+jetbrains-annotations = "26.0.2"
 flatlaf = "3.5.4"
 darklaf = "3.0.2"
 classgraph = "4.8.179"
