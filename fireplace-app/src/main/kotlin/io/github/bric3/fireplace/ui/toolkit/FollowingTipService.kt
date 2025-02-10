@@ -40,7 +40,7 @@ object FollowingTipService {
     }
 
     fun disableFor(component: JComponent) {
-        followingTip.deinstall(component)
+        followingTip.uninstall(component)
     }
 }
 
@@ -69,6 +69,11 @@ private class FollowingTip {
         val component: Component
         when (e.id) {
             MOUSE_ENTERED, MOUSE_MOVED, MOUSE_DRAGGED, MOUSE_WHEEL -> {
+                // Don't bother to show tip if the owner window is not focused or active
+                if (!ownerWindow.isActive || !ownerWindow.isFocused) {
+                    tipWindow.isVisible = false
+                    return@AWTEventListener
+                }
                 event = e as MouseEvent
                 component = e.component
                 if (ownerWindow.isAncestorOf(component) && component is JComponent) {
@@ -85,7 +90,7 @@ private class FollowingTip {
                     }
 
                     val content = contentProvider?.invoke(component, event)
-                    if (content == null) {
+                    if (content == null || !ownerWindow.isActive || !ownerWindow.isFocused) {
                         tipWindow.isVisible = false
                         return@AWTEventListener
                     }
@@ -101,7 +106,7 @@ private class FollowingTip {
                 event = e as MouseEvent
                 component = e.component
                 val p = SwingUtilities.convertPoint(component, event.point, ownerWindow)
-                if (!ownerWindow.contains(p)) {
+                if (!ownerWindow.contains(p) || !ownerWindow.isActive || !ownerWindow.isFocused) {
                     tipWindow.isVisible = false
                 }
             }
@@ -138,7 +143,7 @@ private class FollowingTip {
         }
     }
 
-    fun deinstall(component: JComponent) {
+    fun uninstall(component: JComponent) {
         val location = tipWindow.locationOnScreen.apply {
             SwingUtilities.convertPointFromScreen(this, component)
         }
