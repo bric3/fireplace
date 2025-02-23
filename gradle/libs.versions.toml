@@ -18,7 +18,7 @@ radiance-animation = "7.5.0"
 
 jmc-flightrecorder = "9.0.0"
 
-junit-jupiter = "5.11.4"
+junit-jupiter = "5.12.0"
 assertj = "3.27.3"
 
 # Used for SVG export
