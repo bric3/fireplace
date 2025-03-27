@@ -16,7 +16,7 @@ classgraph = "4.8.179"
 
 radiance-animation = "7.5.0"
 
-jmc-flightrecorder = "9.0.0"
+jmc-flightrecorder = "9.1.0"
 
 junit-jupiter = "5.12.1"
 assertj = "3.27.3"
