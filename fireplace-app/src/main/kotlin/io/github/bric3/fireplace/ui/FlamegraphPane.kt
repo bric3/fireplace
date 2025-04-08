@@ -311,12 +311,33 @@ class FlamegraphPane : JPanel(BorderLayout()) {
                 }
             )
 
+            val tipContentPanel = JPanel(BorderLayout()).apply {
+                name = "Flamegraph tooltip container"
+            }
+            val cache = Caffeine.newBuilder()
+                .maximumSize(100)
+                .weakKeys()
+                .build<FrameBox<Node>, JComponent>()
+
             val ref = AtomicReference<FrameBox<Node>>()
             flamegraphView.setHoverListener(object : HoverListener<Node> {
                 override fun onFrameHover(
                     frame: FrameBox<Node>,
-                    hoveredFrameRectangle: Rectangle, e: MouseEvent
-                ) = ref.set(frame)
+                    hoveredFrameRectangle: Rectangle,
+                    e: MouseEvent
+                ) {
+                    ref.set(frame)
+                    val tooltip = cache.get(frame) {
+                        getTooltipComponent(flamegraphView.frameModel, frame)
+                    }
+                    val current = tipContentPanel.components.singleOrNull()
+                    if (tooltip != current) {
+                        if (current != null) {
+                            tipContentPanel.remove(current)
+                        }
+                        tipContentPanel.add(tooltip)
+                    }
+                }
 
                 override fun onStopHover(
                     previousHoveredFrame: FrameBox<Node>?,
@@ -325,14 +346,9 @@ class FlamegraphPane : JPanel(BorderLayout()) {
                 ) = ref.set(null)
             })
 
-            val cache = Caffeine.newBuilder()
-                .maximumSize(100)
-                .build<FrameBox<Node>, JComponent>()
             FollowingTipService.enableFor(flamegraphView.component) { _, _ ->
-                val frameBox = ref.get() ?: return@enableFor null
-                return@enableFor cache.get(frameBox) {
-                    getTooltipComponent(flamegraphView.frameModel, frameBox)
-                }
+                ref.get() ?: return@enableFor null
+                return@enableFor tipContentPanel
             }
 
             return flamegraphView
