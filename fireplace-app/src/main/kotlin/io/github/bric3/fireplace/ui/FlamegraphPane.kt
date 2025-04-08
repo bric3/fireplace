@@ -10,9 +10,9 @@
 package io.github.bric3.fireplace.ui
 
 import com.formdev.flatlaf.FlatClientProperties
+import com.github.benmanes.caffeine.cache.Caffeine
 import io.github.bric3.fireplace.Utils
 import io.github.bric3.fireplace.core.ui.Colors
-import io.github.bric3.fireplace.core.ui.Colors.Palette
 import io.github.bric3.fireplace.core.ui.LightDarkColor
 import io.github.bric3.fireplace.core.ui.SwingUtils
 import io.github.bric3.fireplace.flamegraph.ColorMapper
@@ -30,6 +30,7 @@ import io.github.bric3.fireplace.jfr.support.JfrFrameColorMode
 import io.github.bric3.fireplace.jfr.support.JfrFrameColorMode.BY_PACKAGE
 import io.github.bric3.fireplace.jfr.support.JfrFrameNodeConverter
 import io.github.bric3.fireplace.ui.toolkit.FollowingTipService
+import org.openjdk.jmc.common.IMCMethod
 import org.openjdk.jmc.common.util.FormatToolkit
 import org.openjdk.jmc.flightrecorder.stacktrace.tree.Node
 import org.openjdk.jmc.flightrecorder.stacktrace.tree.StacktraceTreeModel
@@ -65,7 +66,7 @@ class FlamegraphPane : JPanel(BorderLayout()) {
             jfrFlamegraphView.setMinimapShadeColorSupplier { it }
         }
         val zoomAnimation = ZoomAnimation().also { it.install(jfrFlamegraphView) }
-        val colorPaletteJComboBox = JComboBox(Palette.entries.toTypedArray()).apply {
+        val colorPaletteJComboBox = JComboBox(Colors.Palette.entries.toTypedArray()).apply {
             selectedItem = defaultColorPalette
         }
         val colorModeJComboBox = JComboBox(JfrFrameColorMode.entries.toTypedArray()).apply {
@@ -236,7 +237,17 @@ class FlamegraphPane : JPanel(BorderLayout()) {
                 flameGraph.setModel(
                     FrameModel(
                         title,
-                        { a, b -> a.actualNode.frame == b.actualNode.frame },
+                        { a, b ->
+                            val aFrame = a.actualNode.frame
+                            val bFrame = b.actualNode.frame
+
+                            // Note: hashCode is kinda expensive on large flamegraphs
+                            if (aFrame.hashCode() != bFrame.hashCode()) {
+                                return@FrameModel false
+                            }
+
+                            return@FrameModel aFrame == bFrame
+                        },
                         flatFrameList
                     ).withDescription(title)
                 )
@@ -252,23 +263,40 @@ class FlamegraphPane : JPanel(BorderLayout()) {
         private const val defaultIcicleMode = true
         private const val defaultRoundedFrame = true
         private fun getJfrFlamegraphView(): FlamegraphView<Node> {
+            val classMethodRepresentation = Caffeine.newBuilder()
+                .maximumSize(100)
+                .build<IMCMethod, String> {
+                    FormatToolkit.getHumanReadable(
+                        it,
+                        false,
+                        false,
+                        true,
+                        false,
+                        true,
+                        false
+                    )
+                }
+            val methodOnlyRepresentation = Caffeine.newBuilder()
+                .maximumSize(100)
+                .build<IMCMethod, String> {
+                    FormatToolkit.getHumanReadable(
+                        it,
+                        false,
+                        false,
+                        true,
+                        false,
+                        true,
+                        false
+                    )
+                }
+
             val flamegraphView = FlamegraphView<Node>()
             flamegraphView.frameClickAction = EXPAND_FRAME
             flamegraphView.setFrameRender(
                 DefaultFrameRenderer(
                     FrameTextsProvider.of(
-                        Function { frame -> if (frame.isRoot) "root" else frame.actualNode.frame.humanReadableShortString },
-                        Function { frame ->
-                            if (frame.isRoot) "" else FormatToolkit.getHumanReadable(
-                                frame.actualNode.frame.method,
-                                false,
-                                false,
-                                false,
-                                false,
-                                true,
-                                false
-                            )
-                        },
+                        Function { frame -> if (frame.isRoot) "root" else classMethodRepresentation.get(frame.actualNode.frame.method) },
+                        Function { frame -> if (frame.isRoot) "" else methodOnlyRepresentation.get(frame.actualNode.frame.method) },
                         Function { frame -> if (frame.isRoot) "" else frame.actualNode.frame.method.methodName }
                     ),
                     DimmingFrameColorProvider(
@@ -297,10 +325,12 @@ class FlamegraphPane : JPanel(BorderLayout()) {
                 ) = ref.set(null)
             })
 
-            val cache = WeakHashMap<FrameBox<Node>, JComponent>()
+            val cache = Caffeine.newBuilder()
+                .maximumSize(100)
+                .build<FrameBox<Node>, JComponent>()
             FollowingTipService.enableFor(flamegraphView.component) { _, _ ->
                 val frameBox = ref.get() ?: return@enableFor null
-                return@enableFor cache.computeIfAbsent(frameBox) {
+                return@enableFor cache.get(frameBox) {
                     getTooltipComponent(flamegraphView.frameModel, frameBox)
                 }
             }
@@ -308,7 +338,7 @@ class FlamegraphPane : JPanel(BorderLayout()) {
             return flamegraphView
         }
 
-        private fun getTooltipComponent(frameModel: FrameModel<Node>, frame: FrameBox<Node>): JLabel? {
+        private fun getTooltipComponent(frameModel: FrameModel<Node>, frame: FrameBox<Node>): JLabel {
             if (frame.isRoot) {
                 return JLabel(frameModel.description)
             }

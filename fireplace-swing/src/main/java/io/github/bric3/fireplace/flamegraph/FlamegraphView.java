@@ -9,6 +9,7 @@
  */
 package io.github.bric3.fireplace.flamegraph;
 
+import io.github.bric3.fireplace.core.ui.Debouncer;
 import io.github.bric3.fireplace.core.ui.JScrollPaneWithBackButton;
 import io.github.bric3.fireplace.core.ui.MouseInputListenerWorkaroundForToolTipEnabledComponent;
 import org.jetbrains.annotations.ApiStatus.Experimental;
@@ -1739,6 +1740,7 @@ public class FlamegraphView<T> {
         private HoverListener<T> hoverListener;
         private FrameBox<T> hoveredFrame;
         private final Rectangle tmpBounds = new Rectangle(); // reusable
+        private final Debouncer debouncer = new Debouncer(60);
 
         public FlamegraphHoveringScrollPaneMouseListener(@NotNull FlamegraphCanvas<@NotNull T> canvas) {
             this.canvas = canvas;
@@ -1890,12 +1892,20 @@ public class FlamegraphView<T> {
 
         @Override
         public void mouseMoved(@NotNull MouseEvent e) {
-            handleMouseLocationChange(e);
+            // Note: this will look for sibling frames which can be expensive,
+            //  unfortunately, the current code is executed under the EDT, and may slow down things,
+            // so as a workaround we need to debounce this.
+            // Since, mouse movements are frequent, we need a very low debounce time
+            debouncer.debounce(1, () -> handleMouseLocationChange(e));
         }
 
         @Override
         public void mouseWheelMoved(@NotNull MouseWheelEvent e) {
-            handleMouseLocationChange(e);
+            // Note: this will look for sibling frames which can be expensive,
+            //  unfortunately, the current code is executed under the EDT, and may slow down things,
+            // so as a workaround we need to debounce this.
+            // Mouse wheel events are less frequent and can use a higher debounce time (the default one)
+            debouncer.debounce(() -> handleMouseLocationChange(e));
         }
 
         private void handleMouseLocationChange(@NotNull MouseEvent e) {
