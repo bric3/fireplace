@@ -50,6 +50,7 @@ tasks.withType<JavaExec>().configureEach {
         "-XX:+UnlockDiagnosticVMOptions",
         "-XX:+DebugNonSafepoints",
         "-XX:NativeMemoryTracking=summary",
+        "-XX:FlightRecorderOptions=stackdepth=256",
     )
 
     projectDir.resolve(properties("hotswap-agent-location")).let {

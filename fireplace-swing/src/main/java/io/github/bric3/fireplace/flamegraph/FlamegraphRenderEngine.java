@@ -16,6 +16,7 @@ import org.jetbrains.annotations.Nullable;
 import java.awt.*;
 import java.awt.geom.Rectangle2D;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -542,6 +543,9 @@ class FlamegraphRenderEngine<T> {
         }
         var oldHoveredSiblingFrames = hoveredSiblingFrames;
         hoveredFrame = frame;
+        // TODO Sibling frames can be expensive and slow down things on the EDT.
+        //  Possible refactor to compute sibling frames on a background thread, and
+        //  render sibling on the EDT
         hoveredSiblingFrames = getSiblingFrames(frame);
         hoveredSiblingFrames.forEach(hovered -> hoverConsumer.accept(getFrameRectangle(g2, bounds, hovered)));
         if (oldHoveredFrame != null) {
@@ -576,9 +580,13 @@ class FlamegraphRenderEngine<T> {
             return Set.of(frame);
         }
 
-        return frameModel.frames.stream()
-                                .filter(node -> frameModel.frameEquality.equal(node, frame))
-                                .collect(Collectors.toSet());
+        var set = new HashSet<FrameBox<T>>();
+        for (var node : frameModel.frames) {
+            if (frameModel.frameEquality.equal(node, frame)) {
+                set.add(node);
+            }
+        }
+        return set;
     }
 
     /**
