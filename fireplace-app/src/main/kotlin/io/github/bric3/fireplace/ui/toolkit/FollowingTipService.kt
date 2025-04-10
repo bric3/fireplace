@@ -9,6 +9,9 @@ import java.awt.Graphics2D
 import java.awt.LayoutManager
 import java.awt.RenderingHints
 import java.awt.event.AWTEventListener
+import java.awt.event.ComponentAdapter
+import java.awt.event.ContainerAdapter
+import java.awt.event.ContainerEvent
 import java.awt.event.FocusEvent.FOCUS_LOST
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
@@ -40,7 +43,7 @@ object FollowingTipService {
     }
 
     fun disableFor(component: JComponent) {
-        followingTip.deinstall(component)
+        followingTip.uninstall(component)
     }
 }
 
@@ -69,12 +72,16 @@ private class FollowingTip {
         val component: Component
         when (e.id) {
             MOUSE_ENTERED, MOUSE_MOVED, MOUSE_DRAGGED, MOUSE_WHEEL -> {
+                // Don't bother to show tip if the owner window is not focused or active
+                if (!ownerWindow.isActive || !ownerWindow.isFocused) {
+                    tipWindow.isVisible = false
+                    return@AWTEventListener
+                }
                 event = e as MouseEvent
                 component = e.component
                 if (ownerWindow.isAncestorOf(component) && component is JComponent) {
                     val loc = event.locationOnScreen
                     tipWindow.setLocation(loc.x + 15, loc.y + 15)
-                    contentContainer.removeAll()
 
                     // find content provider in the current component, or its parents
                     var c = component
@@ -85,12 +92,23 @@ private class FollowingTip {
                     }
 
                     val content = contentProvider?.invoke(component, event)
-                    if (content == null) {
+                    if (content == null || !ownerWindow.isActive || !ownerWindow.isFocused) {
+                        contentContainer.putClientProperty("TipOwner", null)
+                        contentContainer.removeAll()
                         tipWindow.isVisible = false
                         return@AWTEventListener
                     }
 
-                    contentContainer.add(content)
+                    // Avoid re-adding the same content
+                    val current =  contentContainer.components.singleOrNull()
+                    if (current != content) {
+                        if (current != null) {
+                            contentContainer.remove(current)
+                        }
+                        contentContainer.putClientProperty("TipOwner", c)
+                        contentContainer.add(content)
+                    }
+
                     contentContainer.bgColor = content.background
                     tipWindow.pack()
                     tipWindow.isVisible = true
@@ -101,7 +119,7 @@ private class FollowingTip {
                 event = e as MouseEvent
                 component = e.component
                 val p = SwingUtilities.convertPoint(component, event.point, ownerWindow)
-                if (!ownerWindow.contains(p)) {
+                if (!ownerWindow.contains(p) || !ownerWindow.isActive || !ownerWindow.isFocused) {
                     tipWindow.isVisible = false
                 }
             }
@@ -138,7 +156,7 @@ private class FollowingTip {
         }
     }
 
-    fun deinstall(component: JComponent) {
+    fun uninstall(component: JComponent) {
         val location = tipWindow.locationOnScreen.apply {
             SwingUtilities.convertPointFromScreen(this, component)
         }
