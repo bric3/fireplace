@@ -30,7 +30,7 @@ eclipse-ui-forms = "3.13.400"
 
 # Kotlin
 kotlin = "2.1.20"
-kotlin-coroutines = "1.10.1"
+kotlin-coroutines = "1.10.2"
 
 # Gradle plugins
 bnd = "7.1.0"
