@@ -443,6 +443,13 @@ public class FlamegraphView<T> {
                             int newPolicy = lastScaleFactor == 1.0 ?
                                             ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER :
                                             ScrollPaneConstants.HORIZONTAL_SCROLLBAR_AS_NEEDED;
+                            // Note, adding the horizontal scrollbar to the ScrollPane's ColumnHeader
+                            // is challenging to get right with the coordinate system.
+                            // So the current strategy is to always show the horizontal scrollbar
+                            // in Flamegraph mode.
+                            newPolicy = canvas.getMode() == Mode.FLAMEGRAPH ?
+                                        ScrollPaneConstants.HORIZONTAL_SCROLLBAR_ALWAYS :
+                                        newPolicy;
                             // Only change it when necessary
                             if (jScrollPane.getHorizontalScrollBarPolicy() != newPolicy) {
                                 jScrollPane.setHorizontalScrollBarPolicy(newPolicy);
@@ -970,8 +977,6 @@ public class FlamegraphView<T> {
             return;
         }
 
-        zoomTarget = canvas.adjustedZoomTargetForHsbVisibility(zoomTarget, false);
-
         // Set the zoom model to the Zoom Target
         canvas.zoomModel.recordLastPositionFromZoomTarget(canvas, zoomTarget);
 
@@ -1116,32 +1121,47 @@ public class FlamegraphView<T> {
                 JScrollBar vsb,
                 JScrollBar hsb
         ) {
-            fgCanvas.addPropertyChangeListener(GRAPH_MODE_PROPERTY, evt -> SwingUtilities.invokeLater(() -> {
-                var value = vsb.getValue();
-                var bounds = fgCanvas.getBounds();
-                var visibleRect = fgCanvas.getVisibleRect();
+            fgCanvas.addPropertyChangeListener(GRAPH_MODE_PROPERTY, evt -> {
+                // Note, adding the horizontal scrollbar to the ScrollPane's ColumnHeader
+                // is challenging to get right with the coordinate system.
+                //
+                // (Also, putting back the horizontal bar in the usual place is tricky,
+                // i.e. setHorizontalScrollbar does too much, instead one could prefer
+                // `scrollPane.add(hsb, ScrollPaneConstants.HORIZONTAL_SCROLLBAR)`)
+                //
+                // So the current strategy is to always show the horizontal scrollbar
+                // in Flamegraph mode.
 
-                // This computes the new view location based on the current view location
-                switch (fgCanvas.getMode()) {
-                    case ICICLEGRAPH:
-                        // use the component add rather than setHorizontalScrollBar which does more things
-                        scrollPane.add(hsb, ScrollPaneConstants.HORIZONTAL_SCROLLBAR);
-                        vsb.setValue(
-                                value == vsb.getMaximum() ?
-                                vsb.getMinimum() :
-                                bounds.height - Math.abs(bounds.y) - visibleRect.height
-                        );
-                        break;
-                    case FLAMEGRAPH:
-                        scrollPane.setColumnHeaderView(hsb);
-                        vsb.setValue(
-                                value == vsb.getMinimum() ?
-                                vsb.getMaximum() :
-                                bounds.height - visibleRect.height - value
-                        );
-                        break;
+                // Also, the scrollbar policy is changed, before changing the VSB value
+                // in the invoke-later task.
+                if (fgCanvas.getMode() == Mode.FLAMEGRAPH) {
+                    scrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_ALWAYS);
                 }
-            }));
+
+                SwingUtilities.invokeLater(() -> {
+                    var value = vsb.getValue();
+                    var bounds = fgCanvas.getBounds();
+                    var visibleRect = fgCanvas.getVisibleRect();
+
+                    // This computes the new view location based on the current view location
+                    switch (fgCanvas.getMode()) {
+                        case ICICLEGRAPH:
+                            vsb.setValue(
+                                    value == vsb.getMaximum() ?
+                                    vsb.getMinimum() :
+                                    bounds.height - Math.abs(bounds.y) - visibleRect.height
+                            );
+                            break;
+                        case FLAMEGRAPH:
+                            vsb.setValue(
+                                    value == vsb.getMinimum() ?
+                                    vsb.getMaximum() :
+                                    bounds.height - visibleRect.height - value
+                            );
+                            break;
+                    }
+                });
+            });
         }
 
         private void installMinimapTriggers(FlamegraphCanvas<T> fgCanvas) {
@@ -1691,33 +1711,6 @@ public class FlamegraphView<T> {
 
             setBounds(zoomTarget.getTargetBounds());
         }
-
-
-        /**
-         * Adjust the zoom target location for horizontal scrollbar height if canvas bigger than viewRect.
-         * This only applies to flamegraph mode.
-         *
-         * @param zoomTarget The zoom target.
-         * @return An adjusted zoom target instance, or the passed zoom target if no adjustment is needed.
-         */
-        private ZoomTarget<@NotNull T> adjustedZoomTargetForHsbVisibility(
-                @NotNull ZoomTarget<@NotNull T> zoomTarget,
-                boolean ignoreVisibility
-        ) {
-            if (this.getMode() == Mode.FLAMEGRAPH) {
-                var visibleRect = this.getVisibleRect();
-                var scrollPane = (JScrollPane) this.getParent().getParent();
-
-                var hsb = scrollPane.getHorizontalScrollBar();
-                if ((ignoreVisibility || !hsb.isVisible()) && visibleRect.getWidth() < zoomTarget.getWidth()) {
-                    var modifiedRect = zoomTarget.getTargetBounds();
-                    modifiedRect.y += hsb.getPreferredSize().height;
-
-                    zoomTarget = new ZoomTarget<>(modifiedRect, zoomTarget.targetFrame);
-                }
-            }
-            return zoomTarget;
-        }
     }
 
     /**
@@ -1812,8 +1805,6 @@ public class FlamegraphView<T> {
                                 latestMouseLocation,
                                 (frame, r) -> canvas.repaint()
                         );
-                        // TODO weird behavior on iciclegraph, both expand and shrink
-                        // this appear to be related to the horizontal scrollbar
                         fgre.calculateHorizontalZoomTargetForFrameAt(
                                 (Graphics2D) canvas.getGraphics(),
                                 canvasBounds,
