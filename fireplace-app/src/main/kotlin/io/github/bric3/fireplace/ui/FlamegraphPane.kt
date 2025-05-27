@@ -19,7 +19,6 @@ import io.github.bric3.fireplace.flamegraph.ColorMapper
 import io.github.bric3.fireplace.flamegraph.DefaultFrameRenderer
 import io.github.bric3.fireplace.flamegraph.DimmingFrameColorProvider
 import io.github.bric3.fireplace.flamegraph.FlamegraphView
-import io.github.bric3.fireplace.flamegraph.FlamegraphView.FrameClickAction.EXPAND_FRAME
 import io.github.bric3.fireplace.flamegraph.FlamegraphView.HoverListener
 import io.github.bric3.fireplace.flamegraph.FrameBox
 import io.github.bric3.fireplace.flamegraph.FrameFontProvider
@@ -100,6 +99,17 @@ class FlamegraphPane : JPanel(BorderLayout()) {
             isSelected = defaultIcicleMode
         }
 
+        val frameClickBehaviorToggle = JCheckBox("Expand").apply {
+            addActionListener {
+                jfrFlamegraphView.frameClickAction =
+                    if (isSelected)
+                        FlamegraphView.FrameClickAction.EXPAND_FRAME
+                    else
+                        FlamegraphView.FrameClickAction.FOCUS_FRAME
+            }
+            isSelected = defaultToFrameExpand
+        }
+
         val minimapToggle = JCheckBox("Minimap").apply {
             addActionListener { jfrFlamegraphView.setShowMinimap(isSelected) }
             isSelected = defaultShowMinimap
@@ -154,12 +164,14 @@ class FlamegraphPane : JPanel(BorderLayout()) {
             add(colorPaletteJComboBox)
             add(colorModeJComboBox)
             add(icicleModeToggle)
+            add(frameClickBehaviorToggle)
             add(animateToggle)
             add(minimapToggle)
             Utils.ifDebugging {
                 add(
                     refreshToggle(
                         icicleModeToggle,
+                        frameClickBehaviorToggle,
                         minimapToggle,
                         minimapShade,
                         zoomAnimation,
@@ -177,6 +189,7 @@ class FlamegraphPane : JPanel(BorderLayout()) {
 
     private fun refreshToggle(
         icicleModeToggle: JCheckBox,
+        frameClickBehaviorToggle: JCheckBox,
         minimapToggle: JCheckBox,
         minimapShade: LightDarkColor,
         zoomAnimation: ZoomAnimation,
@@ -185,9 +198,14 @@ class FlamegraphPane : JPanel(BorderLayout()) {
     ): JToggleButton {
         val timer = Timer(2000) {
             jfrFlamegraphView = getJfrFlamegraphView().apply {
-                isShowMinimap = defaultShowMinimap
                 mode = if (defaultIcicleMode) FlamegraphView.Mode.ICICLEGRAPH else FlamegraphView.Mode.FLAMEGRAPH
                 icicleModeToggle.isSelected = defaultIcicleMode
+                frameClickAction = if (defaultToFrameExpand)
+                    FlamegraphView.FrameClickAction.EXPAND_FRAME
+                else
+                    FlamegraphView.FrameClickAction.FOCUS_FRAME
+                frameClickBehaviorToggle.isSelected = defaultToFrameExpand
+                isShowMinimap = defaultShowMinimap
                 minimapToggle.isSelected = defaultShowMinimap
                 putClientProperty(FlamegraphView.SHOW_STATS, true)
                 setMinimapShadeColorSupplier { minimapShade }
@@ -261,6 +279,7 @@ class FlamegraphPane : JPanel(BorderLayout()) {
         private const val defaultPaintHoveredFrameBorder = false
         private const val defaultShowMinimap = true
         private const val defaultIcicleMode = true
+        private const val defaultToFrameExpand = true
         private const val defaultRoundedFrame = true
         private fun getJfrFlamegraphView(): FlamegraphView<Node> {
             val classMethodRepresentation = Caffeine.newBuilder()
@@ -291,7 +310,7 @@ class FlamegraphPane : JPanel(BorderLayout()) {
                 }
 
             val flamegraphView = FlamegraphView<Node>()
-            flamegraphView.frameClickAction = EXPAND_FRAME
+            // flamegraphView.frameClickAction =  EXPAND_FRAME
             flamegraphView.setFrameRender(
                 DefaultFrameRenderer(
                     FrameTextsProvider.of(

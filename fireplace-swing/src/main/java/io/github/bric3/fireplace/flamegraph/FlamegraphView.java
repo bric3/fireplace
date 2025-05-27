@@ -141,7 +141,7 @@ public class FlamegraphView<T> {
 
     public enum FrameClickAction {
         EXPAND_FRAME,
-        SELECT_FRAME,
+        FOCUS_FRAME,
     }
 
     /**
@@ -1033,7 +1033,7 @@ public class FlamegraphView<T> {
         @Nullable
         private Supplier<@NotNull JToolTip> tooltipComponentSupplier;
         @NotNull
-        public FrameClickAction frameClickBehavior = FrameClickAction.SELECT_FRAME;
+        public FrameClickAction frameClickBehavior = FrameClickAction.FOCUS_FRAME;
         @Nullable
         private ZoomAction zoomActionOverride;
         @Nullable
@@ -1822,7 +1822,7 @@ public class FlamegraphView<T> {
                         });
                     }
                     break;
-                case SELECT_FRAME:
+                case FOCUS_FRAME:
                     if (e.getClickCount() == 2) {
                         // find zoom target then do an animated transition
                         fgre.calculateZoomTargetForFrameAt(
