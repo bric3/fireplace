@@ -1837,8 +1837,10 @@ public class FlamegraphView<T> {
                                 latestMouseLocation
                         ).ifPresent(zoomTarget -> {
                             var targetBounds = zoomTarget.getTargetBounds();
-                            // Don't include height as the view rect might be taller that the flamegraph height
-                            if (canvasBounds.x == targetBounds.x && canvasBounds.y == targetBounds.y
+                            // If frame width is the same as the canvas width,
+                            // then let's reset the zoom.
+                            // Note also the view rect might be taller or smaller than the flamegraph height
+                            if (canvasBounds.x == targetBounds.x
                                 && canvasBounds.width == targetBounds.width) {
                                 zoom(canvas, canvas.getResetZoomTarget(true));
                             } else {
