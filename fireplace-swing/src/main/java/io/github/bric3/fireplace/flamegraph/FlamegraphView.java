@@ -171,6 +171,7 @@ public class FlamegraphView<T> {
     /**
      * Represents a zoomable JComponent.
      */
+    @Experimental
     public interface ZoomableComponent<T> {
         /**
          * Actually perform the zooming operation on the component.
@@ -1709,7 +1710,31 @@ public class FlamegraphView<T> {
             // Not calling setBounds from the Timeline may provoke EDT violations
             // however calling invokeLater makes the animation out of order, and not smooth.
 
-            setBounds(zoomTarget.getTargetBounds());
+            var targetBounds = zoomTarget.getTargetBounds();
+
+            if (frameClickBehavior == FrameClickAction.EXPAND_FRAME) {
+                // enforce new height, indeed, as the canvas is zoomed in/out, its visible depth
+                // may change, so is its height, the target must be adjusted accordingly.
+                targetBounds.height = flamegraphRenderEngine.computeVisibleFlamegraphHeight(
+                        (Graphics2D) getGraphics(),
+                        targetBounds.width
+                );
+                switch (getMode()) {
+                    case ICICLEGRAPH:
+                        // anchors to top, no adjustments needed
+                        // y stays the same
+                        break;
+                    case FLAMEGRAPH:
+                        // anchors to bottom, so we need to adjust the y coordinate
+                        // to the new height
+                        targetBounds.y = -(targetBounds.height - (getHeight() - Math.abs(getY())));
+                        break;
+                    default:
+                        // no-op
+                }
+            }
+
+            setBounds(targetBounds);
         }
     }
 
