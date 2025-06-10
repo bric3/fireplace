@@ -9,9 +9,6 @@ import java.awt.Graphics2D
 import java.awt.LayoutManager
 import java.awt.RenderingHints
 import java.awt.event.AWTEventListener
-import java.awt.event.ComponentAdapter
-import java.awt.event.ContainerAdapter
-import java.awt.event.ContainerEvent
 import java.awt.event.FocusEvent.FOCUS_LOST
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
@@ -109,6 +106,10 @@ private class FollowingTip {
                         contentContainer.add(content)
                     }
 
+                    // Update the underlying UI if it has changed
+                    if (UIManager.getUI(content) != content.ui) {
+                        content.updateUI()
+                    }
                     contentContainer.bgColor = content.background
                     tipWindow.pack()
                     tipWindow.isVisible = true
