@@ -24,7 +24,7 @@ assertj = "3.27.3"
 # Used for SVG export
 batik = "1.19"
 
-eclipse-swt = "3.129.0"
+eclipse-swt = "3.130.0"
 eclipse-jface = "3.36.0"
 eclipse-ui-forms = "3.13.500"
 
