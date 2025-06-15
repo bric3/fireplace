@@ -69,6 +69,7 @@ gradlePlugin-testLogger = { module = "com.adarshr:gradle-test-logger-plugin", ve
 gradlePlugin-bnd = { module = "biz.aQute.bnd.builder:biz.aQute.bnd.builder.gradle.plugin", version.ref = "bnd" }
 gradlePlugin-semver = { module = "com.javiersc.semver:semver-gradle-plugin", version.ref = "semver" }
 gradlePlugin-licenceReport = { module = " com.github.jk1.dependency-license-report:com.github.jk1.dependency-license-report.gradle.plugin", version.ref = "license-report" }
+gradlePlugin-jreleaser = { module = "org.jreleaser:jreleaser-gradle-plugin", version = "1.18.0" }
 
 [bundles]
 junit-jupiter = ["junit-jupiter-api", "junit-jupiter-engine"]
