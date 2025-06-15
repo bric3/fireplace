@@ -20,10 +20,11 @@ publishing {
             val gitRepo = providers.provider { "https://github.com/bric3/fireplace" }
 
             pom {
-                name.set(artifactId)
+                name.set(artifactId) // TODO use project.name ?
                 description.set(providers.provider { project.description })
 
                 url.set(gitRepo)
+                inceptionYear = "2021"
 
                 issueManagement {
                     system.set("Github")
@@ -60,6 +61,13 @@ publishing {
             .equals("release-publish", true)
 
         val isPublishToCentral = providers.gradleProperty("publish.central").orNull.toBoolean()
+
+        // always publish to temporary local staging repository
+        maven {
+            // TODO should I use the rootProject layout? ?
+            name = "staging-deploy"
+            url = layout.buildDirectory.dir("staging-deploy").get().asFile.toURI()
+        }
 
         if (isPublishToCentral) {
             maven {
@@ -98,15 +106,15 @@ publishing {
     }
 }
 
-signing {
-    setRequired({ gradle.taskGraph.hasTask("publish") })
-    useInMemoryPgpKeys(
-        // properties("signingKeyId") as? String,
-        properties("signingKey"),
-        properties("signingPassword") as? String
-    )
-    sign(publishing.publications)
-}
+// signing {
+//     setRequired({ gradle.taskGraph.hasTask("publish") })
+//     useInMemoryPgpKeys(
+//         // properties("signingKeyId") as? String,
+//         properties("signingKey"),
+//         properties("signingPassword") as? String
+//     )
+//     sign(publishing.publications)
+// }
 
 tasks {
     register("cleanLocalPublishingRepository") {
