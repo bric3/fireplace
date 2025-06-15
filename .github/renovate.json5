@@ -4,13 +4,41 @@
 {
     "$schema": "https://docs.renovatebot.com/renovate-schema.json",
     "extends": [
-        "config:base"
+        "config:base",
+        ":automergePr", // https://docs.renovatebot.com/presets-default/#automergepr
+        ":automergeMinor", // https://docs.renovatebot.com/presets-default/#automergeminor
+        ":semanticCommits", // https://docs.renovatebot.com/presets-default/#semanticcommits
+        "group:allNonMajor", // https://docs.renovatebot.com/presets-group/#groupallnonmajor
+        "schedule:earlyMondays", // https://docs.renovatebot.com/presets-schedule/#scheduleearlymondays
     ],
     "labels": [
         "dependency-update"
     ],
     // automerge minor deps
     "packageRules": [
+        // Gradle
+        {
+            matchManagers: ["gradle", "gradle-wrapper"],
+            matchUpdateTypes: ["minor", "patch"],
+            automerge: true,
+            platformAutomerge: true,
+        },
+        {
+            matchManagers: ["gradle", "gradle-wrapper"],
+            matchUpdateTypes: ["major"],
+            automerge: false,
+            
+        },
+
+        // GHA
+        {
+            matchManagers: ["github-actions"],
+            matchUpdateTypes: ["major", "minor", "patch", "digest"],
+            automerge: true,
+            platformAutomerge: true,
+        },
+
+        // Others
         {
             "description": "Automatically merge minor and patch-level updates",
             "matchUpdateTypes": [
@@ -34,10 +62,4 @@
     "dependencyDashboard": true,
     "prConcurrentLimit": 10,
     "prHourlyLimit": 5,
-    // Schedule the bot to run before morning
-    "timezone": "UTC",
-    "schedule": [
-        "before 9am"
-        // "before 9am on monday" // once a week before monday morning
-    ]
 }
