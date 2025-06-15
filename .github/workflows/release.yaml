@@ -11,7 +11,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Tag to release'
+        description: 'Existing tag to release (e.g., v0.1.0)'
         required: true
       dry-run:
         description: Dry-run
@@ -61,6 +61,8 @@ jobs:
       - name: Publish to Staging Repository
         if: success()
         env:
+          ORG_GRADLE_PROJECT_signingKey: ${{ secrets.ORG_GRADLE_PROJECT_SIGNINGKEY }}
+          ORG_GRADLE_PROJECT_signingPassword: ${{ secrets.ORG_GRADLE_PROJECT_SIGNINGPASSWORD }}
           ORG_GRADLE_PROJECT_githubUser: ${{ github.actor }}
           ORG_GRADLE_PROJECT_githubToken: ${{ secrets.GITHUB_TOKEN }}
 
@@ -71,8 +73,23 @@ jobs:
           JRELEASER_MAVENCENTRAL_USERNAME: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
           JRELEASER_MAVENCENTRAL_TOKEN: ${{ secrets.MAVEN_CENTRAL_TOKEN }}
         # com.javiersc.semver.gradle.plugin should pick the actual tag
-        run: ./gradlew publish -Ppublish.central=${{ inputs.dry-run && 'false' || 'true' }} --stacktrace
+        run: ./gradlew jreleaserDeploy -PRELEASE -Ppublish.central=${{ inputs.dry-run && 'false' || 'true' }} --stacktrace
 
+      - name: Print JReleaser information
+        if: always()
+        run: |
+          if [ -f build/jreleaser/output.properties ]; then
+            echo "JReleaser output properties:"
+            cat build/jreleaser/output.properties
+          else
+            echo "No JReleaser output properties found."
+          fi
+          if [ -f build/jreleaser/trace.log ]; then
+            echo "JReleaser logs:"
+            cat build/jreleaser/trace.log
+          else
+            echo "No JReleaser logs found."
+          fi
 # Don't forget to deploy the release to central
 # * 'Close' the repo to trigger the evaluations of to components against the requirements
 # * 'Release' the repo
