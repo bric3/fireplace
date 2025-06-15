@@ -23,8 +23,8 @@ jreleaser {
 
     gitRootSearch = true // search for .git in parent directories, important for multi-module projects
     project {
-        name.set("Fireplace")
-        authors.add("bric3")
+        name = "Fireplace"
+        author("bric3")
         description = "A Java library to render Flamegraph / Iciclegraph in Swing applications"
         license = "MPL-2.0"
         links {
@@ -58,21 +58,24 @@ jreleaser {
         }
     }
 
-    signing {
-        active = Active.ALWAYS
-        armored = true
-        // TODO verify.set(false) // requires the GPG public key to be set up
-    }
+    // prefer gradle signing plugin
+    // signing {
+    //     active = Active.ALWAYS
+    //     armored = true
+    //     // TODO verify.set(false) // requires the GPG public key to be set up
+    // }
 
     deploy {
         maven {
             // https://jreleaser.org/guide/latest/reference/deploy/maven/maven-central.html
             mavenCentral {
-                register("sonatype") {
+                register("central-release") {
                     active = Active.RELEASE_PRERELEASE
-                    stage.set(MavenCentralMavenDeployer.Stage.FULL)
+                    retryDelay = 60
+                    stage = MavenCentralMavenDeployer.Stage.FULL
                     applyMavenCentralRules = true
                     authorization = Http.Authorization.BEARER
+                    sign = false // prefer to use the gradle `signing` plugin
 
                     // Note if applied on the root project, need to look to all subprojects for published artifacts
                     subprojects.forEach {

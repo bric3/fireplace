@@ -106,15 +106,15 @@ publishing {
     }
 }
 
-// signing {
-//     setRequired({ gradle.taskGraph.hasTask("publish") })
-//     useInMemoryPgpKeys(
-//         // properties("signingKeyId") as? String,
-//         properties("signingKey"),
-//         properties("signingPassword") as? String
-//     )
-//     sign(publishing.publications)
-// }
+signing {
+    setRequired({ gradle.taskGraph.hasTask("publish") })
+    useInMemoryPgpKeys(
+        // properties("signingKeyId") as? String,
+        properties("signingKey"),
+        properties("signingPassword") as? String
+    )
+    sign(publishing.publications)
+}
 
 tasks {
     register("cleanLocalPublishingRepository") {
