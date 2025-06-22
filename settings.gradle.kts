@@ -8,12 +8,13 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 plugins {
-    `gradle-enterprise`
+    id("com.gradle.develocity") version "3.19.2"
     id("org.gradle.toolchains.foojay-resolver-convention") version ("1.0.0")
 }
 
 rootProject.name = "fireplace"
 includeBuild("build-logic")
+includeBuild("build-logic-jreleaser")
 include(
     "fireplace-swing",
     "fireplace-swing-animation",

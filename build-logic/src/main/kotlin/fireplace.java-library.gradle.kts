@@ -7,20 +7,15 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
-import com.javiersc.semver.project.gradle.plugin.SemverExtension
 
 plugins {
     `java-library`
     id("fireplace.tests")
     id("biz.aQute.bnd.builder")
-    id("com.javiersc.semver")
+    id("fireplace.semver")
 }
 
 val libJavaVersion = 11
-
-configure<SemverExtension> {
-    tagPrefix.set("v")
-}
 
 repositories {
     mavenCentral()
