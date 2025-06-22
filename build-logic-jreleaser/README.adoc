@@ -1,0 +1,24 @@
+== The JReleaser and Semver convention plugins
+
+This project provides Gradle plugins that define the release-related build conventions
+for the libraries in this repository.
+
+See this Gradle documentation: https://docs.gradle.org/current/userguide/kotlin_dsl.html[Kotlin DSL plugins]
+
+[NOTE]
+====
+This separate build logic project exists because the _jreleaser gradle plugin_
+relies on the JGit 5 API provided by Gradle, while the `com.javiersc.semver` plugin ships with
+JGit 7 as a runtime dependency. These versions are binary incompatible.
+
+In convention plugin projects, the plugins are imported as regular dependencies; this means
+the dependency resolution will pick JGit 7. Also, convention plugins share the same classloader.
+
+So while plugin code can still reference the JGit 5 API, at runtime, this leads to
+a `ClassNotFoundException` when a jreleaser plugin task is used.
+
+This separate `build-logic-jreleaser` project isolates these JGit-conflicting dependencies
+from the main `build-logic` project, allowing both to function properly.
+
+See https://github.com/jreleaser/jreleaser/discussions/1897[this jreleaser discussion] for more details and/or this https://github.com/JavierSegoviaCordoba/semver-gradle-plugin/issues/196[semver plugin issue].
+====

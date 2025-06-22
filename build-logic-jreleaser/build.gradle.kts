@@ -21,10 +21,7 @@ repositories {
 }
 
 dependencies {
-    implementation(libs.gradlePlugin.bnd)
-    implementation(libs.gradlePlugin.semver)
-    implementation(libs.gradlePlugin.testLogger)
-    implementation(libs.gradlePlugin.licenceReport)
+    implementation(libs.gradlePlugin.jreleaser)
 
     // https://github.com/gradle/gradle/issues/15383
     implementation(files(libs.javaClass.superclass.protectionDomain.codeSource.location))

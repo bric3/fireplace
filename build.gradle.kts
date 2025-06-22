@@ -9,6 +9,7 @@
  */
 plugins {
     id("com.github.hierynomus.license") version "0.16.1"
+    id("fireplace.semver")
     id("fireplace.jreleaser")
 }
 

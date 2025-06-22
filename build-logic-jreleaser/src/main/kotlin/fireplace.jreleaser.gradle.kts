@@ -45,16 +45,21 @@ jreleaser {
     }
 
     release {
+        // Note that to validate config e.g. with ./gradlew jreleaserConfig,
+        // an **enabled** release has to be configured, even if it is not used in the end.
+        // For github, even having a dummy token is required.
+
         // https://jreleaser.org/guide/latest/reference/release/github.html
         github {
-            enabled = false
+            // enabled = false
             skipRelease = true
             skipTag = true
-            commitAuthor {
-                name = "Brice Dutheil"
-                email = "brice.dutheil@gmail.com"
-            }
-            repoOwner = "bric3"
+            token = "DUMMY" // a token value is required even if releasing is not necessary
+            // commitAuthor {
+            //     name = "Brice Dutheil"
+            //     email = "brice.dutheil@gmail.com"
+            // }
+            // repoOwner = "bric3"
         }
     }
 
@@ -62,7 +67,7 @@ jreleaser {
     // signing {
     //     active = Active.ALWAYS
     //     armored = true
-    //     // TODO verify.set(false) // requires the GPG public key to be set up
+    //     // verify.set(false) // requires the GPG public key to be set up
     // }
 
     deploy {
@@ -71,11 +76,36 @@ jreleaser {
             mavenCentral {
                 register("central-release") {
                     active = Active.RELEASE_PRERELEASE
+                    url = "https://central.sonatype.com/api/v1/publisher"
                     retryDelay = 60
                     stage = MavenCentralMavenDeployer.Stage.FULL
                     applyMavenCentralRules = true
                     authorization = Http.Authorization.BEARER
                     sign = false // prefer to use the gradle `signing` plugin
+
+                    // Note if applied on the root project, need to look to all subprojects for published artifacts
+                    subprojects.forEach {
+                        stagingRepository(
+                            it.layout.buildDirectory.dir("staging-deploy").get()
+                                .asFile.absolutePath
+                        )
+                    }
+                }
+            }
+
+
+            // Use the old nexus2 api for publishing snapshots
+            // https://central.sonatype.org/publish/publish-portal-snapshots/
+            // https://jreleaser.org/guide/latest/examples/maven/maven-central.html#_publishing_snapshots
+            nexus2 {
+                register("central-snapshots") {
+                    active = Active.SNAPSHOT
+                    snapshotUrl = "https://central.sonatype.com/repository/maven-snapshots"
+                    sign = false
+                    applyMavenCentralRules = true
+                    snapshotSupported = true
+                    closeRepository = false
+                    releaseRepository = false
 
                     // Note if applied on the root project, need to look to all subprojects for published artifacts
                     subprojects.forEach {
