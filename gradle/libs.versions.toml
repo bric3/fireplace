@@ -14,7 +14,7 @@ flatlaf = "3.6"
 darklaf = "3.0.2"
 classgraph = "4.8.180"
 
-radiance-animation = "7.5.0"
+radiance-animation = "8.0.0"
 
 jmc-flightrecorder = "9.1.0"
 
