@@ -25,16 +25,20 @@ include(
 enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 
 develocity {
-    if (providers.environmentVariable("CI").isPresent) {
-        println("CI")
-        buildScan {
-            termsOfUseUrl = "https://gradle.com/terms-of-service"
-            this.termsOfUseAgree = "yes"
-            publishing {
-                this.onlyIf {
-                    it.buildResult.failures.isNotEmpty() && !providers.environmentVariable("CI").isPresent
-                }
+    val ciEnv = providers.environmentVariable("CI")
+    buildScan {
+        termsOfUseUrl = "https://gradle.com/terms-of-service"
+        termsOfUseAgree = "yes"
+        publishing {
+            this.onlyIf {
+                it.buildResult.failures.isNotEmpty() && !ciEnv.isPresent
             }
+        }
+    }
+
+    if (ciEnv.isPresent) {
+        logger.debug("develocity: CI")
+        buildScan {
             tag("CI")
 
             if (providers.environmentVariable("GITHUB_ACTIONS").isPresent) {
