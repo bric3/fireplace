@@ -8,7 +8,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 plugins {
-    id("com.gradle.develocity") version "3.19.2"
+    id("com.gradle.develocity") version "4.1.1"
     id("org.gradle.toolchains.foojay-resolver-convention") version ("1.0.0")
 }
 
@@ -24,13 +24,15 @@ include(
 )
 enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 
-gradleEnterprise {
+develocity {
     if (providers.environmentVariable("CI").isPresent) {
         println("CI")
         buildScan {
-            termsOfServiceUrl = "https://gradle.com/terms-of-service"
-            termsOfServiceAgree = "yes"
-            publishAlways()
+            termsOfUseUrl = "https://gradle.com/terms-of-service"
+            this.termsOfUseAgree = "yes"
+            publishing {
+                this.onlyIf { true }
+            }
             tag("CI")
 
             if (providers.environmentVariable("GITHUB_ACTIONS").isPresent) {
