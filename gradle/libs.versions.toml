@@ -37,6 +37,7 @@ bnd = "7.1.0"
 test-logger = "4.0.0"
 semver = "0.9.0"
 license-report = "2.9"
+nmcp = "1.1.0"
 
 [libraries]
 jetbrains-annotations = { group = "org.jetbrains", name = "annotations", version.ref = "jetbrains-annotations" }
@@ -69,7 +70,7 @@ gradlePlugin-testLogger = { module = "com.adarshr:gradle-test-logger-plugin", ve
 gradlePlugin-bnd = { module = "biz.aQute.bnd.builder:biz.aQute.bnd.builder.gradle.plugin", version.ref = "bnd" }
 gradlePlugin-semver = { module = "com.javiersc.semver:semver-gradle-plugin", version.ref = "semver" }
 gradlePlugin-licenceReport = { module = " com.github.jk1.dependency-license-report:com.github.jk1.dependency-license-report.gradle.plugin", version.ref = "license-report" }
-gradlePlugin-jreleaser = { module = "org.jreleaser:jreleaser-gradle-plugin", version = "1.18.0" }
+gradlePlugin-nmcp = { module = "com.gradleup.nmcp:nmcp", version.ref = "nmcp" }
 
 [bundles]
 junit-jupiter = ["junit-jupiter-api", "junit-jupiter-engine"]
