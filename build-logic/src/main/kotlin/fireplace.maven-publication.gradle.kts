@@ -7,6 +7,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
+import com.javiersc.semver.project.gradle.plugin.extensions.isNotSnapshot
 import com.javiersc.semver.project.gradle.plugin.extensions.isSnapshot
 
 plugins {
@@ -60,28 +61,7 @@ publishing {
         val isGithubRelease = providers.environmentVariable("GITHUB_JOB").orNull
             .equals("release-publish", true)
 
-        val isPublishToCentral = providers.gradleProperty("publish.central").orNull.toBoolean()
-
-        // always publish to temporary local staging repository
-        maven {
-            // TODO should I use the rootProject layout? ?
-            name = "staging-deploy"
-            url = layout.buildDirectory.dir("staging-deploy").get().asFile.toURI()
-        }
-
-        if (isPublishToCentral) {
-            maven {
-                name = "central"
-                setUrl(isSnapshot.map {
-                    if (isGithubRelease && !it) "https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/"
-                    else "https://s01.oss.sonatype.org/content/repositories/snapshots"
-                }.map(::uri))
-                credentials {
-                    username = properties("ossrhUsername")
-                    password = properties("ossrhPassword")
-                }
-            }
-
+        if (isGithubRelease) {
             val ghUser = properties("githubUser")
             val ghToken = properties("githubToken")
             if (isGithubRelease && ghUser != "null" && ghToken != "null") {
@@ -95,7 +75,11 @@ publishing {
                     }
                 }
             }
-        } else {
+        }
+
+        val isPublishToCentral = providers.gradleProperty("publish.central").orNull
+            .toBoolean()
+        if (!isPublishToCentral) {
             maven {
                 name = "build-dir"
                 setUrl(rootProject.layout.buildDirectory.map { "$it/publishing-repository" }.zip(isSnapshot) { dir, isSnapshot ->
@@ -107,12 +91,19 @@ publishing {
 }
 
 signing {
-    setRequired({ gradle.taskGraph.hasTask("publish") })
-    useInMemoryPgpKeys(
-        // properties("signingKeyId") as? String,
-        properties("signingKey"),
-        properties("signingPassword") as? String
-    )
+    val signingKey: String? by project
+    val signingPassword: String? by project
+
+    setRequired({ gradle.taskGraph.hasTask("publish") && project.isNotSnapshot.getOrElse(false) })
+
+    if (!signingKey.isNullOrBlank() || !signingPassword.isNullOrBlank()) {
+        useInMemoryPgpKeys(
+            // properties("signingKeyId") as? String,
+            signingKey,
+            signingPassword
+        )
+    }
+
     sign(publishing.publications)
 }
 

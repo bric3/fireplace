@@ -14,7 +14,6 @@ plugins {
 
 rootProject.name = "fireplace"
 includeBuild("build-logic")
-includeBuild("build-logic-jreleaser")
 include(
     "fireplace-swing",
     "fireplace-swing-animation",
