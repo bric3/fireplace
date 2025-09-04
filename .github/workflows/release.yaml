@@ -47,12 +47,12 @@ jobs:
           echo "Checking version: $semver_regex"
           echo "$tag_name" | grep -Eq "^$prefix$semver_regex\$"
         shell: bash
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: ${{ github.event.inputs.tag || github.event.release.tag_name }}
           fetch-depth: 200
       - name: Set up JDK
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           java-version: '21'
           distribution: 'zulu'
