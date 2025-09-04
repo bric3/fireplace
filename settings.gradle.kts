@@ -31,7 +31,9 @@ develocity {
             termsOfUseUrl = "https://gradle.com/terms-of-service"
             this.termsOfUseAgree = "yes"
             publishing {
-                this.onlyIf { true }
+                this.onlyIf {
+                    it.buildResult.failures.isNotEmpty() && !providers.environmentVariable("CI").isPresent
+                }
             }
             tag("CI")
 
