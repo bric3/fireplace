@@ -8,11 +8,16 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
+import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
     // doc: https://docs.gradle.org/current/userguide/kotlin_dsl.html
     `kotlin-dsl`
+    // Workaround issue with semver plugin
+    // Module was compiled with an incompatible version of Kotlin. The binary version of its metadata is 2.2.0, expected version is 2.0.0.
+    kotlin("jvm") version "2.2.0"
 }
 
 repositories {
@@ -41,6 +46,6 @@ tasks.withType(KotlinCompile::class) {
     compilerOptions {
         optIn.add("kotlin.ExperimentalStdlibApi")
         freeCompilerArgs.addAll(listOf("-Xjsr305=strict"))
-        jvmTarget.set(JVM_11)
+        jvmTarget.set(JVM_17)
     }
 }
