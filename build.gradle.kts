@@ -9,6 +9,8 @@
  */
 plugins {
     id("com.github.hierynomus.license") version "0.16.1"
+    id("fireplace.semver")
+    id("fireplace.central-publication")
 }
 
 allprojects {
@@ -19,6 +21,13 @@ tasks.register("v") {
     doLast {
         println(project.version.toString())
     }
+}
+
+dependencies {
+    // published modules
+    nmcpAggregation(projects.fireplaceSwing)
+    nmcpAggregation(projects.fireplaceSwingAnimation)
+    nmcpAggregation(projects.fireplaceSwtAwtBridge)
 }
 
 license {

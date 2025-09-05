@@ -8,6 +8,8 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
+import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
@@ -25,6 +27,7 @@ dependencies {
     implementation(libs.gradlePlugin.semver)
     implementation(libs.gradlePlugin.testLogger)
     implementation(libs.gradlePlugin.licenceReport)
+    implementation(libs.gradlePlugin.nmcp)
 
     // https://github.com/gradle/gradle/issues/15383
     implementation(files(libs.javaClass.superclass.protectionDomain.codeSource.location))
@@ -32,7 +35,7 @@ dependencies {
 
 java {
     toolchain {
-        languageVersion.set(JavaLanguageVersion.of(11))
+        languageVersion.set(JavaLanguageVersion.of(17))
     }
 }
 
@@ -40,6 +43,6 @@ tasks.withType(KotlinCompile::class) {
     compilerOptions {
         optIn.add("kotlin.ExperimentalStdlibApi")
         freeCompilerArgs.addAll(listOf("-Xjsr305=strict"))
-        jvmTarget.set(JVM_11)
+        jvmTarget.set(JVM_17)
     }
 }
