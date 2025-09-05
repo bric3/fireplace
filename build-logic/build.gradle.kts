@@ -15,9 +15,6 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 plugins {
     // doc: https://docs.gradle.org/current/userguide/kotlin_dsl.html
     `kotlin-dsl`
-    // Workaround issue with semver plugin
-    // Module was compiled with an incompatible version of Kotlin. The binary version of its metadata is 2.2.0, expected version is 2.0.0.
-    kotlin("jvm") version "2.2.0"
 }
 
 repositories {
