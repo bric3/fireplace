@@ -9,9 +9,9 @@
 #
 
 [versions]
-jetbrains-annotations = "26.0.2"
+jetbrains-annotations = "26.0.2-1"
 flatlaf = "3.6.1"
-darklaf = "3.1.0"
+darklaf = "3.1.1"
 classgraph = "4.8.181"
 
 radiance-animation = "7.5.0"
@@ -24,12 +24,12 @@ assertj = "3.27.4"
 # Used for SVG export
 batik = "1.19"
 
-eclipse-swt = "3.130.0"
-eclipse-jface = "3.37.0"
-eclipse-ui-forms = "3.13.500"
+eclipse-swt = "3.131.0"
+eclipse-jface = "3.38.0"
+eclipse-ui-forms = "3.13.600"
 
 # Kotlin
-kotlin = "2.2.10"
+kotlin = "2.2.20"
 kotlin-coroutines = "1.10.2"
 
 # Gradle plugins
