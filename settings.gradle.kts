@@ -26,8 +26,8 @@ enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 develocity {
     val ciEnv = providers.environmentVariable("CI")
     buildScan {
-        termsOfUseUrl = "https://gradle.com/terms-of-service"
-        termsOfUseAgree = "yes"
+        termsOfUseUrl = "https://gradle.com/help/legal-terms-of-use"
+        // termsOfUseAgree is handled by .gradle/init.d/configure-develocity.init.gradle.kts
         publishing {
             this.onlyIf {
                 it.buildResult.failures.isNotEmpty() && !ciEnv.isPresent
