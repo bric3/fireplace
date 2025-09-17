@@ -11,7 +11,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Tag to release'
+        description: 'Existing tag to release (e.g., v0.1.0)'
         required: true
       dry-run:
         description: Dry-run
@@ -50,7 +50,7 @@ jobs:
       - uses: actions/checkout@v5
         with:
           ref: ${{ github.event.inputs.tag || github.event.release.tag_name }}
-          fetch-depth: 50
+          fetch-depth: 200
       - name: Set up JDK
         uses: actions/setup-java@v5
         with:
@@ -63,13 +63,30 @@ jobs:
         env:
           ORG_GRADLE_PROJECT_signingKey: ${{ secrets.ORG_GRADLE_PROJECT_SIGNINGKEY }}
           ORG_GRADLE_PROJECT_signingPassword: ${{ secrets.ORG_GRADLE_PROJECT_SIGNINGPASSWORD }}
-          ORG_GRADLE_PROJECT_ossrhUsername: ${{ secrets.ORG_GRADLE_PROJECT_OSSRHUSERNAME }}
-          ORG_GRADLE_PROJECT_ossrhPassword: ${{ secrets.ORG_GRADLE_PROJECT_OSSRHPASSWORD }}
           ORG_GRADLE_PROJECT_githubUser: ${{ github.actor }}
           ORG_GRADLE_PROJECT_githubToken: ${{ secrets.GITHUB_TOKEN }}
-        # com.javiersc.semver.gradle.plugin should pick the actual tag
-        run: ./gradlew publish -Ppublish.central=${{ inputs.dry-run && 'false' || 'true' }} --stacktrace
 
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MAVENCENTRAL_USERNAME: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+          MAVENCENTRAL_TOKEN: ${{ secrets.MAVEN_CENTRAL_TOKEN }}
+        # com.javiersc.semver.gradle.plugin should pick the actual tag
+        run: ./gradlew jreleaserDeploy -PRELEASE -Ppublish.central=${{ inputs.dry-run && 'false' || 'true' }} --stacktrace
+
+      - name: Print JReleaser information
+        if: always()
+        run: |
+          if [ -f build/jreleaser/output.properties ]; then
+            echo "JReleaser output properties:"
+            cat build/jreleaser/output.properties
+          else
+            echo "No JReleaser output properties found."
+          fi
+          if [ -f build/jreleaser/trace.log ]; then
+            echo "JReleaser logs:"
+            cat build/jreleaser/trace.log
+          else
+            echo "No JReleaser logs found."
+          fi
 # Don't forget to deploy the release to central
 # * 'Close' the repo to trigger the evaluations of to components against the requirements
 # * 'Release' the repo
