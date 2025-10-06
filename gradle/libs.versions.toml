@@ -16,10 +16,10 @@ classgraph = "4.8.181"
 
 radiance-animation = "7.5.0"
 
-jmc-flightrecorder = "9.1.0"
+jmc-flightrecorder = "9.1.1"
 
-junit-jupiter = "5.13.4"
-assertj = "3.27.4"
+junit-jupiter = "5.14.0"
+assertj = "3.27.6"
 
 # Used for SVG export
 batik = "1.19"
