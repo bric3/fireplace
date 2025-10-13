@@ -10,9 +10,9 @@
 
 [versions]
 jetbrains-annotations = "26.0.2-1"
-flatlaf = "3.6.1"
+flatlaf = "3.6.2"
 darklaf = "3.1.1"
-classgraph = "4.8.181"
+classgraph = "4.8.184"
 
 radiance-animation = "7.5.0"
 
