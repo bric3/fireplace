@@ -10,9 +10,9 @@
 
 [versions]
 jetbrains-annotations = "26.0.2-1"
-flatlaf = "3.6.1"
+flatlaf = "3.6.2"
 darklaf = "3.1.1"
-classgraph = "4.8.181"
+classgraph = "4.8.184"
 
 radiance-animation = "7.5.0"
 
@@ -29,7 +29,7 @@ eclipse-jface = "3.38.0"
 eclipse-ui-forms = "3.13.600"
 
 # Kotlin
-kotlin = "2.2.20"
+kotlin = "2.2.21"
 kotlin-coroutines = "1.10.2"
 
 # Gradle plugins
