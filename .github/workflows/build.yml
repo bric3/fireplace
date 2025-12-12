@@ -46,14 +46,14 @@ jobs:
         run: ./gradlew build --stacktrace
 
       - name: Upload build reports
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         if: failure()
         with:
           name: build-reports
           path: "**/build/reports/*"
 
       - name: Upload Test Report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         if: failure()
         with:
           name: junit-test-results
@@ -97,7 +97,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Download Test Report
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v7
         with:
           name: junit-test-results
       - name: Publish Test Report
