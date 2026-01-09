@@ -9,6 +9,8 @@
  */
 plugins {
     id("com.github.hierynomus.license") version "0.16.1"
+    id("fireplace.semver")
+    // id("fireplace.central-publication")
 }
 
 allprojects {
@@ -21,10 +23,17 @@ tasks.register("v") {
     }
 }
 
+dependencies {
+    // published modules
+    nmcpAggregation(projects.fireplaceSwing)
+    nmcpAggregation(projects.fireplaceSwingAnimation)
+    nmcpAggregation(projects.fireplaceSwtAwtBridge)
+}
+
 license {
     ext["year"] = "2021, Today"
     ext["name"] = "Brice Dutheil"
-    header = file("HEADER")
+    header = project.file("HEADER")
 
     strictCheck = true
     ignoreFailures = false

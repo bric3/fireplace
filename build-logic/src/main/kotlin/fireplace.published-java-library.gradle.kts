@@ -10,6 +10,8 @@
 plugins {
     id("fireplace.java-library")
     id("fireplace.maven-publication")
+    `maven-publish`
+    signing
 }
 
 publishing {

@@ -7,13 +7,18 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
+
+pluginManagement {
+    includeBuild("build-logic")
+}
+
 plugins {
-    `gradle-enterprise`
+    id("com.gradle.develocity") version "4.1.1"
     id("org.gradle.toolchains.foojay-resolver-convention") version ("1.0.0")
+    id("fireplace.central-publication")
 }
 
 rootProject.name = "fireplace"
-includeBuild("build-logic")
 include(
     "fireplace-swing",
     "fireplace-swing-animation",
@@ -23,13 +28,21 @@ include(
 )
 enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 
-gradleEnterprise {
-    if (providers.environmentVariable("CI").isPresent) {
-        println("CI")
+develocity {
+    val ciEnv = providers.environmentVariable("CI")
+    buildScan {
+        termsOfUseUrl = "https://gradle.com/help/legal-terms-of-use"
+        // termsOfUseAgree is handled by .gradle/init.d/configure-develocity.init.gradle.kts
+        publishing {
+            this.onlyIf {
+                it.buildResult.failures.isNotEmpty() && !ciEnv.isPresent
+            }
+        }
+    }
+
+    if (ciEnv.isPresent) {
+        logger.debug("develocity: CI")
         buildScan {
-            termsOfServiceUrl = "https://gradle.com/terms-of-service"
-            termsOfServiceAgree = "yes"
-            publishAlways()
             tag("CI")
 
             if (providers.environmentVariable("GITHUB_ACTIONS").isPresent) {

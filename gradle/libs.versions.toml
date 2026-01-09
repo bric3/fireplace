@@ -35,8 +35,11 @@ kotlin-coroutines = "1.10.2"
 # Gradle plugins
 bnd = "7.1.0"
 test-logger = "4.0.0"
-semver = "0.9.0"
+# Hold onto 0.8.0 for now due to imcompatibility with 2.2.0 kotlin metadata,
+# see https://github.com/JavierSegoviaCordoba/semver-gradle-plugin/issues/205
+semver = "0.8.0"
 license-report = "2.9"
+nmcp = "1.4.3"
 
 [libraries]
 jetbrains-annotations = { group = "org.jetbrains", name = "annotations", version.ref = "jetbrains-annotations" }
@@ -69,6 +72,7 @@ gradlePlugin-testLogger = { module = "com.adarshr:gradle-test-logger-plugin", ve
 gradlePlugin-bnd = { module = "biz.aQute.bnd.builder:biz.aQute.bnd.builder.gradle.plugin", version.ref = "bnd" }
 gradlePlugin-semver = { module = "com.javiersc.semver:semver-gradle-plugin", version.ref = "semver" }
 gradlePlugin-licenceReport = { module = " com.github.jk1.dependency-license-report:com.github.jk1.dependency-license-report.gradle.plugin", version.ref = "license-report" }
+gradlePlugin-nmcp = { module = "com.gradleup.nmcp:nmcp", version.ref = "nmcp" }
 
 [bundles]
 junit-jupiter = ["junit-jupiter-api", "junit-jupiter-engine"]
@@ -77,3 +81,6 @@ darklaf = ["darklaf-platform-preferences", "darklaf-platform-decorations"]
 kotlinx-coroutines = ["kotlin-coroutines-core", "kotlin-coroutines-test"]
 batik = ["batik-svggen", "batik-dom"]
 eclipse-swt = ["eclipse-swt", "eclipse-jface", "eclipse-ui-forms"]
+
+[plugins]
+shadow = { id = "com.gradleup.shadow", version = "9.3.1" }
