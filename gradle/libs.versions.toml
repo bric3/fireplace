@@ -10,34 +10,34 @@
 
 [versions]
 jetbrains-annotations = "26.0.2-1"
-flatlaf = "3.6.1"
+flatlaf = "3.7"
 darklaf = "3.1.1"
-classgraph = "4.8.181"
+classgraph = "4.8.184"
 
 radiance-animation = "7.5.0"
 
 jmc-flightrecorder = "9.1.1"
 
-junit-jupiter = "5.14.0"
+junit-jupiter = "5.14.2"
 assertj = "3.27.6"
 
 # Used for SVG export
 batik = "1.19"
 
-eclipse-swt = "3.131.0"
-eclipse-jface = "3.38.0"
-eclipse-ui-forms = "3.13.600"
+eclipse-swt = "3.132.0"
+eclipse-jface = "3.38.100"
+eclipse-ui-forms = "3.13.700"
 
 # Kotlin
-kotlin = "2.2.20"
+kotlin = "2.3.0"
 kotlin-coroutines = "1.10.2"
 
 # Gradle plugins
-bnd = "7.1.0"
+bnd = "7.2.0"
 test-logger = "4.0.0"
 # Hold onto 0.8.0 for now due to imcompatibility with 2.2.0 kotlin metadata,
 # see https://github.com/JavierSegoviaCordoba/semver-gradle-plugin/issues/205
-semver = "0.8.0"
+semver = "0.9.0"
 license-report = "2.9"
 nmcp = "1.4.3"
 

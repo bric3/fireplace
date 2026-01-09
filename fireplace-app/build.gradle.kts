@@ -11,7 +11,7 @@ plugins {
     id("fireplace.application")
     id("fireplace.licence-report")
     alias(libs.plugins.shadow)
-    kotlin("jvm") version "2.2.20"
+    kotlin("jvm") version "2.3.0"
 }
 
 description = "Opens a JFR file to inspect its content."
