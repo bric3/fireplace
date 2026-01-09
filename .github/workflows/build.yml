@@ -13,9 +13,9 @@ on:
   pull_request:
     branches: [ master ]
 
-concurrency:
-  group: ci-tests-${{ github.ref }}-1
-  cancel-in-progress: true
+#concurrency:
+#  group: ci-tests-${{ github.ref }}-1
+#  cancel-in-progress: true
 
 env:
   # https://docs.github.com/en/developers/webhooks-and-events/webhook-events-and-payloads#pull_request
