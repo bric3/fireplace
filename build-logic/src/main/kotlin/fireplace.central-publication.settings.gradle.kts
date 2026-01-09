@@ -34,6 +34,11 @@ configure<nmcp.internal.DefaultNmcpSettings>() {
 
 gradle.lifecycle.afterProject {
     if (project.rootProject == project) {
+        // Required to resolve com.gradleup.nmcp:nmcp-tasks dependency
+        project.repositories {
+            mavenCentral()
+        }
+
         project.tasks {
             register(PublishingPlugin.PUBLISH_LIFECYCLE_TASK_NAME) {
                 if (project.isNotSnapshot.getOrElse(false)) {
