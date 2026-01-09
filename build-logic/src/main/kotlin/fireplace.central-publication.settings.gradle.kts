@@ -16,11 +16,11 @@ configure<nmcp.internal.DefaultNmcpSettings>() {
         // See https://github.com/gradle/gradle/issues/36229
         // Workaround use a provider calling System.getenv(...) instead
         username = providers.gradleProperty("mavenCentralUsername")
-            .orElse(providers.provider { System.getenv("MAVENCENTRAL_USERNAME") })
+            .orElse(providers.provider { System.getenv("MAVEN_CENTRAL_USERNAME") })
             .orElse("")
 
         password = providers.gradleProperty("mavenCentralPassword")
-            .orElse(providers.provider { System.getenv("MAVENCENTRAL_PASSWORD") })
+            .orElse(providers.provider { System.getenv("MAVEN_CENTRAL_PASSWORD") })
             .orElse("")
 
         // publish manually from the portal
