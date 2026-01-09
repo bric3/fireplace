@@ -1,3 +1,5 @@
+import kotlin.text.get
+
 /*
  * Fireplace
  *
@@ -63,6 +65,14 @@ tasks.withType<JavaExec>().configureEach {
             )
         }
     }
+}
+
+// workaround for https://youtrack.jetbrains.com/issue/IDEA-316081/Gradle-8-toolchain-error-Toolchain-from-executable-property-does-not-match-toolchain-from-javaLauncher-property-when-different
+gradle.taskGraph.whenReady {
+    val ideRunTask = allTasks.find { it.name.endsWith(".main()") } as? JavaExec
+    // note that javaLauncher property is actually correct
+    @Suppress("UsePropertyAccessSyntax") // otherwise fails with: 'Val cannot be reassigned'
+    ideRunTask?.setExecutable(javaToolchains.launcherFor(java.toolchain).get().executablePath.asFile.absolutePath)
 }
 
 tasks.jar {

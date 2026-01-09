@@ -14,20 +14,34 @@ on:
     branches: [ master ]
 
 concurrency:
-  group: ci-tests-${{ github.ref }}-1
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 env:
   # https://docs.github.com/en/developers/webhooks-and-events/webhook-events-and-payloads#pull_request
   GITHUB_PR_NUMBER: ${{github.event.pull_request.number}}
+  RELEASE_BRANCH: master
+
 jobs:
+  config:
+    runs-on: ubuntu-latest
+    outputs:
+      release-branch: ${{ steps.set-config.outputs.release-branch }}
+    steps:
+      - name: Set configuration
+        id: set-config
+        run: |
+          echo "release-branch=${{ env.RELEASE_BRANCH }}" >> $GITHUB_OUTPUT
+
   build:
     runs-on: ubuntu-latest
+    needs: [config]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
-          fetch-depth: 0
+          fetch-depth: 400
+          fetch-tags: 'true'
 
       #      - name: debug
       #        run: echo "${{ toJSON(github.event)}}"
@@ -36,27 +50,27 @@ jobs:
         uses: gradle/actions/wrapper-validation@v3
 
       - name: Set up JDK
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           java-version: '21'
           distribution: 'zulu'
 
       - name: Setup Gradle
         id: setup-gradle
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@v5
 
       - name: Build with Gradle
         run: ./gradlew build --stacktrace
 
       - name: Upload build reports
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         if: failure()
         with:
           name: build-reports
           path: "**/build/reports/*"
 
       - name: Upload Test Report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         if: failure()
         with:
           name: junit-test-results
@@ -64,7 +78,7 @@ jobs:
           retention-days: 1
 
       - name: Comment with build scan url
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         if: github.event_name == 'pull_request' && failure()
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
@@ -77,13 +91,13 @@ jobs:
             })
 
       - name: Publish snapshot when on master
-        if: success() && github.event_name != 'pull_request' && github.ref == 'refs/heads/master'
+        if: success() && github.event_name != 'pull_request' && github.ref == format('refs/heads/{0}', needs.config.outputs.release-branch)
         env:
           ORG_GRADLE_PROJECT_signingKey: ${{ secrets.ORG_GRADLE_PROJECT_SIGNINGKEY }}
           ORG_GRADLE_PROJECT_signingPassword: ${{ secrets.ORG_GRADLE_PROJECT_SIGNINGPASSWORD }}
-          ORG_GRADLE_PROJECT_ossrhUsername: ${{ secrets.ORG_GRADLE_PROJECT_OSSRHUSERNAME }}
-          ORG_GRADLE_PROJECT_ossrhPassword: ${{ secrets.ORG_GRADLE_PROJECT_OSSRHPASSWORD }}
-        run: ./gradlew publish -Ppublish.central=true -Psemver.stage=snapshot
+          MAVEN_CENTRAL_USERNAME: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+          MAVEN_CENTRAL_PASSWORD: ${{ secrets.MAVEN_CENTRAL_TOKEN }}
+        run: ./gradlew publish -Ppublish.central=true -Psemver.tagPrefix=v -Psemver.stage=snapshot
 
   # This job will update the PR with the JUnit report
   # In order to be able to make the most of it this job in particular has
@@ -100,11 +114,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Download Test Report
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: junit-test-results
       - name: Publish Test Report
-        uses: mikepenz/action-junit-report@v5
+        uses: mikepenz/action-junit-report@v6
         with:
           check_name: Test Report
           commit: ${{github.event.workflow_run.head_sha}}
