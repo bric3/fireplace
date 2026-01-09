@@ -14,7 +14,7 @@ on:
     branches: [ master ]
 
 #concurrency:
-#  group: ci-tests-${{ github.ref }}-1
+#  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
 #  cancel-in-progress: true
 
 env:
@@ -87,7 +87,7 @@ jobs:
             })
 
       - name: Publish snapshot when on master
-        if: success() && github.event_name != 'pull_request' && github.ref == format('refs/heads/{0}', needs.config.outputs.release-branch)
+        if: success() && github.ref == format('refs/heads/{0}', needs.config.outputs.release-branch)
         env:
           ORG_GRADLE_PROJECT_signingKey: ${{ secrets.ORG_GRADLE_PROJECT_SIGNINGKEY }}
           ORG_GRADLE_PROJECT_signingPassword: ${{ secrets.ORG_GRADLE_PROJECT_SIGNINGPASSWORD }}
