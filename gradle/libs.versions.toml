@@ -39,7 +39,7 @@ test-logger = "4.0.0"
 # see https://github.com/JavierSegoviaCordoba/semver-gradle-plugin/issues/205
 semver = "0.8.0"
 license-report = "2.9"
-nmcp = "1.1.0"
+nmcp = "1.4.3"
 
 [libraries]
 jetbrains-annotations = { group = "org.jetbrains", name = "annotations", version.ref = "jetbrains-annotations" }

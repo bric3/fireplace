@@ -10,7 +10,8 @@
 plugins {
     id("fireplace.java-library")
     id("fireplace.maven-publication")
-    id("com.gradleup.nmcp")
+    `maven-publish`
+    signing
 }
 
 publishing {

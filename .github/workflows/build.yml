@@ -9,7 +9,7 @@ name: Java CI with Gradle
 
 on:
   push:
-    branches: [ master ]
+    branches: [ master, switch-to-nmcp ]
   pull_request:
     branches: [ master ]
 
@@ -20,14 +20,27 @@ concurrency:
 env:
   # https://docs.github.com/en/developers/webhooks-and-events/webhook-events-and-payloads#pull_request
   GITHUB_PR_NUMBER: ${{github.event.pull_request.number}}
+  RELEASE_BRANCH: switch-to-nmcp
+
 jobs:
+  config:
+    runs-on: ubuntu-latest
+    outputs:
+      release-branch: ${{ steps.set-config.outputs.release-branch }}
+    steps:
+      - name: Set configuration
+        id: set-config
+        run: |
+          echo "release-branch=${{ env.RELEASE_BRANCH }}" >> $GITHUB_OUTPUT
+
   build:
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v6
         with:
-          fetch-depth: 0
+          fetch-depth: 100
+          fetch-tags: 'true'
 
       #      - name: debug
       #        run: echo "${{ toJSON(github.event)}}"
@@ -74,13 +87,13 @@ jobs:
             })
 
       - name: Publish snapshot when on master
-        if: success() && github.event_name != 'pull_request' && github.ref == 'refs/heads/master'
+        if: success() && github.event_name != 'pull_request' && github.ref == format('refs/heads/{0}', needs.config.outputs.release-branch)
         env:
           ORG_GRADLE_PROJECT_signingKey: ${{ secrets.ORG_GRADLE_PROJECT_SIGNINGKEY }}
           ORG_GRADLE_PROJECT_signingPassword: ${{ secrets.ORG_GRADLE_PROJECT_SIGNINGPASSWORD }}
           MAVENCENTRAL_USERNAME: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
           MAVENCENTRAL_TOKEN: ${{ secrets.MAVEN_CENTRAL_TOKEN }}
-        run: ./gradlew jreleaseDeploy -PSNAPSHOT -Ppublish.central=true -Psemver.stage=snapshot
+        run: ./gradlew publish -Ppublish.central=true -Psemver.tagPrefix=v -Psemver.stage=snapshot
 
   # This job will update the PR with the JUnit report
   # In order to be able to make the most of it this job in particular has

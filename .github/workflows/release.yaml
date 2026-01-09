@@ -51,6 +51,7 @@ jobs:
         with:
           ref: ${{ github.event.inputs.tag || github.event.release.tag_name }}
           fetch-depth: 200
+          fetch-tags: 'true'
       - name: Set up JDK
         uses: actions/setup-java@v5
         with:
@@ -70,7 +71,7 @@ jobs:
           MAVENCENTRAL_USERNAME: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
           MAVENCENTRAL_TOKEN: ${{ secrets.MAVEN_CENTRAL_TOKEN }}
         # com.javiersc.semver.gradle.plugin should pick the actual tag
-        run: ./gradlew jreleaserDeploy -PRELEASE -Ppublish.central=${{ inputs.dry-run && 'false' || 'true' }} --stacktrace
+        run: ./gradlew publish -Ppublish.central=${{ inputs.dry-run && 'false' || 'true' }} --stacktrace
 
       - name: Print JReleaser information
         if: always()

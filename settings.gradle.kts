@@ -7,13 +7,18 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
+
+pluginManagement {
+    includeBuild("build-logic")
+}
+
 plugins {
     id("com.gradle.develocity") version "4.1.1"
     id("org.gradle.toolchains.foojay-resolver-convention") version ("1.0.0")
+    id("fireplace.central-publication")
 }
 
 rootProject.name = "fireplace"
-includeBuild("build-logic")
 include(
     "fireplace-swing",
     "fireplace-swing-animation",
