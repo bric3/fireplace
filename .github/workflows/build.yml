@@ -9,18 +9,18 @@ name: Java CI with Gradle
 
 on:
   push:
-    branches: [ master, switch-to-nmcp ]
+    branches: [ master ]
   pull_request:
     branches: [ master ]
 
-#concurrency:
-#  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-#  cancel-in-progress: true
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 env:
   # https://docs.github.com/en/developers/webhooks-and-events/webhook-events-and-payloads#pull_request
   GITHUB_PR_NUMBER: ${{github.event.pull_request.number}}
-  RELEASE_BRANCH: switch-to-nmcp
+  RELEASE_BRANCH: master
 
 jobs:
   config:
@@ -87,7 +87,7 @@ jobs:
             })
 
       - name: Publish snapshot when on master
-        if: success() && github.ref == format('refs/heads/{0}', needs.config.outputs.release-branch)
+        if: success() && github.event_name != 'pull_request' && github.ref == format('refs/heads/{0}', needs.config.outputs.release-branch)
         env:
           ORG_GRADLE_PROJECT_signingKey: ${{ secrets.ORG_GRADLE_PROJECT_SIGNINGKEY }}
           ORG_GRADLE_PROJECT_signingPassword: ${{ secrets.ORG_GRADLE_PROJECT_SIGNINGPASSWORD }}
