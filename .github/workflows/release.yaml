@@ -50,7 +50,7 @@ jobs:
       - uses: actions/checkout@v6
         with:
           ref: ${{ github.event.inputs.tag || github.event.release.tag_name }}
-          fetch-depth: 200
+          fetch-depth: 400
           fetch-tags: 'true'
       - name: Set up JDK
         uses: actions/setup-java@v5
