@@ -1,6 +1,8 @@
 image:https://github.com/bric3/fireplace/actions/workflows/build.yml/badge.svg[Java CI with Gradle,link=https://github.com/bric3/fireplace/actions/workflows/build.yml]
 // image:https://snyk.io/test/github/bric3/fireplace/badge.svg?targetFile=build.gradle["Known Vulnerabilities", link="https://snyk.io/test/github/bric3/fireplace?targetFile=build.gradle.kts"]
 image:https://img.shields.io/maven-central/v/io.github.bric3.fireplace/fireplace-swing.svg["Maven Central", link="https://search.maven.org/artifact/io.github.bric3.fireplace/fireplace-swing"]
+image:https://img.shields.io/github/release/bric3/fireplace.svg?label=Github%20Release[Github Release,link=https://github.com/bric3/jardiff/releases/latest]
+image:https://img.shields.io/github/license/bric3/fireplace.svg[License]
 
 == Flamegraph / Iciclegraph Java Swing component
 
@@ -101,4 +103,4 @@ Use `FlamegraphImage` to render a flamegraph to a static image (e.g., for export
 
 Snapshot versions will be delivered at
 
-> https://s01.oss.sonatype.org/content/repositories/snapshots/io/github/bric3/fireplace[https://s01.oss.sonatype.org/content/repositories/*snapshots*/io/github/bric3/fireplace]
+> Maven Central Portal: https://central.sonatype.com/repository/maven-snapshots/[https://s01.oss.sonatype.org/content/repositories/*snapshots*/io/github/bric3/fireplace]
