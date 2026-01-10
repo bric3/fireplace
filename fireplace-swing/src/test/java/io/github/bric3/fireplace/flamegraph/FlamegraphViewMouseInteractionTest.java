@@ -9,6 +9,7 @@
  */
 package io.github.bric3.fireplace.flamegraph;
 
+import io.github.bric3.fireplace.flamegraph.FlamegraphView.FlamegraphCanvas;
 import io.github.bric3.fireplace.flamegraph.FlamegraphView.FrameClickAction;
 import io.github.bric3.fireplace.flamegraph.FlamegraphView.Mode;
 import org.jetbrains.annotations.NotNull;
@@ -26,14 +27,28 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 
 import static io.github.bric3.fireplace.flamegraph.SwingTestUtil.findScrollPane;
-import static org.assertj.core.api.Assertions.*;
-import static org.mockito.Mockito.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.atMostOnce;
+import static org.mockito.Mockito.clearInvocations;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.nullable;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 /**
  * Tests for {@link FlamegraphView} user interaction features.
  */
+@SuppressWarnings({"DataFlowIssue", "unchecked", "rawtypes"})
 @DisplayName("FlamegraphView - Interaction & Mouse")
-class FlamegraphViewInteractionTest {
+class FlamegraphViewMouseInteractionTest {
 
     private FlamegraphView<String> fg;
 
@@ -103,113 +118,6 @@ class FlamegraphViewInteractionTest {
     }
 
     @Nested
-    @DisplayName("Client Property")
-    class ClientPropertyTests {
-
-        @Test
-        void putClientProperty_stores_value() {
-            fg.putClientProperty("testKey", "testValue");
-
-            assertThat(fg.<String>getClientProperty("testKey")).isEqualTo("testValue");
-        }
-
-        @Test
-        void putClientProperty_null_value_removes_key() {
-            fg.putClientProperty("testKey", "testValue");
-            fg.putClientProperty("testKey", null);
-
-            assertThat(fg.<String>getClientProperty("testKey")).isNull();
-        }
-
-        @Test
-        void putClientProperty_null_key_throws_exception() {
-            assertThatThrownBy(() -> fg.putClientProperty(null, "value"))
-                    .isInstanceOf(NullPointerException.class);
-        }
-
-        @Test
-        void getClientProperty_non_existent_returns_null() {
-            assertThat(fg.<String>getClientProperty("nonExistent")).isNull();
-        }
-    }
-
-    @Nested
-    @DisplayName("Popup Consumer")
-    class PopupConsumerTests {
-
-        @Test
-        void setPopupConsumer_sets_consumer() {
-            BiConsumer<FrameBox<String>, MouseEvent> consumer = (frame, e) -> {};
-
-            fg.setPopupConsumer(consumer);
-
-            assertThat(fg.getPopupConsumer()).isEqualTo(consumer);
-        }
-
-        @Test
-        void setPopupConsumer_null_throws_exception() {
-            assertThatThrownBy(() -> fg.setPopupConsumer(null))
-                    .isInstanceOf(NullPointerException.class);
-        }
-
-        @Test
-        void getPopupConsumer_default_is_null() {
-            assertThat(fg.getPopupConsumer()).isNull();
-        }
-    }
-
-    @Nested
-    @DisplayName("Selected Frame Consumer")
-    class SelectedFrameConsumerTests {
-
-        @Test
-        void setSelectedFrameConsumer_sets_consumer() {
-            BiConsumer<FrameBox<String>, MouseEvent> consumer = (frame, e) -> {};
-
-            fg.setSelectedFrameConsumer(consumer);
-
-            assertThat(fg.getSelectedFrameConsumer()).isEqualTo(consumer);
-        }
-
-        @Test
-        void setSelectedFrameConsumer_null_throws_exception() {
-            assertThatThrownBy(() -> fg.setSelectedFrameConsumer(null))
-                    .isInstanceOf(NullPointerException.class);
-        }
-    }
-
-    @Nested
-    @DisplayName("Consumer Callbacks")
-    class ConsumerCallbackTests {
-
-        @Test
-        void popup_consumer_receives_frame_and_event() {
-            var receivedFrame = new AtomicReference<FrameBox<String>>();
-            var receivedEvent = new AtomicReference<MouseEvent>();
-
-            BiConsumer<FrameBox<String>, MouseEvent> consumer = (frame, event) -> {
-                receivedFrame.set(frame);
-                receivedEvent.set(event);
-            };
-
-            fg.setPopupConsumer(consumer);
-            assertThat(fg.getPopupConsumer()).isEqualTo(consumer);
-        }
-
-        @Test
-        void selected_frame_consumer_receives_frame_and_event() {
-            var receivedFrame = new AtomicReference<FrameBox<String>>();
-
-            BiConsumer<FrameBox<String>, MouseEvent> consumer = (frame, event) -> {
-                receivedFrame.set(frame);
-            };
-
-            fg.setSelectedFrameConsumer(consumer);
-            assertThat(fg.getSelectedFrameConsumer()).isEqualTo(consumer);
-        }
-    }
-
-    @Nested
     @DisplayName("Configure Canvas")
     class ConfigureCanvasTests {
 
@@ -263,6 +171,47 @@ class FlamegraphViewInteractionTest {
             var spiedCanvas = spy(canvas);
             doReturn(g2d).when(spiedCanvas).getGraphics();
             scrollPane.getViewport().setView(spiedCanvas);
+        }
+
+        @Test
+        void setSelectedFrameConsumer_sets_consumer() {
+            BiConsumer<FrameBox<String>, MouseEvent> consumer = (frame, e) -> {};
+
+            fg.setSelectedFrameConsumer(consumer);
+
+            assertThat(fg.getSelectedFrameConsumer()).isEqualTo(consumer);
+        }
+
+        @Test
+        void setSelectedFrameConsumer_null_throws_exception() {
+            assertThatThrownBy(() -> fg.setSelectedFrameConsumer(null))
+                    .isInstanceOf(NullPointerException.class);
+        }
+
+        @Test
+        void popup_consumer_receives_frame_and_event() {
+            var receivedFrame = new AtomicReference<FrameBox<String>>();
+            var receivedEvent = new AtomicReference<MouseEvent>();
+
+            BiConsumer<FrameBox<String>, MouseEvent> consumer = (frame, event) -> {
+                receivedFrame.set(frame);
+                receivedEvent.set(event);
+            };
+
+            fg.setPopupConsumer(consumer);
+            assertThat(fg.getPopupConsumer()).isEqualTo(consumer);
+        }
+
+        @Test
+        void selected_frame_consumer_receives_frame_and_event() {
+            var receivedFrame = new AtomicReference<FrameBox<String>>();
+
+            BiConsumer<FrameBox<String>, MouseEvent> consumer = (frame, event) -> {
+                receivedFrame.set(frame);
+            };
+
+            fg.setSelectedFrameConsumer(consumer);
+            assertThat(fg.getSelectedFrameConsumer()).isEqualTo(consumer);
         }
 
         @Test
@@ -1720,19 +1669,16 @@ class FlamegraphViewInteractionTest {
     @Nested
     @DisplayName("Mouse Popup Behavior")
     class MousePopupBehaviorTests {
-
-        private BufferedImage image;
-        private Graphics2D g2d;
         private JScrollPane scrollPane;
+        private FlamegraphRenderEngine<String> mockRenderEngine;
+        private FrameBox<String> testFrame;
 
         @BeforeEach
         void setUpGraphicsAndComponents() {
-            image = new BufferedImage(800, 600, BufferedImage.TYPE_INT_ARGB);
-            g2d = image.createGraphics();
-
             // Set up a model with frames
+            testFrame = new FrameBox<>("root", 0.0, 1.0, 0);
             var frames = List.of(
-                    new FrameBox<>("root", 0.0, 1.0, 0),
+                    testFrame,
                     new FrameBox<>("child1", 0.0, 0.5, 1),
                     new FrameBox<>("child2", 0.5, 1.0, 1)
             );
@@ -1744,21 +1690,42 @@ class FlamegraphViewInteractionTest {
             scrollPane.setSize(800, 600);
             scrollPane.getViewport().setSize(800, 600);
 
-            var canvas = scrollPane.getViewport().getView();
+            var canvas = (FlamegraphCanvas) scrollPane.getViewport().getView();
             canvas.setSize(800, 600);
 
-            // Spy on canvas to return real Graphics2D
-            var spiedCanvas = spy(canvas);
-            doReturn(g2d).when(spiedCanvas).getGraphics();
-            scrollPane.getViewport().setView(spiedCanvas);
+            // Mock the flamegraphRenderEngine on the canvas
+            // The mock controls getFrameAt() return value, so it doesn't matter
+            // that getGraphics() returns null in headless mode
+            mockRenderEngine = mock(FlamegraphRenderEngine.class);
+            canvas.setFlamegraphRenderEngine(mockRenderEngine);
+        }
+
+        @Test
+        void setPopupConsumer_sets_consumer() {
+            BiConsumer<FrameBox<String>, MouseEvent> consumer = (frame, e) -> {};
+
+            fg.setPopupConsumer(consumer);
+
+            assertThat(fg.getPopupConsumer()).isEqualTo(consumer);
+        }
+
+        @Test
+        void setPopupConsumer_null_throws_exception() {
+            assertThatThrownBy(() -> fg.setPopupConsumer(null))
+                    .isInstanceOf(NullPointerException.class);
+        }
+
+        @Test
+        void getPopupConsumer_default_is_null() {
+            assertThat(fg.getPopupConsumer()).isNull();
         }
 
         @Test
         void left_button_press_inside_minimap_returns_without_calling_handlePopup() {
             // Arrange - enable minimap and press inside it
             fg.setShowMinimap(true);
-            var popupConsumerCalled = new AtomicReference<>(false);
-            fg.setPopupConsumer((frame, e) -> popupConsumerCalled.set(true));
+            BiConsumer<FrameBox<String>, MouseEvent> popupConsumer = mock(BiConsumer.class);
+            fg.setPopupConsumer(popupConsumer);
 
             var canvas = scrollPane.getViewport().getView();
 
@@ -1782,15 +1749,15 @@ class FlamegraphViewInteractionTest {
             }
 
             // Assert - popup consumer should NOT be called for left button
-            assertThat(popupConsumerCalled.get()).isFalse();
+            verify(popupConsumer, never()).accept(any(), any());
         }
 
         @Test
         void left_button_press_outside_minimap_returns_without_calling_handlePopup() {
             // Arrange
             fg.setShowMinimap(true);
-            var popupConsumerCalled = new AtomicReference<>(false);
-            fg.setPopupConsumer((frame, e) -> popupConsumerCalled.set(true));
+            BiConsumer<FrameBox<String>, MouseEvent> popupConsumer = mock(BiConsumer.class);
+            fg.setPopupConsumer(popupConsumer);
 
             var canvas = scrollPane.getViewport().getView();
 
@@ -1810,14 +1777,14 @@ class FlamegraphViewInteractionTest {
             canvas.dispatchEvent(event);
 
             // Assert - popup consumer should NOT be called for left button
-            assertThat(popupConsumerCalled.get()).isFalse();
+            verify(popupConsumer, never()).accept(any(), any());
         }
 
         @Test
         void non_left_button_press_without_popup_trigger_returns_early_from_handlePopup() {
             // Arrange - right button but NOT a popup trigger (isPopupTrigger = false)
-            var popupConsumerCalled = new AtomicReference<>(false);
-            fg.setPopupConsumer((frame, e) -> popupConsumerCalled.set(true));
+            BiConsumer<FrameBox<String>, MouseEvent> popupConsumer = mock(BiConsumer.class);
+            fg.setPopupConsumer(popupConsumer);
 
             var canvas = scrollPane.getViewport().getView();
 
@@ -1836,7 +1803,7 @@ class FlamegraphViewInteractionTest {
             canvas.dispatchEvent(event);
 
             // Assert - popup consumer should NOT be called when not a popup trigger
-            assertThat(popupConsumerCalled.get()).isFalse();
+            verify(popupConsumer, never()).accept(any(), any());
         }
 
         @Test
@@ -1870,11 +1837,9 @@ class FlamegraphViewInteractionTest {
         @Test
         void non_left_button_press_with_popup_trigger_and_consumer_attempts_frame_lookup() {
             // Arrange - right button, IS a popup trigger, with consumer set
-            var popupConsumerCalled = new AtomicReference<>(false);
-
             var freshFg = new FlamegraphView<String>();
             freshFg.setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0))));
-            freshFg.setPopupConsumer((frame, e) -> popupConsumerCalled.set(true));
+            freshFg.setPopupConsumer((frame, e) -> {});
 
             var freshScrollPane = findScrollPane(freshFg.component);
             var canvas = freshScrollPane.getViewport().getView();
@@ -1901,11 +1866,9 @@ class FlamegraphViewInteractionTest {
         @Test
         void mouse_released_with_popup_trigger_and_consumer_attempts_frame_lookup() {
             // Arrange - mouseReleased also calls handlePopup (line 1494-1496)
-            var popupConsumerCalled = new AtomicReference<>(false);
-
             var freshFg = new FlamegraphView<String>();
             freshFg.setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0))));
-            freshFg.setPopupConsumer((frame, e) -> popupConsumerCalled.set(true));
+            freshFg.setPopupConsumer((frame, e) -> {});
 
             var freshScrollPane = findScrollPane(freshFg.component);
             var canvas = freshScrollPane.getViewport().getView();
@@ -1932,8 +1895,8 @@ class FlamegraphViewInteractionTest {
         @Test
         void mouse_released_without_popup_trigger_returns_early() {
             // Arrange
-            var popupConsumerCalled = new AtomicReference<>(false);
-            fg.setPopupConsumer((frame, e) -> popupConsumerCalled.set(true));
+            BiConsumer<FrameBox<String>, MouseEvent> popupConsumer = mock(BiConsumer.class);
+            fg.setPopupConsumer(popupConsumer);
 
             var canvas = scrollPane.getViewport().getView();
 
@@ -1952,7 +1915,7 @@ class FlamegraphViewInteractionTest {
             canvas.dispatchEvent(event);
 
             // Assert - popup consumer should NOT be called when not a popup trigger
-            assertThat(popupConsumerCalled.get()).isFalse();
+            verify(popupConsumer, never()).accept(any(), any());
         }
 
         @Test
@@ -1986,15 +1949,9 @@ class FlamegraphViewInteractionTest {
         void handlePopup_with_consumer_and_frame_found_invokes_consumer() {
             // Arrange - use fresh FlamegraphView as spied canvas doesn't help here
             // (the listener accesses FlamegraphCanvas.this which is the original canvas)
-            var popupFrameRef = new AtomicReference<FrameBox<String>>();
-            var popupEventRef = new AtomicReference<MouseEvent>();
-
             var freshFg = new FlamegraphView<String>();
             freshFg.setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0))));
-            freshFg.setPopupConsumer((frame, e) -> {
-                popupFrameRef.set(frame);
-                popupEventRef.set(e);
-            });
+            freshFg.setPopupConsumer((frame, e) -> {});
 
             var freshScrollPane = findScrollPane(freshFg.component);
             var canvas = freshScrollPane.getViewport().getView();
@@ -2021,11 +1978,9 @@ class FlamegraphViewInteractionTest {
         @Test
         void popup_trigger_on_empty_area_attempts_frame_lookup() {
             // Arrange - click on empty area where no frame exists
-            var popupConsumerCalled = new AtomicReference<>(false);
-
             var freshFg = new FlamegraphView<String>();
             freshFg.setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0))));
-            freshFg.setPopupConsumer((frame, e) -> popupConsumerCalled.set(true));
+            freshFg.setPopupConsumer((frame, e) -> {});
 
             var freshScrollPane = findScrollPane(freshFg.component);
             var canvas = freshScrollPane.getViewport().getView();
@@ -2047,6 +2002,66 @@ class FlamegraphViewInteractionTest {
             assertThatThrownBy(() -> canvas.dispatchEvent(event))
                     .isInstanceOf(NullPointerException.class)
                     .hasMessageContaining("g2");
+        }
+
+        @Test
+        void handlePopup_invokes_consumer_when_frame_is_found() {
+            // Arrange - stub mockRenderEngine to return a frame
+            // Use nullable() because getGraphics() returns null in headless mode
+            when(mockRenderEngine.getFrameAt(nullable(Graphics2D.class), any(Rectangle.class), any(Point.class)))
+                    .thenReturn(java.util.Optional.of(testFrame));
+
+            BiConsumer<FrameBox<String>, MouseEvent> popupConsumer = mock(BiConsumer.class);
+            fg.setPopupConsumer(popupConsumer);
+
+            var canvas = scrollPane.getViewport().getView();
+
+            var event = new MouseEvent(
+                    canvas,
+                    MouseEvent.MOUSE_PRESSED,
+                    System.currentTimeMillis(),
+                    MouseEvent.BUTTON3_DOWN_MASK,
+                    400, 300,
+                    1,
+                    true, // IS a popup trigger
+                    MouseEvent.BUTTON3
+            );
+
+            // Act
+            canvas.dispatchEvent(event);
+
+            // Assert - consumer should be invoked with the found frame and event
+            verify(popupConsumer).accept(testFrame, event);
+        }
+
+        @Test
+        void handlePopup_does_not_invoke_consumer_when_no_frame_is_found() {
+            // Arrange - stub mockRenderEngine to return empty
+            // Use nullable() because getGraphics() returns null in headless mode
+            when(mockRenderEngine.getFrameAt(nullable(Graphics2D.class), any(Rectangle.class), any(Point.class)))
+                    .thenReturn(java.util.Optional.empty());
+
+            BiConsumer<FrameBox<String>, MouseEvent> popupConsumer = mock(BiConsumer.class);
+            fg.setPopupConsumer(popupConsumer);
+
+            var canvas = scrollPane.getViewport().getView();
+
+            var event = new MouseEvent(
+                    canvas,
+                    MouseEvent.MOUSE_PRESSED,
+                    System.currentTimeMillis(),
+                    MouseEvent.BUTTON3_DOWN_MASK,
+                    799, 599, // empty area
+                    1,
+                    true, // IS a popup trigger
+                    MouseEvent.BUTTON3
+            );
+
+            // Act
+            canvas.dispatchEvent(event);
+
+            // Assert - consumer should NOT be invoked when no frame is found
+            verify(popupConsumer, never()).accept(any(), any());
         }
     }
 }
