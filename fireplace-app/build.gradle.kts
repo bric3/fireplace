@@ -11,7 +11,7 @@ plugins {
     id("fireplace.application")
     id("fireplace.licence-report")
     alias(libs.plugins.shadow)
-    kotlin("jvm") version "2.3.0"
+    kotlin("jvm")
 }
 
 description = "Opens a JFR file to inspect its content."
@@ -20,6 +20,8 @@ dependencies {
     implementation(libs.jetbrains.annotations)
     implementation(projects.fireplaceSwing)
     implementation(projects.fireplaceSwingAnimation)
+    implementation(libs.caffeine)
+    implementation(libs.fastutil.core)
     implementation(libs.classgraph)
     implementation(libs.bundles.flatlaf)
     implementation(libs.bundles.darklaf)

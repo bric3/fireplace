@@ -16,6 +16,7 @@ import org.jetbrains.annotations.Nullable;
 import java.awt.*;
 import java.awt.geom.Rectangle2D;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -86,22 +87,22 @@ class FlamegraphRenderEngine<T> {
      * Cache for the pre-computed depth given the canvas width.
      *
      * <p>
-     *     This cache leverages the WeakHashMap to cleanup keys that
-     *     are not anymore referenced, this is is useful when the canvas
-     *     changes width to avoid re-computation (i.e traversing the framebox
-     *     list again).
+     * This cache leverages the WeakHashMap to cleanup keys that
+     * are not anymore referenced, this is is useful when the canvas
+     * changes width to avoid re-computation (i.e traversing the framebox
+     * list again).
      * </p>
      * <p>
-     *     <strong>Note about {@link Integer} cache:</strong>
-     *     The default Integer cache goes from -128 to 127 by default (this is tunable),
-     *     these entries won't be reclaimed by GC ! However his code assumes the
-     *     canvas width will be higher, or way higher, in practice than 127.
-     *     If a width in the Integer cache range is entered this means it's
-     *     value won't be reclaimed as well, this is might be acceptable given the
-     *     size of the value, an Integer.
-     *     Currently there's no contingency plan if this get a problem, but if
-     *     if is we might want to look at VM params like {@code -XX:AutoBoxCacheMax}
-     *     and/or {@code java.lang.Integer.IntegerCache.high} property.
+     * <strong>Note about {@link Integer} cache:</strong>
+     * The default Integer cache goes from -128 to 127 by default (this is tunable),
+     * these entries won't be reclaimed by GC ! However his code assumes the
+     * canvas width will be higher, or way higher, in practice than 127.
+     * If a width in the Integer cache range is entered this means it's
+     * value won't be reclaimed as well, this is might be acceptable given the
+     * size of the value, an Integer.
+     * Currently there's no contingency plan if this get a problem, but if
+     * if is we might want to look at VM params like {@code -XX:AutoBoxCacheMax}
+     * and/or {@code java.lang.Integer.IntegerCache.high} property.
      * </p>
      */
     private final WeakHashMap<Integer, Integer> visibleDepthCache = new WeakHashMap<>();
@@ -186,11 +187,11 @@ class FlamegraphRenderEngine<T> {
      * and this depends on the font metrics).
      *
      * <p>
-     *     This methods don't update internal fields.
+     * This methods don't update internal fields.
      * </p>
      *
-     * @param g2           the graphics target ({@code null} not permitted), used for font metrics.
-     * @param canvasWidth  the current canvas width
+     * @param g2          the graphics target ({@code null} not permitted), used for font metrics.
+     * @param canvasWidth the current canvas width
      * @return The height of the visible frames in this flamegraph
      */
     public int computeVisibleFlamegraphHeight(
@@ -204,9 +205,9 @@ class FlamegraphRenderEngine<T> {
      * Computes the dimensions of the flamegraph for the specified width (just the height needs calculating,
      * and this depends on the font metrics).
      *
-     * @param g2           the graphics target ({@code null} not permitted), used for font metrics.
-     * @param canvasWidth  the current canvas width
-     * @param update       whether to update the internal fields.
+     * @param g2          the graphics target ({@code null} not permitted), used for font metrics.
+     * @param canvasWidth the current canvas width
+     * @param update      whether to update the internal fields.
      * @return The height of the visible frames in this flamegraph
      */
     public int computeVisibleFlamegraphHeight(
@@ -244,24 +245,24 @@ class FlamegraphRenderEngine<T> {
      * Draws the subset of the flame graph that fits within {@code viewRect} assuming that the whole
      * flame graph is being rendered within the specified {@code bounds}.
      *
-     * @param g2       the graphics target ({@code null} not permitted).
-     * @param bounds   the flame graph bounds ({@code null} not permitted).
-     * @param viewRect the subset that is being viewed/rendered ({@code null} not permitted).
+     * @param g2           the graphics target ({@code null} not permitted).
+     * @param canvasBounds the flame graph canvas bounds ({@code null} not permitted).
+     * @param viewRect     the subset that is being viewed/rendered ({@code null} not permitted).
      */
     public void paint(
             @NotNull Graphics2D g2,
-            @NotNull Rectangle2D bounds,
+            @NotNull Rectangle2D canvasBounds,
             @NotNull Rectangle2D viewRect
     ) {
-        internalPaint(g2, bounds, viewRect, false, icicle);
+        internalPaint(g2, canvasBounds, viewRect, false, icicle);
     }
 
     /**
      * Draws the subset of the flame graph that fits within {@code viewRect} assuming that the whole
      * flame graph is being rendered within the specified {@code bounds}.
      *
-     * @param g2       the graphics target ({@code null} not permitted).
-     * @param size     the flame graph bounds ({@code null} not permitted).
+     * @param g2   the graphics target ({@code null} not permitted).
+     * @param size the flame graph bounds ({@code null} not permitted).
      */
     public void paintToImage(
             @NotNull Graphics2D g2,
@@ -274,19 +275,19 @@ class FlamegraphRenderEngine<T> {
     /**
      * Paints the minimap (always the entire flame graph).
      *
-     * @param g2     the graphics target ({@code null} not permitted).
-     * @param bounds the bounds ({@code null} not permitted).
+     * @param g2           the graphics target ({@code null} not permitted).
+     * @param canvasBounds the bounds ({@code null} not permitted).
      */
     public void paintMinimap(
             @NotNull Graphics2D g2,
-            @NotNull Rectangle2D bounds
+            @NotNull Rectangle2D canvasBounds
     ) {
-        internalPaint(g2, bounds, bounds, true, icicle);
+        internalPaint(g2, canvasBounds, canvasBounds, true, icicle);
     }
 
     private void internalPaint(
             @NotNull Graphics2D g2,
-            @NotNull Rectangle2D bounds,
+            @NotNull Rectangle2D canvasBounds,
             @NotNull Rectangle2D viewRect,
             boolean minimapMode,
             boolean icicle
@@ -296,12 +297,12 @@ class FlamegraphRenderEngine<T> {
         }
 
         Objects.requireNonNull(g2);
-        Objects.requireNonNull(bounds);
+        Objects.requireNonNull(canvasBounds);
         Objects.requireNonNull(viewRect);
         Graphics2D g2d = (Graphics2D) g2.create();
         identifyDisplayScale(g2d);
         var frameBoxHeight = minimapMode ? minimapFrameBoxHeight : frameRenderer.getFrameBoxHeight(g2);
-        var flameGraphWidth = minimapMode ? viewRect.getWidth() : bounds.getWidth();
+        var flameGraphWidth = minimapMode ? viewRect.getWidth() : canvasBounds.getWidth();
         var frameRect = new Rectangle2D.Double(); // reusable rectangle
 
         var frames = frameModel.frames;
@@ -313,7 +314,7 @@ class FlamegraphRenderEngine<T> {
             int internalPadding = 0; // Remove ?
             frameRect.x = (int) (flameGraphWidth * rootFrame.startX) + internalPadding;
             frameRect.width = ((int) (flameGraphWidth * rootFrame.endX)) - frameRect.x - internalPadding;
-            frameRect.y = computeFrameRectY(bounds, frameBoxHeight, rootFrame.stackDepth, icicle);
+            frameRect.y = computeFrameRectY(canvasBounds, frameBoxHeight, rootFrame.stackDepth, icicle);
             frameRect.height = frameBoxHeight;
             rootFrameShape.setFrame(frameRect);
 
@@ -350,7 +351,7 @@ class FlamegraphRenderEngine<T> {
                 continue;
             }
 
-            frameRect.y = computeFrameRectY(bounds, frameBoxHeight, frame.stackDepth, icicle);
+            frameRect.y = computeFrameRectY(canvasBounds, frameBoxHeight, frame.stackDepth, icicle);
             frameRect.height = frameBoxHeight;
             frameShape.setFrame(frameRect);
 
@@ -383,18 +384,39 @@ class FlamegraphRenderEngine<T> {
     }
 
     private static int computeFrameRectY(
-            @NotNull Rectangle2D bounds,
+            @NotNull Rectangle2D canvasBounds,
             int frameBoxHeight,
             int stackDepth,
             boolean icicle
     ) {
+        // TODO model root box height
+        @SuppressWarnings("UnnecessaryLocalVariable")
+        var rootBoxHeight = frameBoxHeight;
         if (icicle) {
-            return frameBoxHeight * stackDepth;
+            // In Icicle, the y increases from 0 in the flamegraph canvas.
+            // The formula is: adding the root bow height, then the frame box height times the stack depth
+            // then subtracting the frame box height, as this code returns the y coordinate
+            //
+            // | root
+            // | f1
+            //  | f2
+            //   | f3 ↖ y = 3 x frameBoxHeight
+            return /* 0 + */ rootBoxHeight + (frameBoxHeight * stackDepth - frameBoxHeight);
         }
 
-        var flamegraphHeight = bounds.getHeight();
+        var flamegraphHeight = canvasBounds.getHeight();
 
-        return (int) (flamegraphHeight - frameBoxHeight) - (frameBoxHeight * stackDepth);
+        // In flamegraph, the y decreases from the top of the flamegraph canvas.
+        // The formula is: canvas height minus root box height minus the size
+        // of the frame box times the stack depth
+        //
+        // the bottom y of the frame box is
+        // the flamegraph height minus the size of the frame box times the stack depth
+        //     | f3 ↖ y = flamegraph height - root box height - (3 x frameBoxHeight)
+        //   | f2
+        // | f1
+        // | root
+        return (int) flamegraphHeight - rootBoxHeight - (frameBoxHeight * stackDepth);
     }
 
     private void checkReady() {
@@ -521,6 +543,9 @@ class FlamegraphRenderEngine<T> {
         }
         var oldHoveredSiblingFrames = hoveredSiblingFrames;
         hoveredFrame = frame;
+        // TODO Sibling frames can be expensive and slow down things on the EDT.
+        //  Possible refactor to compute sibling frames on a background thread, and
+        //  render sibling on the EDT
         hoveredSiblingFrames = getSiblingFrames(frame);
         hoveredSiblingFrames.forEach(hovered -> hoverConsumer.accept(getFrameRectangle(g2, bounds, hovered)));
         if (oldHoveredFrame != null) {
@@ -555,9 +580,13 @@ class FlamegraphRenderEngine<T> {
             return Set.of(frame);
         }
 
-        return frameModel.frames.stream()
-                                .filter(node -> frameModel.frameEquality.equal(node, frame))
-                                .collect(Collectors.toSet());
+        var set = new HashSet<FrameBox<T>>();
+        for (var node : frameModel.frames) {
+            if (frameModel.frameEquality.equal(node, frame)) {
+                set.add(node);
+            }
+        }
+        return set;
     }
 
     /**
@@ -590,6 +619,32 @@ class FlamegraphRenderEngine<T> {
     }
 
     /**
+     * As for {@link #calculateZoomTargetForFrameAt(Graphics2D, Rectangle2D, Rectangle2D, Point)} but
+     * only adjusts the horizontal zoom.
+     *
+     * @param g2       the graphics target ({@code null} not permitted).
+     * @param bounds   the bounds within which the flame graph is currently rendered.
+     * @param viewRect the subset of the bounds that is actually visible
+     * @param point    the coordinates at which to look for a frame.
+     * @return An optional zoom target.
+     */
+    public Optional<ZoomTarget<@NotNull T>> calculateHorizontalZoomTargetForFrameAt(
+            Graphics2D g2,
+            Rectangle2D bounds,
+            Rectangle2D viewRect,
+            Point point
+    ) {
+        if (frameModel.frames.isEmpty()) {
+            return Optional.empty();
+        }
+
+        return getFrameAt(g2, bounds, point).map(frame -> {
+            this.selectedFrame = frame;
+            return calculateZoomTargetFrame(g2, bounds, viewRect, frame, -1, 0);
+        });
+    }
+
+    /**
      * Compute the {@code ZoomTarget} for the passed frame.
      * <p>
      * Returns the new canvas size and the offset that
@@ -599,7 +654,7 @@ class FlamegraphRenderEngine<T> {
      * @param bounds           the bounds within which the flame graph is currently rendered.
      * @param viewRect         the subset of the bounds that is actually visible
      * @param frame            the frame.
-     * @param contextBefore    number of contextual parents
+     * @param contextBefore    number of contextual parents, if <code>-1</code> don't relocate vertically
      * @param contextLeftRight the contextual frames on the left and right (unused at this time)
      * @return A zoom target.
      */
@@ -611,7 +666,7 @@ class FlamegraphRenderEngine<T> {
             @NotNull Rectangle2D viewRect,
             @NotNull FrameBox<@NotNull T> frame,
             int contextBefore,
-            int contextLeftRight
+            int contextLeftRight // TODO for future left right "context" padding
     ) {
         checkReady();
 
@@ -619,8 +674,9 @@ class FlamegraphRenderEngine<T> {
         var frameBoxHeight = frameRenderer.getFrameBoxHeight(g2);
 
         var factor = getScaleFactor(viewRect.getWidth(), bounds.getWidth(), frameWidthX);
-        // Change offset to center the flame from this frame
+        // calculate the new width so the current frame will occupy the full width of the view
         var newCanvasWidth = (int) (bounds.getWidth() * factor);
+        // Change offset to center the flame from this frame
         var newCanvasHeight = computeVisibleFlamegraphHeight(
                 g2,
                 newCanvasWidth
@@ -632,21 +688,34 @@ class FlamegraphRenderEngine<T> {
                 newCanvasWidth,
                 newCanvasHeight
         );
+
+        int frameDepthAtTopOfView = icicle ?
+                                    (int) (viewRect.getY() / frameBoxHeight) :
+                                    (int) ((bounds.getHeight() - viewRect.getMaxY()) / frameBoxHeight);
+
+        int newFrameDepthAtTopOfView = contextBefore >= 0 ?
+                                       Math.max(frame.stackDepth - contextBefore, 0) :
+                                       frameDepthAtTopOfView; // contextBefore is -1, so keep the same vertical location
+
         var frameY = computeFrameRectY(
                 newDimension,
                 frameBoxHeight,
-                Math.max(frame.stackDepth - contextBefore, 0), icicle
+                newFrameDepthAtTopOfView,
+                icicle
         );
+        // Clamp viewLocationY to valid scroll range [0, maxViewLocationY]
+        // to prevent void space when focusing on frames at the edges
+        var maxViewLocationY = Math.max(0, (int) (newCanvasHeight - viewRect.getHeight()));
         var viewLocationY = icicle ?
-                            Math.max(0, frameY) :
-                            Math.min(
-                                    (int) (newCanvasHeight - viewRect.getHeight()),
+                            Math.min(Math.max(0, frameY), maxViewLocationY) :
+                            Math.max(0, Math.min(
+                                    maxViewLocationY,
                                     (int) (frameY + frameBoxHeight - viewRect.getHeight())
-                            );
+                            ));
 
         return new ZoomTarget<>(
-                - (int) (frame.startX * newCanvasWidth),
-                - viewLocationY,
+                -(int) (frame.startX * newCanvasWidth),
+                -viewLocationY,
                 newCanvasWidth,
                 newCanvasHeight,
                 frame
@@ -663,7 +732,7 @@ class FlamegraphRenderEngine<T> {
      * factor = ----------------------------
      *           frameWidthX * bounds.width
      * </pre>
-     *
+     * <p>
      * Note that to retrieve the zoom factor one should use {@code 1 / factor}.
      */
     protected static double getScaleFactor(double visibleWidth, double canvasWidth, double frameWidthX) {

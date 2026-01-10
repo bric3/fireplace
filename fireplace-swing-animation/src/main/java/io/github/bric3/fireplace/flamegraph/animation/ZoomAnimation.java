@@ -17,6 +17,9 @@ import org.jetbrains.annotations.NotNull;
 import org.pushingpixels.radiance.animation.api.Timeline;
 import org.pushingpixels.radiance.animation.api.ease.Sine;
 import org.pushingpixels.radiance.animation.api.swing.EventDispatchThreadTimelineCallbackAdapter;
+import org.pushingpixels.radiance.animation.api.swing.SwingComponentTimeline;
+
+import javax.swing.*;
 
 /**
  * A zoom action that incorporates animation using <a href="https://github.com/kirill-grouchnikov/radiance/blob/sunshine/docs/animation/animation.md">Radiance Animation</a>
@@ -81,8 +84,10 @@ public class ZoomAnimation implements ZoomAction {
         double deltaX = zoomTarget.getX() - startX;
         double deltaY = zoomTarget.getY() - startY;
 
-
-        Timeline.builder()
+        // Properly runs this timeline on the EDT (the timeline needs to be passed the component)
+        // * github.com/kirill-grouchnikov/radiance/blob/sunshine/docs/animation/animation.md
+        // * https://github.com/kirill-grouchnikov/radiance/blob/sunshine/docs/animation/UIToolkitSupport.md
+        Timeline.builder(zoomableComponent)
                 .setDuration(ZOOM_ANIMATION_DURATION)
                 .setEase(new Sine())
                 .addCallback(new EventDispatchThreadTimelineCallbackAdapter() {

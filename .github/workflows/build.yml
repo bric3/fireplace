@@ -46,6 +46,9 @@ jobs:
       #      - name: debug
       #        run: echo "${{ toJSON(github.event)}}"
 
+      - name: Gradle Wrapper Validation
+        uses: gradle/actions/wrapper-validation@v3
+
       - name: Set up JDK
         uses: actions/setup-java@v5
         with:

@@ -16,6 +16,9 @@ classgraph = "4.8.184"
 
 radiance-animation = "7.5.0"
 
+caffeine = "3.2.0"
+fastutil = "8.5.15"
+
 jmc-flightrecorder = "9.1.1"
 
 junit-jupiter = "5.14.2"
@@ -49,6 +52,9 @@ darklaf-platform-preferences = { module = "com.github.weisj:darklaf-platform-pre
 darklaf-platform-decorations = { module = "com.github.weisj:darklaf-platform-decorations", version.ref = "darklaf" }
 classgraph = { module = "io.github.classgraph:classgraph", version.ref = "classgraph" }
 radiance-animation = { module = "org.pushing-pixels:radiance-animation", version.ref = "radiance-animation" }
+
+caffeine = { module = "com.github.ben-manes.caffeine:caffeine", version.ref = "caffeine" }
+fastutil-core = { module = "it.unimi.dsi:fastutil-core", version.ref = "fastutil" }
 
 flightrecorder = { module = "org.openjdk.jmc:flightrecorder", version.ref = "jmc-flightrecorder" }
 
