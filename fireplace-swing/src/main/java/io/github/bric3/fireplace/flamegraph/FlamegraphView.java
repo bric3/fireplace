@@ -2070,7 +2070,7 @@ public class FlamegraphView<T> {
      * @param <T>
      */
     @Experimental
-    private static class ZoomModel<T> {
+    static class ZoomModel<T> {
         /**
          * The current zoom target, it allows to keep track of the current zoom target.
          * So when the view is resized, the zoom ratio can be recomputed from this target.
@@ -2120,7 +2120,6 @@ public class FlamegraphView<T> {
                         1.0
                 );
             }
-
         }
 
         public void recordLastPositionFromUserInteraction(JPanel canvas) {
