@@ -43,7 +43,7 @@ jobs:
         run: |
           prefix="v"
           tag_name="${{ github.event.inputs.tag || github.event.release.tag_name }}"
-          semver_regex="(0|[1-9]\d*)+\.(0|[1-9]\d*)+\.(0|[1-9]\d*)+(-(([a-z-][\da-z-]+|[\da-z-]+[a-z-][\da-z-]*|0|[1-9]\d*)(\.([a-z-][\da-z-]+|[\da-z-]+[a-z-][\da-z-]*|0|[1-9]\d*))*))?(\\+([\da-z-]+(\.[\da-z-]+)*))?"
+          semver_regex="(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-(([a-z-][0-9a-z-]+|[0-9a-z-]+[a-z-][0-9a-z-]*|0|[1-9][0-9]*)(\\.([a-z-][0-9a-z-]+|[0-9a-z-]+[a-z-][0-9a-z-]*|0|[1-9][0-9]*))*))?(\+([0-9a-z-]+(\.[0-9a-z-]+)*))?"
           echo "Checking version: $semver_regex"
           echo "$tag_name" | grep -Eq "^$prefix$semver_regex\$"
         shell: bash
