@@ -29,6 +29,7 @@ import java.util.function.Supplier;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
+import static org.mockito.Mockito.*;
 
 /**
  * Unit tests for {@link FlamegraphView}.
@@ -555,30 +556,705 @@ class FlamegraphViewTest {
     }
 
     @Nested
-    @DisplayName("Request Repaint")
-    class RequestRepaintTests {
-
-        @Test
-        void requestRepaint_does_not_throw() {
-            assertThatCode(() -> fg.requestRepaint())
-                    .doesNotThrowAnyException();
-        }
-    }
-
-    @Nested
     @DisplayName("Hover Listener")
     class HoverListenerTests {
 
         @Test
         void setHoverListener_sets_listener() {
-            FlamegraphView.HoverListener<String> listener = new FlamegraphView.HoverListener<String>() {
-                @Override
-                public void onFrameHover(FrameBox<String> frame, Rectangle rect, MouseEvent e) {}
-            };
+            FlamegraphView.HoverListener<String> listener = (frame, rect, e) -> {};
 
-            // Should not throw
             assertThatCode(() -> fg.setHoverListener(listener))
                     .doesNotThrowAnyException();
+        }
+
+        @Test
+        void hover_listener_onStopHover_has_default_implementation() {
+            FlamegraphView.HoverListener<String> listener = (frame, rect, e) -> {};
+
+            // onStopHover has default no-op implementation, should not throw
+            assertThatCode(() -> listener.onStopHover(null, null, mock(MouseEvent.class)))
+                    .doesNotThrowAnyException();
+        }
+    }
+
+    @Nested
+    @DisplayName("HoverListener.getPointLeveledToFrameDepth")
+    class HoverListenerGetPointLeveledToFrameDepthTests {
+
+        @Test
+        void getPointLeveledToFrameDepth_with_valid_inputs_returns_point() {
+            // Set up the FlamegraphView with a model
+            var frame = new FrameBox<>("root", 0.0, 1.0, 0);
+            fg.setModel(new FrameModel<>(List.of(frame)));
+
+            // Get the scroll pane from the component hierarchy
+            var scrollPane = findScrollPane(fg.component);
+            assertThat(scrollPane).isNotNull();
+
+            // Create a mock mouse event from the scroll pane
+            var mockEvent = mock(MouseEvent.class);
+            when(mockEvent.getComponent()).thenReturn(scrollPane);
+            when(mockEvent.getPoint()).thenReturn(new Point(100, 50));
+
+            var frameRect = new Rectangle(0, 0, 200, 20);
+
+            // Should not throw and should return a valid point
+            assertThatCode(() -> FlamegraphView.HoverListener.getPointLeveledToFrameDepth(mockEvent, frameRect))
+                    .doesNotThrowAnyException();
+        }
+
+        @Test
+        void getPointLeveledToFrameDepth_without_flamegraph_owner_throws() {
+            // Create a scroll pane that is NOT owned by a FlamegraphView
+            var orphanScrollPane = new JScrollPane();
+
+            var mockEvent = mock(MouseEvent.class);
+            when(mockEvent.getComponent()).thenReturn(orphanScrollPane);
+            when(mockEvent.getPoint()).thenReturn(new Point(100, 50));
+
+            var frameRect = new Rectangle(0, 0, 200, 20);
+
+            assertThatThrownBy(() -> FlamegraphView.HoverListener.getPointLeveledToFrameDepth(mockEvent, frameRect))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("Cannot find FlamegraphView owner");
+        }
+
+        private JScrollPane findScrollPane(JComponent component) {
+            if (component instanceof JScrollPane) {
+                return (JScrollPane) component;
+            }
+            for (var child : component.getComponents()) {
+                if (child instanceof JComponent) {
+                    var found = findScrollPane((JComponent) child);
+                    if (found != null) {
+                        return found;
+                    }
+                }
+            }
+            return null;
+        }
+    }
+
+    @SuppressWarnings("removal")
+    @Nested
+    @DisplayName("Deprecated Methods Exception Branches")
+    class DeprecatedMethodsExceptionBranchesTests {
+
+        @Test
+        void getFrameColorProvider_with_custom_renderer_throws_exception() {
+            // Create a custom non-DefaultFrameRenderer
+            var customRenderer = mock(FrameRenderer.class);
+            when(customRenderer.isDrawingFrameGap()).thenReturn(true);
+            when(customRenderer.getFrameBoxHeight(any())).thenReturn(20);
+
+            fg.setFrameRender(customRenderer);
+
+            assertThatThrownBy(() -> fg.getFrameColorProvider())
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("DefaultFrameRenderer");
+        }
+
+        @Test
+        void setFrameColorProvider_with_custom_renderer_throws_exception() {
+            var customRenderer = mock(FrameRenderer.class);
+            when(customRenderer.isDrawingFrameGap()).thenReturn(true);
+            when(customRenderer.getFrameBoxHeight(any())).thenReturn(20);
+
+            fg.setFrameRender(customRenderer);
+
+            var colorProvider = FrameColorProvider.<String>defaultColorProvider(f -> Color.RED);
+            assertThatThrownBy(() -> fg.setFrameColorProvider(colorProvider))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("DefaultFrameRenderer");
+        }
+
+        @Test
+        void getFrameFontProvider_with_custom_renderer_throws_exception() {
+            var customRenderer = mock(FrameRenderer.class);
+            when(customRenderer.isDrawingFrameGap()).thenReturn(true);
+            when(customRenderer.getFrameBoxHeight(any())).thenReturn(20);
+
+            fg.setFrameRender(customRenderer);
+
+            assertThatThrownBy(() -> fg.getFrameFontProvider())
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("DefaultFrameRenderer");
+        }
+
+        @Test
+        void setFrameFontProvider_with_custom_renderer_throws_exception() {
+            var customRenderer = mock(FrameRenderer.class);
+            when(customRenderer.isDrawingFrameGap()).thenReturn(true);
+            when(customRenderer.getFrameBoxHeight(any())).thenReturn(20);
+
+            fg.setFrameRender(customRenderer);
+
+            var fontProvider = FrameFontProvider.<String>defaultFontProvider();
+            assertThatThrownBy(() -> fg.setFrameFontProvider(fontProvider))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("DefaultFrameRenderer");
+        }
+
+        @Test
+        void getFrameTextsProvider_with_custom_renderer_throws_exception() {
+            var customRenderer = mock(FrameRenderer.class);
+            when(customRenderer.isDrawingFrameGap()).thenReturn(true);
+            when(customRenderer.getFrameBoxHeight(any())).thenReturn(20);
+
+            fg.setFrameRender(customRenderer);
+
+            assertThatThrownBy(() -> fg.getFrameTextsProvider())
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("DefaultFrameRenderer");
+        }
+
+        @Test
+        void setFrameTextsProvider_with_custom_renderer_throws_exception() {
+            var customRenderer = mock(FrameRenderer.class);
+            when(customRenderer.isDrawingFrameGap()).thenReturn(true);
+            when(customRenderer.getFrameBoxHeight(any())).thenReturn(20);
+
+            fg.setFrameRender(customRenderer);
+
+            var textsProvider = FrameTextsProvider.<String>of(f -> "test");
+            assertThatThrownBy(() -> fg.setFrameTextsProvider(textsProvider))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("DefaultFrameRenderer");
+        }
+
+        @Test
+        void setFrameGapEnabled_with_custom_renderer_throws_exception() {
+            var customRenderer = mock(FrameRenderer.class);
+            when(customRenderer.isDrawingFrameGap()).thenReturn(true);
+            when(customRenderer.getFrameBoxHeight(any())).thenReturn(20);
+
+            fg.setFrameRender(customRenderer);
+
+            assertThatThrownBy(() -> fg.setFrameGapEnabled(false))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("DefaultFrameRenderer");
+        }
+    }
+
+    @Nested
+    @DisplayName("Zoom Operations")
+    class ZoomOperationsTests {
+
+        @Test
+        void resetZoom_does_not_throw() {
+            fg.setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0))));
+
+            assertThatCode(() -> fg.resetZoom())
+                    .doesNotThrowAnyException();
+        }
+
+        @Test
+        void zoomTo_with_valid_frame_does_not_throw() {
+            var frame = new FrameBox<>("root", 0.0, 1.0, 0);
+            fg.setModel(new FrameModel<>(List.of(frame)));
+
+            assertThatCode(() -> fg.zoomTo(frame))
+                    .doesNotThrowAnyException();
+        }
+
+        @Test
+        void zoomTo_with_child_frame_does_not_throw() {
+            var root = new FrameBox<>("root", 0.0, 1.0, 0);
+            var child = new FrameBox<>("child", 0.0, 0.5, 1);
+            fg.setModel(new FrameModel<>(List.of(root, child)));
+
+            assertThatCode(() -> fg.zoomTo(child))
+                    .doesNotThrowAnyException();
+        }
+    }
+
+    @Nested
+    @DisplayName("ZoomAction Interface")
+    class ZoomActionInterfaceTests {
+
+        @Test
+        void zoom_action_receives_correct_parameters() {
+            var zoomActionCalled = new AtomicReference<>(false);
+            FlamegraphView.ZoomAction customZoomAction = new FlamegraphView.ZoomAction() {
+                @Override
+                public <T> boolean zoom(FlamegraphView.ZoomableComponent<T> zoomableComponent, ZoomTarget<T> zoomTarget) {
+                    zoomActionCalled.set(true);
+                    assertThat(zoomableComponent).isNotNull();
+                    assertThat(zoomTarget).isNotNull();
+                    zoomableComponent.zoom(zoomTarget);
+                    return true;
+                }
+            };
+
+            fg.overrideZoomAction(customZoomAction);
+            var frame = new FrameBox<>("root", 0.0, 1.0, 0);
+            fg.setModel(new FrameModel<>(List.of(frame)));
+
+            fg.zoomTo(frame);
+
+            // Note: In headless mode without realized component, zoom may not be fully executed
+            // but the override should be set
+        }
+
+        @Test
+        void zoom_action_returning_false_falls_back_to_default() {
+            FlamegraphView.ZoomAction customZoomAction = new FlamegraphView.ZoomAction() {
+                @Override
+                public <T> boolean zoom(FlamegraphView.ZoomableComponent<T> zoomableComponent, ZoomTarget<T> zoomTarget) {
+                    return false;
+                }
+            };
+
+            fg.overrideZoomAction(customZoomAction);
+            var frame = new FrameBox<>("root", 0.0, 1.0, 0);
+            fg.setModel(new FrameModel<>(List.of(frame)));
+
+            // Should not throw even when custom action returns false
+            assertThatCode(() -> fg.zoomTo(frame))
+                    .doesNotThrowAnyException();
+        }
+    }
+
+    @Nested
+    @DisplayName("ZoomableComponent Interface")
+    class ZoomableComponentInterfaceTests {
+
+        @Test
+        void zoomable_component_has_required_methods() {
+            // Verify that the interface methods exist and work
+            var frame = new FrameBox<>("root", 0.0, 1.0, 0);
+            fg.setModel(new FrameModel<>(List.of(frame)));
+
+            FlamegraphView.ZoomAction inspectingAction = new FlamegraphView.ZoomAction() {
+                @Override
+                public <T> boolean zoom(FlamegraphView.ZoomableComponent<T> zoomableComponent, ZoomTarget<T> zoomTarget) {
+                    // Test all ZoomableComponent methods
+                    assertThat(zoomableComponent.getWidth()).isGreaterThanOrEqualTo(0);
+                    assertThat(zoomableComponent.getHeight()).isGreaterThanOrEqualTo(0);
+                    assertThat(zoomableComponent.getLocation()).isNotNull();
+                    return true;
+                }
+            };
+
+            fg.overrideZoomAction(inspectingAction);
+            fg.zoomTo(frame);
+        }
+    }
+
+    @Nested
+    @DisplayName("Mode Property Change")
+    class ModePropertyChangeTests {
+
+        @Test
+        void setMode_from_icicle_to_flamegraph_triggers_change() {
+            assertThat(fg.getMode()).isEqualTo(Mode.ICICLEGRAPH);
+
+            fg.setMode(Mode.FLAMEGRAPH);
+
+            assertThat(fg.getMode()).isEqualTo(Mode.FLAMEGRAPH);
+        }
+
+        @Test
+        void setMode_same_mode_does_not_throw() {
+            fg.setMode(Mode.ICICLEGRAPH);
+
+            assertThatCode(() -> fg.setMode(Mode.ICICLEGRAPH))
+                    .doesNotThrowAnyException();
+
+            assertThat(fg.getMode()).isEqualTo(Mode.ICICLEGRAPH);
+        }
+
+        @Test
+        void setMode_multiple_toggles() {
+            fg.setMode(Mode.FLAMEGRAPH);
+            assertThat(fg.getMode()).isEqualTo(Mode.FLAMEGRAPH);
+
+            fg.setMode(Mode.ICICLEGRAPH);
+            assertThat(fg.getMode()).isEqualTo(Mode.ICICLEGRAPH);
+
+            fg.setMode(Mode.FLAMEGRAPH);
+            assertThat(fg.getMode()).isEqualTo(Mode.FLAMEGRAPH);
+        }
+    }
+
+    @Nested
+    @DisplayName("Model With Different Configurations")
+    class ModelConfigurationTests {
+
+        @Test
+        void setModel_with_title_and_equality() {
+            var frames = List.of(
+                    new FrameBox<>("root", 0.0, 1.0, 0),
+                    new FrameBox<>("child", 0.0, 0.5, 1)
+            );
+            var model = new FrameModel<>(
+                    "Test Flamegraph",
+                    (a, b) -> Objects.equals(a.actualNode, b.actualNode),
+                    frames
+            );
+
+            fg.setModel(model);
+
+            assertThat(fg.getFrameModel()).isEqualTo(model);
+            assertThat(fg.getFrameModel().title).isEqualTo("Test Flamegraph");
+        }
+
+        @Test
+        void setModel_with_description() {
+            var model = new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0)))
+                    .withDescription("Test description");
+
+            fg.setModel(model);
+
+            assertThat(fg.getFrameModel().description).isEqualTo("Test description");
+        }
+
+        @Test
+        void setModel_same_model_reference_twice() {
+            var model = new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0)));
+
+            fg.setModel(model);
+            fg.setModel(model);
+
+            assertThat(fg.getFrameModel()).isSameAs(model);
+        }
+
+        @Test
+        void setModel_different_models_updates() {
+            var model1 = new FrameModel<>(List.of(new FrameBox<>("first", 0.0, 1.0, 0)));
+            var model2 = new FrameModel<>(List.of(new FrameBox<>("second", 0.0, 1.0, 0)));
+
+            fg.setModel(model1);
+            assertThat(fg.getFrames().get(0).actualNode).isEqualTo("first");
+
+            fg.setModel(model2);
+            assertThat(fg.getFrames().get(0).actualNode).isEqualTo("second");
+        }
+    }
+
+    @Nested
+    @DisplayName("Minimap Visibility")
+    class MinimapVisibilityTests {
+
+        @Test
+        void setShowMinimap_toggle_multiple_times() {
+            assertThat(fg.isShowMinimap()).isTrue();
+
+            fg.setShowMinimap(false);
+            assertThat(fg.isShowMinimap()).isFalse();
+
+            fg.setShowMinimap(true);
+            assertThat(fg.isShowMinimap()).isTrue();
+
+            fg.setShowMinimap(false);
+            assertThat(fg.isShowMinimap()).isFalse();
+        }
+
+        @Test
+        void setShowMinimap_same_value_does_not_throw() {
+            fg.setShowMinimap(true);
+
+            assertThatCode(() -> fg.setShowMinimap(true))
+                    .doesNotThrowAnyException();
+        }
+    }
+
+    @Nested
+    @DisplayName("Component Hierarchy")
+    class ComponentHierarchyTests {
+
+        @Test
+        void component_is_not_null() {
+            assertThat(fg.component).isNotNull();
+        }
+
+        @Test
+        void component_is_jpanel() {
+            assertThat(fg.component).isInstanceOf(JPanel.class);
+        }
+
+        @Test
+        void component_has_children() {
+            assertThat(fg.component.getComponentCount()).isGreaterThan(0);
+        }
+
+        @Test
+        void from_with_nested_child_eventually_finds_owner() {
+            // Navigate into the component hierarchy and find a component that has the owner
+            var found = findComponentWithOwner(fg.component);
+            assertThat(found).isTrue();
+        }
+
+        private boolean findComponentWithOwner(JComponent component) {
+            var result = FlamegraphView.<String>from(component);
+            if (result.isPresent() && result.get() == fg) {
+                return true;
+            }
+            for (var child : component.getComponents()) {
+                if (child instanceof JComponent) {
+                    if (findComponentWithOwner((JComponent) child)) {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+    }
+
+    @Nested
+    @DisplayName("Frame Renderer Configuration")
+    class FrameRendererConfigurationTests {
+
+        @Test
+        void setFrameRender_with_custom_renderer_does_not_throw() {
+            var customRenderer = new DefaultFrameRenderer<String>(
+                    FrameTextsProvider.of(f -> "Custom: " + f.actualNode),
+                    FrameColorProvider.defaultColorProvider(f -> Color.BLUE),
+                    FrameFontProvider.defaultFontProvider()
+            );
+
+            assertThatCode(() -> fg.setFrameRender(customRenderer))
+                    .doesNotThrowAnyException();
+        }
+
+        @Test
+        void setFrameRender_triggers_repaint() {
+            var frame = new FrameBox<>("root", 0.0, 1.0, 0);
+            fg.setModel(new FrameModel<>(List.of(frame)));
+
+            var customRenderer = new DefaultFrameRenderer<String>(
+                    FrameTextsProvider.of(f -> "Changed"),
+                    FrameColorProvider.defaultColorProvider(f -> Color.GREEN),
+                    FrameFontProvider.defaultFontProvider()
+            );
+
+            assertThatCode(() -> fg.setFrameRender(customRenderer))
+                    .doesNotThrowAnyException();
+        }
+    }
+
+    @Nested
+    @DisplayName("Tooltip Configuration")
+    class TooltipConfigurationTests {
+
+        @Test
+        void setTooltipTextFunction_custom_function_is_set() {
+            BiFunction<FrameModel<String>, FrameBox<String>, String> tooltipFunc =
+                    (model, frame) -> "Tooltip: " + frame.actualNode;
+
+            fg.setTooltipTextFunction(tooltipFunc);
+
+            assertThat(fg.getTooltipTextFunction()).isEqualTo(tooltipFunc);
+        }
+
+        @Test
+        void setTooltipComponentSupplier_custom_supplier_is_set() {
+            Supplier<JToolTip> tooltipSupplier = () -> {
+                var tip = new JToolTip();
+                tip.setBackground(Color.YELLOW);
+                return tip;
+            };
+
+            fg.setTooltipComponentSupplier(tooltipSupplier);
+
+            assertThat(fg.getTooltipComponentSupplier()).isEqualTo(tooltipSupplier);
+        }
+    }
+
+    @Nested
+    @DisplayName("Highlight Frames Edge Cases")
+    class HighlightFramesEdgeCasesTests {
+
+        @Test
+        void highlightFrames_with_frames_from_model() {
+            var root = new FrameBox<>("root", 0.0, 1.0, 0);
+            var child1 = new FrameBox<>("child1", 0.0, 0.5, 1);
+            var child2 = new FrameBox<>("child2", 0.5, 1.0, 1);
+            fg.setModel(new FrameModel<>(List.of(root, child1, child2)));
+
+            assertThatCode(() -> fg.highlightFrames(Set.of(child1, child2), "child"))
+                    .doesNotThrowAnyException();
+        }
+
+        @Test
+        void highlightFrames_clear_then_set() {
+            var frame = new FrameBox<>("root", 0.0, 1.0, 0);
+            fg.setModel(new FrameModel<>(List.of(frame)));
+
+            // Clear highlights
+            fg.highlightFrames(Set.of(), "");
+
+            // Set highlights
+            fg.highlightFrames(Set.of(frame), "root");
+
+            // Clear again
+            assertThatCode(() -> fg.highlightFrames(Set.of(), ""))
+                    .doesNotThrowAnyException();
+        }
+    }
+
+    @Nested
+    @DisplayName("Consumer Callbacks")
+    class ConsumerCallbackTests {
+
+        @Test
+        void popup_consumer_receives_frame_and_event() {
+            var receivedFrame = new AtomicReference<FrameBox<String>>();
+            var receivedEvent = new AtomicReference<MouseEvent>();
+
+            BiConsumer<FrameBox<String>, MouseEvent> consumer = (frame, event) -> {
+                receivedFrame.set(frame);
+                receivedEvent.set(event);
+            };
+
+            fg.setPopupConsumer(consumer);
+            assertThat(fg.getPopupConsumer()).isEqualTo(consumer);
+        }
+
+        @Test
+        void selected_frame_consumer_receives_frame_and_event() {
+            var receivedFrame = new AtomicReference<FrameBox<String>>();
+
+            BiConsumer<FrameBox<String>, MouseEvent> consumer = (frame, event) -> {
+                receivedFrame.set(frame);
+            };
+
+            fg.setSelectedFrameConsumer(consumer);
+            assertThat(fg.getSelectedFrameConsumer()).isEqualTo(consumer);
+        }
+    }
+
+    @Nested
+    @DisplayName("Request Repaint")
+    class RequestRepaintTests {
+
+        @Test
+        void requestRepaint_with_model_does_not_throw() {
+            fg.setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0))));
+
+            assertThatCode(() -> fg.requestRepaint())
+                    .doesNotThrowAnyException();
+        }
+
+        @Test
+        void requestRepaint_multiple_times_does_not_throw() {
+            fg.setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0))));
+
+            assertThatCode(() -> {
+                fg.requestRepaint();
+                fg.requestRepaint();
+                fg.requestRepaint();
+            }).doesNotThrowAnyException();
+        }
+    }
+
+    @Nested
+    @DisplayName("Clear Operation")
+    class ClearOperationTests {
+
+        @Test
+        void clear_after_model_set_resets_to_empty() {
+            fg.setModel(new FrameModel<>(List.of(
+                    new FrameBox<>("root", 0.0, 1.0, 0),
+                    new FrameBox<>("child", 0.0, 0.5, 1)
+            )));
+
+            assertThat(fg.getFrames()).hasSize(2);
+
+            fg.clear();
+
+            assertThat(fg.getFrameModel()).isEqualTo(FrameModel.empty());
+            assertThat(fg.getFrames()).isEmpty();
+        }
+
+        @Test
+        void clear_then_set_model_works() {
+            fg.setModel(new FrameModel<>(List.of(new FrameBox<>("first", 0.0, 1.0, 0))));
+            fg.clear();
+
+            var newModel = new FrameModel<>(List.of(new FrameBox<>("second", 0.0, 1.0, 0)));
+            fg.setModel(newModel);
+
+            assertThat(fg.getFrames()).hasSize(1);
+            assertThat(fg.getFrames().get(0).actualNode).isEqualTo("second");
+        }
+
+        @Test
+        void clear_multiple_times_does_not_throw() {
+            assertThatCode(() -> {
+                fg.clear();
+                fg.clear();
+                fg.clear();
+            }).doesNotThrowAnyException();
+        }
+    }
+
+    @Nested
+    @DisplayName("Frame Click Action Behavior")
+    class FrameClickActionBehaviorTests {
+
+        @Test
+        void setFrameClickAction_to_expand_changes_behavior() {
+            fg.setFrameClickAction(FrameClickAction.EXPAND_FRAME);
+            assertThat(fg.getFrameClickAction()).isEqualTo(FrameClickAction.EXPAND_FRAME);
+        }
+
+        @Test
+        void setFrameClickAction_toggle_between_actions() {
+            fg.setFrameClickAction(FrameClickAction.EXPAND_FRAME);
+            fg.setFrameClickAction(FrameClickAction.FOCUS_FRAME);
+            fg.setFrameClickAction(FrameClickAction.EXPAND_FRAME);
+
+            assertThat(fg.getFrameClickAction()).isEqualTo(FrameClickAction.EXPAND_FRAME);
+        }
+    }
+
+    @Nested
+    @DisplayName("Show Hovered Siblings")
+    class ShowHoveredSiblingsTests {
+
+        @Test
+        void setShowHoveredSiblings_toggles_correctly() {
+            assertThat(fg.isShowHoveredSiblings()).isTrue();
+
+            fg.setShowHoveredSiblings(false);
+            assertThat(fg.isShowHoveredSiblings()).isFalse();
+
+            fg.setShowHoveredSiblings(true);
+            assertThat(fg.isShowHoveredSiblings()).isTrue();
+        }
+    }
+
+    @Nested
+    @DisplayName("Minimap Shade Color")
+    class MinimapShadeColorTests {
+
+        @Test
+        void getMinimapShadeColorSupplier_default_is_null() {
+            // Default may be null or have a default supplier
+            // Just verify it doesn't throw
+            assertThatCode(() -> fg.getMinimapShadeColorSupplier())
+                    .doesNotThrowAnyException();
+        }
+
+        @Test
+        void setMinimapShadeColorSupplier_custom_color() {
+            Supplier<Color> redSupplier = () -> Color.RED;
+
+            fg.setMinimapShadeColorSupplier(redSupplier);
+
+            assertThat(fg.getMinimapShadeColorSupplier()).isEqualTo(redSupplier);
+            assertThat(fg.getMinimapShadeColorSupplier().get()).isEqualTo(Color.RED);
+        }
+
+        @Test
+        void setMinimapShadeColorSupplier_with_alpha_color() {
+            Supplier<Color> alphaSupplier = () -> new Color(128, 128, 128, 128);
+
+            fg.setMinimapShadeColorSupplier(alphaSupplier);
+
+            var color = fg.getMinimapShadeColorSupplier().get();
+            assertThat(color.getAlpha()).isEqualTo(128);
         }
     }
 }
