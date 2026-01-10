@@ -703,12 +703,15 @@ class FlamegraphRenderEngine<T> {
                 newFrameDepthAtTopOfView,
                 icicle
         );
+        // Clamp viewLocationY to valid scroll range [0, maxViewLocationY]
+        // to prevent void space when focusing on frames at the edges
+        var maxViewLocationY = Math.max(0, (int) (newCanvasHeight - viewRect.getHeight()));
         var viewLocationY = icicle ?
-                            Math.max(0, frameY) : // icicle mode, don't go negative, use frame
-                            Math.min(
-                                    (int) (newCanvasHeight - viewRect.getHeight()),
+                            Math.min(Math.max(0, frameY), maxViewLocationY) :
+                            Math.max(0, Math.min(
+                                    maxViewLocationY,
                                     (int) (frameY + frameBoxHeight - viewRect.getHeight())
-                            );
+                            ));
 
         return new ZoomTarget<>(
                 -(int) (frame.startX * newCanvasWidth),
