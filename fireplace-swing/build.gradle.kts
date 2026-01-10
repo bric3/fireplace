@@ -16,6 +16,7 @@ description = "Flamegraph or iciclegraph swing component"
 
 dependencies {
     testImplementation(libs.bundles.batik)
+    testImplementation(libs.bundles.mockito)
 }
 
 tasks {
