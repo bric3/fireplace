@@ -55,6 +55,11 @@ class FlamegraphPane : JPanel(BorderLayout()) {
 
     init {
         jfrFlamegraphView = getJfrFlamegraphView().apply {
+            mode = if (defaultIcicleMode) FlamegraphView.Mode.ICICLEGRAPH else FlamegraphView.Mode.FLAMEGRAPH
+            frameClickAction = if (defaultToFrameExpand)
+                FlamegraphView.FrameClickAction.EXPAND_FRAME
+            else
+                FlamegraphView.FrameClickAction.FOCUS_FRAME
             isShowMinimap = defaultShowMinimap
             putClientProperty(FlamegraphView.SHOW_STATS, true)
         }
