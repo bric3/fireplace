@@ -19,16 +19,18 @@ This flamegraph component is known to be used in https://github.com/openjdk/jmc[
 .Example usage
 [source,java]
 ----
-var fg = new FlamegraphView<Node>();
+var flamegraphView = new FlamegraphView<Node>();
 
-flamegraphView.setRenderConfiguration(
-        FrameTextsProvider.of(
-                frame -> frame.isRoot() ? "root" : frame.actualNode.getFrame().getHumanReadableShortString(),
-                frame -> frame.isRoot() ? "" : FormatToolkit.getHumanReadable(frame.actualNode.getFrame().getMethod(), false, false, false, false, true, false),
-                frame -> frame.isRoot() ? "" : frame.actualNode.getFrame().getMethod().getMethodName()
-        ),
-        new DimmingFrameColorProvider<>(defaultFrameColorMode.colorMapperUsing(ColorMapper.ofObjectHashUsing(defaultColorPalette.colors()))),
-        FrameFontProvider.defaultFontProvider()
+flamegraphView.setFrameRender(
+        new DefaultFrameRenderer<>(
+                FrameTextsProvider.of(
+                        frame -> frame.isRoot() ? "root" : frame.actualNode.getFrame().getHumanReadableShortString(),
+                        frame -> frame.isRoot() ? "" : FormatToolkit.getHumanReadable(frame.actualNode.getFrame().getMethod(), false, false, false, false, true, false),
+                        frame -> frame.isRoot() ? "" : frame.actualNode.getFrame().getMethod().getMethodName()
+                ),
+                new DimmingFrameColorProvider<>(defaultFrameColorMode.colorMapperUsing(ColorMapper.ofObjectHashUsing(defaultColorPalette.colors()))),
+                FrameFontProvider.defaultFontProvider()
+        )
 );
 
 jpanel.add(flamegraphView.component);
@@ -39,12 +41,61 @@ var listOfFrames = FrameBox.flattenAndCalculateCoordinate(new ArrayList<Node>(),
 flamegraphView.setModel(
         new FrameModel<>(
                 "title, events (CPU, Locks)", // used in the root "frame"
-                 (a, b) -> Objects.equals(a, b), // used to identify equal frames
-                 listOfFrames
+                (a, b) -> Objects.equals(a, b), // used to identify equal frames
+                listOfFrames
         )
 );
-
 ----
+
+Earlier builds used to set up the view using `setRenderConfiguration`, this is deprecated for removal and code should
+be migrated to use `setFrameRender` instead.
+
+== Configuration Options
+
+[cols="1,2,1"]
+|===
+|Method |Description |Default
+
+|`setMode(Mode)`
+|Display mode: `FLAMEGRAPH` (root at bottom) or `ICICLEGRAPH` (root at top)
+|`ICICLEGRAPH`
+
+|`setFrameClickAction(FrameClickAction)`
+|Click behavior: `FOCUS_FRAME` (double-click zooms) or `EXPAND_FRAME` (single-click expands)
+|`FOCUS_FRAME`
+
+|`setShowMinimap(boolean)`
+|Show/hide the navigation minimap
+|`true`
+
+|`setShowHoveredSiblings(boolean)`
+|Highlight identical frames elsewhere in the graph on hover
+|`true`
+
+|`setTooltipTextFunction(BiFunction)`
+|Customize tooltip text for frames
+|—
+
+|`setPopupConsumer(BiConsumer)`
+|Handle right-click context menu on frames
+|—
+
+|`setSelectedFrameConsumer(BiConsumer)`
+|Callback when a frame is selected (single-click)
+|—
+
+|`setHoverListener(HoverListener)`
+|Listen for frame hover events
+|—
+
+|`highlightFrames(Set, String)`
+|Highlight frames matching a search
+|—
+|===
+
+== Exporting to Image
+
+Use `FlamegraphImage` to render a flamegraph to a static image (e.g., for export or reports).
 
 == Misc
 
