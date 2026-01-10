@@ -26,15 +26,24 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 
+import static io.github.bric3.fireplace.flamegraph.SwingTestUtil.createClickEvent;
+import static io.github.bric3.fireplace.flamegraph.SwingTestUtil.createDraggedEvent;
+import static io.github.bric3.fireplace.flamegraph.SwingTestUtil.createEnteredEvent;
+import static io.github.bric3.fireplace.flamegraph.SwingTestUtil.createExitedEvent;
+import static io.github.bric3.fireplace.flamegraph.SwingTestUtil.createMovedEvent;
+import static io.github.bric3.fireplace.flamegraph.SwingTestUtil.createPressEvent;
+import static io.github.bric3.fireplace.flamegraph.SwingTestUtil.createReleaseEvent;
 import static io.github.bric3.fireplace.flamegraph.SwingTestUtil.findScrollPane;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.anyInt;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.atMostOnce;
 import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
@@ -140,37 +149,31 @@ class FlamegraphViewMouseInteractionTest {
     @Nested
     @DisplayName("Mouse Click Behavior on Canvas")
     class MouseClickBehaviorTests {
-
-        private BufferedImage image;
-        private Graphics2D g2d;
         private JScrollPane scrollPane;
+        private FlamegraphRenderEngine<String> mockRenderEngine;
+        private FrameBox<String> testFrame;
 
         @BeforeEach
         void setUpGraphicsAndComponents() {
-            image = new BufferedImage(800, 600, BufferedImage.TYPE_INT_ARGB);
-            g2d = image.createGraphics();
-
             // Set up a model with frames
+            testFrame = new FrameBox<>("root", 0.0, 1.0, 0);
             var frames = List.of(
-                    new FrameBox<>("root", 0.0, 1.0, 0),
+                    testFrame,
                     new FrameBox<>("child1", 0.0, 0.5, 1),
                     new FrameBox<>("child2", 0.5, 1.0, 1)
             );
             fg.setModel(new FrameModel<>(frames));
 
             scrollPane = findScrollPane(fg.component);
-
-            // Set sizes
             scrollPane.setSize(800, 600);
             scrollPane.getViewport().setSize(800, 600);
 
             var canvas = scrollPane.getViewport().getView();
             canvas.setSize(800, 600);
 
-            // Spy on canvas to return real Graphics2D
-            var spiedCanvas = spy(canvas);
-            doReturn(g2d).when(spiedCanvas).getGraphics();
-            scrollPane.getViewport().setView(spiedCanvas);
+            // Mock the flamegraphRenderEngine on the canvas
+            mockRenderEngine = mock(FlamegraphRenderEngine.class);
+            ((FlamegraphCanvas) canvas).setFlamegraphRenderEngine(mockRenderEngine);
         }
 
         @Test
@@ -190,13 +193,7 @@ class FlamegraphViewMouseInteractionTest {
 
         @Test
         void popup_consumer_receives_frame_and_event() {
-            var receivedFrame = new AtomicReference<FrameBox<String>>();
-            var receivedEvent = new AtomicReference<MouseEvent>();
-
-            BiConsumer<FrameBox<String>, MouseEvent> consumer = (frame, event) -> {
-                receivedFrame.set(frame);
-                receivedEvent.set(event);
-            };
+            BiConsumer<FrameBox<String>, MouseEvent> consumer = mock(BiConsumer.class);
 
             fg.setPopupConsumer(consumer);
             assertThat(fg.getPopupConsumer()).isEqualTo(consumer);
@@ -204,11 +201,7 @@ class FlamegraphViewMouseInteractionTest {
 
         @Test
         void selected_frame_consumer_receives_frame_and_event() {
-            var receivedFrame = new AtomicReference<FrameBox<String>>();
-
-            BiConsumer<FrameBox<String>, MouseEvent> consumer = (frame, event) -> {
-                receivedFrame.set(frame);
-            };
+            BiConsumer<FrameBox<String>, MouseEvent> consumer = mock(BiConsumer.class);
 
             fg.setSelectedFrameConsumer(consumer);
             assertThat(fg.getSelectedFrameConsumer()).isEqualTo(consumer);
@@ -216,51 +209,42 @@ class FlamegraphViewMouseInteractionTest {
 
         @Test
         void mouse_click_with_non_left_button_on_scroll_pane_returns_early() {
-            // Arrange - right click
-            var event = new MouseEvent(
-                    scrollPane,
-                    MouseEvent.MOUSE_CLICKED,
-                    System.currentTimeMillis(),
-                    MouseEvent.BUTTON3_DOWN_MASK,
-                    100, 100,
-                    1,
-                    false,
-                    MouseEvent.BUTTON3
-            );
+            // Arrange - spy on scrollPane to verify it returns early (before requestFocus)
+            var spiedScrollPane = spy(scrollPane);
+            var event = createClickEvent(spiedScrollPane, 100, 100, MouseEvent.BUTTON3, 1);
 
-            // Act & Assert - should not throw, just return early
-            assertThatCode(() -> scrollPane.dispatchEvent(event))
-                    .doesNotThrowAnyException();
+            // Act
+            spiedScrollPane.dispatchEvent(event);
+
+            // Assert - requestFocus should NOT be called since we return early for non-left button
+            verify(spiedScrollPane, never()).requestFocus();
         }
 
         @Test
         void mouse_click_requests_focus_on_scroll_pane() {
+            // Arrange - spy on scrollPane to verify requestFocus() is called
+            var spiedScrollPane = spy(scrollPane);
+
             try (var mockedMouseInfo = mockStatic(MouseInfo.class)) {
                 var mockPointerInfo = mock(PointerInfo.class);
                 when(mockPointerInfo.getLocation()).thenReturn(new Point(100, 100));
                 mockedMouseInfo.when(MouseInfo::getPointerInfo).thenReturn(mockPointerInfo);
 
-                var event = new MouseEvent(
-                        scrollPane,
-                        MouseEvent.MOUSE_CLICKED,
-                        System.currentTimeMillis(),
-                        MouseEvent.BUTTON1_DOWN_MASK,
-                        100, 100,
-                        1,
-                        false,
-                        MouseEvent.BUTTON1
-                );
+                var event = createClickEvent(spiedScrollPane, 100, 100, MouseEvent.BUTTON1, 1);
 
-                // Act & Assert - should not throw
-                assertThatCode(() -> scrollPane.dispatchEvent(event))
-                        .doesNotThrowAnyException();
+                // Act
+                spiedScrollPane.dispatchEvent(event);
+
+                // Assert - requestFocus should be called (FlamegraphView.java:1823)
+                verify(spiedScrollPane).requestFocus();
             }
         }
 
         @Test
         void mouse_click_inside_minimap_bails_out_early() {
-            // Arrange - enable minimap and ensure click is inside it
+            // Arrange - enable minimap and spy on scrollPane
             fg.setShowMinimap(true);
+            var spiedScrollPane = spy(scrollPane);
 
             try (var mockedMouseInfo = mockStatic(MouseInfo.class)) {
                 var mockPointerInfo = mock(PointerInfo.class);
@@ -268,54 +252,90 @@ class FlamegraphViewMouseInteractionTest {
                 when(mockPointerInfo.getLocation()).thenReturn(new Point(750, 550));
                 mockedMouseInfo.when(MouseInfo::getPointerInfo).thenReturn(mockPointerInfo);
 
-                var event = new MouseEvent(
-                        scrollPane,
-                        MouseEvent.MOUSE_CLICKED,
-                        System.currentTimeMillis(),
-                        MouseEvent.BUTTON1_DOWN_MASK,
-                        750, 550,
-                        1,
-                        false,
-                        MouseEvent.BUTTON1
-                );
+                var event = createClickEvent(spiedScrollPane, 750, 550, MouseEvent.BUTTON1, 1);
 
-                // Act & Assert - should not throw, returns early when inside minimap
-                assertThatCode(() -> scrollPane.dispatchEvent(event))
-                        .doesNotThrowAnyException();
+                // Act
+                spiedScrollPane.dispatchEvent(event);
+
+                // Assert - requestFocus IS called (line 1823), then it bails out early (line 1828-1830)
+                // Verify it bailed out: frame lookup methods should never be called
+                verify(mockRenderEngine, never()).getFrameAt(any(Graphics2D.class), any(), any(Point.class));
+                verify(mockRenderEngine, never()).toggleSelectedFrameAt(any(Graphics2D.class), any(), any(Point.class), any());
+                verify(mockRenderEngine, never()).calculateHorizontalZoomTargetForFrameAt(any(Graphics2D.class), any(), any(), any(Point.class));
             }
         }
 
         @Test
-        void single_click_in_expand_frame_mode_dispatches_event() {
+        void single_click_in_expand_frame_mode_zoom_on_frame() {
             // Arrange
             fg.setFrameClickAction(FrameClickAction.EXPAND_FRAME);
+            fg.setShowMinimap(false); // Disable minimap to avoid early bailout at line 1828-1830
 
-            try (var mockedMouseInfo = mockStatic(MouseInfo.class)) {
+            // Create a mock ZoomTarget to be returned by calculateHorizontalZoomTargetForFrameAt
+            var mockZoomTarget = mock(ZoomTarget.class);
+            var mockTargetBounds = new Rectangle(100, 0, 200, 100); // Different from canvas bounds to avoid reset
+            when(mockZoomTarget.getTargetBounds()).thenReturn(mockTargetBounds);
+            when(mockRenderEngine.calculateHorizontalZoomTargetForFrameAt(any(), any(), any(), any()))
+                    .thenReturn(java.util.Optional.of(mockZoomTarget));
+
+            var spiedScrollPane = spy(scrollPane);
+
+            try (var mockedMouseInfo = mockStatic(MouseInfo.class);
+                 var mockedFlamegraphView = mockStatic(FlamegraphView.class)) {
                 var mockPointerInfo = mock(PointerInfo.class);
                 // Point inside canvas but outside minimap
                 when(mockPointerInfo.getLocation()).thenReturn(new Point(200, 50));
                 mockedMouseInfo.when(MouseInfo::getPointerInfo).thenReturn(mockPointerInfo);
 
-                var event = new MouseEvent(
-                        scrollPane,
-                        MouseEvent.MOUSE_CLICKED,
-                        System.currentTimeMillis(),
-                        MouseEvent.BUTTON1_DOWN_MASK,
-                        200, 50,
-                        1, // single click
-                        false,
-                        MouseEvent.BUTTON1
-                );
+                var event = createClickEvent(spiedScrollPane, 200, 50, MouseEvent.BUTTON1, 1);
 
-                // Act - dispatch and verify event is processed
-                // Note: In headless mode, Graphics2D is null so internal calculations fail,
-                // but the event dispatch mechanism itself should work
-                try {
-                    scrollPane.dispatchEvent(event);
-                } catch (NullPointerException e) {
-                    // Expected in headless mode due to Graphics2D being null
-                    assertThat(e.getMessage()).contains("g2");
-                }
+                // Act
+                spiedScrollPane.dispatchEvent(event);
+
+                // Assert - single click in EXPAND_FRAME mode should toggle selection, calculate zoom, and call zoom (FlamegraphView.java:1837-1859)
+                verify(mockRenderEngine).toggleSelectedFrameAt(nullable(Graphics2D.class), any(), any(), any());
+                verify(mockRenderEngine).calculateHorizontalZoomTargetForFrameAt(nullable(Graphics2D.class), any(), any(), any());
+                // Verify zoom is called with the mock zoom target (line 1858)
+                mockedFlamegraphView.verify(() -> FlamegraphView.zoom(any(FlamegraphCanvas.class), eq(mockZoomTarget)));
+            }
+        }
+
+        @Test
+        void single_click_in_expand_frame_mode_and__canvas_has_same_bounds_as_target__resets_zoom() {
+            // Arrange
+            fg.setFrameClickAction(FrameClickAction.EXPAND_FRAME);
+            fg.setShowMinimap(false);
+
+            // Create a ZoomTarget to be returned by calculateHorizontalZoomTargetForFrameAt
+            // The target bounds should match canvas bounds (x=0, width=800) to trigger reset (FlamegraphView.java:1854-1856)
+            var mockZoomTarget = new ZoomTarget<String>(0, 0, 800, 600, null);
+            when(mockRenderEngine.calculateHorizontalZoomTargetForFrameAt(any(), any(), any(), any()))
+                    .thenReturn(java.util.Optional.of(mockZoomTarget));
+
+            // Mock computeVisibleFlamegraphHeight so getResetZoomTarget can compute the reset target
+            when(mockRenderEngine.computeVisibleFlamegraphHeight(any(Graphics2D.class), anyInt())).thenReturn(600);
+
+            try (var mockedMouseInfo = mockStatic(MouseInfo.class);
+                 var mockedFlamegraphView = mockStatic(FlamegraphView.class)) {
+                var mockPointerInfo = mock(PointerInfo.class);
+                // Point inside canvas but outside minimap
+                when(mockPointerInfo.getLocation()).thenReturn(new Point(200, 50));
+                mockedMouseInfo.when(MouseInfo::getPointerInfo).thenReturn(mockPointerInfo);
+
+                var event = createClickEvent(scrollPane, 200, 50, MouseEvent.BUTTON1, 1);
+
+                // Act
+                scrollPane.dispatchEvent(event);
+
+                // Assert - single click in EXPAND_FRAME mode should toggle selection, calculate zoom, and call zoom (FlamegraphView.java:1837-1859)
+                verify(mockRenderEngine).toggleSelectedFrameAt(nullable(Graphics2D.class), any(), any(), any());
+                verify(mockRenderEngine).calculateHorizontalZoomTargetForFrameAt(nullable(Graphics2D.class), any(), any(), any());
+                // Verify the reset zoom path is taken (line 1856) by confirming zoom is NOT called with mockZoomTarget
+                // When canvas bounds match target bounds, it calls getResetZoomTarget instead of using mockZoomTarget
+                // In headless mode, getResetZoomTarget returns null, so zoom is called with null (not mockZoomTarget)
+                mockedFlamegraphView.verify(() -> FlamegraphView.zoom(any(FlamegraphCanvas.class), nullable(ZoomTarget.class)));
+                // Verify it's NOT called with the mockZoomTarget (which would be the else branch at line 1858)
+                mockedFlamegraphView.verify(() -> FlamegraphView.zoom(any(FlamegraphCanvas.class), eq(mockZoomTarget)), never());
             }
         }
 
@@ -323,26 +343,22 @@ class FlamegraphViewMouseInteractionTest {
         void double_click_in_expand_frame_mode_does_not_trigger_zoom() {
             // Arrange - double click in EXPAND_FRAME mode should not trigger zoom (only single click does)
             fg.setFrameClickAction(FrameClickAction.EXPAND_FRAME);
+            fg.setShowMinimap(false);
+            var spiedScrollPane = spy(scrollPane);
 
             try (var mockedMouseInfo = mockStatic(MouseInfo.class)) {
                 var mockPointerInfo = mock(PointerInfo.class);
                 when(mockPointerInfo.getLocation()).thenReturn(new Point(200, 50));
                 mockedMouseInfo.when(MouseInfo::getPointerInfo).thenReturn(mockPointerInfo);
 
-                var event = new MouseEvent(
-                        scrollPane,
-                        MouseEvent.MOUSE_CLICKED,
-                        System.currentTimeMillis(),
-                        MouseEvent.BUTTON1_DOWN_MASK,
-                        200, 50,
-                        2, // double click
-                        false,
-                        MouseEvent.BUTTON1
-                );
+                var event = createClickEvent(spiedScrollPane, 200, 50, MouseEvent.BUTTON1, 2);
 
-                // Act & Assert
-                assertThatCode(() -> scrollPane.dispatchEvent(event))
-                        .doesNotThrowAnyException();
+                // Act
+                spiedScrollPane.dispatchEvent(event);
+
+                // Assert - zoom should NOT be triggered for double-click in EXPAND_FRAME mode
+                verify(mockRenderEngine, never()).toggleSelectedFrameAt(any(Graphics2D.class), any(), any(Point.class), any());
+                verify(mockRenderEngine, never()).calculateHorizontalZoomTargetForFrameAt(any(Graphics2D.class), any(), any(), any(Point.class));
             }
         }
 
@@ -350,96 +366,93 @@ class FlamegraphViewMouseInteractionTest {
         void single_click_in_focus_frame_mode_toggles_selection() {
             // Arrange
             fg.setFrameClickAction(FrameClickAction.FOCUS_FRAME);
+            fg.setShowMinimap(false);
+            var spiedScrollPane = spy(scrollPane);
 
             try (var mockedMouseInfo = mockStatic(MouseInfo.class)) {
                 var mockPointerInfo = mock(PointerInfo.class);
                 when(mockPointerInfo.getLocation()).thenReturn(new Point(200, 50));
                 mockedMouseInfo.when(MouseInfo::getPointerInfo).thenReturn(mockPointerInfo);
 
-                var event = new MouseEvent(
-                        scrollPane,
-                        MouseEvent.MOUSE_CLICKED,
-                        System.currentTimeMillis(),
-                        MouseEvent.BUTTON1_DOWN_MASK,
-                        200, 50,
-                        1, // single click
-                        false,
-                        MouseEvent.BUTTON1
-                );
+                var event = createClickEvent(spiedScrollPane, 200, 50, MouseEvent.BUTTON1, 1);
 
-                // Act & Assert
-                assertThatCode(() -> scrollPane.dispatchEvent(event))
-                        .doesNotThrowAnyException();
+                // Act
+                spiedScrollPane.dispatchEvent(event);
+
+                // Assert - requestFocus should be called
+                verify(mockRenderEngine).toggleSelectedFrameAt(nullable(Graphics2D.class), any(), any(), any());
             }
         }
 
         @Test
-        void double_click_in_focus_frame_mode_dispatches_event() {
+        void double_click_in_focus_frame_mode_zooms_on_frame() {
             // Arrange
             fg.setFrameClickAction(FrameClickAction.FOCUS_FRAME);
+            fg.setShowMinimap(false); // Disable minimap to avoid early bailout at line 1828-1830
 
-            try (var mockedMouseInfo = mockStatic(MouseInfo.class)) {
+            // Create a mock ZoomTarget to be returned by calculateZoomTargetForFrameAt
+            var mockZoomTarget = mock(ZoomTarget.class);
+            var mockTargetBounds = new Rectangle(100, 0, 200, 100); // Different from canvas bounds to avoid reset
+            when(mockZoomTarget.getTargetBounds()).thenReturn(mockTargetBounds);
+            when(mockRenderEngine.calculateZoomTargetForFrameAt(any(), any(), any(), any()))
+                    .thenReturn(java.util.Optional.of(mockZoomTarget));
+
+            var spiedScrollPane = spy(scrollPane);
+
+            try (var mockedMouseInfo = mockStatic(MouseInfo.class);
+                 var mockedFlamegraphView = mockStatic(FlamegraphView.class)) {
                 var mockPointerInfo = mock(PointerInfo.class);
+                // Point inside canvas but outside minimap
                 when(mockPointerInfo.getLocation()).thenReturn(new Point(200, 50));
                 mockedMouseInfo.when(MouseInfo::getPointerInfo).thenReturn(mockPointerInfo);
 
-                var event = new MouseEvent(
-                        scrollPane,
-                        MouseEvent.MOUSE_CLICKED,
-                        System.currentTimeMillis(),
-                        MouseEvent.BUTTON1_DOWN_MASK,
-                        200, 50,
-                        2, // double click
-                        false,
-                        MouseEvent.BUTTON1
-                );
+                var event = createClickEvent(spiedScrollPane, 200, 50, MouseEvent.BUTTON1, 2);
 
-                // Act - dispatch and verify event is processed
-                // Note: In headless mode, Graphics2D is null so internal calculations fail,
-                // but the event dispatch mechanism itself should work
-                try {
-                    scrollPane.dispatchEvent(event);
-                } catch (NullPointerException e) {
-                    // Expected in headless mode due to Graphics2D being null
-                    assertThat(e.getMessage()).contains("g2");
-                }
+                // Act
+                spiedScrollPane.dispatchEvent(event);
+
+                // Assert - double click in FOCUS_FRAME mode should calculate zoom and call zoom (FlamegraphView.java:1864-1878)
+                verify(mockRenderEngine).calculateZoomTargetForFrameAt(nullable(Graphics2D.class), any(), any(), any());
+                // Verify zoom is called with the mock zoom target (line 1875)
+                mockedFlamegraphView.verify(() -> FlamegraphView.zoom(any(FlamegraphCanvas.class), eq(mockZoomTarget)));
             }
         }
 
         @Test
-        void selected_frame_consumer_is_invoked_on_single_click_in_focus_frame_mode() {
+        void double_click_in_focus_frame_mode_and__canvas_equals_target__resets_zoom() {
             // Arrange
             fg.setFrameClickAction(FrameClickAction.FOCUS_FRAME);
-            var selectedFrameRef = new AtomicReference<FrameBox<String>>();
-            var selectedEventRef = new AtomicReference<MouseEvent>();
+            fg.setShowMinimap(false); // Disable minimap to avoid early bailout at line 1828-1830
 
-            fg.setSelectedFrameConsumer((frame, e) -> {
-                selectedFrameRef.set(frame);
-                selectedEventRef.set(e);
-            });
+            // Create a ZoomTarget to be returned by calculateZoomTargetForFrameAt
+            // The target bounds should match canvas bounds to trigger reset (FlamegraphView.java:1872-1873)
+            var mockZoomTarget = new ZoomTarget<String>(0, 0, 800, 600, null);
+            when(mockRenderEngine.calculateZoomTargetForFrameAt(any(), any(), any(), any()))
+                    .thenReturn(java.util.Optional.of(mockZoomTarget));
 
-            try (var mockedMouseInfo = mockStatic(MouseInfo.class)) {
+            // Mock computeVisibleFlamegraphHeight so getResetZoomTarget can compute the reset target
+            when(mockRenderEngine.computeVisibleFlamegraphHeight(any(Graphics2D.class), anyInt())).thenReturn(600);
+
+            try (var mockedMouseInfo = mockStatic(MouseInfo.class);
+                 var mockedFlamegraphView = mockStatic(FlamegraphView.class)) {
                 var mockPointerInfo = mock(PointerInfo.class);
-                // Click on a frame location
-                when(mockPointerInfo.getLocation()).thenReturn(new Point(100, 30));
+                // Point inside canvas but outside minimap
+                when(mockPointerInfo.getLocation()).thenReturn(new Point(200, 50));
                 mockedMouseInfo.when(MouseInfo::getPointerInfo).thenReturn(mockPointerInfo);
 
-                var event = new MouseEvent(
-                        scrollPane,
-                        MouseEvent.MOUSE_CLICKED,
-                        System.currentTimeMillis(),
-                        MouseEvent.BUTTON1_DOWN_MASK,
-                        100, 30,
-                        1,
-                        false,
-                        MouseEvent.BUTTON1
-                );
+                var event = createClickEvent(scrollPane, 200, 50, MouseEvent.BUTTON1, 2);
 
                 // Act
                 scrollPane.dispatchEvent(event);
 
-                // Assert - consumer may or may not be called depending on hit detection
-                // The key is that no exception is thrown
+                // Assert - double click in FOCUS_FRAME mode should calculate zoom and call zoom (FlamegraphView.java:1864-1878)
+                verify(mockRenderEngine).calculateZoomTargetForFrameAt(nullable(Graphics2D.class), any(), any(), any());
+                // Verify the reset zoom path is taken (line 1873) by confirming zoom is NOT called with mockZoomTarget
+                // When canvas bounds equal target bounds, it calls getResetZoomTarget instead of using mockZoomTarget
+                // In headless mode, getResetZoomTarget returns null, so zoom is called with null (not mockZoomTarget)
+                mockedFlamegraphView.verify(() -> FlamegraphView.zoom(any(FlamegraphCanvas.class), nullable(ZoomTarget.class)));
+                // Verify it's NOT called with the mockZoomTarget (which would be the else branch at line 1875)
+                mockedFlamegraphView.verify(() -> FlamegraphView.zoom(any(FlamegraphCanvas.class), eq(mockZoomTarget)), never());
             }
         }
 
@@ -447,6 +460,7 @@ class FlamegraphViewMouseInteractionTest {
         void mouse_click_with_minimap_disabled_does_not_check_minimap() {
             // Arrange
             fg.setShowMinimap(false);
+            var spiedScrollPane = spy(scrollPane);
 
             try (var mockedMouseInfo = mockStatic(MouseInfo.class)) {
                 var mockPointerInfo = mock(PointerInfo.class);
@@ -454,20 +468,13 @@ class FlamegraphViewMouseInteractionTest {
                 when(mockPointerInfo.getLocation()).thenReturn(new Point(750, 550));
                 mockedMouseInfo.when(MouseInfo::getPointerInfo).thenReturn(mockPointerInfo);
 
-                var event = new MouseEvent(
-                        scrollPane,
-                        MouseEvent.MOUSE_CLICKED,
-                        System.currentTimeMillis(),
-                        MouseEvent.BUTTON1_DOWN_MASK,
-                        750, 550,
-                        1,
-                        false,
-                        MouseEvent.BUTTON1
-                );
+                var event = createClickEvent(spiedScrollPane, 750, 550, MouseEvent.BUTTON1, 1);
 
-                // Act & Assert - should process click since minimap is disabled
-                assertThatCode(() -> scrollPane.dispatchEvent(event))
-                        .doesNotThrowAnyException();
+                // Act
+                spiedScrollPane.dispatchEvent(event);
+
+                // Assert - requestFocus should be called
+                verify(spiedScrollPane).requestFocus();
             }
         }
 
@@ -476,26 +483,20 @@ class FlamegraphViewMouseInteractionTest {
             // Arrange
             fg.setMode(Mode.ICICLEGRAPH);
             fg.setFrameClickAction(FrameClickAction.FOCUS_FRAME);
+            var spiedScrollPane = spy(scrollPane);
 
             try (var mockedMouseInfo = mockStatic(MouseInfo.class)) {
                 var mockPointerInfo = mock(PointerInfo.class);
                 when(mockPointerInfo.getLocation()).thenReturn(new Point(200, 50));
                 mockedMouseInfo.when(MouseInfo::getPointerInfo).thenReturn(mockPointerInfo);
 
-                var event = new MouseEvent(
-                        scrollPane,
-                        MouseEvent.MOUSE_CLICKED,
-                        System.currentTimeMillis(),
-                        MouseEvent.BUTTON1_DOWN_MASK,
-                        200, 50,
-                        1,
-                        false,
-                        MouseEvent.BUTTON1
-                );
+                var event = createClickEvent(spiedScrollPane, 200, 50, MouseEvent.BUTTON1, 1);
 
-                // Act & Assert
-                assertThatCode(() -> scrollPane.dispatchEvent(event))
-                        .doesNotThrowAnyException();
+                // Act
+                spiedScrollPane.dispatchEvent(event);
+
+                // Assert - requestFocus should be called
+                verify(spiedScrollPane).requestFocus();
             }
         }
 
@@ -504,36 +505,27 @@ class FlamegraphViewMouseInteractionTest {
             // Arrange
             fg.setMode(Mode.FLAMEGRAPH);
             fg.setFrameClickAction(FrameClickAction.FOCUS_FRAME);
+            var spiedScrollPane = spy(scrollPane);
 
             try (var mockedMouseInfo = mockStatic(MouseInfo.class)) {
                 var mockPointerInfo = mock(PointerInfo.class);
                 when(mockPointerInfo.getLocation()).thenReturn(new Point(200, 550));
                 mockedMouseInfo.when(MouseInfo::getPointerInfo).thenReturn(mockPointerInfo);
 
-                var event = new MouseEvent(
-                        scrollPane,
-                        MouseEvent.MOUSE_CLICKED,
-                        System.currentTimeMillis(),
-                        MouseEvent.BUTTON1_DOWN_MASK,
-                        200, 550,
-                        1,
-                        false,
-                        MouseEvent.BUTTON1
-                );
+                var event = createClickEvent(spiedScrollPane, 200, 550, MouseEvent.BUTTON1, 1);
 
-                // Act & Assert
-                assertThatCode(() -> scrollPane.dispatchEvent(event))
-                        .doesNotThrowAnyException();
+                // Act
+                spiedScrollPane.dispatchEvent(event);
+
+                // Assert - requestFocus should be called
+                verify(spiedScrollPane).requestFocus();
             }
         }
 
         @Test
         void popup_consumer_is_available_after_setting() {
             // Arrange
-            var popupCalled = new AtomicReference<>(false);
-            BiConsumer<FrameBox<String>, MouseEvent> popupConsumer = (frame, e) -> {
-                popupCalled.set(true);
-            };
+            BiConsumer<FrameBox<String>, MouseEvent> popupConsumer = (frame, e) -> {};
 
             fg.setPopupConsumer(popupConsumer);
 
@@ -541,240 +533,93 @@ class FlamegraphViewMouseInteractionTest {
             assertThat(fg.getPopupConsumer()).isEqualTo(popupConsumer);
         }
 
-        // ==================== Canvas mouseClicked tests (FlamegraphCanvas.setupListeners lines 1466-1476) ====================
-        // These tests target the canvas's own mouseClicked handler which invokes selectedFrameConsumer
-        // Note: The canvas has its own listener separate from the scrollPane's FlamegraphHoveringScrollPaneMouseListener
-        // We use fresh FlamegraphView instances to avoid the spy setup which replaces the original canvas
-
         @Test
-        void canvas_mouse_click_with_double_click_returns_early_without_invoking_consumer() {
+        void mouse_double_click_do_not_invoke_selectedFrameConsumer() {
             // Arrange - double click should return early (clickCount != 1) in the canvas listener
-            // Note: The event also bubbles to the scroll pane's listener which handles double clicks
-            // differently and may throw NPE in headless mode
-            var consumerCalled = new AtomicReference<>(false);
+            BiConsumer<FrameBox<String>, MouseEvent> selectedFrameConsumer = mock(BiConsumer.class);
+            fg.setSelectedFrameConsumer(selectedFrameConsumer);
 
-            // Use a fresh FlamegraphView to avoid the spy setup from @BeforeEach
-            var freshFg = new FlamegraphView<String>();
-            freshFg.setModel(new FrameModel<>(List.of(
-                    new FrameBox<>("root", 0.0, 1.0, 0),
-                    new FrameBox<>("child1", 0.0, 0.5, 1)
-            )));
-            freshFg.setSelectedFrameConsumer((frame, e) -> consumerCalled.set(true));
+            var canvas = scrollPane.getViewport().getView();
+            var event = createClickEvent(canvas, 100, 30, MouseEvent.BUTTON1, 2);
 
-            var freshScrollPane = findScrollPane(freshFg.component);
-            var canvas = freshScrollPane.getViewport().getView();
-            canvas.setSize(800, 600);
+            // Act
+            canvas.dispatchEvent(event);
 
-            var event = new MouseEvent(
-                    canvas,
-                    MouseEvent.MOUSE_CLICKED,
-                    System.currentTimeMillis(),
-                    MouseEvent.BUTTON1_DOWN_MASK,
-                    100, 30,
-                    2, // double click - should return early at line 1467
-                    false,
-                    MouseEvent.BUTTON1
-            );
-
-            // Act - the canvas listener returns early for double click (line 1467)
-            // but the scroll pane listener processes it and may throw NPE in headless mode
-            try {
-                canvas.dispatchEvent(event);
-            } catch (NullPointerException e1) {
-                // Expected in headless mode from the scroll pane's listener
-            }
-
-            // Assert - canvas listener's selectedFrameConsumer should NOT be called for double click
-            assertThat(consumerCalled.get()).isFalse();
+            // Assert - consumer should NOT be called for double click
+            verify(selectedFrameConsumer, never()).accept(any(), any());
         }
 
         @Test
-        void canvas_mouse_click_with_non_left_button_returns_early_without_invoking_consumer() {
+        void mouse_click_with_non_left_button_do_not_invoke_selectedFrameConsumer() {
             // Arrange - right button should return early (button != BUTTON1)
-            var consumerCalled = new AtomicReference<>(false);
+            BiConsumer<FrameBox<String>, MouseEvent> selectedFrameConsumer = mock(BiConsumer.class);
+            fg.setSelectedFrameConsumer(selectedFrameConsumer);
 
-            var freshFg = new FlamegraphView<String>();
-            freshFg.setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0))));
-            freshFg.setSelectedFrameConsumer((frame, e) -> consumerCalled.set(true));
-
-            var freshScrollPane = findScrollPane(freshFg.component);
-            var canvas = freshScrollPane.getViewport().getView();
-            canvas.setSize(800, 600);
-
-            var event = new MouseEvent(
-                    canvas,
-                    MouseEvent.MOUSE_CLICKED,
-                    System.currentTimeMillis(),
-                    MouseEvent.BUTTON3_DOWN_MASK,
-                    100, 30,
-                    1,
-                    false,
-                    MouseEvent.BUTTON3 // right button - should return early at line 1467
-            );
+            var canvas = scrollPane.getViewport().getView();
+            var event = createClickEvent(canvas, 100, 30, MouseEvent.BUTTON3, 1);
 
             // Act
             canvas.dispatchEvent(event);
 
             // Assert - consumer should NOT be called for non-left button
-            assertThat(consumerCalled.get()).isFalse();
+            verify(selectedFrameConsumer, never()).accept(any(), any());
         }
 
         @Test
-        void canvas_mouse_click_without_selectedFrameConsumer_returns_early() {
-            // Arrange - no consumer set (null check at line 1470-1472)
-            // The canvas listener returns early when selectedFrameConsumer is null,
-            // but the scroll pane listener processes the single-click and may throw NPE in headless mode
-            var freshFg = new FlamegraphView<String>();
-            freshFg.setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0))));
-            // Don't set selectedFrameConsumer - it should be null
+        void mouse_click_without_selectedFrameConsumer_returns_early() {
+            // Arrange - no consumer set (null check returns early before getFrameAt)
+            // Don't set selectedFrameConsumer - it should be null by default
 
-            var freshScrollPane = findScrollPane(freshFg.component);
-            var canvas = freshScrollPane.getViewport().getView();
-            canvas.setSize(800, 600);
-
-            var event = new MouseEvent(
-                    canvas,
-                    MouseEvent.MOUSE_CLICKED,
-                    System.currentTimeMillis(),
-                    MouseEvent.BUTTON1_DOWN_MASK,
-                    100, 30,
-                    1,
-                    false,
-                    MouseEvent.BUTTON1
-            );
-
-            // Act - canvas listener returns early (line 1470-1472) for null consumer,
-            // but scroll pane listener processes the event and may throw NPE in headless mode
-            try {
-                canvas.dispatchEvent(event);
-            } catch (NullPointerException e1) {
-                // Expected in headless mode from the scroll pane's listener
-            }
-            // The key assertion is that selectedFrameConsumer was never called (it's null)
-        }
-
-        @Test
-        void canvas_single_left_click_with_consumer_attempts_frame_lookup() {
-            // Arrange - valid single left click with consumer should attempt frame lookup
-            // Note: In headless mode, getGraphics() returns null causing NPE
-            var consumerCalled = new AtomicReference<>(false);
-
-            var freshFg = new FlamegraphView<String>();
-            freshFg.setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0))));
-            freshFg.setSelectedFrameConsumer((frame, e) -> consumerCalled.set(true));
-
-            var freshScrollPane = findScrollPane(freshFg.component);
-            var canvas = freshScrollPane.getViewport().getView();
-            canvas.setSize(800, 600);
-
-            var event = new MouseEvent(
-                    canvas,
-                    MouseEvent.MOUSE_CLICKED,
-                    System.currentTimeMillis(),
-                    MouseEvent.BUTTON1_DOWN_MASK,
-                    400, 10,
-                    1,
-                    false,
-                    MouseEvent.BUTTON1
-            );
-
-            // Act - expect NPE because getGraphics() returns null in headless mode
-            // This verifies the code path reaches the frame lookup (line 1474)
-            assertThatThrownBy(() -> canvas.dispatchEvent(event))
-                    .isInstanceOf(NullPointerException.class)
-                    .hasMessageContaining("g2");
-        }
-
-        @Test
-        void canvas_single_left_click_outside_frame_area_attempts_frame_lookup() {
-            // Arrange - click outside any frame still attempts lookup
-            var consumerCalled = new AtomicReference<>(false);
-
-            var freshFg = new FlamegraphView<String>();
-            freshFg.setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0))));
-            freshFg.setSelectedFrameConsumer((frame, e) -> consumerCalled.set(true));
-
-            var freshScrollPane = findScrollPane(freshFg.component);
-            var canvas = freshScrollPane.getViewport().getView();
-            canvas.setSize(800, 600);
-
-            var event = new MouseEvent(
-                    canvas,
-                    MouseEvent.MOUSE_CLICKED,
-                    System.currentTimeMillis(),
-                    MouseEvent.BUTTON1_DOWN_MASK,
-                    799, 599,
-                    1,
-                    false,
-                    MouseEvent.BUTTON1
-            );
-
-            // Act - expect NPE because getGraphics() returns null in headless mode
-            assertThatThrownBy(() -> canvas.dispatchEvent(event))
-                    .isInstanceOf(NullPointerException.class)
-                    .hasMessageContaining("g2");
-        }
-
-        @Test
-        void canvas_mouse_click_with_zero_click_count_returns_early() {
-            // Arrange - zero click count (edge case)
-            var consumerCalled = new AtomicReference<>(false);
-
-            var freshFg = new FlamegraphView<String>();
-            freshFg.setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0))));
-            freshFg.setSelectedFrameConsumer((frame, e) -> consumerCalled.set(true));
-
-            var freshScrollPane = findScrollPane(freshFg.component);
-            var canvas = freshScrollPane.getViewport().getView();
-            canvas.setSize(800, 600);
-
-            var event = new MouseEvent(
-                    canvas,
-                    MouseEvent.MOUSE_CLICKED,
-                    System.currentTimeMillis(),
-                    MouseEvent.BUTTON1_DOWN_MASK,
-                    100, 30,
-                    0, // zero click count - should return early at line 1467
-                    false,
-                    MouseEvent.BUTTON1
-            );
+            var canvas = scrollPane.getViewport().getView();
+            var event = createClickEvent(canvas, 100, 30, MouseEvent.BUTTON1, 1);
 
             // Act
             canvas.dispatchEvent(event);
 
-            // Assert - consumer should NOT be called for zero click count
-            assertThat(consumerCalled.get()).isFalse();
+            // Assert - getFrameAt should never be called when consumer is null
+            verify(mockRenderEngine, never()).getFrameAt(any(), any(), any());
         }
 
         @Test
-        void canvas_mouse_click_with_middle_button_returns_early() {
-            // Arrange - middle button click
-            var consumerCalled = new AtomicReference<>(false);
+        void mouse_click_invokes_selectedFrameConsumer_when_frame_is_found() {
+            // Arrange - stub mockRenderEngine to return a frame
+            // Use nullable() because getGraphics() returns null in headless mode
+            when(mockRenderEngine.getFrameAt(nullable(Graphics2D.class), any(Rectangle.class), any(Point.class)))
+                    .thenReturn(java.util.Optional.of(testFrame));
 
-            var freshFg = new FlamegraphView<String>();
-            freshFg.setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0))));
-            freshFg.setSelectedFrameConsumer((frame, e) -> consumerCalled.set(true));
+            BiConsumer<FrameBox<String>, MouseEvent> selectedFrameConsumer = mock(BiConsumer.class);
+            fg.setSelectedFrameConsumer(selectedFrameConsumer);
 
-            var freshScrollPane = findScrollPane(freshFg.component);
-            var canvas = freshScrollPane.getViewport().getView();
-            canvas.setSize(800, 600);
+            var canvas = scrollPane.getViewport().getView();
 
-            var event = new MouseEvent(
-                    canvas,
-                    MouseEvent.MOUSE_CLICKED,
-                    System.currentTimeMillis(),
-                    MouseEvent.BUTTON2_DOWN_MASK,
-                    100, 30,
-                    1,
-                    false,
-                    MouseEvent.BUTTON2 // middle button - should return early at line 1467
-            );
+            var event = createClickEvent(canvas, 400, 300, MouseEvent.BUTTON1, 1);
 
             // Act
             canvas.dispatchEvent(event);
 
-            // Assert - consumer should NOT be called for middle button
-            assertThat(consumerCalled.get()).isFalse();
+            // Assert - consumer should be invoked with the found frame and event (FlamegraphView.java:1680-1681)
+            verify(selectedFrameConsumer).accept(testFrame, event);
+        }
+
+        @Test
+        void mouse_click_does_not_invoke_selectedFrameConsumer_when_no_frame_is_found() {
+            // Arrange - stub mockRenderEngine to return empty
+            // Use nullable() because getGraphics() returns null in headless mode
+            when(mockRenderEngine.getFrameAt(nullable(Graphics2D.class), any(Rectangle.class), any(Point.class)))
+                    .thenReturn(java.util.Optional.empty());
+
+            BiConsumer<FrameBox<String>, MouseEvent> selectedFrameConsumer = mock(BiConsumer.class);
+            fg.setSelectedFrameConsumer(selectedFrameConsumer);
+
+            var canvas = scrollPane.getViewport().getView();
+
+            var event = createClickEvent(canvas, 799, 599, MouseEvent.BUTTON1, 1);
+
+            // Act
+            canvas.dispatchEvent(event);
+
+            // Assert - consumer should NOT be invoked when no frame is found (FlamegraphView.java:1680-1681)
+            verify(selectedFrameConsumer, never()).accept(any(), any());
         }
     }
 
@@ -809,16 +654,7 @@ class FlamegraphViewMouseInteractionTest {
         @Test
         void mouse_pressed_with_left_button_sets_pressed_point() {
             // Arrange
-            var event = new MouseEvent(
-                    scrollPane,
-                    MouseEvent.MOUSE_PRESSED,
-                    System.currentTimeMillis(),
-                    MouseEvent.BUTTON1_DOWN_MASK,
-                    100, 100,
-                    1,
-                    false,
-                    MouseEvent.BUTTON1
-            );
+            var event = createPressEvent(scrollPane, 100, 100, MouseEvent.BUTTON1, false);
 
             // Act & Assert - should not throw
             assertThatCode(() -> scrollPane.dispatchEvent(event))
@@ -828,16 +664,7 @@ class FlamegraphViewMouseInteractionTest {
         @Test
         void mouse_pressed_with_non_left_button_does_not_set_pressed_point() {
             // Arrange - right click
-            var event = new MouseEvent(
-                    scrollPane,
-                    MouseEvent.MOUSE_PRESSED,
-                    System.currentTimeMillis(),
-                    MouseEvent.BUTTON3_DOWN_MASK,
-                    100, 100,
-                    1,
-                    false,
-                    MouseEvent.BUTTON3
-            );
+            var event = createPressEvent(scrollPane, 100, 100, MouseEvent.BUTTON3, false);
 
             // Act & Assert - should not throw
             assertThatCode(() -> scrollPane.dispatchEvent(event))
@@ -850,16 +677,7 @@ class FlamegraphViewMouseInteractionTest {
             fg.setShowMinimap(true);
 
             // Press inside minimap area (bottom-right corner)
-            var event = new MouseEvent(
-                    scrollPane,
-                    MouseEvent.MOUSE_PRESSED,
-                    System.currentTimeMillis(),
-                    MouseEvent.BUTTON1_DOWN_MASK,
-                    750, 550,
-                    1,
-                    false,
-                    MouseEvent.BUTTON1
-            );
+            var event = createPressEvent(scrollPane, 750, 550, MouseEvent.BUTTON1, false);
 
             // Act & Assert - should not throw, pressedPoint should be set to null
             assertThatCode(() -> scrollPane.dispatchEvent(event))
@@ -872,16 +690,7 @@ class FlamegraphViewMouseInteractionTest {
             fg.setShowMinimap(true);
 
             // Press outside minimap area
-            var event = new MouseEvent(
-                    scrollPane,
-                    MouseEvent.MOUSE_PRESSED,
-                    System.currentTimeMillis(),
-                    MouseEvent.BUTTON1_DOWN_MASK,
-                    100, 100,
-                    1,
-                    false,
-                    MouseEvent.BUTTON1
-            );
+            var event = createPressEvent(scrollPane, 100, 100, MouseEvent.BUTTON1, false);
 
             // Act & Assert - should not throw
             assertThatCode(() -> scrollPane.dispatchEvent(event))
@@ -891,29 +700,11 @@ class FlamegraphViewMouseInteractionTest {
         @Test
         void mouse_released_clears_pressed_point() {
             // Arrange - first press to set pressedPoint
-            var pressEvent = new MouseEvent(
-                    scrollPane,
-                    MouseEvent.MOUSE_PRESSED,
-                    System.currentTimeMillis(),
-                    MouseEvent.BUTTON1_DOWN_MASK,
-                    100, 100,
-                    1,
-                    false,
-                    MouseEvent.BUTTON1
-            );
+            var pressEvent = createPressEvent(scrollPane, 100, 100, MouseEvent.BUTTON1, false);
             scrollPane.dispatchEvent(pressEvent);
 
             // Now release
-            var releaseEvent = new MouseEvent(
-                    scrollPane,
-                    MouseEvent.MOUSE_RELEASED,
-                    System.currentTimeMillis(),
-                    0,
-                    100, 100,
-                    1,
-                    false,
-                    MouseEvent.BUTTON1
-            );
+            var releaseEvent = createReleaseEvent(scrollPane, 100, 100, false);
 
             // Act & Assert - should not throw
             assertThatCode(() -> scrollPane.dispatchEvent(releaseEvent))
@@ -923,16 +714,7 @@ class FlamegraphViewMouseInteractionTest {
         @Test
         void mouse_released_without_prior_press_does_not_throw() {
             // Arrange - release without press
-            var releaseEvent = new MouseEvent(
-                    scrollPane,
-                    MouseEvent.MOUSE_RELEASED,
-                    System.currentTimeMillis(),
-                    0,
-                    100, 100,
-                    1,
-                    false,
-                    MouseEvent.BUTTON1
-            );
+            var releaseEvent = createReleaseEvent(scrollPane, 100, 100, false);
 
             // Act & Assert - should not throw
             assertThatCode(() -> scrollPane.dispatchEvent(releaseEvent))
@@ -942,16 +724,7 @@ class FlamegraphViewMouseInteractionTest {
         @Test
         void mouse_dragged_without_prior_press_does_nothing() {
             // Arrange - drag without press (pressedPoint is null)
-            var dragEvent = new MouseEvent(
-                    scrollPane,
-                    MouseEvent.MOUSE_DRAGGED,
-                    System.currentTimeMillis(),
-                    MouseEvent.BUTTON1_DOWN_MASK,
-                    150, 150,
-                    1,
-                    false,
-                    MouseEvent.BUTTON1
-            );
+            var dragEvent = createDraggedEvent(scrollPane, 150, 150);
 
             // Act & Assert - should not throw
             assertThatCode(() -> scrollPane.dispatchEvent(dragEvent))
@@ -964,29 +737,11 @@ class FlamegraphViewMouseInteractionTest {
             scrollPane.getViewport().setViewPosition(new Point(100, 100));
 
             // Press first to set pressedPoint
-            var pressEvent = new MouseEvent(
-                    scrollPane,
-                    MouseEvent.MOUSE_PRESSED,
-                    System.currentTimeMillis(),
-                    MouseEvent.BUTTON1_DOWN_MASK,
-                    100, 100,
-                    1,
-                    false,
-                    MouseEvent.BUTTON1
-            );
+            var pressEvent = createPressEvent(scrollPane, 100, 100, MouseEvent.BUTTON1, false);
             scrollPane.dispatchEvent(pressEvent);
 
             // Now drag
-            var dragEvent = new MouseEvent(
-                    scrollPane,
-                    MouseEvent.MOUSE_DRAGGED,
-                    System.currentTimeMillis(),
-                    MouseEvent.BUTTON1_DOWN_MASK,
-                    150, 150, // drag by 50 pixels in each direction
-                    1,
-                    false,
-                    MouseEvent.BUTTON1
-            );
+            var dragEvent = createDraggedEvent(scrollPane, 150, 150);
 
             // Act & Assert - should not throw
             assertThatCode(() -> scrollPane.dispatchEvent(dragEvent))
@@ -996,30 +751,12 @@ class FlamegraphViewMouseInteractionTest {
         @Test
         void mouse_dragged_from_non_scroll_pane_source_does_nothing() {
             // Arrange - press first
-            var pressEvent = new MouseEvent(
-                    scrollPane,
-                    MouseEvent.MOUSE_PRESSED,
-                    System.currentTimeMillis(),
-                    MouseEvent.BUTTON1_DOWN_MASK,
-                    100, 100,
-                    1,
-                    false,
-                    MouseEvent.BUTTON1
-            );
+            var pressEvent = createPressEvent(scrollPane, 100, 100, MouseEvent.BUTTON1, false);
             scrollPane.dispatchEvent(pressEvent);
 
             // Drag from a different component (not JScrollPane)
             var otherComponent = new JPanel();
-            var dragEvent = new MouseEvent(
-                    otherComponent,
-                    MouseEvent.MOUSE_DRAGGED,
-                    System.currentTimeMillis(),
-                    MouseEvent.BUTTON1_DOWN_MASK,
-                    150, 150,
-                    1,
-                    false,
-                    MouseEvent.BUTTON1
-            );
+            var dragEvent = createDraggedEvent(otherComponent, 150, 150);
 
             // Act & Assert - dispatch to scrollPane but event source is different
             assertThatCode(() -> scrollPane.dispatchEvent(dragEvent))
@@ -1032,55 +769,19 @@ class FlamegraphViewMouseInteractionTest {
             scrollPane.getViewport().setViewPosition(new Point(200, 200));
 
             // Press
-            var pressEvent = new MouseEvent(
-                    scrollPane,
-                    MouseEvent.MOUSE_PRESSED,
-                    System.currentTimeMillis(),
-                    MouseEvent.BUTTON1_DOWN_MASK,
-                    100, 100,
-                    1,
-                    false,
-                    MouseEvent.BUTTON1
-            );
+            var pressEvent = createPressEvent(scrollPane, 100, 100, MouseEvent.BUTTON1, false);
             scrollPane.dispatchEvent(pressEvent);
 
             // Drag
-            var dragEvent1 = new MouseEvent(
-                    scrollPane,
-                    MouseEvent.MOUSE_DRAGGED,
-                    System.currentTimeMillis(),
-                    MouseEvent.BUTTON1_DOWN_MASK,
-                    120, 120,
-                    1,
-                    false,
-                    MouseEvent.BUTTON1
-            );
+            var dragEvent1 = createDraggedEvent(scrollPane, 120, 120);
             scrollPane.dispatchEvent(dragEvent1);
 
             // Drag again
-            var dragEvent2 = new MouseEvent(
-                    scrollPane,
-                    MouseEvent.MOUSE_DRAGGED,
-                    System.currentTimeMillis(),
-                    MouseEvent.BUTTON1_DOWN_MASK,
-                    140, 140,
-                    1,
-                    false,
-                    MouseEvent.BUTTON1
-            );
+            var dragEvent2 = createDraggedEvent(scrollPane, 140, 140);
             scrollPane.dispatchEvent(dragEvent2);
 
             // Release
-            var releaseEvent = new MouseEvent(
-                    scrollPane,
-                    MouseEvent.MOUSE_RELEASED,
-                    System.currentTimeMillis(),
-                    0,
-                    140, 140,
-                    1,
-                    false,
-                    MouseEvent.BUTTON1
-            );
+            var releaseEvent = createReleaseEvent(scrollPane, 140, 140, false);
 
             // Act & Assert
             assertThatCode(() -> scrollPane.dispatchEvent(releaseEvent))
@@ -1093,29 +794,11 @@ class FlamegraphViewMouseInteractionTest {
             scrollPane.getViewport().setViewPosition(new Point(100, 100));
 
             // Press first
-            var pressEvent = new MouseEvent(
-                    scrollPane,
-                    MouseEvent.MOUSE_PRESSED,
-                    System.currentTimeMillis(),
-                    MouseEvent.BUTTON1_DOWN_MASK,
-                    100, 100,
-                    1,
-                    false,
-                    MouseEvent.BUTTON1
-            );
+            var pressEvent = createPressEvent(scrollPane, 100, 100, MouseEvent.BUTTON1, false);
             scrollPane.dispatchEvent(pressEvent);
 
             // Drag - the event should be consumed by the listener
-            var dragEvent = new MouseEvent(
-                    scrollPane,
-                    MouseEvent.MOUSE_DRAGGED,
-                    System.currentTimeMillis(),
-                    MouseEvent.BUTTON1_DOWN_MASK,
-                    150, 150,
-                    1,
-                    false,
-                    MouseEvent.BUTTON1
-            );
+            var dragEvent = createDraggedEvent(scrollPane, 150, 150);
 
             // Act
             scrollPane.dispatchEvent(dragEvent);
@@ -1130,29 +813,11 @@ class FlamegraphViewMouseInteractionTest {
             scrollPane.getViewport().setViewPosition(new Point(10, 10));
 
             // Press first
-            var pressEvent = new MouseEvent(
-                    scrollPane,
-                    MouseEvent.MOUSE_PRESSED,
-                    System.currentTimeMillis(),
-                    MouseEvent.BUTTON1_DOWN_MASK,
-                    100, 100,
-                    1,
-                    false,
-                    MouseEvent.BUTTON1
-            );
+            var pressEvent = createPressEvent(scrollPane, 100, 100, MouseEvent.BUTTON1, false);
             scrollPane.dispatchEvent(pressEvent);
 
             // Drag significantly to try to go negative
-            var dragEvent = new MouseEvent(
-                    scrollPane,
-                    MouseEvent.MOUSE_DRAGGED,
-                    System.currentTimeMillis(),
-                    MouseEvent.BUTTON1_DOWN_MASK,
-                    200, 200, // drag by 100 pixels - would make position negative
-                    1,
-                    false,
-                    MouseEvent.BUTTON1
-            );
+            var dragEvent = createDraggedEvent(scrollPane, 200, 200);
 
             // Act & Assert - position should be clamped to 0, not negative
             assertThatCode(() -> scrollPane.dispatchEvent(dragEvent))
@@ -1170,45 +835,18 @@ class FlamegraphViewMouseInteractionTest {
             scrollPane.getViewport().setViewPosition(new Point(100, 100));
 
             // Press
-            var pressEvent = new MouseEvent(
-                    scrollPane,
-                    MouseEvent.MOUSE_PRESSED,
-                    System.currentTimeMillis(),
-                    MouseEvent.BUTTON1_DOWN_MASK,
-                    100, 100,
-                    1,
-                    false,
-                    MouseEvent.BUTTON1
-            );
+            var pressEvent = createPressEvent(scrollPane, 100, 100, MouseEvent.BUTTON1, false);
             scrollPane.dispatchEvent(pressEvent);
 
             // Release - this clears pressedPoint
-            var releaseEvent = new MouseEvent(
-                    scrollPane,
-                    MouseEvent.MOUSE_RELEASED,
-                    System.currentTimeMillis(),
-                    0,
-                    100, 100,
-                    1,
-                    false,
-                    MouseEvent.BUTTON1
-            );
+            var releaseEvent = createReleaseEvent(scrollPane, 100, 100, false);
             scrollPane.dispatchEvent(releaseEvent);
 
             // Get position after release
             var positionAfterRelease = scrollPane.getViewport().getViewPosition();
 
             // Try to drag - should do nothing since pressedPoint is null
-            var dragEvent = new MouseEvent(
-                    scrollPane,
-                    MouseEvent.MOUSE_DRAGGED,
-                    System.currentTimeMillis(),
-                    MouseEvent.BUTTON1_DOWN_MASK,
-                    150, 150,
-                    1,
-                    false,
-                    MouseEvent.BUTTON1
-            );
+            var dragEvent = createDraggedEvent(scrollPane, 150, 150);
             scrollPane.dispatchEvent(dragEvent);
 
             // Assert - position should not have changed after the drag
@@ -1220,22 +858,17 @@ class FlamegraphViewMouseInteractionTest {
     @Nested
     @DisplayName("Mouse Hover Behavior on Canvas")
     class MouseHoverBehaviorTests {
-
-        private BufferedImage image;
-        private Graphics2D g2d;
         private JScrollPane scrollPane;
         private FlamegraphView.HoverListener<String> hoverListener;
-        private FrameBox<String> rootFrame;
-        private FrameBox<String> childFrame;
 
         @BeforeEach
         void setUpGraphicsAndComponents() {
-            image = new BufferedImage(800, 600, BufferedImage.TYPE_INT_ARGB);
-            g2d = image.createGraphics();
+            BufferedImage image = new BufferedImage(800, 600, BufferedImage.TYPE_INT_ARGB);
+            Graphics2D g2d = image.createGraphics();
 
             // Set up a model with frames
-            rootFrame = new FrameBox<>("root", 0.0, 1.0, 0);
-            childFrame = new FrameBox<>("child1", 0.0, 0.5, 1);
+            var rootFrame = new FrameBox<>("root", 0.0, 1.0, 0);
+            var childFrame = new FrameBox<>("child1", 0.0, 0.5, 1);
             var frames = List.of(
                     rootFrame,
                     childFrame,
@@ -1273,16 +906,7 @@ class FlamegraphViewMouseInteractionTest {
                 when(mockPointerInfo.getLocation()).thenReturn(new Point(750, 550));
                 mockedMouseInfo.when(MouseInfo::getPointerInfo).thenReturn(mockPointerInfo);
 
-                var event = new MouseEvent(
-                        scrollPane,
-                        MouseEvent.MOUSE_ENTERED,
-                        System.currentTimeMillis(),
-                        0,
-                        750, 550,
-                        0,
-                        false,
-                        MouseEvent.NOBUTTON
-                );
+                var event = createEnteredEvent(scrollPane, 750, 550);
 
                 // Act
                 scrollPane.dispatchEvent(event);
@@ -1304,16 +928,7 @@ class FlamegraphViewMouseInteractionTest {
                 when(mockPointerInfo.getLocation()).thenReturn(new Point(10, 10));
                 mockedMouseInfo.when(MouseInfo::getPointerInfo).thenReturn(mockPointerInfo);
 
-                var event = new MouseEvent(
-                        scrollPane,
-                        MouseEvent.MOUSE_ENTERED,
-                        System.currentTimeMillis(),
-                        0,
-                        10, 10,
-                        0,
-                        false,
-                        MouseEvent.NOBUTTON
-                );
+                var event = createEnteredEvent(scrollPane, 10, 10);
 
                 // Act
                 scrollPane.dispatchEvent(event);
@@ -1334,16 +949,7 @@ class FlamegraphViewMouseInteractionTest {
                 when(mockPointerInfo.getLocation()).thenReturn(new Point(100, 100));
                 mockedMouseInfo.when(MouseInfo::getPointerInfo).thenReturn(mockPointerInfo);
 
-                var event = new MouseEvent(
-                        scrollPane,
-                        MouseEvent.MOUSE_ENTERED,
-                        System.currentTimeMillis(),
-                        0,
-                        100, 100,
-                        0,
-                        false,
-                        MouseEvent.NOBUTTON
-                );
+                var event = createEnteredEvent(scrollPane, 100, 100);
 
                 // Act & Assert - should not throw
                 assertThatCode(() -> scrollPane.dispatchEvent(event))
@@ -1362,16 +968,7 @@ class FlamegraphViewMouseInteractionTest {
                 when(mockPointerInfo.getLocation()).thenReturn(new Point(750, 550));
                 mockedMouseInfo.when(MouseInfo::getPointerInfo).thenReturn(mockPointerInfo);
 
-                var event = new MouseEvent(
-                        scrollPane,
-                        MouseEvent.MOUSE_MOVED,
-                        System.currentTimeMillis(),
-                        0,
-                        750, 550,
-                        0,
-                        false,
-                        MouseEvent.NOBUTTON
-                );
+                var event = createMovedEvent(scrollPane, 750, 550);
 
                 // Act
                 scrollPane.dispatchEvent(event);
@@ -1392,16 +989,7 @@ class FlamegraphViewMouseInteractionTest {
                 when(mockPointerInfo.getLocation()).thenReturn(new Point(100, 50));
                 mockedMouseInfo.when(MouseInfo::getPointerInfo).thenReturn(mockPointerInfo);
 
-                var enterEvent = new MouseEvent(
-                        scrollPane,
-                        MouseEvent.MOUSE_ENTERED,
-                        System.currentTimeMillis(),
-                        0,
-                        100, 50,
-                        0,
-                        false,
-                        MouseEvent.NOBUTTON
-                );
+                var enterEvent = createEnteredEvent(scrollPane, 100, 50);
                 scrollPane.dispatchEvent(enterEvent);
             }
 
@@ -1411,16 +999,7 @@ class FlamegraphViewMouseInteractionTest {
                 when(mockPointerInfo.getLocation()).thenReturn(new Point(-10, -10));
                 mockedMouseInfo.when(MouseInfo::getPointerInfo).thenReturn(mockPointerInfo);
 
-                var exitEvent = new MouseEvent(
-                        scrollPane,
-                        MouseEvent.MOUSE_EXITED,
-                        System.currentTimeMillis(),
-                        0,
-                        -10, -10,
-                        0,
-                        false,
-                        MouseEvent.NOBUTTON
-                );
+                var exitEvent = createExitedEvent(scrollPane, -10, -10);
 
                 // Act
                 scrollPane.dispatchEvent(exitEvent);
@@ -1442,32 +1021,14 @@ class FlamegraphViewMouseInteractionTest {
                 mockedMouseInfo.when(MouseInfo::getPointerInfo).thenReturn(mockPointerInfo);
 
                 // First move - should look up the frame
-                var event1 = new MouseEvent(
-                        scrollPane,
-                        MouseEvent.MOUSE_MOVED,
-                        System.currentTimeMillis(),
-                        0,
-                        200, 50,
-                        0,
-                        false,
-                        MouseEvent.NOBUTTON
-                );
+                var event1 = createMovedEvent(scrollPane, 200, 50);
                 scrollPane.dispatchEvent(event1);
 
                 // Clear invocations to track second call
                 clearInvocations(hoverListener);
 
                 // Second move - same general area, should use cached rectangle
-                var event2 = new MouseEvent(
-                        scrollPane,
-                        MouseEvent.MOUSE_MOVED,
-                        System.currentTimeMillis(),
-                        0,
-                        205, 50, // slightly different position but same frame
-                        0,
-                        false,
-                        MouseEvent.NOBUTTON
-                );
+                var event2 = createMovedEvent(scrollPane, 205, 50);
 
                 // Act
                 scrollPane.dispatchEvent(event2);
@@ -1517,16 +1078,7 @@ class FlamegraphViewMouseInteractionTest {
                 when(mockPointerInfo.getLocation()).thenReturn(new Point(750, 550));
                 mockedMouseInfo.when(MouseInfo::getPointerInfo).thenReturn(mockPointerInfo);
 
-                var event = new MouseEvent(
-                        scrollPane,
-                        MouseEvent.MOUSE_ENTERED,
-                        System.currentTimeMillis(),
-                        0,
-                        750, 550,
-                        0,
-                        false,
-                        MouseEvent.NOBUTTON
-                );
+                var event = createEnteredEvent(scrollPane, 750, 550);
 
                 // Act & Assert - should not throw even without listener
                 assertThatCode(() -> scrollPane.dispatchEvent(event))
@@ -1554,16 +1106,7 @@ class FlamegraphViewMouseInteractionTest {
                 when(mockPointerInfo.getLocation()).thenReturn(new Point(200, 50));
                 mockedMouseInfo.when(MouseInfo::getPointerInfo).thenReturn(mockPointerInfo);
 
-                var event = new MouseEvent(
-                        scrollPane,
-                        MouseEvent.MOUSE_ENTERED,
-                        System.currentTimeMillis(),
-                        0,
-                        200, 50,
-                        0,
-                        false,
-                        MouseEvent.NOBUTTON
-                );
+                var event = createEnteredEvent(scrollPane, 200, 50);
 
                 // Act
                 scrollPane.dispatchEvent(event);
@@ -1603,16 +1146,7 @@ class FlamegraphViewMouseInteractionTest {
                 when(mockPointerInfo.getLocation()).thenReturn(new Point(10, 10));
                 mockedMouseInfo.when(MouseInfo::getPointerInfo).thenReturn(mockPointerInfo);
 
-                var event = new MouseEvent(
-                        scrollPane,
-                        MouseEvent.MOUSE_ENTERED,
-                        System.currentTimeMillis(),
-                        0,
-                        10, 10,
-                        0,
-                        false,
-                        MouseEvent.NOBUTTON
-                );
+                var event = createEnteredEvent(scrollPane, 10, 10);
 
                 // Act
                 scrollPane.dispatchEvent(event);
@@ -1634,27 +1168,9 @@ class FlamegraphViewMouseInteractionTest {
                 when(mockPointerInfo.getLocation()).thenReturn(new Point(100, 50));
                 mockedMouseInfo.when(MouseInfo::getPointerInfo).thenReturn(mockPointerInfo);
 
-                var event1 = new MouseEvent(
-                        scrollPane,
-                        MouseEvent.MOUSE_ENTERED,
-                        System.currentTimeMillis(),
-                        0,
-                        100, 50,
-                        0,
-                        false,
-                        MouseEvent.NOBUTTON
-                );
+                var event1 = createEnteredEvent(scrollPane, 100, 50);
 
-                var event2 = new MouseEvent(
-                        scrollPane,
-                        MouseEvent.MOUSE_ENTERED,
-                        System.currentTimeMillis() + 100,
-                        0,
-                        100, 50,
-                        0,
-                        false,
-                        MouseEvent.NOBUTTON
-                );
+                var event2 = createEnteredEvent(scrollPane, 100, 50);
 
                 // Act
                 scrollPane.dispatchEvent(event1);
@@ -1685,19 +1201,15 @@ class FlamegraphViewMouseInteractionTest {
             fg.setModel(new FrameModel<>(frames));
 
             scrollPane = findScrollPane(fg.component);
-
-            // Set sizes
             scrollPane.setSize(800, 600);
             scrollPane.getViewport().setSize(800, 600);
 
-            var canvas = (FlamegraphCanvas) scrollPane.getViewport().getView();
+            var canvas = scrollPane.getViewport().getView();
             canvas.setSize(800, 600);
 
             // Mock the flamegraphRenderEngine on the canvas
-            // The mock controls getFrameAt() return value, so it doesn't matter
-            // that getGraphics() returns null in headless mode
             mockRenderEngine = mock(FlamegraphRenderEngine.class);
-            canvas.setFlamegraphRenderEngine(mockRenderEngine);
+            ((FlamegraphCanvas) canvas).setFlamegraphRenderEngine(mockRenderEngine);
         }
 
         @Test
@@ -1730,16 +1242,7 @@ class FlamegraphViewMouseInteractionTest {
             var canvas = scrollPane.getViewport().getView();
 
             // Create a left button press event inside minimap area (bottom-right corner)
-            var event = new MouseEvent(
-                    canvas,
-                    MouseEvent.MOUSE_PRESSED,
-                    System.currentTimeMillis(),
-                    MouseEvent.BUTTON1_DOWN_MASK,
-                    750, 550,
-                    1,
-                    false, // not a popup trigger
-                    MouseEvent.BUTTON1
-            );
+            var event = createPressEvent(canvas, 750, 550, MouseEvent.BUTTON1, false);
 
             // Act
             try {
@@ -1762,16 +1265,7 @@ class FlamegraphViewMouseInteractionTest {
             var canvas = scrollPane.getViewport().getView();
 
             // Create a left button press event outside minimap area
-            var event = new MouseEvent(
-                    canvas,
-                    MouseEvent.MOUSE_PRESSED,
-                    System.currentTimeMillis(),
-                    MouseEvent.BUTTON1_DOWN_MASK,
-                    100, 100,
-                    1,
-                    false, // not a popup trigger
-                    MouseEvent.BUTTON1
-            );
+            var event = createPressEvent(canvas, 100, 100, MouseEvent.BUTTON1, false);
 
             // Act
             canvas.dispatchEvent(event);
@@ -1788,16 +1282,7 @@ class FlamegraphViewMouseInteractionTest {
 
             var canvas = scrollPane.getViewport().getView();
 
-            var event = new MouseEvent(
-                    canvas,
-                    MouseEvent.MOUSE_PRESSED,
-                    System.currentTimeMillis(),
-                    MouseEvent.BUTTON3_DOWN_MASK,
-                    100, 100,
-                    1,
-                    false, // NOT a popup trigger - line 1499 check fails
-                    MouseEvent.BUTTON3
-            );
+            var event = createPressEvent(canvas, 100, 100, MouseEvent.BUTTON3, false);
 
             // Act
             canvas.dispatchEvent(event);
@@ -1818,79 +1303,13 @@ class FlamegraphViewMouseInteractionTest {
             var canvas = freshScrollPane.getViewport().getView();
             canvas.setSize(800, 600);
 
-            var event = new MouseEvent(
-                    canvas,
-                    MouseEvent.MOUSE_PRESSED,
-                    System.currentTimeMillis(),
-                    MouseEvent.BUTTON3_DOWN_MASK,
-                    100, 100,
-                    1,
-                    true, // IS a popup trigger
-                    MouseEvent.BUTTON3
-            );
+            var event = createPressEvent(canvas, 100, 100, MouseEvent.BUTTON3, true);
 
             // Act & Assert - should not throw, returns early when consumer is null
             assertThatCode(() -> canvas.dispatchEvent(event))
                     .doesNotThrowAnyException();
         }
 
-        @Test
-        void non_left_button_press_with_popup_trigger_and_consumer_attempts_frame_lookup() {
-            // Arrange - right button, IS a popup trigger, with consumer set
-            var freshFg = new FlamegraphView<String>();
-            freshFg.setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0))));
-            freshFg.setPopupConsumer((frame, e) -> {});
-
-            var freshScrollPane = findScrollPane(freshFg.component);
-            var canvas = freshScrollPane.getViewport().getView();
-            canvas.setSize(800, 600);
-
-            var event = new MouseEvent(
-                    canvas,
-                    MouseEvent.MOUSE_PRESSED,
-                    System.currentTimeMillis(),
-                    MouseEvent.BUTTON3_DOWN_MASK,
-                    400, 10,
-                    1,
-                    true, // IS a popup trigger
-                    MouseEvent.BUTTON3
-            );
-
-            // Act - expect NPE because getGraphics() returns null in headless mode
-            // This verifies the code path reaches the frame lookup (line 1506)
-            assertThatThrownBy(() -> canvas.dispatchEvent(event))
-                    .isInstanceOf(NullPointerException.class)
-                    .hasMessageContaining("g2");
-        }
-
-        @Test
-        void mouse_released_with_popup_trigger_and_consumer_attempts_frame_lookup() {
-            // Arrange - mouseReleased also calls handlePopup (line 1494-1496)
-            var freshFg = new FlamegraphView<String>();
-            freshFg.setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0))));
-            freshFg.setPopupConsumer((frame, e) -> {});
-
-            var freshScrollPane = findScrollPane(freshFg.component);
-            var canvas = freshScrollPane.getViewport().getView();
-            canvas.setSize(800, 600);
-
-            var event = new MouseEvent(
-                    canvas,
-                    MouseEvent.MOUSE_RELEASED,
-                    System.currentTimeMillis(),
-                    MouseEvent.BUTTON3_DOWN_MASK,
-                    400, 10,
-                    1,
-                    true, // IS a popup trigger
-                    MouseEvent.BUTTON3
-            );
-
-            // Act - expect NPE because getGraphics() returns null in headless mode
-            // This verifies the code path reaches the frame lookup (line 1506)
-            assertThatThrownBy(() -> canvas.dispatchEvent(event))
-                    .isInstanceOf(NullPointerException.class)
-                    .hasMessageContaining("g2");
-        }
 
         @Test
         void mouse_released_without_popup_trigger_returns_early() {
@@ -1900,16 +1319,7 @@ class FlamegraphViewMouseInteractionTest {
 
             var canvas = scrollPane.getViewport().getView();
 
-            var event = new MouseEvent(
-                    canvas,
-                    MouseEvent.MOUSE_RELEASED,
-                    System.currentTimeMillis(),
-                    MouseEvent.BUTTON1_DOWN_MASK,
-                    100, 100,
-                    1,
-                    false, // NOT a popup trigger
-                    MouseEvent.BUTTON1
-            );
+            var event = createReleaseEvent(canvas, 100, 100, false);
 
             // Act
             canvas.dispatchEvent(event);
@@ -1929,79 +1339,11 @@ class FlamegraphViewMouseInteractionTest {
             var canvas = freshScrollPane.getViewport().getView();
             canvas.setSize(800, 600);
 
-            var event = new MouseEvent(
-                    canvas,
-                    MouseEvent.MOUSE_PRESSED,
-                    System.currentTimeMillis(),
-                    MouseEvent.BUTTON2_DOWN_MASK,
-                    100, 100,
-                    1,
-                    true, // IS a popup trigger
-                    MouseEvent.BUTTON2
-            );
+            var event = createPressEvent(canvas, 100, 100, MouseEvent.BUTTON2, true);
 
             // Act & Assert - should not throw, returns early when consumer is null
             assertThatCode(() -> canvas.dispatchEvent(event))
                     .doesNotThrowAnyException();
-        }
-
-        @Test
-        void handlePopup_with_consumer_and_frame_found_invokes_consumer() {
-            // Arrange - use fresh FlamegraphView as spied canvas doesn't help here
-            // (the listener accesses FlamegraphCanvas.this which is the original canvas)
-            var freshFg = new FlamegraphView<String>();
-            freshFg.setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0))));
-            freshFg.setPopupConsumer((frame, e) -> {});
-
-            var freshScrollPane = findScrollPane(freshFg.component);
-            var canvas = freshScrollPane.getViewport().getView();
-            canvas.setSize(800, 600);
-
-            var event = new MouseEvent(
-                    canvas,
-                    MouseEvent.MOUSE_PRESSED,
-                    System.currentTimeMillis(),
-                    MouseEvent.BUTTON3_DOWN_MASK,
-                    400, 10, // over a frame
-                    1,
-                    true, // IS a popup trigger
-                    MouseEvent.BUTTON3
-            );
-
-            // Act - expect NPE because getGraphics() returns null in headless mode
-            // This verifies the code path reaches handlePopup and frame lookup (line 1506)
-            assertThatThrownBy(() -> canvas.dispatchEvent(event))
-                    .isInstanceOf(NullPointerException.class)
-                    .hasMessageContaining("g2");
-        }
-
-        @Test
-        void popup_trigger_on_empty_area_attempts_frame_lookup() {
-            // Arrange - click on empty area where no frame exists
-            var freshFg = new FlamegraphView<String>();
-            freshFg.setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0))));
-            freshFg.setPopupConsumer((frame, e) -> {});
-
-            var freshScrollPane = findScrollPane(freshFg.component);
-            var canvas = freshScrollPane.getViewport().getView();
-            canvas.setSize(800, 600);
-
-            var event = new MouseEvent(
-                    canvas,
-                    MouseEvent.MOUSE_PRESSED,
-                    System.currentTimeMillis(),
-                    MouseEvent.BUTTON3_DOWN_MASK,
-                    799, 599, // far corner - unlikely to have a frame
-                    1,
-                    true, // IS a popup trigger
-                    MouseEvent.BUTTON3
-            );
-
-            // Act - expect NPE because getGraphics() returns null in headless mode
-            // This verifies the code path reaches handlePopup and frame lookup (line 1506)
-            assertThatThrownBy(() -> canvas.dispatchEvent(event))
-                    .isInstanceOf(NullPointerException.class)
-                    .hasMessageContaining("g2");
         }
 
         @Test
@@ -2016,16 +1358,7 @@ class FlamegraphViewMouseInteractionTest {
 
             var canvas = scrollPane.getViewport().getView();
 
-            var event = new MouseEvent(
-                    canvas,
-                    MouseEvent.MOUSE_PRESSED,
-                    System.currentTimeMillis(),
-                    MouseEvent.BUTTON3_DOWN_MASK,
-                    400, 300,
-                    1,
-                    true, // IS a popup trigger
-                    MouseEvent.BUTTON3
-            );
+            var event = createPressEvent(canvas, 400, 300, MouseEvent.BUTTON3, true);
 
             // Act
             canvas.dispatchEvent(event);
@@ -2046,16 +1379,7 @@ class FlamegraphViewMouseInteractionTest {
 
             var canvas = scrollPane.getViewport().getView();
 
-            var event = new MouseEvent(
-                    canvas,
-                    MouseEvent.MOUSE_PRESSED,
-                    System.currentTimeMillis(),
-                    MouseEvent.BUTTON3_DOWN_MASK,
-                    799, 599, // empty area
-                    1,
-                    true, // IS a popup trigger
-                    MouseEvent.BUTTON3
-            );
+            var event = createPressEvent(canvas, 799, 599, MouseEvent.BUTTON3, true);
 
             // Act
             canvas.dispatchEvent(event);

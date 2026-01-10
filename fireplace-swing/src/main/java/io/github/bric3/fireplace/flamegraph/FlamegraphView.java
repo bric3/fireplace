@@ -972,7 +972,7 @@ public class FlamegraphView<T> {
      * @param zoomTarget the zoom target.
      * @param <T>        the type of the node data.
      */
-    private static <T> void zoom(@NotNull FlamegraphCanvas<@NotNull T> canvas, @Nullable ZoomTarget<@NotNull T> zoomTarget) {
+    static <T> void zoom(@NotNull FlamegraphCanvas<@NotNull T> canvas, @Nullable ZoomTarget<@NotNull T> zoomTarget) {
         if (zoomTarget == null) {
             // NOOP
             return;

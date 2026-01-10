@@ -11,6 +11,7 @@ package io.github.bric3.fireplace.flamegraph;
 
 import javax.swing.*;
 import java.awt.*;
+import java.awt.event.MouseEvent;
 import java.lang.reflect.Field;
 
 import static org.mockito.Mockito.*;
@@ -172,6 +173,121 @@ final class SwingTestUtil {
                 scrollPane.getHorizontalScrollBar().getValue(),
                 scrollPane.getVerticalScrollBar().getValue()
         );
+    }
+
+    /**
+     * Creates a MouseEvent with the specified parameters.
+     *
+     * @param source the component that is the source of the event
+     * @param eventType the event type (e.g., MouseEvent.MOUSE_CLICKED, MouseEvent.MOUSE_PRESSED)
+     * @param x the x coordinate of the mouse position
+     * @param y the y coordinate of the mouse position
+     * @param button the mouse button (e.g., MouseEvent.BUTTON1, MouseEvent.BUTTON3)
+     * @param clickCount the number of clicks (e.g., 1 for single click, 2 for double click)
+     * @param isPopupTrigger whether this event is a popup trigger
+     * @return a new MouseEvent with the specified parameters
+     */
+    static MouseEvent createMouseEvent(Component source, int eventType, int x, int y, int button, int clickCount, boolean isPopupTrigger) {
+        int modifiers;
+        if (button == MouseEvent.BUTTON1) {
+            modifiers = MouseEvent.BUTTON1_DOWN_MASK;
+        } else if (button == MouseEvent.BUTTON2) {
+            modifiers = MouseEvent.BUTTON2_DOWN_MASK;
+        } else if (button == MouseEvent.BUTTON3) {
+            modifiers = MouseEvent.BUTTON3_DOWN_MASK;
+        } else {
+            modifiers = 0;
+        }
+        return new MouseEvent(source, eventType, System.currentTimeMillis(), modifiers, x, y, clickCount, isPopupTrigger, button);
+    }
+
+    /**
+     * Creates a MOUSE_CLICKED event.
+     *
+     * @param source the component that is the source of the event
+     * @param x the x coordinate of the mouse position
+     * @param y the y coordinate of the mouse position
+     * @param button the mouse button (e.g., MouseEvent.BUTTON1, MouseEvent.BUTTON3)
+     * @param clickCount the number of clicks (e.g., 1 for single click, 2 for double click)
+     * @return a new MOUSE_CLICKED event
+     */
+    static MouseEvent createClickEvent(Component source, int x, int y, int button, int clickCount) {
+        return createMouseEvent(source, MouseEvent.MOUSE_CLICKED, x, y, button, clickCount, false);
+    }
+
+    /**
+     * Creates a MOUSE_PRESSED event.
+     *
+     * @param source the component that is the source of the event
+     * @param x the x coordinate of the mouse position
+     * @param y the y coordinate of the mouse position
+     * @param button the mouse button (e.g., MouseEvent.BUTTON1, MouseEvent.BUTTON3)
+     * @param isPopupTrigger whether this event is a popup trigger
+     * @return a new MOUSE_PRESSED event
+     */
+    static MouseEvent createPressEvent(Component source, int x, int y, int button, boolean isPopupTrigger) {
+        return createMouseEvent(source, MouseEvent.MOUSE_PRESSED, x, y, button, 1, isPopupTrigger);
+    }
+
+    /**
+     * Creates a MOUSE_RELEASED event with BUTTON1.
+     *
+     * @param source the component that is the source of the event
+     * @param x the x coordinate of the mouse position
+     * @param y the y coordinate of the mouse position
+     * @param isPopupTrigger whether this event is a popup trigger
+     * @return a new MOUSE_RELEASED event
+     */
+    static MouseEvent createReleaseEvent(Component source, int x, int y, boolean isPopupTrigger) {
+        return createMouseEvent(source, MouseEvent.MOUSE_RELEASED, x, y, MouseEvent.BUTTON1, 1, isPopupTrigger);
+    }
+
+    /**
+     * Creates a MOUSE_DRAGGED event with BUTTON1.
+     *
+     * @param source the component that is the source of the event
+     * @param x the x coordinate of the mouse position
+     * @param y the y coordinate of the mouse position
+     * @return a new MOUSE_DRAGGED event
+     */
+    static MouseEvent createDraggedEvent(Component source, int x, int y) {
+        return createMouseEvent(source, MouseEvent.MOUSE_DRAGGED, x, y, MouseEvent.BUTTON1, 1, false);
+    }
+
+    /**
+     * Creates a MOUSE_ENTERED event.
+     *
+     * @param source the component that is the source of the event
+     * @param x the x coordinate of the mouse position
+     * @param y the y coordinate of the mouse position
+     * @return a new MOUSE_ENTERED event
+     */
+    static MouseEvent createEnteredEvent(Component source, int x, int y) {
+        return new MouseEvent(source, MouseEvent.MOUSE_ENTERED, System.currentTimeMillis(), 0, x, y, 0, false, MouseEvent.NOBUTTON);
+    }
+
+    /**
+     * Creates a MOUSE_EXITED event.
+     *
+     * @param source the component that is the source of the event
+     * @param x the x coordinate of the mouse position
+     * @param y the y coordinate of the mouse position
+     * @return a new MOUSE_EXITED event
+     */
+    static MouseEvent createExitedEvent(Component source, int x, int y) {
+        return new MouseEvent(source, MouseEvent.MOUSE_EXITED, System.currentTimeMillis(), 0, x, y, 0, false, MouseEvent.NOBUTTON);
+    }
+
+    /**
+     * Creates a MOUSE_MOVED event.
+     *
+     * @param source the component that is the source of the event
+     * @param x the x coordinate of the mouse position
+     * @param y the y coordinate of the mouse position
+     * @return a new MOUSE_MOVED event
+     */
+    static MouseEvent createMovedEvent(Component source, int x, int y) {
+        return new MouseEvent(source, MouseEvent.MOUSE_MOVED, System.currentTimeMillis(), 0, x, y, 0, false, MouseEvent.NOBUTTON);
     }
 
     /**
