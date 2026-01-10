@@ -175,8 +175,13 @@ internal object AppearanceControl {
         get() {
             val appearanceModeButton = JButton().apply {
                 val iconSize = 10
-                val toLightMode = darkMode_sun.of(iconSize, iconSize)
-                val toDarkMode = darkMode_moon.of(iconSize, iconSize)
+                val toLightMode = darkMode_sun.of(iconSize, iconSize).apply {
+                    setColorFilter { UIManager.getColor("Label.foreground") }
+                }
+                val toDarkMode = darkMode_moon.of(iconSize, iconSize).apply {
+                    setColorFilter { UIManager.getColor("Label.foreground") }
+                }
+
                 val syncIconUpdater = Runnable {
                     @Suppress("WHEN_ENUM_CAN_BE_NULL_IN_JAVA")
                     icon = when (manager.preferredThemeStyle.colorToneRule) {
