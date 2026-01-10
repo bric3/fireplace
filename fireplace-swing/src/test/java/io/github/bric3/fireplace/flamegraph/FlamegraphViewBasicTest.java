@@ -44,50 +44,19 @@ class FlamegraphViewBasicTest {
             softly.assertThat(FlamegraphView.<String>from(component)).contains(fg);
             softly.assertThat(FlamegraphView.<String>from(new JPanel())).isEmpty();
         });
+
         // non configured
         assertSoftly(softly -> {
             softly.assertThat(fg.getFrameModel()).isEqualTo(FrameModel.empty());
             softly.assertThat(fg.getFrames()).isEmpty();
-            softly.assertThat(fg.isFrameGapEnabled()).isTrue();
 
             softly.assertThat(fg.getMode()).isEqualTo(Mode.ICICLEGRAPH);
             softly.assertThat(fg.isShowMinimap()).isTrue();
             softly.assertThat(fg.isShowHoveredSiblings()).isTrue();
-
-            softly.assertThat(fg.getFrameColorProvider()).isNotNull();
-            softly.assertThat(fg.getFrameFontProvider()).isNotNull();
-            softly.assertThat(fg.getFrameTextsProvider()).isNotNull();
         });
 
         // after configuration
         assertSoftly(softly -> {
-            var frameTextsProvider = FrameTextsProvider.<String>empty();
-            var frameColorProvider = FrameColorProvider.<String>defaultColorProvider(box -> Color.BLACK);
-            var frameFontProvider = FrameFontProvider.<String>defaultFontProvider();
-            fg.setRenderConfiguration(
-                    frameTextsProvider,
-                    frameColorProvider,
-                    frameFontProvider
-            );
-            softly.assertThat(fg.getFrameTextsProvider()).isEqualTo(frameTextsProvider);
-            softly.assertThat(fg.getFrameColorProvider()).isEqualTo(frameColorProvider);
-            softly.assertThat(fg.getFrameFontProvider()).isEqualTo(frameFontProvider);
-
-
-
-            var frameTextsProvider2 = FrameTextsProvider.<String>empty();
-            fg.setFrameTextsProvider(frameTextsProvider2);
-            softly.assertThat(fg.getFrameTextsProvider()).isEqualTo(frameTextsProvider2);
-
-            var frameColorProvider2 = FrameColorProvider.<String>defaultColorProvider(box -> Color.BLACK);
-            fg.setFrameColorProvider(frameColorProvider2);
-            softly.assertThat(fg.getFrameColorProvider()).isEqualTo(frameColorProvider2);
-
-            var frameFontProvider2 = FrameFontProvider.<String>defaultFontProvider();
-            fg.setFrameFontProvider(frameFontProvider2);
-            softly.assertThat(fg.getFrameFontProvider()).isEqualTo(frameFontProvider2);
-
-
             var frameModel = new FrameModel<>(
                     "title",
                     (a, b) -> Objects.equals(a.actualNode, b.actualNode),
@@ -96,11 +65,6 @@ class FlamegraphViewBasicTest {
             fg.setModel(frameModel);
             softly.assertThat(fg.getFrameModel()).isEqualTo(frameModel);
             softly.assertThat(fg.getFrames()).isEqualTo(frameModel.frames);
-
-
-            // non configured
-            fg.setFrameGapEnabled(false);
-            softly.assertThat(fg.isFrameGapEnabled()).isFalse();
 
             fg.setMode(Mode.FLAMEGRAPH);
             softly.assertThat(fg.getMode()).isEqualTo(Mode.FLAMEGRAPH);
@@ -196,19 +160,127 @@ class FlamegraphViewBasicTest {
     }
 
     @Nested
-    @DisplayName("Frame Gap")
-    class FrameGapTests {
+    @DisplayName("Deprecated API")
+    @SuppressWarnings({"deprecation", "removal"})
+    class DeprecatedApiTests {
 
         @Test
-        void isFrameGapEnabled_default_is_true() {
-            assertThat(fg.isFrameGapEnabled()).isTrue();
+        void basic_api() {
+            // non configured
+            assertSoftly(softly -> {
+                softly.assertThat(fg.isFrameGapEnabled()).isTrue();
+
+                softly.assertThat(fg.getFrameColorProvider()).isNotNull();
+                softly.assertThat(fg.getFrameFontProvider()).isNotNull();
+                softly.assertThat(fg.getFrameTextsProvider()).isNotNull();
+            });
+
+            // after configuration
+            assertSoftly(softly -> {
+                var frameTextsProvider = FrameTextsProvider.<String>empty();
+                var frameColorProvider = FrameColorProvider.<String>defaultColorProvider(box -> Color.BLACK);
+                var frameFontProvider = FrameFontProvider.<String>defaultFontProvider();
+                fg.setRenderConfiguration(
+                        frameTextsProvider,
+                        frameColorProvider,
+                        frameFontProvider
+                );
+                softly.assertThat(fg.getFrameTextsProvider()).isEqualTo(frameTextsProvider);
+                softly.assertThat(fg.getFrameColorProvider()).isEqualTo(frameColorProvider);
+                softly.assertThat(fg.getFrameFontProvider()).isEqualTo(frameFontProvider);
+
+                var frameTextsProvider2 = FrameTextsProvider.<String>empty();
+                fg.setFrameTextsProvider(frameTextsProvider2);
+                softly.assertThat(fg.getFrameTextsProvider()).isEqualTo(frameTextsProvider2);
+
+                var frameColorProvider2 = FrameColorProvider.<String>defaultColorProvider(box -> Color.BLACK);
+                fg.setFrameColorProvider(frameColorProvider2);
+                softly.assertThat(fg.getFrameColorProvider()).isEqualTo(frameColorProvider2);
+
+                var frameFontProvider2 = FrameFontProvider.<String>defaultFontProvider();
+                fg.setFrameFontProvider(frameFontProvider2);
+                softly.assertThat(fg.getFrameFontProvider()).isEqualTo(frameFontProvider2);
+
+                fg.setFrameGapEnabled(false);
+                softly.assertThat(fg.isFrameGapEnabled()).isFalse();
+            });
         }
 
-        @Test
-        void setFrameGapEnabled_false_disables() {
-            fg.setFrameGapEnabled(false);
+        @Nested
+        @DisplayName("Frame Gap")
+        class FrameGapTests {
 
-            assertThat(fg.isFrameGapEnabled()).isFalse();
+            @Test
+            void isFrameGapEnabled_default_is_true() {
+                assertThat(fg.isFrameGapEnabled()).isTrue();
+            }
+
+            @Test
+            void setFrameGapEnabled_false_disables() {
+                fg.setFrameGapEnabled(false);
+
+                assertThat(fg.isFrameGapEnabled()).isFalse();
+            }
+        }
+
+        @Nested
+        @DisplayName("Frame Providers")
+        class FrameProvidersTests {
+
+            @Test
+            void frame_providers_not_null_by_default() {
+                assertSoftly(softly -> {
+                    softly.assertThat(fg.getFrameColorProvider()).isNotNull();
+                    softly.assertThat(fg.getFrameFontProvider()).isNotNull();
+                    softly.assertThat(fg.getFrameTextsProvider()).isNotNull();
+                });
+            }
+
+            @Test
+            void setRenderConfiguration_configures_all_providers() {
+                var frameTextsProvider = FrameTextsProvider.<String>empty();
+                var frameColorProvider = FrameColorProvider.<String>defaultColorProvider(box -> Color.BLACK);
+                var frameFontProvider = FrameFontProvider.<String>defaultFontProvider();
+
+                fg.setRenderConfiguration(
+                        frameTextsProvider,
+                        frameColorProvider,
+                        frameFontProvider
+                );
+
+                assertSoftly(softly -> {
+                    softly.assertThat(fg.getFrameTextsProvider()).isEqualTo(frameTextsProvider);
+                    softly.assertThat(fg.getFrameColorProvider()).isEqualTo(frameColorProvider);
+                    softly.assertThat(fg.getFrameFontProvider()).isEqualTo(frameFontProvider);
+                });
+            }
+
+            @Test
+            void setFrameTextsProvider_updates_provider() {
+                var frameTextsProvider = FrameTextsProvider.<String>empty();
+
+                fg.setFrameTextsProvider(frameTextsProvider);
+
+                assertThat(fg.getFrameTextsProvider()).isEqualTo(frameTextsProvider);
+            }
+
+            @Test
+            void setFrameColorProvider_updates_provider() {
+                var frameColorProvider = FrameColorProvider.<String>defaultColorProvider(box -> Color.BLACK);
+
+                fg.setFrameColorProvider(frameColorProvider);
+
+                assertThat(fg.getFrameColorProvider()).isEqualTo(frameColorProvider);
+            }
+
+            @Test
+            void setFrameFontProvider_updates_provider() {
+                var frameFontProvider = FrameFontProvider.<String>defaultFontProvider();
+
+                fg.setFrameFontProvider(frameFontProvider);
+
+                assertThat(fg.getFrameFontProvider()).isEqualTo(frameFontProvider);
+            }
         }
     }
 
