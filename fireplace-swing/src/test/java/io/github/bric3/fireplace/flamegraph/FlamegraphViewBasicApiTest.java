@@ -28,7 +28,7 @@ import static org.assertj.core.api.SoftAssertions.assertSoftly;
  * Basic tests for {@link FlamegraphView} covering construction, mode, frame gap, constants, and enums.
  */
 @DisplayName("FlamegraphView - Basic")
-class FlamegraphViewBasicTest {
+class FlamegraphViewBasicApiTest {
 
     private FlamegraphView<String> fg;
 

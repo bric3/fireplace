@@ -2149,15 +2149,15 @@ public class FlamegraphView<T> {
             return currentZoomTarget;
         }
 
-        private double getLastUserInteractionStartX() {
+        double getLastUserInteractionStartX() {
             return lastUserInteractionStartX;
         }
 
-        private double getLastUserInteractionEndX() {
+        double getLastUserInteractionEndX() {
             return lastUserInteractionEndX;
         }
 
-        private double getLastUserInteractionWidthX() {
+        double getLastUserInteractionWidthX() {
             return lastUserInteractionEndX - lastUserInteractionStartX;
         }
 

@@ -57,7 +57,7 @@ import static org.mockito.Mockito.when;
  */
 @SuppressWarnings({"DataFlowIssue", "unchecked", "rawtypes"})
 @DisplayName("FlamegraphView - Interaction & Mouse")
-class FlamegraphViewMouseInteractionTest {
+class FlamegraphViewMouseClickInteractionTest {
 
     private FlamegraphView<String> fg;
 
