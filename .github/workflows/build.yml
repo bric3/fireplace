@@ -60,7 +60,7 @@ jobs:
         uses: gradle/actions/setup-gradle@v6
 
       - name: Build with Gradle
-        run: ./gradlew build --stacktrace
+        run: xvfb-run -a ./gradlew build --stacktrace
 
       - name: Run SWT/AWT UI tests
         timeout-minutes: 2
