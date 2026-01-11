@@ -12,6 +12,7 @@ package io.github.bric3.fireplace.flamegraph;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.MouseEvent;
+import java.awt.event.MouseWheelEvent;
 import java.lang.reflect.Field;
 
 import static org.mockito.Mockito.*;
@@ -19,7 +20,7 @@ import static org.mockito.Mockito.*;
 /**
  * Test utilities for Swing component testing.
  */
-final class SwingTestUtil {
+public final class SwingTestUtil {
 
     private SwingTestUtil() {
         // utility class
@@ -211,7 +212,7 @@ final class SwingTestUtil {
      * @param clickCount the number of clicks (e.g., 1 for single click, 2 for double click)
      * @return a new MOUSE_CLICKED event
      */
-    static MouseEvent createClickEvent(Component source, int x, int y, int button, int clickCount) {
+    public static MouseEvent createClickEvent(Component source, int x, int y, int button, int clickCount) {
         return createMouseEvent(source, MouseEvent.MOUSE_CLICKED, x, y, button, clickCount, false);
     }
 
@@ -225,7 +226,7 @@ final class SwingTestUtil {
      * @param isPopupTrigger whether this event is a popup trigger
      * @return a new MOUSE_PRESSED event
      */
-    static MouseEvent createPressEvent(Component source, int x, int y, int button, boolean isPopupTrigger) {
+    public static MouseEvent createPressEvent(Component source, int x, int y, int button, boolean isPopupTrigger) {
         return createMouseEvent(source, MouseEvent.MOUSE_PRESSED, x, y, button, 1, isPopupTrigger);
     }
 
@@ -238,7 +239,7 @@ final class SwingTestUtil {
      * @param isPopupTrigger whether this event is a popup trigger
      * @return a new MOUSE_RELEASED event
      */
-    static MouseEvent createReleaseEvent(Component source, int x, int y, boolean isPopupTrigger) {
+    public static MouseEvent createReleaseEvent(Component source, int x, int y, boolean isPopupTrigger) {
         return createMouseEvent(source, MouseEvent.MOUSE_RELEASED, x, y, MouseEvent.BUTTON1, 1, isPopupTrigger);
     }
 
@@ -250,7 +251,7 @@ final class SwingTestUtil {
      * @param y the y coordinate of the mouse position
      * @return a new MOUSE_DRAGGED event
      */
-    static MouseEvent createDraggedEvent(Component source, int x, int y) {
+    public static MouseEvent createDraggedEvent(Component source, int x, int y) {
         return createMouseEvent(source, MouseEvent.MOUSE_DRAGGED, x, y, MouseEvent.BUTTON1, 1, false);
     }
 
@@ -262,7 +263,7 @@ final class SwingTestUtil {
      * @param y the y coordinate of the mouse position
      * @return a new MOUSE_ENTERED event
      */
-    static MouseEvent createEnteredEvent(Component source, int x, int y) {
+    public static MouseEvent createEnteredEvent(Component source, int x, int y) {
         return new MouseEvent(source, MouseEvent.MOUSE_ENTERED, System.currentTimeMillis(), 0, x, y, 0, false, MouseEvent.NOBUTTON);
     }
 
@@ -274,7 +275,7 @@ final class SwingTestUtil {
      * @param y the y coordinate of the mouse position
      * @return a new MOUSE_EXITED event
      */
-    static MouseEvent createExitedEvent(Component source, int x, int y) {
+    public static MouseEvent createExitedEvent(Component source, int x, int y) {
         return new MouseEvent(source, MouseEvent.MOUSE_EXITED, System.currentTimeMillis(), 0, x, y, 0, false, MouseEvent.NOBUTTON);
     }
 
@@ -286,8 +287,48 @@ final class SwingTestUtil {
      * @param y the y coordinate of the mouse position
      * @return a new MOUSE_MOVED event
      */
-    static MouseEvent createMovedEvent(Component source, int x, int y) {
+    public static MouseEvent createMovedEvent(Component source, int x, int y) {
         return new MouseEvent(source, MouseEvent.MOUSE_MOVED, System.currentTimeMillis(), 0, x, y, 0, false, MouseEvent.NOBUTTON);
+    }
+
+    /**
+     * Creates a MOUSE_WHEEL event with unit scroll type.
+     *
+     * @param source the component that is the source of the event
+     * @param x the x coordinate of the mouse position
+     * @param y the y coordinate of the mouse position
+     * @param scrollType the type of scrolling (MouseWheelEvent.WHEEL_UNIT_SCROLL or MouseWheelEvent.WHEEL_BLOCK_SCROLL)
+     * @param scrollAmount the number of units to scroll
+     * @param wheelRotation the amount the wheel was rotated (negative values indicate up/left, positive indicate down/right)
+     * @return a new MOUSE_WHEEL event
+     */
+    public static MouseWheelEvent createWheelEvent(Component source, int x, int y, int scrollType, int scrollAmount, int wheelRotation) {
+        return new MouseWheelEvent(
+                source,
+                MouseEvent.MOUSE_WHEEL,
+                System.currentTimeMillis(),
+                0,
+                x, y,
+                0,
+                false,
+                scrollType,
+                scrollAmount,
+                wheelRotation
+        );
+    }
+
+    /**
+     * Creates a MOUSE_WHEEL event with unit scroll type.
+     * Convenient method for common unit scrolling with 3 scroll units.
+     *
+     * @param source the component that is the source of the event
+     * @param x the x coordinate of the mouse position
+     * @param y the y coordinate of the mouse position
+     * @param wheelRotation the amount the wheel was rotated (negative values indicate up/left, positive indicate down/right)
+     * @return a new MOUSE_WHEEL event with unit scroll type
+     */
+    public static MouseWheelEvent createWheelEvent(Component source, int x, int y, int wheelRotation) {
+        return createWheelEvent(source, x, y, MouseWheelEvent.WHEEL_UNIT_SCROLL, 3, wheelRotation);
     }
 
     /**
