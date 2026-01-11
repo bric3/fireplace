@@ -27,74 +27,64 @@ import static org.assertj.core.api.Assertions.*;
 @DisplayName("FlamegraphView - Tooltip")
 class FlamegraphViewTooltipTest {
 
-    private FlamegraphView<String> fg;
+    private FlamegraphView<String> fg = new FlamegraphView<>();
 
-    @BeforeEach
-    void setUp() {
-        fg = new FlamegraphView<>();
+    @Test
+    void setTooltipTextFunction_sets_function() {
+        BiFunction<FrameModel<String>, FrameBox<String>, String> func =
+                (model, frame) -> frame.actualNode;
+
+        fg.setTooltipTextFunction(func);
+
+        assertThat(fg.getTooltipTextFunction()).isEqualTo(func);
     }
 
-    @Nested
-    @DisplayName("Tooltip")
-    class TooltipTests {
+    @Test
+    void setTooltipTextFunction_null_throws_exception() {
+        assertThatThrownBy(() -> fg.setTooltipTextFunction(null))
+                .isInstanceOf(NullPointerException.class);
+    }
 
-        @Test
-        void setTooltipTextFunction_sets_function() {
-            BiFunction<FrameModel<String>, FrameBox<String>, String> func =
-                    (model, frame) -> frame.actualNode;
+    @Test
+    void getTooltipTextFunction_default_is_null() {
+        assertThat(fg.getTooltipTextFunction()).isNull();
+    }
 
-            fg.setTooltipTextFunction(func);
+    @Test
+    void setTooltipComponentSupplier_sets_supplier() {
+        Supplier<JToolTip> supplier = JToolTip::new;
 
-            assertThat(fg.getTooltipTextFunction()).isEqualTo(func);
-        }
+        fg.setTooltipComponentSupplier(supplier);
 
-        @Test
-        void setTooltipTextFunction_null_throws_exception() {
-            assertThatThrownBy(() -> fg.setTooltipTextFunction(null))
-                    .isInstanceOf(NullPointerException.class);
-        }
+        assertThat(fg.getTooltipComponentSupplier()).isEqualTo(supplier);
+    }
 
-        @Test
-        void getTooltipTextFunction_default_is_null() {
-            assertThat(fg.getTooltipTextFunction()).isNull();
-        }
+    @Test
+    void setTooltipComponentSupplier_null_throws_exception() {
+        assertThatThrownBy(() -> fg.setTooltipComponentSupplier(null))
+                .isInstanceOf(NullPointerException.class);
+    }
 
-        @Test
-        void setTooltipComponentSupplier_sets_supplier() {
-            Supplier<JToolTip> supplier = JToolTip::new;
+    @Test
+    void setTooltipTextFunction_custom_function_is_set() {
+        BiFunction<FrameModel<String>, FrameBox<String>, String> tooltipFunc =
+                (model, frame) -> "Tooltip: " + frame.actualNode;
 
-            fg.setTooltipComponentSupplier(supplier);
+        fg.setTooltipTextFunction(tooltipFunc);
 
-            assertThat(fg.getTooltipComponentSupplier()).isEqualTo(supplier);
-        }
+        assertThat(fg.getTooltipTextFunction()).isEqualTo(tooltipFunc);
+    }
 
-        @Test
-        void setTooltipComponentSupplier_null_throws_exception() {
-            assertThatThrownBy(() -> fg.setTooltipComponentSupplier(null))
-                    .isInstanceOf(NullPointerException.class);
-        }
+    @Test
+    void setTooltipComponentSupplier_custom_supplier_is_set() {
+        Supplier<JToolTip> tooltipSupplier = () -> {
+            var tip = new JToolTip();
+            tip.setBackground(Color.YELLOW);
+            return tip;
+        };
 
-        @Test
-        void setTooltipTextFunction_custom_function_is_set() {
-            BiFunction<FrameModel<String>, FrameBox<String>, String> tooltipFunc =
-                    (model, frame) -> "Tooltip: " + frame.actualNode;
+        fg.setTooltipComponentSupplier(tooltipSupplier);
 
-            fg.setTooltipTextFunction(tooltipFunc);
-
-            assertThat(fg.getTooltipTextFunction()).isEqualTo(tooltipFunc);
-        }
-
-        @Test
-        void setTooltipComponentSupplier_custom_supplier_is_set() {
-            Supplier<JToolTip> tooltipSupplier = () -> {
-                var tip = new JToolTip();
-                tip.setBackground(Color.YELLOW);
-                return tip;
-            };
-
-            fg.setTooltipComponentSupplier(tooltipSupplier);
-
-            assertThat(fg.getTooltipComponentSupplier()).isEqualTo(tooltipSupplier);
-        }
+        assertThat(fg.getTooltipComponentSupplier()).isEqualTo(tooltipSupplier);
     }
 }

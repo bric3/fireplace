@@ -15,7 +15,6 @@ import org.junit.jupiter.api.Test;
 
 import javax.swing.*;
 import java.awt.*;
-import java.lang.reflect.Field;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
@@ -35,22 +34,18 @@ class FlamegraphViewZoomModelTest {
     }
 
     @Test
-    void initial_state_has_default_values() throws Exception {
+    void initial_state_has_default_values() {
         assertSoftly(softly -> {
             softly.assertThat(zoomModel.getCurrentZoomTarget()).isNull();
             softly.assertThat(zoomModel.getLastScaleFactor()).isEqualTo(1.0);
-            try {
-                softly.assertThat(getLastUserInteractionStartX()).isEqualTo(0.0);
-                softly.assertThat(getLastUserInteractionEndX()).isEqualTo(0.0);
-                softly.assertThat(getLastUserInteractionWidthX()).isEqualTo(0.0);
-            } catch (Exception e) {
-                softly.fail("Failed to access private fields: " + e.getMessage());
-            }
+            softly.assertThat(zoomModel.getLastUserInteractionStartX()).isEqualTo(0.0);
+            softly.assertThat(zoomModel.getLastUserInteractionEndX()).isEqualTo(0.0);
+            softly.assertThat(zoomModel.getLastUserInteractionWidthX()).isEqualTo(0.0);
         });
     }
 
     @Test
-    void recordLastPositionFromZoomTarget_with_null_zoom_target_resets_to_defaults() throws Exception {
+    void recordLastPositionFromZoomTarget_with_null_zoom_target_resets_to_defaults() {
         // Arrange: set some non-default values first
         var canvas = mock(JPanel.class);
         var frameBox = new FrameBox<>("test", 0.2, 0.8, 0);
@@ -70,17 +65,13 @@ class FlamegraphViewZoomModelTest {
         assertSoftly(softly -> {
             softly.assertThat(zoomModel.getCurrentZoomTarget()).isNull();
             softly.assertThat(zoomModel.getLastScaleFactor()).isEqualTo(1.0);
-            try {
-                softly.assertThat(getLastUserInteractionStartX()).isEqualTo(0.0);
-                softly.assertThat(getLastUserInteractionEndX()).isEqualTo(1.0);
-            } catch (Exception e) {
-                softly.fail("Failed to access private fields: " + e.getMessage());
-            }
+            softly.assertThat(zoomModel.getLastUserInteractionStartX()).isEqualTo(0.0);
+            softly.assertThat(zoomModel.getLastUserInteractionEndX()).isEqualTo(1.0);
         });
     }
 
     @Test
-    void recordLastPositionFromZoomTarget_with_null_target_frame_resets_to_defaults() throws Exception {
+    void recordLastPositionFromZoomTarget_with_null_target_frame_resets_to_defaults() {
         // Arrange
         var canvas = mock(JPanel.class);
         var zoomTargetWithNullFrame = new ZoomTarget<String>(0, 0, 400, 100, null);
@@ -92,17 +83,13 @@ class FlamegraphViewZoomModelTest {
         assertSoftly(softly -> {
             softly.assertThat(zoomModel.getCurrentZoomTarget()).isSameAs(zoomTargetWithNullFrame);
             softly.assertThat(zoomModel.getLastScaleFactor()).isEqualTo(1.0);
-            try {
-                softly.assertThat(getLastUserInteractionStartX()).isEqualTo(0.0);
-                softly.assertThat(getLastUserInteractionEndX()).isEqualTo(1.0);
-            } catch (Exception e) {
-                softly.fail("Failed to access private fields: " + e.getMessage());
-            }
+            softly.assertThat(zoomModel.getLastUserInteractionStartX()).isEqualTo(0.0);
+            softly.assertThat(zoomModel.getLastUserInteractionEndX()).isEqualTo(1.0);
         });
     }
 
     @Test
-    void recordLastPositionFromZoomTarget_with_valid_zoom_target_extracts_frame_coordinates() throws Exception {
+    void recordLastPositionFromZoomTarget_with_valid_zoom_target_extracts_frame_coordinates() {
         // Arrange
         var canvas = mock(JPanel.class);
         var frameBox = new FrameBox<>("test", 0.25, 0.75, 1);
@@ -122,18 +109,14 @@ class FlamegraphViewZoomModelTest {
         assertSoftly(softly -> {
             softly.assertThat(zoomModel.getCurrentZoomTarget()).isSameAs(zoomTarget);
             softly.assertThat(zoomModel.getLastScaleFactor()).isEqualTo(2.0);
-            try {
-                softly.assertThat(getLastUserInteractionStartX()).isEqualTo(0.25);
-                softly.assertThat(getLastUserInteractionEndX()).isEqualTo(0.75);
-                softly.assertThat(getLastUserInteractionWidthX()).isEqualTo(0.5);
-            } catch (Exception e) {
-                softly.fail("Failed to access private fields: " + e.getMessage());
-            }
+            softly.assertThat(zoomModel.getLastUserInteractionStartX()).isEqualTo(0.25);
+            softly.assertThat(zoomModel.getLastUserInteractionEndX()).isEqualTo(0.75);
+            softly.assertThat(zoomModel.getLastUserInteractionWidthX()).isEqualTo(0.5);
         });
     }
 
     @Test
-    void recordLastPositionFromUserInteraction_calculates_position_from_canvas() throws Exception {
+    void recordLastPositionFromUserInteraction_calculates_position_from_canvas() {
         // Arrange
         var canvas = mock(JPanel.class);
         when(canvas.getWidth()).thenReturn(1000);
@@ -152,18 +135,14 @@ class FlamegraphViewZoomModelTest {
         // scaleFactor = visibleWidth / (canvasWidth * frameWidthX) = 400 / (1000 * 1.0) = 0.4
         assertSoftly(softly -> {
             softly.assertThat(zoomModel.getLastScaleFactor()).isCloseTo(0.4, within(1e-10));
-            try {
-                softly.assertThat(getLastUserInteractionStartX()).isCloseTo(0.2, within(1e-10));
-                softly.assertThat(getLastUserInteractionEndX()).isCloseTo(0.6, within(1e-10));
-                softly.assertThat(getLastUserInteractionWidthX()).isCloseTo(0.4, within(1e-10));
-            } catch (Exception e) {
-                softly.fail("Failed to access private fields: " + e.getMessage());
-            }
+            softly.assertThat(zoomModel.getLastUserInteractionStartX()).isCloseTo(0.2, within(1e-10));
+            softly.assertThat(zoomModel.getLastUserInteractionEndX()).isCloseTo(0.6, within(1e-10));
+            softly.assertThat(zoomModel.getLastUserInteractionWidthX()).isCloseTo(0.4, within(1e-10));
         });
     }
 
     @Test
-    void recordLastPositionFromUserInteraction_with_no_scroll_offset() throws Exception {
+    void recordLastPositionFromUserInteraction_with_no_scroll_offset() {
         // Arrange
         var canvas = mock(JPanel.class);
         when(canvas.getWidth()).thenReturn(800);
@@ -182,13 +161,9 @@ class FlamegraphViewZoomModelTest {
         // scaleFactor = 800 / (800 * 1.0) = 1.0
         assertSoftly(softly -> {
             softly.assertThat(zoomModel.getLastScaleFactor()).isEqualTo(1.0);
-            try {
-                softly.assertThat(getLastUserInteractionStartX()).isEqualTo(0.0);
-                softly.assertThat(getLastUserInteractionEndX()).isEqualTo(1.0);
-                softly.assertThat(getLastUserInteractionWidthX()).isEqualTo(1.0);
-            } catch (Exception e) {
-                softly.fail("Failed to access private fields: " + e.getMessage());
-            }
+            softly.assertThat(zoomModel.getLastUserInteractionStartX()).isEqualTo(0.0);
+            softly.assertThat(zoomModel.getLastUserInteractionEndX()).isEqualTo(1.0);
+            softly.assertThat(zoomModel.getLastUserInteractionWidthX()).isEqualTo(1.0);
         });
     }
 
@@ -233,7 +208,7 @@ class FlamegraphViewZoomModelTest {
     }
 
     @Test
-    void multiple_recordLastPositionFromZoomTarget_calls_update_state() throws Exception {
+    void multiple_recordLastPositionFromZoomTarget_calls_update_state() {
         // Arrange
         var canvas = mock(JPanel.class);
 
@@ -254,8 +229,8 @@ class FlamegraphViewZoomModelTest {
 
         // Verify first state
         assertThat(zoomModel.getCurrentZoomTarget()).isSameAs(zoomTarget1);
-        assertThat(getLastUserInteractionStartX()).isEqualTo(0.0);
-        assertThat(getLastUserInteractionEndX()).isEqualTo(0.5);
+        assertThat(zoomModel.getLastUserInteractionStartX()).isEqualTo(0.0);
+        assertThat(zoomModel.getLastUserInteractionEndX()).isEqualTo(0.5);
 
         // Act - second call
         zoomModel.recordLastPositionFromZoomTarget(canvas, zoomTarget2);
@@ -263,18 +238,14 @@ class FlamegraphViewZoomModelTest {
         // Assert - state should be updated
         assertSoftly(softly -> {
             softly.assertThat(zoomModel.getCurrentZoomTarget()).isSameAs(zoomTarget2);
-            try {
-                softly.assertThat(getLastUserInteractionStartX()).isCloseTo(0.3, within(1e-10));
-                softly.assertThat(getLastUserInteractionEndX()).isCloseTo(0.7, within(1e-10));
-                softly.assertThat(getLastUserInteractionWidthX()).isCloseTo(0.4, within(1e-10));
-            } catch (Exception e) {
-                softly.fail("Failed to access private fields: " + e.getMessage());
-            }
+            softly.assertThat(zoomModel.getLastUserInteractionStartX()).isCloseTo(0.3, within(1e-10));
+            softly.assertThat(zoomModel.getLastUserInteractionEndX()).isCloseTo(0.7, within(1e-10));
+            softly.assertThat(zoomModel.getLastUserInteractionWidthX()).isCloseTo(0.4, within(1e-10));
         });
     }
 
     @Test
-    void zoom_target_and_user_interaction_can_be_interleaved() throws Exception {
+    void zoom_target_and_user_interaction_can_be_interleaved() {
         // Arrange
         var canvas = mock(JPanel.class);
         when(canvas.getWidth()).thenReturn(500);
@@ -299,34 +270,9 @@ class FlamegraphViewZoomModelTest {
         assertSoftly(softly -> {
             // Note: recordLastPositionFromUserInteraction doesn't update currentZoomTarget
             softly.assertThat(zoomModel.getCurrentZoomTarget()).isSameAs(zoomTarget);
-            try {
-                // User interaction values: startX = 50/500 = 0.1, endX = (50+200)/500 = 0.5
-                softly.assertThat(getLastUserInteractionStartX()).isEqualTo(0.1);
-                softly.assertThat(getLastUserInteractionEndX()).isEqualTo(0.5);
-            } catch (Exception e) {
-                softly.fail("Failed to access private fields: " + e.getMessage());
-            }
+            // User interaction values: startX = 50/500 = 0.1, endX = (50+200)/500 = 0.5
+            softly.assertThat(zoomModel.getLastUserInteractionStartX()).isEqualTo(0.1);
+            softly.assertThat(zoomModel.getLastUserInteractionEndX()).isEqualTo(0.5);
         });
-    }
-
-    // Helper methods to access private fields via reflection
-
-    private double getLastUserInteractionStartX() throws Exception {
-        Field field = FlamegraphView.ZoomModel.class.getDeclaredField("lastUserInteractionStartX");
-        field.setAccessible(true);
-        return field.getDouble(zoomModel);
-    }
-
-    private double getLastUserInteractionEndX() throws Exception {
-        Field field = FlamegraphView.ZoomModel.class.getDeclaredField("lastUserInteractionEndX");
-        field.setAccessible(true);
-        return field.getDouble(zoomModel);
-    }
-
-    private double getLastUserInteractionWidthX() throws Exception {
-        // This is a method, not a field - invoke it via reflection
-        var method = FlamegraphView.ZoomModel.class.getDeclaredMethod("getLastUserInteractionWidthX");
-        method.setAccessible(true);
-        return (double) method.invoke(zoomModel);
     }
 }
