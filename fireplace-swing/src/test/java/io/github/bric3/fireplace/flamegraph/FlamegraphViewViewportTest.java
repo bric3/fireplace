@@ -10,7 +10,6 @@
 package io.github.bric3.fireplace.flamegraph;
 
 import io.github.bric3.fireplace.flamegraph.FlamegraphView.Mode;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -18,14 +17,12 @@ import org.junit.jupiter.api.Test;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ComponentEvent;
-import java.awt.image.BufferedImage;
 import java.lang.reflect.Field;
 import java.util.List;
 
-import static io.github.bric3.fireplace.flamegraph.SwingTestUtil.findScrollPane;
-import static org.assertj.core.api.Assertions.*;
-import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.spy;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Tests for {@link FlamegraphView} viewport layout and scrollbar behavior.
@@ -33,12 +30,10 @@ import static org.mockito.Mockito.spy;
 @DisplayName("FlamegraphView - Viewport")
 class FlamegraphViewViewportTest {
 
-    private FlamegraphView<String> fg;
-
-    @BeforeEach
-    void setUp() {
-        fg = new FlamegraphView<>();
-    }
+    private final FlamegraphViewUnderTest<String> fg = FlamegraphViewUnderTest.<String>builder()
+                                                                              .withCanvasSpy()
+                                                                              .withGraphics2D()
+                                                                              .build();
 
     @Nested
     @DisplayName("Custom Viewport Layout")
@@ -46,9 +41,9 @@ class FlamegraphViewViewportTest {
 
         @Test
         void viewport_has_custom_layout_manager() {
-            fg.setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0))));
+            fg.view().setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0))));
 
-            var scrollPane = findScrollPane(fg.component);
+            var scrollPane = fg.scrollPane();
             assertThat(scrollPane).isNotNull();
 
             var viewport = scrollPane.getViewport();
@@ -58,12 +53,12 @@ class FlamegraphViewViewportTest {
 
         @Test
         void viewport_resize_via_component_event() {
-            fg.setModel(new FrameModel<>(List.of(
+            fg.view().setModel(new FrameModel<>(List.of(
                     new FrameBox<>("root", 0.0, 1.0, 0),
                     new FrameBox<>("child", 0.0, 0.5, 1)
             )));
 
-            var scrollPane = findScrollPane(fg.component);
+            var scrollPane = fg.scrollPane();
             assertThat(scrollPane).isNotNull();
 
             var viewport = scrollPane.getViewport();
@@ -82,9 +77,9 @@ class FlamegraphViewViewportTest {
 
         @Test
         void viewport_view_is_canvas() {
-            fg.setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0))));
+            fg.view().setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0))));
 
-            var scrollPane = findScrollPane(fg.component);
+            var scrollPane = fg.scrollPane();
             var viewport = scrollPane.getViewport();
 
             assertThat(viewport.getView()).isNotNull();
@@ -92,9 +87,9 @@ class FlamegraphViewViewportTest {
 
         @Test
         void viewport_size_can_be_set() {
-            fg.setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0))));
+            fg.view().setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0))));
 
-            var scrollPane = findScrollPane(fg.component);
+            var scrollPane = fg.scrollPane();
             var viewport = scrollPane.getViewport();
 
             viewport.setSize(800, 600);
@@ -106,19 +101,19 @@ class FlamegraphViewViewportTest {
 
         @Test
         void viewport_in_different_modes() {
-            fg.setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0))));
+            fg.view().setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0))));
 
-            var scrollPane = findScrollPane(fg.component);
+            var scrollPane = fg.scrollPane();
             var viewport = scrollPane.getViewport();
 
             viewport.setSize(800, 600);
 
             // Set modes - should not throw
-            fg.setMode(Mode.ICICLEGRAPH);
-            assertThat(fg.getMode()).isEqualTo(Mode.ICICLEGRAPH);
+            fg.view().setMode(Mode.ICICLEGRAPH);
+            assertThat(fg.view().getMode()).isEqualTo(Mode.ICICLEGRAPH);
 
-            fg.setMode(Mode.FLAMEGRAPH);
-            assertThat(fg.getMode()).isEqualTo(Mode.FLAMEGRAPH);
+            fg.view().setMode(Mode.FLAMEGRAPH);
+            assertThat(fg.view().getMode()).isEqualTo(Mode.FLAMEGRAPH);
         }
 
         @Test
@@ -129,9 +124,9 @@ class FlamegraphViewViewportTest {
             for (int i = 1; i <= 30; i++) {
                 frames.add(new FrameBox<>("level" + i, 0.0, 0.9, i));
             }
-            fg.setModel(new FrameModel<>(frames));
+            fg.view().setModel(new FrameModel<>(frames));
 
-            var scrollPane = findScrollPane(fg.component);
+            var scrollPane = fg.scrollPane();
             var viewport = scrollPane.getViewport();
 
             viewport.setSize(800, 200);
@@ -145,12 +140,12 @@ class FlamegraphViewViewportTest {
 
         @Test
         void viewport_setViewPosition_does_not_throw() {
-            fg.setModel(new FrameModel<>(List.of(
+            fg.view().setModel(new FrameModel<>(List.of(
                     new FrameBox<>("root", 0.0, 1.0, 0),
                     new FrameBox<>("child", 0.0, 0.5, 1)
             )));
 
-            var scrollPane = findScrollPane(fg.component);
+            var scrollPane = fg.scrollPane();
             var viewport = scrollPane.getViewport();
 
             viewport.setSize(800, 600);
@@ -163,15 +158,15 @@ class FlamegraphViewViewportTest {
 
         @Test
         void viewport_scrollRectToVisible_does_not_throw() {
-            fg.setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0))));
+            fg.view().setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0))));
 
-            var scrollPane = findScrollPane(fg.component);
+            var scrollPane = fg.scrollPane();
             var viewport = scrollPane.getViewport();
 
             viewport.setSize(800, 600);
             scrollPane.setSize(800, 600);
 
-            fg.configureCanvas(canvas -> {
+            fg.view().configureCanvas(canvas -> {
                 assertThatCode(() -> canvas.scrollRectToVisible(new Rectangle(0, 0, 100, 100)))
                         .doesNotThrowAnyException();
             });
@@ -184,18 +179,18 @@ class FlamegraphViewViewportTest {
 
         @Test
         void scrollbar_policy_can_be_queried() {
-            fg.setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0))));
+            fg.view().setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0))));
 
-            var scrollPane = findScrollPane(fg.component);
+            var scrollPane = fg.scrollPane();
             assertThat(scrollPane.getVerticalScrollBarPolicy()).isNotNull();
             assertThat(scrollPane.getHorizontalScrollBarPolicy()).isNotNull();
         }
 
         @Test
         void scrollbar_policies_are_valid_values() {
-            fg.setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0))));
+            fg.view().setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0))));
 
-            var scrollPane = findScrollPane(fg.component);
+            var scrollPane = fg.scrollPane();
 
             assertThat(scrollPane.getVerticalScrollBarPolicy()).isIn(
                     ScrollPaneConstants.VERTICAL_SCROLLBAR_NEVER,
@@ -217,9 +212,9 @@ class FlamegraphViewViewportTest {
 
         @Test
         void component_resize_event_triggers_layout() {
-            fg.setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0))));
+            fg.view().setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0))));
 
-            var scrollPane = findScrollPane(fg.component);
+            var scrollPane = fg.scrollPane();
             scrollPane.setSize(800, 600);
 
             var resizeEvent = new ComponentEvent(
@@ -231,9 +226,9 @@ class FlamegraphViewViewportTest {
 
         @Test
         void component_shown_event_handled() {
-            fg.setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0))));
+            fg.view().setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0))));
 
-            var scrollPane = findScrollPane(fg.component);
+            var scrollPane = fg.scrollPane();
             scrollPane.setSize(800, 600);
 
             var shownEvent = new ComponentEvent(
@@ -245,9 +240,9 @@ class FlamegraphViewViewportTest {
 
         @Test
         void component_hidden_event_handled() {
-            fg.setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0))));
+            fg.view().setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0))));
 
-            var scrollPane = findScrollPane(fg.component);
+            var scrollPane = fg.scrollPane();
             scrollPane.setSize(800, 600);
 
             var hiddenEvent = new ComponentEvent(
@@ -262,36 +257,12 @@ class FlamegraphViewViewportTest {
     @DisplayName("Viewport Layout with Mocked ZoomModel")
     class ViewportLayoutWithMockedZoomModelTests {
 
-        private BufferedImage image;
-        private Graphics2D g2d;
-
-        @BeforeEach
-        void setUpGraphics() {
-            image = new BufferedImage(800, 600, BufferedImage.TYPE_INT_ARGB);
-            g2d = image.createGraphics();
-        }
-
-        /**
-         * Sets up a spied canvas that returns a real Graphics2D.
-         * This is necessary because getGraphics() returns null in headless mode.
-         */
-        private void setupCanvasWithGraphics() {
-            var scrollPane = findScrollPane(fg.component);
-            var viewport = scrollPane.getViewport();
-            var canvas = viewport.getView();
-
-            var spiedCanvas = spy(canvas);
-            doReturn(g2d).when(spiedCanvas).getGraphics();
-
-            viewport.setView(spiedCanvas);
-        }
-
         /**
          * Sets zoom state fields in the ZoomModel via reflection.
          * This allows testing the layoutContainer branches that depend on zoom state.
          */
         private void setZoomModelState(double scaleFactor, double lastUserInteractionStartX) throws Exception {
-            var scrollPane = findScrollPane(fg.component);
+            var scrollPane = fg.scrollPane();
             var canvas = scrollPane.getViewport().getView();
 
             // Get the zoomModel field from canvas
@@ -318,10 +289,9 @@ class FlamegraphViewViewportTest {
             for (int i = 1; i <= 20; i++) {
                 frames.add(new FrameBox<>("level" + i, 0.0, 0.9, i));
             }
-            fg.setModel(new FrameModel<>(frames));
-            setupCanvasWithGraphics();
+            fg.view().setModel(new FrameModel<>(frames));
 
-            var scrollPane = findScrollPane(fg.component);
+            var scrollPane = fg.scrollPane();
             var viewport = scrollPane.getViewport();
 
             // Set initial size
@@ -346,10 +316,9 @@ class FlamegraphViewViewportTest {
             for (int i = 1; i <= 20; i++) {
                 frames.add(new FrameBox<>("level" + i, 0.0, 0.9, i));
             }
-            fg.setModel(new FrameModel<>(frames));
-            setupCanvasWithGraphics();
+            fg.view().setModel(new FrameModel<>(frames));
 
-            var scrollPane = findScrollPane(fg.component);
+            var scrollPane = fg.scrollPane();
             var viewport = scrollPane.getViewport();
 
             // Set initial size
@@ -378,11 +347,10 @@ class FlamegraphViewViewportTest {
             for (int i = 1; i <= 30; i++) {
                 frames.add(new FrameBox<>("level" + i, 0.0, 0.9, i));
             }
-            fg.setModel(new FrameModel<>(frames));
-            fg.setMode(Mode.FLAMEGRAPH);
-            setupCanvasWithGraphics();
+            fg.view().setModel(new FrameModel<>(frames));
+            fg.view().setMode(Mode.FLAMEGRAPH);
 
-            var scrollPane = findScrollPane(fg.component);
+            var scrollPane = fg.scrollPane();
             var viewport = scrollPane.getViewport();
 
             viewport.setSize(800, 600);
@@ -404,11 +372,10 @@ class FlamegraphViewViewportTest {
             for (int i = 1; i <= 30; i++) {
                 frames.add(new FrameBox<>("level" + i, 0.0, 0.9, i));
             }
-            fg.setModel(new FrameModel<>(frames));
-            fg.setMode(Mode.ICICLEGRAPH);
-            setupCanvasWithGraphics();
+            fg.view().setModel(new FrameModel<>(frames));
+            fg.view().setMode(Mode.ICICLEGRAPH);
 
-            var scrollPane = findScrollPane(fg.component);
+            var scrollPane = fg.scrollPane();
             var viewport = scrollPane.getViewport();
 
             viewport.setSize(800, 600);
@@ -426,13 +393,12 @@ class FlamegraphViewViewportTest {
         @Test
         void layout_container_sets_vertical_scrollbar_never_when_fits() throws Exception {
             // Small flamegraph that fits in viewport
-            fg.setModel(new FrameModel<>(List.of(
+            fg.view().setModel(new FrameModel<>(List.of(
                     new FrameBox<>("root", 0.0, 1.0, 0),
                     new FrameBox<>("child", 0.0, 0.5, 1)
             )));
-            setupCanvasWithGraphics();
 
-            var scrollPane = findScrollPane(fg.component);
+            var scrollPane = fg.scrollPane();
             var viewport = scrollPane.getViewport();
 
             // Large viewport that fits the flamegraph
@@ -457,10 +423,9 @@ class FlamegraphViewViewportTest {
             for (int i = 1; i <= 50; i++) {
                 frames.add(new FrameBox<>("level" + i, 0.0, 0.9, i));
             }
-            fg.setModel(new FrameModel<>(frames));
-            setupCanvasWithGraphics();
+            fg.view().setModel(new FrameModel<>(frames));
 
-            var scrollPane = findScrollPane(fg.component);
+            var scrollPane = fg.scrollPane();
             var viewport = scrollPane.getViewport();
 
             // Small viewport that doesn't fit the flamegraph
@@ -479,11 +444,10 @@ class FlamegraphViewViewportTest {
 
         @Test
         void layout_container_sets_horizontal_scrollbar_never_when_scale_is_one() throws Exception {
-            fg.setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0))));
-            fg.setMode(Mode.ICICLEGRAPH);
-            setupCanvasWithGraphics();
+            fg.view().setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0))));
+            fg.view().setMode(Mode.ICICLEGRAPH);
 
-            var scrollPane = findScrollPane(fg.component);
+            var scrollPane = fg.scrollPane();
             var viewport = scrollPane.getViewport();
 
             viewport.setSize(800, 600);
@@ -502,11 +466,10 @@ class FlamegraphViewViewportTest {
 
         @Test
         void layout_container_sets_horizontal_scrollbar_as_needed_when_zoomed() throws Exception {
-            fg.setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0))));
-            fg.setMode(Mode.ICICLEGRAPH);
-            setupCanvasWithGraphics();
+            fg.view().setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0))));
+            fg.view().setMode(Mode.ICICLEGRAPH);
 
-            var scrollPane = findScrollPane(fg.component);
+            var scrollPane = fg.scrollPane();
             var viewport = scrollPane.getViewport();
 
             viewport.setSize(800, 600);
@@ -525,11 +488,10 @@ class FlamegraphViewViewportTest {
 
         @Test
         void layout_container_always_shows_horizontal_scrollbar_in_flamegraph_mode() throws Exception {
-            fg.setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0))));
-            fg.setMode(Mode.FLAMEGRAPH);
-            setupCanvasWithGraphics();
+            fg.view().setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0))));
+            fg.view().setMode(Mode.FLAMEGRAPH);
 
-            var scrollPane = findScrollPane(fg.component);
+            var scrollPane = fg.scrollPane();
             var viewport = scrollPane.getViewport();
 
             viewport.setSize(800, 600);
@@ -547,10 +509,9 @@ class FlamegraphViewViewportTest {
 
         @Test
         void layout_container_uses_else_branch_when_width_unchanged() throws Exception {
-            fg.setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0))));
-            setupCanvasWithGraphics();
+            fg.view().setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0))));
 
-            var scrollPane = findScrollPane(fg.component);
+            var scrollPane = fg.scrollPane();
             var viewport = scrollPane.getViewport();
 
             // Set size
@@ -573,9 +534,9 @@ class FlamegraphViewViewportTest {
             // This tests the failsafe branch when view is not FlamegraphCanvas
             // Note: The production code has a bug where it doesn't return after
             // calling super.layoutContainer(), causing a ClassCastException
-            fg.setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0))));
+            fg.view().setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0))));
 
-            var scrollPane = findScrollPane(fg.component);
+            var scrollPane = fg.scrollPane();
             var viewport = scrollPane.getViewport();
             var layout = viewport.getLayout();
 

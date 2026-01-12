@@ -14,18 +14,17 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-import javax.swing.*;
 import java.awt.*;
 import java.awt.event.MouseEvent;
 import java.util.List;
 import java.util.function.Supplier;
 
-import static io.github.bric3.fireplace.flamegraph.SwingTestUtil.getCanvas;
-import static io.github.bric3.fireplace.flamegraph.SwingTestUtil.getMinimapBounds;
-import static io.github.bric3.fireplace.flamegraph.SwingTestUtil.getScrollbarPositions;
-import static io.github.bric3.fireplace.flamegraph.SwingTestUtil.setupFlamegraphDimensions;
-import static io.github.bric3.fireplace.flamegraph.SwingTestUtil.spyCanvasWithMinimapEnabled;
-import static org.assertj.core.api.Assertions.*;
+import static io.github.bric3.fireplace.flamegraph.SwingTestUtil.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doReturn;
 
 /**
  * Tests for {@link FlamegraphView} minimap functionality.
@@ -33,63 +32,58 @@ import static org.assertj.core.api.Assertions.*;
 @DisplayName("FlamegraphView - Minimap")
 class FlamegraphViewMinimapTest {
 
-    private FlamegraphView<String> fg;
-
-    @BeforeEach
-    void setUp() {
-        fg = new FlamegraphView<>();
-    }
-
     @Nested
     @DisplayName("Minimap")
     class MinimapTests {
 
+        private final FlamegraphViewUnderTest<String> fg = FlamegraphViewUnderTest.<String>builder().build();
+
         @Test
         void isShowMinimap_default_is_true() {
-            assertThat(fg.isShowMinimap()).isTrue();
+            assertThat(fg.view().isShowMinimap()).isTrue();
         }
 
         @Test
         void setShowMinimap_false_hides_minimap() {
-            fg.setShowMinimap(false);
+            fg.view().setShowMinimap(false);
 
-            assertThat(fg.isShowMinimap()).isFalse();
+            assertThat(fg.view().isShowMinimap()).isFalse();
         }
 
         @Test
         void setMinimapShadeColorSupplier_sets_supplier() {
             Supplier<Color> supplier = () -> Color.RED;
 
-            fg.setMinimapShadeColorSupplier(supplier);
+            fg.view().setMinimapShadeColorSupplier(supplier);
 
-            assertThat(fg.getMinimapShadeColorSupplier()).isEqualTo(supplier);
+            assertThat(fg.view().getMinimapShadeColorSupplier()).isEqualTo(supplier);
         }
 
         @Test
         void setMinimapShadeColorSupplier_null_throws_exception() {
-            assertThatThrownBy(() -> fg.setMinimapShadeColorSupplier(null))
+            assertThatThrownBy(() -> fg.view().setMinimapShadeColorSupplier(null))
                     .isInstanceOf(NullPointerException.class);
         }
 
         @Test
         void setShowMinimap_toggle_multiple_times() {
-            assertThat(fg.isShowMinimap()).isTrue();
+            assertThat(fg.view().isShowMinimap()).isTrue();
 
-            fg.setShowMinimap(false);
-            assertThat(fg.isShowMinimap()).isFalse();
+            fg.view().setShowMinimap(false);
+            assertThat(fg.view().isShowMinimap()).isFalse();
 
-            fg.setShowMinimap(true);
-            assertThat(fg.isShowMinimap()).isTrue();
+            fg.view().setShowMinimap(true);
+            assertThat(fg.view().isShowMinimap()).isTrue();
 
-            fg.setShowMinimap(false);
-            assertThat(fg.isShowMinimap()).isFalse();
+            fg.view().setShowMinimap(false);
+            assertThat(fg.view().isShowMinimap()).isFalse();
         }
 
         @Test
         void setShowMinimap_same_value_does_not_throw() {
-            fg.setShowMinimap(true);
+            fg.view().setShowMinimap(true);
 
-            assertThatCode(() -> fg.setShowMinimap(true))
+            assertThatCode(() -> fg.view().setShowMinimap(true))
                     .doesNotThrowAnyException();
         }
     }
@@ -98,11 +92,13 @@ class FlamegraphViewMinimapTest {
     @DisplayName("Minimap Shade Color")
     class MinimapShadeColorTests {
 
+        private final FlamegraphViewUnderTest<String> fg = FlamegraphViewUnderTest.<String>builder().build();
+
         @Test
         void getMinimapShadeColorSupplier_default_is_null() {
             // Default may be null or have a default supplier
             // Just verify it doesn't throw
-            assertThatCode(() -> fg.getMinimapShadeColorSupplier())
+            assertThatCode(() -> fg.view().getMinimapShadeColorSupplier())
                     .doesNotThrowAnyException();
         }
 
@@ -110,19 +106,19 @@ class FlamegraphViewMinimapTest {
         void setMinimapShadeColorSupplier_custom_color() {
             Supplier<Color> redSupplier = () -> Color.RED;
 
-            fg.setMinimapShadeColorSupplier(redSupplier);
+            fg.view().setMinimapShadeColorSupplier(redSupplier);
 
-            assertThat(fg.getMinimapShadeColorSupplier()).isEqualTo(redSupplier);
-            assertThat(fg.getMinimapShadeColorSupplier().get()).isEqualTo(Color.RED);
+            assertThat(fg.view().getMinimapShadeColorSupplier()).isEqualTo(redSupplier);
+            assertThat(fg.view().getMinimapShadeColorSupplier().get()).isEqualTo(Color.RED);
         }
 
         @Test
         void setMinimapShadeColorSupplier_with_alpha_color() {
             Supplier<Color> alphaSupplier = () -> new Color(128, 128, 128, 128);
 
-            fg.setMinimapShadeColorSupplier(alphaSupplier);
+            fg.view().setMinimapShadeColorSupplier(alphaSupplier);
 
-            var color = fg.getMinimapShadeColorSupplier().get();
+            var color = fg.view().getMinimapShadeColorSupplier().get();
             assertThat(color.getAlpha()).isEqualTo(128);
         }
     }
@@ -131,44 +127,41 @@ class FlamegraphViewMinimapTest {
     @DisplayName("Minimap Mouse Event Processing")
     class MinimapMouseEventProcessingTests {
 
+        private final FlamegraphViewUnderTest<String> fg = FlamegraphViewUnderTest.<String>builder()
+                                                                                  .withCanvasSpy()
+                                                                                  .build();
+
+        @BeforeEach
+        void setUp() {
+            // Stub isInsideMinimap to always return true for minimap event testing
+            doReturn(true).when(fg.canvasSpy()).isInsideMinimap(any());
+        }
+
         @Test
         @DisplayName("mousePressed in minimap area processes minimap event")
-        void mousePressed_in_minimap_area() throws Exception {
+        void mousePressed_in_minimap_area() {
             // Set up a model
             var frames = List.of(
                     new FrameBox<>("root", 0.0, 1.0, 0),
                     new FrameBox<>("child", 0.0, 0.5, 1)
             );
-            fg.setModel(new FrameModel<>(frames));
+            fg.view().setModel(new FrameModel<>(frames));
+            fg.setFlamegraphDimensions(1000, 500);
 
-            var canvas = getCanvas(fg.component);
-            setupFlamegraphDimensions(canvas, 1000, 500);
-
-            // Spy on canvas and stub isInsideMinimap to reach processMinimapMouseEvent
-            var canvasSpy = spyCanvasWithMinimapEnabled(fg.component);
-            Rectangle minimapBounds = getMinimapBounds(canvasSpy);
+            var canvas = fg.canvas();
+            var minimapBounds = fg.minimapBounds();
 
             // Create mouse pressed event in minimap area
-            var mouseEvent = new MouseEvent(
-                    canvasSpy,
-                    MouseEvent.MOUSE_PRESSED,
-                    System.currentTimeMillis(),
-                    MouseEvent.BUTTON1_DOWN_MASK,
-                    minimapBounds.x + 50,
-                    minimapBounds.y + 50,
-                    1,
-                    false,
-                    MouseEvent.BUTTON1
-            );
+            var mouseEvent = createPressEvent(canvas, minimapBounds.x + 50, minimapBounds.y + 50, MouseEvent.BUTTON1, false);
 
             // Event should be processed without throwing and reach processMinimapMouseEvent
-            assertThatCode(() -> canvasSpy.dispatchEvent(mouseEvent))
+            assertThatCode(() -> canvas.dispatchEvent(mouseEvent))
                     .doesNotThrowAnyException();
         }
 
         @Test
         @DisplayName("mouseDragged in minimap area updates viewport")
-        void mouseDragged_in_minimap_area() throws Exception {
+        void mouseDragged_in_minimap_area() {
             // Set up a model with enough frames to allow scrolling
             var frames = List.of(
                     new FrameBox<>("root", 0.0, 1.0, 0),
@@ -177,51 +170,26 @@ class FlamegraphViewMinimapTest {
                     new FrameBox<>("child3", 0.5, 0.75, 1),
                     new FrameBox<>("child4", 0.75, 1.0, 1)
             );
-            fg.setModel(new FrameModel<>(frames));
+            fg.view().setModel(new FrameModel<>(frames));
+            fg.setFlamegraphDimensions(2000, 1000);
 
-            var canvas = getCanvas(fg.component);
-            setupFlamegraphDimensions(canvas, 2000, 1000);
+            var canvas = fg.canvas();
+            var minimapBounds = fg.minimapBounds();
 
-            // Spy on canvas and stub isInsideMinimap to reach processMinimapMouseEvent
-            var canvasSpy = spyCanvasWithMinimapEnabled(fg.component);
-            Rectangle minimapBounds = getMinimapBounds(canvasSpy);
-
-            int minimapX = minimapBounds.x + 50;
-            int minimapY = minimapBounds.y + 50;
+            var minimapX = minimapBounds.x + 50;
+            var minimapY = minimapBounds.y + 50;
 
             // First press in minimap
-            var pressedEvent = new MouseEvent(
-                    canvasSpy,
-                    MouseEvent.MOUSE_PRESSED,
-                    System.currentTimeMillis(),
-                    MouseEvent.BUTTON1_DOWN_MASK,
-                    minimapX,
-                    minimapY,
-                    1,
-                    false,
-                    MouseEvent.BUTTON1
-            );
-            canvasSpy.dispatchEvent(pressedEvent);
+            canvas.dispatchEvent(createPressEvent(canvas, minimapX, minimapY, MouseEvent.BUTTON1, false));
 
             // Capture initial scrollbar positions after press
-            var initialPositions = getScrollbarPositions(fg.component);
+            var initialPositions = getScrollbarPositions(fg.component());
 
             // Then drag in minimap
-            var draggedEvent = new MouseEvent(
-                    canvasSpy,
-                    MouseEvent.MOUSE_DRAGGED,
-                    System.currentTimeMillis(),
-                    MouseEvent.BUTTON1_DOWN_MASK,
-                    minimapX + 20,
-                    minimapY + 20,
-                    1,
-                    false,
-                    MouseEvent.BUTTON1
-            );
-            canvasSpy.dispatchEvent(draggedEvent);
+            canvas.dispatchEvent(createDraggedEvent(canvas, minimapX + 20, minimapY + 20));
 
             // Capture final scrollbar positions after drag
-            var finalPositions = getScrollbarPositions(fg.component);
+            var finalPositions = getScrollbarPositions(fg.component());
 
             // Assert that scrollbar positions changed
             assertThat(finalPositions)
@@ -231,7 +199,7 @@ class FlamegraphViewMinimapTest {
 
         @Test
         @DisplayName("mousePressed at different minimap positions")
-        void mousePressed_at_different_minimap_positions() throws Exception {
+        void mousePressed_at_different_minimap_positions() {
             // Set up a model
             var frames = List.of(
                     new FrameBox<>("root", 0.0, 1.0, 0),
@@ -239,36 +207,23 @@ class FlamegraphViewMinimapTest {
                     new FrameBox<>("child2", 0.33, 0.66, 1),
                     new FrameBox<>("child3", 0.66, 1.0, 1)
             );
-            fg.setModel(new FrameModel<>(frames));
+            fg.view().setModel(new FrameModel<>(frames));
+            fg.setFlamegraphDimensions(1600, 800);
 
-            var canvas = getCanvas(fg.component);
-            setupFlamegraphDimensions(canvas, 1600, 800);
-
-            // Spy on canvas and stub isInsideMinimap to reach processMinimapMouseEvent
-            var canvasSpy = spyCanvasWithMinimapEnabled(fg.component);
-            Rectangle minimapBounds = getMinimapBounds(canvasSpy);
+            var canvas = fg.canvas();
+            var minimapBounds = fg.minimapBounds();
 
             // Test various positions within minimap
-            Point[] testPoints = {
+            var testPoints = new Point[]{
                     new Point(minimapBounds.x + 10, minimapBounds.y + 10),
                     new Point(minimapBounds.x + minimapBounds.width / 2, minimapBounds.y + minimapBounds.height / 2),
                     new Point(minimapBounds.x + minimapBounds.width - 10, minimapBounds.y + minimapBounds.height - 10)
             };
 
-            for (Point point : testPoints) {
-                var mouseEvent = new MouseEvent(
-                        canvasSpy,
-                        MouseEvent.MOUSE_PRESSED,
-                        System.currentTimeMillis(),
-                        MouseEvent.BUTTON1_DOWN_MASK,
-                        point.x,
-                        point.y,
-                        1,
-                        false,
-                        MouseEvent.BUTTON1
-                );
+            for (var point : testPoints) {
+                var mouseEvent = createPressEvent(canvas, point.x, point.y, MouseEvent.BUTTON1, false);
 
-                assertThatCode(() -> canvasSpy.dispatchEvent(mouseEvent))
+                assertThatCode(() -> canvas.dispatchEvent(mouseEvent))
                         .as("Mouse pressed at point (%d, %d) should not throw", point.x, point.y)
                         .doesNotThrowAnyException();
             }
@@ -276,7 +231,7 @@ class FlamegraphViewMinimapTest {
 
         @Test
         @DisplayName("mouseDragged updates scrollbars when dragging across minimap")
-        void mouseDragged_updates_scrollbars() throws Exception {
+        void mouseDragged_updates_scrollbars() {
             // Set up a model with multiple frames
             var frames = List.of(
                     new FrameBox<>("root", 0.0, 1.0, 0),
@@ -286,59 +241,34 @@ class FlamegraphViewMinimapTest {
                     new FrameBox<>("child4", 0.6, 0.8, 1),
                     new FrameBox<>("child5", 0.8, 1.0, 1)
             );
-            fg.setModel(new FrameModel<>(frames));
+            fg.view().setModel(new FrameModel<>(frames));
+            fg.setFlamegraphDimensions(3000, 1500);
 
-            var canvas = getCanvas(fg.component);
-            setupFlamegraphDimensions(canvas, 3000, 1500);
-
-            // Spy on canvas and stub isInsideMinimap to reach processMinimapMouseEvent
-            var canvasSpy = spyCanvasWithMinimapEnabled(fg.component);
-            Rectangle minimapBounds = getMinimapBounds(canvasSpy);
+            var canvas = fg.canvas();
+            var minimapBounds = fg.minimapBounds();
 
             // Start position in minimap
-            int startX = minimapBounds.x + 30;
-            int startY = minimapBounds.y + 30;
+            var startX = minimapBounds.x + 30;
+            var startY = minimapBounds.y + 30;
 
             // Press at start position
-            var pressedEvent = new MouseEvent(
-                    canvasSpy,
-                    MouseEvent.MOUSE_PRESSED,
-                    System.currentTimeMillis(),
-                    MouseEvent.BUTTON1_DOWN_MASK,
-                    startX,
-                    startY,
-                    1,
-                    false,
-                    MouseEvent.BUTTON1
-            );
-            canvasSpy.dispatchEvent(pressedEvent);
+            canvas.dispatchEvent(createPressEvent(canvas, startX, startY, MouseEvent.BUTTON1, false));
 
             // Capture initial scrollbar positions after press
-            var previousPositions = getScrollbarPositions(fg.component);
+            var previousPositions = getScrollbarPositions(fg.component());
 
             // Drag to different positions and verify scrollbars update
-            int[][] dragPositions = {
+            var dragPositions = new int[][]{
                     {startX + 20, startY},
                     {startX + 40, startY + 20},
                     {startX + 60, startY + 40}
             };
 
-            for (int[] pos : dragPositions) {
-                var dragEvent = new MouseEvent(
-                        canvasSpy,
-                        MouseEvent.MOUSE_DRAGGED,
-                        System.currentTimeMillis(),
-                        MouseEvent.BUTTON1_DOWN_MASK,
-                        pos[0],
-                        pos[1],
-                        1,
-                        false,
-                        MouseEvent.BUTTON1
-                );
-                canvasSpy.dispatchEvent(dragEvent);
+            for (var pos : dragPositions) {
+                canvas.dispatchEvent(createDraggedEvent(canvas, pos[0], pos[1]));
 
                 // Capture new scrollbar positions after this drag
-                var newPositions = getScrollbarPositions(fg.component);
+                var newPositions = getScrollbarPositions(fg.component());
 
                 // Assert that scrollbar positions changed from previous positions
                 assertThat(newPositions)
@@ -349,32 +279,35 @@ class FlamegraphViewMinimapTest {
                 previousPositions = newPositions;
             }
         }
+    }
+
+    @Nested
+    @DisplayName("Minimap Mouse Events Outside Minimap")
+    class MinimapMouseEventsOutsideMinimapTests {
+
+        private final FlamegraphViewUnderTest<String> fg = FlamegraphViewUnderTest.<String>builder().build();
 
         @Test
         @DisplayName("mousePressed outside minimap does not trigger minimap navigation")
-        void mousePressed_outside_minimap() throws Exception {
+        void mousePressed_outside_minimap() {
             // Set up a model
             var frames = List.of(
                     new FrameBox<>("root", 0.0, 1.0, 0),
                     new FrameBox<>("child", 0.0, 0.5, 1)
             );
-            fg.setModel(new FrameModel<>(frames));
+            fg.view().setModel(new FrameModel<>(frames));
+            fg.setFlamegraphDimensions(1000, 500);
 
-            var canvas = getCanvas(fg.component);
-            setupFlamegraphDimensions(canvas, 1000, 500);
-            Rectangle minimapBounds = getMinimapBounds(canvas);
+            var canvas = fg.canvas();
+            var minimapBounds = fg.minimapBounds();
 
             // Click outside minimap area (in the flamegraph itself)
-            var mouseEvent = new MouseEvent(
+            var mouseEvent = createPressEvent(
                     canvas,
-                    MouseEvent.MOUSE_PRESSED,
-                    System.currentTimeMillis(),
-                    MouseEvent.BUTTON1_DOWN_MASK,
                     minimapBounds.x + minimapBounds.width + 100,
                     minimapBounds.y + minimapBounds.height + 100,
-                    1,
-                    false,
-                    MouseEvent.BUTTON1
+                    MouseEvent.BUTTON1,
+                    false
             );
 
             // Event should be processed without throwing
@@ -384,47 +317,26 @@ class FlamegraphViewMinimapTest {
 
         @Test
         @DisplayName("mouseDragged after pressing outside minimap does not update via minimap")
-        void mouseDragged_after_pressing_outside_minimap() throws Exception {
+        void mouseDragged_after_pressing_outside_minimap() {
             // Set up a model
             var frames = List.of(
                     new FrameBox<>("root", 0.0, 1.0, 0),
                     new FrameBox<>("child", 0.0, 0.5, 1)
             );
-            fg.setModel(new FrameModel<>(frames));
+            fg.view().setModel(new FrameModel<>(frames));
+            fg.setFlamegraphDimensions(1000, 500);
 
-            var canvas = getCanvas(fg.component);
-            setupFlamegraphDimensions(canvas, 1000, 500);
-            Rectangle minimapBounds = getMinimapBounds(canvas);
+            var canvas = fg.canvas();
+            var minimapBounds = fg.minimapBounds();
 
             // Press outside minimap
-            int outsideX = minimapBounds.x + minimapBounds.width + 100;
-            int outsideY = minimapBounds.y + minimapBounds.height + 100;
+            var outsideX = minimapBounds.x + minimapBounds.width + 100;
+            var outsideY = minimapBounds.y + minimapBounds.height + 100;
 
-            var pressedEvent = new MouseEvent(
-                    canvas,
-                    MouseEvent.MOUSE_PRESSED,
-                    System.currentTimeMillis(),
-                    MouseEvent.BUTTON1_DOWN_MASK,
-                    outsideX,
-                    outsideY,
-                    1,
-                    false,
-                    MouseEvent.BUTTON1
-            );
-            canvas.dispatchEvent(pressedEvent);
+            canvas.dispatchEvent(createPressEvent(canvas, outsideX, outsideY, MouseEvent.BUTTON1, false));
 
             // Drag into minimap area (but press was outside, so minimap nav shouldn't trigger)
-            var draggedEvent = new MouseEvent(
-                    canvas,
-                    MouseEvent.MOUSE_DRAGGED,
-                    System.currentTimeMillis(),
-                    MouseEvent.BUTTON1_DOWN_MASK,
-                    minimapBounds.x + 50,
-                    minimapBounds.y + 50,
-                    1,
-                    false,
-                    MouseEvent.BUTTON1
-            );
+            var draggedEvent = createDraggedEvent(canvas, minimapBounds.x + 50, minimapBounds.y + 50);
 
             // Event should be processed without throwing
             assertThatCode(() -> canvas.dispatchEvent(draggedEvent))

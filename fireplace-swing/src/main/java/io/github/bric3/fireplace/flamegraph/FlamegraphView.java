@@ -147,7 +147,7 @@ public class FlamegraphView<T> {
     /**
      * Represents a custom action when zooming.
      */
-    public interface ZoomAction {
+    public interface ZoomAction { // TODO proper type parameterization
         /**
          * Called when the zoom action is triggered.
          *
@@ -1380,6 +1380,10 @@ public class FlamegraphView<T> {
             }
 
             return super.getToolTipText(e);
+        }
+
+        public Rectangle getMinimapBounds() {
+            return minimapBounds;
         }
 
         public boolean isInsideMinimap(@NotNull Point point) {

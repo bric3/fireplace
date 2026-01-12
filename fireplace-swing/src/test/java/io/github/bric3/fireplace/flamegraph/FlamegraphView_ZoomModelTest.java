@@ -23,8 +23,9 @@ import static org.mockito.Mockito.*;
 /**
  * Unit tests for {@link FlamegraphView.ZoomModel}.
  */
+@SuppressWarnings("NewClassNamingConvention")
 @DisplayName("ZoomModel")
-class FlamegraphViewZoomModelTest {
+class FlamegraphView_ZoomModelTest {
 
     private FlamegraphView.ZoomModel<String> zoomModel;
 

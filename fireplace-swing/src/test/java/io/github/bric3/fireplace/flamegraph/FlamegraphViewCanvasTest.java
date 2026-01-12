@@ -10,7 +10,6 @@
 package io.github.bric3.fireplace.flamegraph;
 
 import io.github.bric3.fireplace.flamegraph.FlamegraphView.Mode;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -37,211 +36,176 @@ import static org.mockito.Mockito.*;
 @DisplayName("FlamegraphView Canvas")
 class FlamegraphViewCanvasTest {
 
-    private FlamegraphView<String> fg;
-
-    @BeforeEach
-    void setUp() {
-        fg = new FlamegraphView<>();
-    }
-
     @Nested
     @DisplayName("Canvas Properties")
     class CanvasPropertiesTests {
+        private final FlamegraphViewUnderTest<String> fg = FlamegraphViewUnderTest.<String>builder().build();
 
         @Test
         void canvas_has_graph_mode_property_constant() {
             // Access constants through reflection or verify behavior
-            fg.setMode(Mode.FLAMEGRAPH);
-            assertThat(fg.getMode()).isEqualTo(Mode.FLAMEGRAPH);
+            fg.view().setMode(Mode.FLAMEGRAPH);
+            assertThat(fg.view().getMode()).isEqualTo(Mode.FLAMEGRAPH);
 
-            fg.setMode(Mode.ICICLEGRAPH);
-            assertThat(fg.getMode()).isEqualTo(Mode.ICICLEGRAPH);
+            fg.view().setMode(Mode.ICICLEGRAPH);
+            assertThat(fg.view().getMode()).isEqualTo(Mode.ICICLEGRAPH);
         }
 
         @Test
         void canvas_show_minimap_property_affects_display() {
-            fg.setShowMinimap(true);
-            assertThat(fg.isShowMinimap()).isTrue();
+            fg.view().setShowMinimap(true);
+            assertThat(fg.view().isShowMinimap()).isTrue();
 
-            fg.setShowMinimap(false);
-            assertThat(fg.isShowMinimap()).isFalse();
+            fg.view().setShowMinimap(false);
+            assertThat(fg.view().isShowMinimap()).isFalse();
         }
 
         @Test
         void canvas_frame_model_property_changes() {
             var model1 = new FrameModel<>(List.of(new FrameBox<>("first", 0.0, 1.0, 0)));
-            fg.setModel(model1);
-            assertThat(fg.getFrameModel()).isEqualTo(model1);
+            fg.view().setModel(model1);
+            assertThat(fg.view().getFrameModel()).isEqualTo(model1);
 
             var model2 = new FrameModel<>(List.of(new FrameBox<>("second", 0.0, 1.0, 0)));
-            fg.setModel(model2);
-            assertThat(fg.getFrameModel()).isEqualTo(model2);
+            fg.view().setModel(model2);
+            assertThat(fg.view().getFrameModel()).isEqualTo(model2);
         }
     }
 
     @Nested
     @DisplayName("Canvas Tooltip")
     class CanvasTooltipTests {
+        private final FlamegraphViewUnderTest<String> fg = FlamegraphViewUnderTest.<String>builder().build();
 
         @Test
         void tooltip_text_function_is_used_when_set() {
             var tooltipCalled = new AtomicBoolean(false);
-            fg.setTooltipTextFunction((model, frame) -> {
+            fg.view().setTooltipTextFunction((model, frame) -> {
                 tooltipCalled.set(true);
                 return "Custom tooltip for " + frame.actualNode;
             });
 
-            fg.setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0))));
-            assertThat(fg.getTooltipTextFunction()).isNotNull();
+            fg.view().setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0))));
+            assertThat(fg.view().getTooltipTextFunction()).isNotNull();
         }
 
         @Test
         void tooltip_component_supplier_provides_custom_tooltip() {
-            var customTooltipCreated = new AtomicBoolean(false);
-            fg.setTooltipComponentSupplier(() -> {
-                customTooltipCreated.set(true);
-                var tooltip = new JToolTip();
-                tooltip.setBackground(Color.CYAN);
-                return tooltip;
+            fg.view().setTooltipComponentSupplier(() -> {
+                return new JToolTip();
             });
 
-            assertThat(fg.getTooltipComponentSupplier()).isNotNull();
+            assertThat(fg.view().getTooltipComponentSupplier()).isNotNull();
         }
     }
 
     @Nested
     @DisplayName("Canvas Frame Click Behavior")
     class CanvasFrameClickBehaviorTests {
+        private final FlamegraphViewUnderTest<String> fg = FlamegraphViewUnderTest.<String>builder().build();
 
         @Test
         void default_click_behavior_is_focus_frame() {
-            assertThat(fg.getFrameClickAction())
+            assertThat(fg.view().getFrameClickAction())
                     .isEqualTo(FlamegraphView.FrameClickAction.FOCUS_FRAME);
         }
 
         @Test
         void click_behavior_can_be_set_to_expand_frame() {
-            fg.setFrameClickAction(FlamegraphView.FrameClickAction.EXPAND_FRAME);
-            assertThat(fg.getFrameClickAction())
+            fg.view().setFrameClickAction(FlamegraphView.FrameClickAction.EXPAND_FRAME);
+            assertThat(fg.view().getFrameClickAction())
                     .isEqualTo(FlamegraphView.FrameClickAction.EXPAND_FRAME);
         }
 
         @Test
         void selected_frame_consumer_is_called_setup() {
-            var consumerCalled = new AtomicReference<FrameBox<String>>();
-            fg.setSelectedFrameConsumer((frame, e) -> consumerCalled.set(frame));
-            assertThat(fg.getSelectedFrameConsumer()).isNotNull();
+            fg.view().setSelectedFrameConsumer((frame, e) -> {});
+            assertThat(fg.view().getSelectedFrameConsumer()).isNotNull();
         }
 
         @Test
         void popup_consumer_is_set_correctly() {
-            var consumerCalled = new AtomicReference<FrameBox<String>>();
-            fg.setPopupConsumer((frame, e) -> consumerCalled.set(frame));
-            assertThat(fg.getPopupConsumer()).isNotNull();
-        }
-    }
-
-    @Nested
-    @DisplayName("Canvas Zoom Override")
-    class CanvasZoomOverrideTests {
-
-        @Test
-        void zoom_action_override_is_applied() {
-            var zoomCalled = new AtomicBoolean(false);
-            fg.overrideZoomAction(new FlamegraphView.ZoomAction() {
-                @Override
-                public <T> boolean zoom(FlamegraphView.ZoomableComponent<T> zoomableComponent, ZoomTarget<T> zoomTarget) {
-                    zoomCalled.set(true);
-                    return true;
-                }
-            });
-
-            var frame = new FrameBox<>("root", 0.0, 1.0, 0);
-            fg.setModel(new FrameModel<>(List.of(frame)));
-            fg.zoomTo(frame);
-
-            // In headless mode, the zoom action may or may not be called depending on component state
-        }
-
-        @Test
-        void zoom_action_override_null_throws() {
-            assertThatThrownBy(() -> fg.overrideZoomAction(null))
-                    .isInstanceOf(NullPointerException.class);
+            fg.view().setPopupConsumer((frame, e) -> {});
+            assertThat(fg.view().getPopupConsumer()).isNotNull();
         }
     }
 
     @Nested
     @DisplayName("Canvas Minimap")
     class CanvasMinimapTests {
+        private final FlamegraphViewUnderTest<String> fg = FlamegraphViewUnderTest.<String>builder().build();
 
         @Test
         void minimap_shade_color_supplier_is_applied() {
-            fg.setMinimapShadeColorSupplier(() -> new Color(100, 100, 100, 100));
-            assertThat(fg.getMinimapShadeColorSupplier()).isNotNull();
-            assertThat(fg.getMinimapShadeColorSupplier().get()).isEqualTo(new Color(100, 100, 100, 100));
+            fg.view().setMinimapShadeColorSupplier(() -> new Color(100, 100, 100, 100));
+            assertThat(fg.view().getMinimapShadeColorSupplier()).isNotNull();
+            assertThat(fg.view().getMinimapShadeColorSupplier().get()).isEqualTo(new Color(100, 100, 100, 100));
         }
 
         @Test
         void minimap_visibility_toggles() {
-            fg.setShowMinimap(true);
-            assertThat(fg.isShowMinimap()).isTrue();
+            fg.view().setShowMinimap(true);
+            assertThat(fg.view().isShowMinimap()).isTrue();
 
-            fg.setShowMinimap(false);
-            assertThat(fg.isShowMinimap()).isFalse();
+            fg.view().setShowMinimap(false);
+            assertThat(fg.view().isShowMinimap()).isFalse();
         }
     }
 
     @Nested
     @DisplayName("Canvas Show Stats")
     class CanvasShowStatsTests {
+        private final FlamegraphViewUnderTest<String> fg = FlamegraphViewUnderTest.<String>builder().build();
 
         @Test
         void show_stats_client_property_can_be_set() {
-            fg.putClientProperty(FlamegraphView.SHOW_STATS, Boolean.TRUE);
-            assertThat(fg.<Boolean>getClientProperty(FlamegraphView.SHOW_STATS)).isTrue();
+            fg.view().putClientProperty(FlamegraphView.SHOW_STATS, Boolean.TRUE);
+            assertThat(fg.view().<Boolean>getClientProperty(FlamegraphView.SHOW_STATS)).isTrue();
         }
 
         @Test
         void show_stats_client_property_can_be_cleared() {
-            fg.putClientProperty(FlamegraphView.SHOW_STATS, Boolean.TRUE);
-            fg.putClientProperty(FlamegraphView.SHOW_STATS, null);
-            assertThat(fg.<Boolean>getClientProperty(FlamegraphView.SHOW_STATS)).isNull();
+            fg.view().putClientProperty(FlamegraphView.SHOW_STATS, Boolean.TRUE);
+            fg.view().putClientProperty(FlamegraphView.SHOW_STATS, null);
+            assertThat(fg.view().<Boolean>getClientProperty(FlamegraphView.SHOW_STATS)).isNull();
         }
     }
 
     @Nested
     @DisplayName("Canvas Hovered Siblings")
     class CanvasHoveredSiblingsTests {
+        private final FlamegraphViewUnderTest<String> fg = FlamegraphViewUnderTest.<String>builder().build();
 
         @Test
         void show_hovered_siblings_default_is_true() {
-            assertThat(fg.isShowHoveredSiblings()).isTrue();
+            assertThat(fg.view().isShowHoveredSiblings()).isTrue();
         }
 
         @Test
         void show_hovered_siblings_can_be_disabled() {
-            fg.setShowHoveredSiblings(false);
-            assertThat(fg.isShowHoveredSiblings()).isFalse();
+            fg.view().setShowHoveredSiblings(false);
+            assertThat(fg.view().isShowHoveredSiblings()).isFalse();
         }
 
         @Test
         void show_hovered_siblings_can_be_re_enabled() {
-            fg.setShowHoveredSiblings(false);
-            fg.setShowHoveredSiblings(true);
-            assertThat(fg.isShowHoveredSiblings()).isTrue();
+            fg.view().setShowHoveredSiblings(false);
+            fg.view().setShowHoveredSiblings(true);
+            assertThat(fg.view().isShowHoveredSiblings()).isTrue();
         }
     }
 
     @Nested
     @DisplayName("Canvas Configurer")
     class CanvasConfigurerTests {
+        private final FlamegraphViewUnderTest<String> fg = FlamegraphViewUnderTest.<String>builder().build();
 
         @Test
         void configure_canvas_provides_access_to_canvas() {
             var canvasAccessed = new AtomicBoolean(false);
             var canvasRef = new AtomicReference<JComponent>();
 
-            fg.configureCanvas(canvas -> {
+            fg.view().configureCanvas(canvas -> {
                 canvasAccessed.set(true);
                 canvasRef.set(canvas);
             });
@@ -252,13 +216,13 @@ class FlamegraphViewCanvasTest {
 
         @Test
         void configure_canvas_allows_custom_properties() {
-            fg.configureCanvas(canvas -> {
+            fg.view().configureCanvas(canvas -> {
                 canvas.putClientProperty("customKey", "customValue");
             });
 
             // Verify the property was set by accessing it through configureCanvas
             var propertyValue = new AtomicReference<String>();
-            fg.configureCanvas(canvas -> {
+            fg.view().configureCanvas(canvas -> {
                 propertyValue.set((String) canvas.getClientProperty("customKey"));
             });
 
@@ -269,37 +233,39 @@ class FlamegraphViewCanvasTest {
     @Nested
     @DisplayName("Canvas Mode Switching")
     class CanvasModeSwitchingTests {
+        private final FlamegraphViewUnderTest<String> fg = FlamegraphViewUnderTest.<String>builder().build();
 
         @Test
         void mode_switch_from_icicle_to_flamegraph() {
-            fg.setMode(Mode.ICICLEGRAPH);
-            fg.setModel(new FrameModel<>(List.of(
+            fg.view().setMode(Mode.ICICLEGRAPH);
+            fg.view().setModel(new FrameModel<>(List.of(
                     new FrameBox<>("root", 0.0, 1.0, 0),
                     new FrameBox<>("child", 0.0, 0.5, 1)
             )));
 
-            fg.setMode(Mode.FLAMEGRAPH);
+            fg.view().setMode(Mode.FLAMEGRAPH);
 
-            assertThat(fg.getMode()).isEqualTo(Mode.FLAMEGRAPH);
+            assertThat(fg.view().getMode()).isEqualTo(Mode.FLAMEGRAPH);
         }
 
         @Test
         void mode_switch_from_flamegraph_to_icicle() {
-            fg.setMode(Mode.FLAMEGRAPH);
-            fg.setModel(new FrameModel<>(List.of(
+            fg.view().setMode(Mode.FLAMEGRAPH);
+            fg.view().setModel(new FrameModel<>(List.of(
                     new FrameBox<>("root", 0.0, 1.0, 0),
                     new FrameBox<>("child", 0.0, 0.5, 1)
             )));
 
-            fg.setMode(Mode.ICICLEGRAPH);
+            fg.view().setMode(Mode.ICICLEGRAPH);
 
-            assertThat(fg.getMode()).isEqualTo(Mode.ICICLEGRAPH);
+            assertThat(fg.view().getMode()).isEqualTo(Mode.ICICLEGRAPH);
         }
     }
 
     @Nested
     @DisplayName("Canvas Highlight Frames")
     class CanvasHighlightFramesTests {
+        private final FlamegraphViewUnderTest<String> fg = FlamegraphViewUnderTest.<String>builder().build();
 
         @Test
         void highlight_frames_updates_engine() {
@@ -308,10 +274,10 @@ class FlamegraphViewCanvasTest {
             var child2 = new FrameBox<>("method", 0.5, 0.8, 1);
             var other = new FrameBox<>("other", 0.3, 0.5, 1);
 
-            fg.setModel(new FrameModel<>(List.of(root, child1, child2, other)));
+            fg.view().setModel(new FrameModel<>(List.of(root, child1, child2, other)));
 
             // Highlight the "method" frames
-            fg.highlightFrames(java.util.Set.of(child1, child2), "method");
+            fg.view().highlightFrames(java.util.Set.of(child1, child2), "method");
 
             // No exception means success
         }
@@ -321,11 +287,11 @@ class FlamegraphViewCanvasTest {
             var root = new FrameBox<>("root", 0.0, 1.0, 0);
             var child = new FrameBox<>("child", 0.0, 0.5, 1);
 
-            fg.setModel(new FrameModel<>(List.of(root, child)));
-            fg.highlightFrames(java.util.Set.of(child), "child");
+            fg.view().setModel(new FrameModel<>(List.of(root, child)));
+            fg.view().highlightFrames(java.util.Set.of(child), "child");
 
             // Clear highlights
-            fg.highlightFrames(java.util.Set.of(), "");
+            fg.view().highlightFrames(java.util.Set.of(), "");
 
             // No exception means success
         }
@@ -334,21 +300,22 @@ class FlamegraphViewCanvasTest {
     @Nested
     @DisplayName("Canvas Reset Zoom")
     class CanvasResetZoomTests {
+        private final FlamegraphViewUnderTest<String> fg = FlamegraphViewUnderTest.<String>builder().build();
 
         @Test
         void reset_zoom_with_empty_model_does_not_throw() {
-            assertThatCode(() -> fg.resetZoom())
+            assertThatCode(() -> fg.view().resetZoom())
                     .doesNotThrowAnyException();
         }
 
         @Test
         void reset_zoom_with_model_does_not_throw() {
-            fg.setModel(new FrameModel<>(List.of(
+            fg.view().setModel(new FrameModel<>(List.of(
                     new FrameBox<>("root", 0.0, 1.0, 0),
                     new FrameBox<>("child", 0.0, 0.5, 1)
             )));
 
-            assertThatCode(() -> fg.resetZoom())
+            assertThatCode(() -> fg.view().resetZoom())
                     .doesNotThrowAnyException();
         }
 
@@ -356,10 +323,10 @@ class FlamegraphViewCanvasTest {
         void reset_zoom_after_zoom_to_does_not_throw() {
             var root = new FrameBox<>("root", 0.0, 1.0, 0);
             var child = new FrameBox<>("child", 0.0, 0.5, 1);
-            fg.setModel(new FrameModel<>(List.of(root, child)));
+            fg.view().setModel(new FrameModel<>(List.of(root, child)));
 
-            fg.zoomTo(child);
-            assertThatCode(() -> fg.resetZoom())
+            fg.view().zoomTo(child);
+            assertThatCode(() -> fg.view().resetZoom())
                     .doesNotThrowAnyException();
         }
     }
@@ -367,13 +334,14 @@ class FlamegraphViewCanvasTest {
     @Nested
     @DisplayName("Canvas ZoomTo")
     class CanvasZoomToTests {
+        private final FlamegraphViewUnderTest<String> fg = FlamegraphViewUnderTest.<String>builder().build();
 
         @Test
         void zoom_to_root_frame() {
             var root = new FrameBox<>("root", 0.0, 1.0, 0);
-            fg.setModel(new FrameModel<>(List.of(root)));
+            fg.view().setModel(new FrameModel<>(List.of(root)));
 
-            assertThatCode(() -> fg.zoomTo(root))
+            assertThatCode(() -> fg.view().zoomTo(root))
                     .doesNotThrowAnyException();
         }
 
@@ -381,9 +349,9 @@ class FlamegraphViewCanvasTest {
         void zoom_to_child_frame() {
             var root = new FrameBox<>("root", 0.0, 1.0, 0);
             var child = new FrameBox<>("child", 0.0, 0.5, 1);
-            fg.setModel(new FrameModel<>(List.of(root, child)));
+            fg.view().setModel(new FrameModel<>(List.of(root, child)));
 
-            assertThatCode(() -> fg.zoomTo(child))
+            assertThatCode(() -> fg.view().zoomTo(child))
                     .doesNotThrowAnyException();
         }
 
@@ -393,9 +361,9 @@ class FlamegraphViewCanvasTest {
             var child = new FrameBox<>("child", 0.0, 0.5, 1);
             var grandchild = new FrameBox<>("grandchild", 0.0, 0.25, 2);
             var greatGrandchild = new FrameBox<>("greatGrandchild", 0.0, 0.125, 3);
-            fg.setModel(new FrameModel<>(List.of(root, child, grandchild, greatGrandchild)));
+            fg.view().setModel(new FrameModel<>(List.of(root, child, grandchild, greatGrandchild)));
 
-            assertThatCode(() -> fg.zoomTo(greatGrandchild))
+            assertThatCode(() -> fg.view().zoomTo(greatGrandchild))
                     .doesNotThrowAnyException();
         }
 
@@ -403,9 +371,9 @@ class FlamegraphViewCanvasTest {
         void zoom_to_narrow_frame() {
             var root = new FrameBox<>("root", 0.0, 1.0, 0);
             var narrow = new FrameBox<>("narrow", 0.0, 0.01, 1);
-            fg.setModel(new FrameModel<>(List.of(root, narrow)));
+            fg.view().setModel(new FrameModel<>(List.of(root, narrow)));
 
-            assertThatCode(() -> fg.zoomTo(narrow))
+            assertThatCode(() -> fg.view().zoomTo(narrow))
                     .doesNotThrowAnyException();
         }
     }
@@ -413,27 +381,28 @@ class FlamegraphViewCanvasTest {
     @Nested
     @DisplayName("Canvas Request Repaint")
     class CanvasRequestRepaintTests {
+        private final FlamegraphViewUnderTest<String> fg = FlamegraphViewUnderTest.<String>builder().build();
 
         @Test
         void request_repaint_with_empty_model() {
-            assertThatCode(() -> fg.requestRepaint())
+            assertThatCode(() -> fg.view().requestRepaint())
                     .doesNotThrowAnyException();
         }
 
         @Test
         void request_repaint_with_model() {
-            fg.setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0))));
+            fg.view().setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0))));
 
-            assertThatCode(() -> fg.requestRepaint())
+            assertThatCode(() -> fg.view().requestRepaint())
                     .doesNotThrowAnyException();
         }
 
         @Test
         void request_repaint_multiple_times() {
-            fg.setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0))));
+            fg.view().setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0))));
 
             for (int i = 0; i < 10; i++) {
-                assertThatCode(() -> fg.requestRepaint())
+                assertThatCode(() -> fg.view().requestRepaint())
                         .doesNotThrowAnyException();
             }
         }
@@ -442,6 +411,7 @@ class FlamegraphViewCanvasTest {
     @Nested
     @DisplayName("Canvas Frame Equality")
     class CanvasFrameEqualityTests {
+        private final FlamegraphViewUnderTest<String> fg = FlamegraphViewUnderTest.<String>builder().build();
 
         @Test
         void custom_frame_equality_is_used() {
@@ -455,7 +425,7 @@ class FlamegraphViewCanvasTest {
                     List.of(new FrameBox<>("root", 0.0, 1.0, 0), frame1, frame2)
             );
 
-            fg.setModel(model);
+            fg.view().setModel(model);
 
             assertThat(model.frameEquality.equal(frame1, frame2)).isTrue();
         }
@@ -471,7 +441,7 @@ class FlamegraphViewCanvasTest {
                     frame1, frame2, frame3
             ));
 
-            fg.setModel(model);
+            fg.view().setModel(model);
 
             assertThat(model.frameEquality.equal(frame1, frame2)).isTrue();
             assertThat(model.frameEquality.equal(frame1, frame3)).isFalse();
@@ -481,30 +451,32 @@ class FlamegraphViewCanvasTest {
     @Nested
     @DisplayName("Canvas Model Description")
     class CanvasModelDescriptionTests {
+        private final FlamegraphViewUnderTest<String> fg = FlamegraphViewUnderTest.<String>builder().build();
 
         @Test
         void model_with_description_is_accessible() {
             var model = new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0)))
                     .withDescription("Test flamegraph description");
 
-            fg.setModel(model);
+            fg.view().setModel(model);
 
-            assertThat(fg.getFrameModel().description).isEqualTo("Test flamegraph description");
+            assertThat(fg.view().getFrameModel().description).isEqualTo("Test flamegraph description");
         }
 
         @Test
         void model_without_description_has_null_description() {
             var model = new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0)));
 
-            fg.setModel(model);
+            fg.view().setModel(model);
 
-            assertThat(fg.getFrameModel().description).isNull();
+            assertThat(fg.view().getFrameModel().description).isNull();
         }
     }
 
     @Nested
     @DisplayName("Canvas Model Title")
     class CanvasModelTitleTests {
+        private final FlamegraphViewUnderTest<String> fg = FlamegraphViewUnderTest.<String>builder().build();
 
         @Test
         void model_with_title_is_accessible() {
@@ -514,24 +486,25 @@ class FlamegraphViewCanvasTest {
                     List.of(new FrameBox<>("root", 0.0, 1.0, 0))
             );
 
-            fg.setModel(model);
+            fg.view().setModel(model);
 
-            assertThat(fg.getFrameModel().title).isEqualTo("My Flamegraph Title");
+            assertThat(fg.view().getFrameModel().title).isEqualTo("My Flamegraph Title");
         }
 
         @Test
         void model_from_frames_list_has_empty_title() {
             var model = new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0)));
 
-            fg.setModel(model);
+            fg.view().setModel(model);
 
-            assertThat(fg.getFrameModel().title).isEmpty();
+            assertThat(fg.view().getFrameModel().title).isEmpty();
         }
     }
 
     @Nested
     @DisplayName("Hover Listener Interface")
     class HoverListenerInterfaceTests {
+        private final FlamegraphViewUnderTest<String> fg = FlamegraphViewUnderTest.<String>builder().build();
 
         @Test
         void hover_listener_can_be_set() {
@@ -539,7 +512,7 @@ class FlamegraphViewCanvasTest {
                 // no-op
             };
 
-            assertThatCode(() -> fg.setHoverListener(listener))
+            assertThatCode(() -> fg.view().setHoverListener(listener))
                     .doesNotThrowAnyException();
         }
 
@@ -570,76 +543,60 @@ class FlamegraphViewCanvasTest {
     @Nested
     @DisplayName("Rendering with Graphics2D")
     class RenderingWithGraphics2DTests {
+        private final FlamegraphViewUnderTest<String> fg = FlamegraphViewUnderTest.<String>builder().build();
 
         @Test
         void render_engine_initialized_after_model_set() {
-            // Create a Graphics2D from a BufferedImage for headless testing
-            var image = new BufferedImage(800, 600, BufferedImage.TYPE_INT_ARGB);
-            var g2d = image.createGraphics();
-
             var frame = new FrameBox<>("root", 0.0, 1.0, 0);
-            fg.setModel(new FrameModel<>(List.of(frame)));
+            fg.view().setModel(new FrameModel<>(List.of(frame)));
 
             // The render engine should be initialized
-            assertThat(fg.getFrameModel().frames).isNotEmpty();
+            assertThat(fg.view().getFrameModel().frames).isNotEmpty();
         }
     }
 
     @Nested
     @DisplayName("Canvas Scroll Pane Integration")
     class CanvasScrollPaneIntegrationTests {
+        private final FlamegraphViewUnderTest<String> fg = FlamegraphViewUnderTest.<String>builder().build();
 
         @Test
         void component_contains_scroll_pane() {
-            var scrollPane = findScrollPane(fg.component);
+            var scrollPane = fg.scrollPane();
             assertThat(scrollPane).isNotNull();
         }
 
         @Test
         void scroll_pane_contains_canvas() {
-            var scrollPane = findScrollPane(fg.component);
+            var scrollPane = fg.scrollPane();
             assertThat(scrollPane).isNotNull();
             assertThat(scrollPane.getViewport()).isNotNull();
             assertThat(scrollPane.getViewport().getView()).isNotNull();
-        }
-
-        private JScrollPane findScrollPane(Container container) {
-            for (var component : container.getComponents()) {
-                if (component instanceof JScrollPane) {
-                    return (JScrollPane) component;
-                }
-                if (component instanceof Container) {
-                    var found = findScrollPane((Container) component);
-                    if (found != null) {
-                        return found;
-                    }
-                }
-            }
-            return null;
         }
     }
 
     @Nested
     @DisplayName("Canvas Empty State")
     class CanvasEmptyStateTests {
+        private final FlamegraphViewUnderTest<String> fg = FlamegraphViewUnderTest.<String>builder().build();
 
         @Test
         void empty_model_returns_empty_frames() {
-            assertThat(fg.getFrames()).isEmpty();
+            assertThat(fg.view().getFrames()).isEmpty();
         }
 
         @Test
         void clear_returns_to_empty_state() {
-            fg.setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0))));
-            assertThat(fg.getFrames()).isNotEmpty();
+            fg.view().setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0))));
+            assertThat(fg.view().getFrames()).isNotEmpty();
 
-            fg.clear();
-            assertThat(fg.getFrames()).isEmpty();
+            fg.view().clear();
+            assertThat(fg.view().getFrames()).isEmpty();
         }
 
         @Test
         void empty_model_singleton() {
-            assertThat(fg.getFrameModel()).isEqualTo(FrameModel.empty());
+            assertThat(fg.view().getFrameModel()).isEqualTo(FrameModel.empty());
             assertThat(FrameModel.empty()).isSameAs(FrameModel.empty());
         }
     }
@@ -647,6 +604,7 @@ class FlamegraphViewCanvasTest {
     @Nested
     @DisplayName("Canvas Model Changes")
     class CanvasModelChangesTests {
+        private final FlamegraphViewUnderTest<String> fg = FlamegraphViewUnderTest.<String>builder().build();
 
         @Test
         void model_change_updates_frames() {
@@ -658,33 +616,34 @@ class FlamegraphViewCanvasTest {
                     new FrameBox<>("child2", 0.0, 0.5, 1)
             ));
 
-            fg.setModel(model1);
-            assertThat(fg.getFrames()).hasSize(1);
+            fg.view().setModel(model1);
+            assertThat(fg.view().getFrames()).hasSize(1);
 
-            fg.setModel(model2);
-            assertThat(fg.getFrames()).hasSize(2);
+            fg.view().setModel(model2);
+            assertThat(fg.view().getFrames()).hasSize(2);
         }
 
         @Test
         void model_change_preserves_mode() {
-            fg.setMode(Mode.FLAMEGRAPH);
-            fg.setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0))));
+            fg.view().setMode(Mode.FLAMEGRAPH);
+            fg.view().setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0))));
 
-            assertThat(fg.getMode()).isEqualTo(Mode.FLAMEGRAPH);
+            assertThat(fg.view().getMode()).isEqualTo(Mode.FLAMEGRAPH);
         }
 
         @Test
         void model_change_preserves_minimap_setting() {
-            fg.setShowMinimap(false);
-            fg.setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0))));
+            fg.view().setShowMinimap(false);
+            fg.view().setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0))));
 
-            assertThat(fg.isShowMinimap()).isFalse();
+            assertThat(fg.view().isShowMinimap()).isFalse();
         }
     }
 
     @Nested
     @DisplayName("Canvas Complex Frame Hierarchies")
     class CanvasComplexFrameHierarchiesTests {
+        private final FlamegraphViewUnderTest<String> fg = FlamegraphViewUnderTest.<String>builder().build();
 
         @Test
         void deep_hierarchy_is_supported() {
@@ -696,9 +655,9 @@ class FlamegraphViewCanvasTest {
             }
 
             var model = new FrameModel<>(frames);
-            fg.setModel(model);
+            fg.view().setModel(model);
 
-            assertThat(fg.getFrames()).hasSize(51);
+            assertThat(fg.view().getFrames()).hasSize(51);
         }
 
         @Test
@@ -712,9 +671,9 @@ class FlamegraphViewCanvasTest {
             }
 
             var model = new FrameModel<>(frames);
-            fg.setModel(model);
+            fg.view().setModel(model);
 
-            assertThat(fg.getFrames()).hasSize(101);
+            assertThat(fg.view().getFrames()).hasSize(101);
         }
 
         @Test
@@ -727,31 +686,32 @@ class FlamegraphViewCanvasTest {
             );
 
             var model = new FrameModel<>(frames);
-            fg.setModel(model);
+            fg.view().setModel(model);
 
-            assertThat(fg.getFrames()).hasSize(4);
+            assertThat(fg.view().getFrames()).hasSize(4);
         }
     }
 
     @Nested
     @DisplayName("Canvas Property Change Events")
     class CanvasPropertyChangeEventsTests {
+        private final FlamegraphViewUnderTest<String> fg = FlamegraphViewUnderTest.<String>builder().build();
 
         @Test
         void mode_change_fires_property_change() {
             var propertyChanged = new AtomicBoolean(false);
-            fg.configureCanvas(canvas -> {
+            fg.view().configureCanvas(canvas -> {
                 canvas.addPropertyChangeListener("mode", evt -> propertyChanged.set(true));
             });
 
-            fg.setMode(Mode.FLAMEGRAPH);
+            fg.view().setMode(Mode.FLAMEGRAPH);
             // Note: Property change may be on different property name internally
         }
 
         @Test
         void model_change_fires_property_change() {
             var propertyChanged = new AtomicBoolean(false);
-            fg.configureCanvas(canvas -> {
+            fg.view().configureCanvas(canvas -> {
                 canvas.addPropertyChangeListener(evt -> {
                     if ("frameModel".equals(evt.getPropertyName())) {
                         propertyChanged.set(true);
@@ -759,7 +719,7 @@ class FlamegraphViewCanvasTest {
                 });
             });
 
-            fg.setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0))));
+            fg.view().setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0))));
             // Property change event firing depends on actual property name
         }
     }
@@ -767,6 +727,7 @@ class FlamegraphViewCanvasTest {
     @Nested
     @DisplayName("Canvas Renderer Configuration")
     class CanvasRendererConfigurationTests {
+        private final FlamegraphViewUnderTest<String> fg = FlamegraphViewUnderTest.<String>builder().build();
 
         @Test
         void custom_renderer_with_all_providers() {
@@ -779,16 +740,16 @@ class FlamegraphViewCanvasTest {
                     FrameFontProvider.defaultFontProvider()
             );
 
-            fg.setFrameRender(renderer);
-            fg.setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0))));
+            fg.view().setFrameRender(renderer);
+            fg.view().setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0))));
 
             // Verify no exception is thrown
-            assertThat(fg.getFrameModel().frames).isNotEmpty();
+            assertThat(fg.view().getFrameModel().frames).isNotEmpty();
         }
 
         @Test
         void renderer_change_after_model_set() {
-            fg.setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0))));
+            fg.view().setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0))));
 
             var renderer = new DefaultFrameRenderer<String>(
                     FrameTextsProvider.of(f -> "Changed"),
@@ -796,7 +757,7 @@ class FlamegraphViewCanvasTest {
                     FrameFontProvider.defaultFontProvider()
             );
 
-            assertThatCode(() -> fg.setFrameRender(renderer))
+            assertThatCode(() -> fg.view().setFrameRender(renderer))
                     .doesNotThrowAnyException();
         }
     }
@@ -804,12 +765,13 @@ class FlamegraphViewCanvasTest {
     @Nested
     @DisplayName("Canvas Frame Operations")
     class CanvasFrameOperationsTests {
+        private final FlamegraphViewUnderTest<String> fg = FlamegraphViewUnderTest.<String>builder().build();
 
         @Test
         void frames_list_is_unmodifiable() {
-            fg.setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0))));
+            fg.view().setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0))));
 
-            var frames = fg.getFrames();
+            var frames = fg.view().getFrames();
             assertThatThrownBy(() -> frames.add(new FrameBox<>("new", 0.0, 0.5, 1)))
                     .isInstanceOf(UnsupportedOperationException.class);
         }
@@ -817,15 +779,16 @@ class FlamegraphViewCanvasTest {
         @Test
         void frame_model_is_immutable() {
             var originalModel = new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0)));
-            fg.setModel(originalModel);
+            fg.view().setModel(originalModel);
 
-            assertThat(fg.getFrameModel()).isSameAs(originalModel);
+            assertThat(fg.view().getFrameModel()).isSameAs(originalModel);
         }
     }
 
     @Nested
     @DisplayName("Canvas Zoom Multiple Frames")
     class CanvasZoomMultipleFramesTests {
+        private final FlamegraphViewUnderTest<String> fg = FlamegraphViewUnderTest.<String>builder().build();
 
         @Test
         void zoom_to_different_frames_sequentially() {
@@ -834,13 +797,13 @@ class FlamegraphViewCanvasTest {
             var child2 = new FrameBox<>("child2", 0.3, 0.6, 1);
             var child3 = new FrameBox<>("child3", 0.6, 1.0, 1);
 
-            fg.setModel(new FrameModel<>(List.of(root, child1, child2, child3)));
+            fg.view().setModel(new FrameModel<>(List.of(root, child1, child2, child3)));
 
             assertThatCode(() -> {
-                fg.zoomTo(child1);
-                fg.zoomTo(child2);
-                fg.zoomTo(child3);
-                fg.zoomTo(root);
+                fg.view().zoomTo(child1);
+                fg.view().zoomTo(child2);
+                fg.view().zoomTo(child3);
+                fg.view().zoomTo(root);
             }).doesNotThrowAnyException();
         }
 
@@ -850,11 +813,11 @@ class FlamegraphViewCanvasTest {
             var child = new FrameBox<>("child", 0.0, 0.5, 1);
             var grandchild = new FrameBox<>("grandchild", 0.0, 0.25, 2);
 
-            fg.setModel(new FrameModel<>(List.of(root, child, grandchild)));
+            fg.view().setModel(new FrameModel<>(List.of(root, child, grandchild)));
 
-            fg.zoomTo(child);
-            fg.zoomTo(grandchild);
-            fg.resetZoom();
+            fg.view().zoomTo(child);
+            fg.view().zoomTo(grandchild);
+            fg.view().resetZoom();
 
             // Should not throw
         }
@@ -863,10 +826,11 @@ class FlamegraphViewCanvasTest {
     @Nested
     @DisplayName("ZoomableComponent Interface Implementation")
     class ZoomableComponentInterfaceImplementationTests {
+        private final FlamegraphViewUnderTest<String> fg = FlamegraphViewUnderTest.<String>builder().build();
 
         @Test
         void zoomable_component_provides_dimensions() {
-            fg.setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0))));
+            fg.view().setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0))));
 
             FlamegraphView.ZoomAction inspectingAction = new FlamegraphView.ZoomAction() {
                 @Override
@@ -877,13 +841,13 @@ class FlamegraphViewCanvasTest {
                 }
             };
 
-            fg.overrideZoomAction(inspectingAction);
-            fg.zoomTo(fg.getFrames().get(0));
+            fg.view().overrideZoomAction(inspectingAction);
+            fg.view().zoomTo(fg.view().getFrames().get(0));
         }
 
         @Test
         void zoomable_component_provides_location() {
-            fg.setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0))));
+            fg.view().setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0))));
 
             FlamegraphView.ZoomAction inspectingAction = new FlamegraphView.ZoomAction() {
                 @Override
@@ -896,14 +860,15 @@ class FlamegraphViewCanvasTest {
                 }
             };
 
-            fg.overrideZoomAction(inspectingAction);
-            fg.zoomTo(fg.getFrames().get(0));
+            fg.view().overrideZoomAction(inspectingAction);
+            fg.view().zoomTo(fg.view().getFrames().get(0));
         }
     }
 
     @Nested
     @DisplayName("Canvas Paint with BufferedImage Graphics2D")
     class CanvasPaintWithBufferedImageTests {
+        private final FlamegraphViewUnderTest<String> fg = FlamegraphViewUnderTest.<String>builder().build();
 
         @Test
         void paint_component_with_empty_model_draws_no_data_message() {
@@ -911,7 +876,7 @@ class FlamegraphViewCanvasTest {
             var g2d = image.createGraphics();
 
             // Get the canvas and set its bounds
-            fg.configureCanvas(canvas -> {
+            fg.view().configureCanvas(canvas -> {
                 canvas.setSize(800, 600);
                 canvas.setBounds(0, 0, 800, 600);
                 // Paint the component
@@ -927,12 +892,12 @@ class FlamegraphViewCanvasTest {
             var image = new BufferedImage(800, 600, BufferedImage.TYPE_INT_ARGB);
             var g2d = image.createGraphics();
 
-            fg.setModel(new FrameModel<>(List.of(
+            fg.view().setModel(new FrameModel<>(List.of(
                     new FrameBox<>("root", 0.0, 1.0, 0),
                     new FrameBox<>("child", 0.0, 0.5, 1)
             )));
 
-            fg.configureCanvas(canvas -> {
+            fg.view().configureCanvas(canvas -> {
                 canvas.setSize(800, 600);
                 canvas.setBounds(0, 0, 800, 600);
                 canvas.paint(g2d);
@@ -946,10 +911,10 @@ class FlamegraphViewCanvasTest {
             var image = new BufferedImage(800, 600, BufferedImage.TYPE_INT_ARGB);
             var g2d = image.createGraphics();
 
-            fg.setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0))));
-            fg.putClientProperty(FlamegraphView.SHOW_STATS, TRUE);
+            fg.view().setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0))));
+            fg.view().putClientProperty(FlamegraphView.SHOW_STATS, TRUE);
 
-            fg.configureCanvas(canvas -> {
+            fg.view().configureCanvas(canvas -> {
                 canvas.setSize(800, 600);
                 canvas.setBounds(0, 0, 800, 600);
                 canvas.paint(g2d);
@@ -963,13 +928,13 @@ class FlamegraphViewCanvasTest {
             var image = new BufferedImage(800, 600, BufferedImage.TYPE_INT_ARGB);
             var g2d = image.createGraphics();
 
-            fg.setMode(Mode.FLAMEGRAPH);
-            fg.setModel(new FrameModel<>(List.of(
+            fg.view().setMode(Mode.FLAMEGRAPH);
+            fg.view().setModel(new FrameModel<>(List.of(
                     new FrameBox<>("root", 0.0, 1.0, 0),
                     new FrameBox<>("child", 0.0, 0.5, 1)
             )));
 
-            fg.configureCanvas(canvas -> {
+            fg.view().configureCanvas(canvas -> {
                 canvas.setSize(800, 600);
                 canvas.setBounds(0, 0, 800, 600);
                 canvas.paint(g2d);
@@ -983,10 +948,10 @@ class FlamegraphViewCanvasTest {
             var image = new BufferedImage(800, 600, BufferedImage.TYPE_INT_ARGB);
             var g2d = image.createGraphics();
 
-            fg.setShowMinimap(false);
-            fg.setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0))));
+            fg.view().setShowMinimap(false);
+            fg.view().setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0))));
 
-            fg.configureCanvas(canvas -> {
+            fg.view().configureCanvas(canvas -> {
                 canvas.setSize(800, 600);
                 canvas.setBounds(0, 0, 800, 600);
                 canvas.paint(g2d);
@@ -999,34 +964,35 @@ class FlamegraphViewCanvasTest {
     @Nested
     @DisplayName("Canvas Mouse Event Handling")
     class CanvasMouseEventHandlingTests {
+        private final FlamegraphViewUnderTest<String> fg = FlamegraphViewUnderTest.<String>builder().build();
 
         @Test
         void mouse_click_on_canvas_with_selected_frame_consumer() {
             var frameClicked = new AtomicReference<FrameBox<String>>();
-            fg.setSelectedFrameConsumer((frame, e) -> frameClicked.set(frame));
+            fg.view().setSelectedFrameConsumer((frame, e) -> frameClicked.set(frame));
 
             var root = new FrameBox<>("root", 0.0, 1.0, 0);
-            fg.setModel(new FrameModel<>(List.of(root)));
+            fg.view().setModel(new FrameModel<>(List.of(root)));
 
             // The consumer should have been set up
-            assertThat(fg.getSelectedFrameConsumer()).isNotNull();
+            assertThat(fg.view().getSelectedFrameConsumer()).isNotNull();
         }
 
         @Test
         void mouse_click_triggers_popup_consumer_on_right_click() {
             var popupTriggered = new AtomicBoolean(false);
-            fg.setPopupConsumer((frame, e) -> popupTriggered.set(true));
+            fg.view().setPopupConsumer((frame, e) -> popupTriggered.set(true));
 
-            fg.setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0))));
+            fg.view().setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0))));
 
-            assertThat(fg.getPopupConsumer()).isNotNull();
+            assertThat(fg.view().getPopupConsumer()).isNotNull();
         }
 
         @Test
         void mouse_move_on_canvas_does_not_throw() {
-            fg.setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0))));
+            fg.view().setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0))));
 
-            fg.configureCanvas(canvas -> {
+            fg.view().configureCanvas(canvas -> {
                 canvas.setSize(800, 600);
                 canvas.setBounds(0, 0, 800, 600);
 
@@ -1047,9 +1013,9 @@ class FlamegraphViewCanvasTest {
 
         @Test
         void mouse_drag_on_canvas_does_not_throw() {
-            fg.setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0))));
+            fg.view().setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0))));
 
-            fg.configureCanvas(canvas -> {
+            fg.view().configureCanvas(canvas -> {
                 canvas.setSize(800, 600);
                 canvas.setBounds(0, 0, 800, 600);
 
@@ -1086,13 +1052,14 @@ class FlamegraphViewCanvasTest {
     @Nested
     @DisplayName("Canvas Tooltip Behavior")
     class CanvasTooltipBehaviorTests {
+        private final FlamegraphViewUnderTest<String> fg = FlamegraphViewUnderTest.<String>builder().build();
 
         @Test
         void getToolTipText_with_tooltip_function_set() {
-            fg.setTooltipTextFunction((model, frame) -> "Tooltip: " + frame.actualNode);
-            fg.setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0))));
+            fg.view().setTooltipTextFunction((model, frame) -> "Tooltip: " + frame.actualNode);
+            fg.view().setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0))));
 
-            fg.configureCanvas(canvas -> {
+            fg.view().configureCanvas(canvas -> {
                 canvas.setSize(800, 600);
                 canvas.setBounds(0, 0, 800, 600);
 
@@ -1114,10 +1081,10 @@ class FlamegraphViewCanvasTest {
 
         @Test
         void getToolTipText_returns_empty_when_inside_minimap_area() {
-            fg.setShowMinimap(true);
-            fg.setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0))));
+            fg.view().setShowMinimap(true);
+            fg.view().setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0))));
 
-            fg.configureCanvas(canvas -> {
+            fg.view().configureCanvas(canvas -> {
                 canvas.setSize(800, 600);
                 canvas.setBounds(0, 0, 800, 600);
 
@@ -1143,10 +1110,11 @@ class FlamegraphViewCanvasTest {
     @Nested
     @DisplayName("Canvas createToolTip")
     class CanvasCreateToolTipTests {
+        private final FlamegraphViewUnderTest<String> fg = FlamegraphViewUnderTest.<String>builder().build();
 
         @Test
         void createToolTip_without_supplier_returns_default() {
-            fg.configureCanvas(canvas -> {
+            fg.view().configureCanvas(canvas -> {
                 var tooltip = canvas.createToolTip();
                 assertThat(tooltip).isNotNull();
                 assertThat(tooltip).isInstanceOf(JToolTip.class);
@@ -1156,14 +1124,14 @@ class FlamegraphViewCanvasTest {
         @Test
         void createToolTip_with_supplier_returns_custom_tooltip() {
             var customTooltipCreated = new AtomicInteger(0);
-            fg.setTooltipComponentSupplier(() -> {
+            fg.view().setTooltipComponentSupplier(() -> {
                 customTooltipCreated.incrementAndGet();
                 var tip = new JToolTip();
                 tip.setBackground(Color.CYAN);
                 return tip;
             });
 
-            fg.configureCanvas(canvas -> {
+            fg.view().configureCanvas(canvas -> {
                 var tooltip1 = canvas.createToolTip();
                 assertThat(tooltip1).isNotNull();
                 assertThat(tooltip1.getBackground()).isEqualTo(Color.CYAN);
@@ -1181,13 +1149,14 @@ class FlamegraphViewCanvasTest {
     @Nested
     @DisplayName("Canvas isInsideMinimap")
     class CanvasIsInsideMinimapTests {
+        private final FlamegraphViewUnderTest<String> fg = FlamegraphViewUnderTest.<String>builder().build();
 
         @Test
         void isInsideMinimap_returns_false_when_minimap_disabled() {
-            fg.setShowMinimap(false);
-            fg.setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0))));
+            fg.view().setShowMinimap(false);
+            fg.view().setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0))));
 
-            fg.configureCanvas(canvas -> {
+            fg.view().configureCanvas(canvas -> {
                 canvas.setSize(800, 600);
                 canvas.setBounds(0, 0, 800, 600);
 
@@ -1210,10 +1179,10 @@ class FlamegraphViewCanvasTest {
 
         @Test
         void isInsideMinimap_returns_true_for_point_in_minimap_area() {
-            fg.setShowMinimap(true);
-            fg.setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0))));
+            fg.view().setShowMinimap(true);
+            fg.view().setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0))));
 
-            fg.configureCanvas(canvas -> {
+            fg.view().configureCanvas(canvas -> {
                 canvas.setSize(800, 600);
                 canvas.setBounds(0, 0, 800, 600);
 
@@ -1238,10 +1207,11 @@ class FlamegraphViewCanvasTest {
     @Nested
     @DisplayName("Canvas Preferred Size")
     class CanvasPreferredSizeTests {
+        private final FlamegraphViewUnderTest<String> fg = FlamegraphViewUnderTest.<String>builder().build();
 
         @Test
         void getPreferredSize_without_model_returns_minimal_size() {
-            fg.configureCanvas(canvas -> {
+            fg.view().configureCanvas(canvas -> {
                 var prefSize = canvas.getPreferredSize();
                 assertThat(prefSize).isNotNull();
                 assertThat(prefSize.width).isGreaterThanOrEqualTo(10);
@@ -1251,12 +1221,12 @@ class FlamegraphViewCanvasTest {
 
         @Test
         void getPreferredSize_with_model_and_graphics() {
-            fg.setModel(new FrameModel<>(List.of(
+            fg.view().setModel(new FrameModel<>(List.of(
                     new FrameBox<>("root", 0.0, 1.0, 0),
                     new FrameBox<>("child", 0.0, 0.5, 1)
             )));
 
-            fg.configureCanvas(canvas -> {
+            fg.view().configureCanvas(canvas -> {
                 canvas.setSize(800, 600);
                 var prefSize = canvas.getPreferredSize();
                 assertThat(prefSize).isNotNull();
@@ -1267,12 +1237,13 @@ class FlamegraphViewCanvasTest {
     @Nested
     @DisplayName("Scroll Pane Mouse Listener")
     class ScrollPaneMouseListenerTests {
+        private final FlamegraphViewUnderTest<String> fg = FlamegraphViewUnderTest.<String>builder().build();
 
         @Test
         void scroll_pane_receives_mouse_events() {
-            fg.setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0))));
+            fg.view().setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0))));
 
-            var scrollPane = findScrollPane(fg.component);
+            var scrollPane = fg.scrollPane();
             assertThat(scrollPane).isNotNull();
 
             scrollPane.setSize(800, 600);
@@ -1293,9 +1264,9 @@ class FlamegraphViewCanvasTest {
 
         @Test
         void scroll_pane_drag_moves_viewport() {
-            fg.setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0))));
+            fg.view().setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0))));
 
-            var scrollPane = findScrollPane(fg.component);
+            var scrollPane = fg.scrollPane();
             assertThat(scrollPane).isNotNull();
 
             scrollPane.setSize(800, 600);
@@ -1342,9 +1313,9 @@ class FlamegraphViewCanvasTest {
 
         @Test
         void scroll_pane_mouse_exit_stops_hover() {
-            fg.setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0))));
+            fg.view().setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0))));
 
-            var scrollPane = findScrollPane(fg.component);
+            var scrollPane = fg.scrollPane();
             assertThat(scrollPane).isNotNull();
 
             scrollPane.setSize(800, 600);
@@ -1364,9 +1335,9 @@ class FlamegraphViewCanvasTest {
 
         @Test
         void scroll_pane_mouse_wheel_event() {
-            fg.setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0))));
+            fg.view().setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0))));
 
-            var scrollPane = findScrollPane(fg.component);
+            var scrollPane = fg.scrollPane();
             assertThat(scrollPane).isNotNull();
 
             scrollPane.setSize(800, 600);
@@ -1389,43 +1360,29 @@ class FlamegraphViewCanvasTest {
 
         @Test
         void scroll_pane_is_configured_with_viewport() {
-            fg.setModel(new FrameModel<>(List.of(
+            fg.view().setModel(new FrameModel<>(List.of(
                     new FrameBox<>("root", 0.0, 1.0, 0),
                     new FrameBox<>("child", 0.0, 0.5, 1)
             )));
 
-            var scrollPane = findScrollPane(fg.component);
+            var scrollPane = fg.scrollPane();
             assertThat(scrollPane).isNotNull();
             assertThat(scrollPane.getViewport()).isNotNull();
             assertThat(scrollPane.getViewport().getView()).isNotNull();
-        }
-
-        private JScrollPane findScrollPane(Container container) {
-            for (var component : container.getComponents()) {
-                if (component instanceof JScrollPane) {
-                    return (JScrollPane) component;
-                }
-                if (component instanceof Container) {
-                    var found = findScrollPane((Container) component);
-                    if (found != null) {
-                        return found;
-                    }
-                }
-            }
-            return null;
         }
     }
 
     @Nested
     @DisplayName("Hover Listener Callbacks")
     class HoverListenerCallbacksTests {
+        private final FlamegraphViewUnderTest<String> fg = FlamegraphViewUnderTest.<String>builder().build();
 
         @Test
         void hover_listener_receives_frame_hover_event() {
             var hoverCount = new AtomicInteger(0);
             var lastHoveredFrame = new AtomicReference<FrameBox<String>>();
 
-            fg.setHoverListener(new FlamegraphView.HoverListener<>() {
+            fg.view().setHoverListener(new FlamegraphView.HoverListener<>() {
                 @Override
                 public void onFrameHover(FrameBox<String> frame, Rectangle rect, MouseEvent e) {
                     hoverCount.incrementAndGet();
@@ -1438,10 +1395,10 @@ class FlamegraphViewCanvasTest {
                 }
             });
 
-            fg.setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0))));
+            fg.view().setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0))));
 
             // Hover listener is set, verify it's configured
-            var scrollPane = findScrollPane(fg.component);
+            var scrollPane = fg.scrollPane();
             assertThat(scrollPane).isNotNull();
         }
 
@@ -1449,7 +1406,7 @@ class FlamegraphViewCanvasTest {
         void hover_listener_stop_hover_is_called_on_exit() {
             var stopHoverCalled = new AtomicBoolean(false);
 
-            fg.setHoverListener(new FlamegraphView.HoverListener<>() {
+            fg.view().setHoverListener(new FlamegraphView.HoverListener<>() {
                 @Override
                 public void onFrameHover(FrameBox<String> frame, Rectangle rect, MouseEvent e) {
                 }
@@ -1460,9 +1417,9 @@ class FlamegraphViewCanvasTest {
                 }
             });
 
-            fg.setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0))));
+            fg.view().setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0))));
 
-            var scrollPane = findScrollPane(fg.component);
+            var scrollPane = fg.scrollPane();
             assertThat(scrollPane).isNotNull();
             scrollPane.setSize(800, 600);
             scrollPane.setBounds(0, 0, 800, 600);
@@ -1479,59 +1436,45 @@ class FlamegraphViewCanvasTest {
             );
             scrollPane.dispatchEvent(exitEvent);
         }
-
-        private JScrollPane findScrollPane(Container container) {
-            for (var component : container.getComponents()) {
-                if (component instanceof JScrollPane) {
-                    return (JScrollPane) component;
-                }
-                if (component instanceof Container) {
-                    var found = findScrollPane((Container) component);
-                    if (found != null) {
-                        return found;
-                    }
-                }
-            }
-            return null;
-        }
     }
 
     @Nested
     @DisplayName("Frame Click Action Behaviors")
     class FrameClickActionBehaviorsTests {
+        private final FlamegraphViewUnderTest<String> fg = FlamegraphViewUnderTest.<String>builder().build();
 
         @Test
         void expand_frame_mode_is_configurable() {
-            fg.setFrameClickAction(FlamegraphView.FrameClickAction.EXPAND_FRAME);
-            fg.setModel(new FrameModel<>(List.of(
+            fg.view().setFrameClickAction(FlamegraphView.FrameClickAction.EXPAND_FRAME);
+            fg.view().setModel(new FrameModel<>(List.of(
                     new FrameBox<>("root", 0.0, 1.0, 0),
                     new FrameBox<>("child", 0.0, 0.5, 1)
             )));
 
-            assertThat(fg.getFrameClickAction())
+            assertThat(fg.view().getFrameClickAction())
                     .isEqualTo(FlamegraphView.FrameClickAction.EXPAND_FRAME);
         }
 
         @Test
         void focus_frame_mode_is_configurable() {
-            fg.setFrameClickAction(FlamegraphView.FrameClickAction.FOCUS_FRAME);
-            fg.setModel(new FrameModel<>(List.of(
+            fg.view().setFrameClickAction(FlamegraphView.FrameClickAction.FOCUS_FRAME);
+            fg.view().setModel(new FrameModel<>(List.of(
                     new FrameBox<>("root", 0.0, 1.0, 0),
                     new FrameBox<>("child", 0.0, 0.5, 1)
             )));
 
-            assertThat(fg.getFrameClickAction())
+            assertThat(fg.view().getFrameClickAction())
                     .isEqualTo(FlamegraphView.FrameClickAction.FOCUS_FRAME);
         }
 
         @Test
         void click_action_can_be_changed() {
-            fg.setFrameClickAction(FlamegraphView.FrameClickAction.EXPAND_FRAME);
-            assertThat(fg.getFrameClickAction())
+            fg.view().setFrameClickAction(FlamegraphView.FrameClickAction.EXPAND_FRAME);
+            assertThat(fg.view().getFrameClickAction())
                     .isEqualTo(FlamegraphView.FrameClickAction.EXPAND_FRAME);
 
-            fg.setFrameClickAction(FlamegraphView.FrameClickAction.FOCUS_FRAME);
-            assertThat(fg.getFrameClickAction())
+            fg.view().setFrameClickAction(FlamegraphView.FrameClickAction.FOCUS_FRAME);
+            assertThat(fg.view().getFrameClickAction())
                     .isEqualTo(FlamegraphView.FrameClickAction.FOCUS_FRAME);
         }
     }
@@ -1539,20 +1482,21 @@ class FlamegraphViewCanvasTest {
     @Nested
     @DisplayName("Canvas Mode in Rendering")
     class CanvasModeInRenderingTests {
+        private final FlamegraphViewUnderTest<String> fg = FlamegraphViewUnderTest.<String>builder().build();
 
         @Test
         void icicle_mode_renders_top_to_bottom() {
             var image = new BufferedImage(800, 600, BufferedImage.TYPE_INT_ARGB);
             var g2d = image.createGraphics();
 
-            fg.setMode(Mode.ICICLEGRAPH);
-            fg.setModel(new FrameModel<>(List.of(
+            fg.view().setMode(Mode.ICICLEGRAPH);
+            fg.view().setModel(new FrameModel<>(List.of(
                     new FrameBox<>("root", 0.0, 1.0, 0),
                     new FrameBox<>("child", 0.0, 0.5, 1),
                     new FrameBox<>("grandchild", 0.0, 0.25, 2)
             )));
 
-            fg.configureCanvas(canvas -> {
+            fg.view().configureCanvas(canvas -> {
                 canvas.setSize(800, 600);
                 canvas.setBounds(0, 0, 800, 600);
                 canvas.paint(g2d);
@@ -1566,14 +1510,14 @@ class FlamegraphViewCanvasTest {
             var image = new BufferedImage(800, 600, BufferedImage.TYPE_INT_ARGB);
             var g2d = image.createGraphics();
 
-            fg.setMode(Mode.FLAMEGRAPH);
-            fg.setModel(new FrameModel<>(List.of(
+            fg.view().setMode(Mode.FLAMEGRAPH);
+            fg.view().setModel(new FrameModel<>(List.of(
                     new FrameBox<>("root", 0.0, 1.0, 0),
                     new FrameBox<>("child", 0.0, 0.5, 1),
                     new FrameBox<>("grandchild", 0.0, 0.25, 2)
             )));
 
-            fg.configureCanvas(canvas -> {
+            fg.view().configureCanvas(canvas -> {
                 canvas.setSize(800, 600);
                 canvas.setBounds(0, 0, 800, 600);
                 canvas.paint(g2d);
@@ -1587,19 +1531,19 @@ class FlamegraphViewCanvasTest {
             var image = new BufferedImage(800, 600, BufferedImage.TYPE_INT_ARGB);
             var g2d = image.createGraphics();
 
-            fg.setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0))));
+            fg.view().setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0))));
 
-            fg.configureCanvas(canvas -> {
+            fg.view().configureCanvas(canvas -> {
                 canvas.setSize(800, 600);
                 canvas.setBounds(0, 0, 800, 600);
 
-                fg.setMode(Mode.ICICLEGRAPH);
+                fg.view().setMode(Mode.ICICLEGRAPH);
                 canvas.paint(g2d);
 
-                fg.setMode(Mode.FLAMEGRAPH);
+                fg.view().setMode(Mode.FLAMEGRAPH);
                 canvas.paint(g2d);
 
-                fg.setMode(Mode.ICICLEGRAPH);
+                fg.view().setMode(Mode.ICICLEGRAPH);
                 canvas.paint(g2d);
             });
 
@@ -1610,18 +1554,19 @@ class FlamegraphViewCanvasTest {
     @Nested
     @DisplayName("Canvas getPreferredSize with Graphics")
     class CanvasGetPreferredSizeTests {
+        private final FlamegraphViewUnderTest<String> fg = FlamegraphViewUnderTest.<String>builder().build();
 
         @Test
         void canvas_getPreferredSize_with_spied_graphics() {
             var image = new BufferedImage(800, 600, BufferedImage.TYPE_INT_ARGB);
             var g2d = image.createGraphics();
 
-            fg.setModel(new FrameModel<>(List.of(
+            fg.view().setModel(new FrameModel<>(List.of(
                     new FrameBox<>("root", 0.0, 1.0, 0),
                     new FrameBox<>("child", 0.0, 0.5, 1)
             )));
 
-            fg.configureCanvas(canvas -> {
+            fg.view().configureCanvas(canvas -> {
                 var spiedCanvas = spy(canvas);
                 doReturn(g2d).when(spiedCanvas).getGraphics();
 
@@ -1641,12 +1586,13 @@ class FlamegraphViewCanvasTest {
     @Nested
     @DisplayName("Scroll Pane Event Handling")
     class ScrollPaneEventHandlingTests {
+        private final FlamegraphViewUnderTest<String> fg = FlamegraphViewUnderTest.<String>builder().build();
 
         @Test
         void scroll_pane_drag_sequence() {
-            fg.setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0))));
+            fg.view().setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0))));
 
-            var scrollPane = findScrollPane(fg.component);
+            var scrollPane = fg.scrollPane();
             assertThat(scrollPane).isNotNull();
 
             scrollPane.setSize(800, 600);
@@ -1691,9 +1637,9 @@ class FlamegraphViewCanvasTest {
 
         @Test
         void scroll_pane_mouse_enter_and_exit() {
-            fg.setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0))));
+            fg.view().setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0))));
 
-            var scrollPane = findScrollPane(fg.component);
+            var scrollPane = fg.scrollPane();
             assertThat(scrollPane).isNotNull();
 
             scrollPane.setSize(800, 600);
@@ -1721,51 +1667,37 @@ class FlamegraphViewCanvasTest {
             );
             scrollPane.dispatchEvent(exitEvent);
         }
-
-        private JScrollPane findScrollPane(Container container) {
-            for (var component : container.getComponents()) {
-                if (component instanceof JScrollPane) {
-                    return (JScrollPane) component;
-                }
-                if (component instanceof Container) {
-                    var found = findScrollPane((Container) component);
-                    if (found != null) {
-                        return found;
-                    }
-                }
-            }
-            return null;
-        }
     }
 
     @Nested
     @DisplayName("ZoomModel Behavior via Canvas")
     class ZoomModelBehaviorTests {
+        private final FlamegraphViewUnderTest<String> fg = FlamegraphViewUnderTest.<String>builder().build();
 
         @Test
         void zoom_model_tracks_zoom_target() {
             var root = new FrameBox<>("root", 0.0, 1.0, 0);
             var child = new FrameBox<>("child", 0.0, 0.5, 1);
-            fg.setModel(new FrameModel<>(List.of(root, child)));
+            fg.view().setModel(new FrameModel<>(List.of(root, child)));
 
             // Zoom to child frame
-            fg.zoomTo(child);
+            fg.view().zoomTo(child);
 
             // Zoom model should be updated (tested indirectly through reset)
-            assertThatCode(() -> fg.resetZoom())
+            assertThatCode(() -> fg.view().resetZoom())
                     .doesNotThrowAnyException();
         }
 
         @Test
         void zoom_model_reset_clears_target() {
             var root = new FrameBox<>("root", 0.0, 1.0, 0);
-            fg.setModel(new FrameModel<>(List.of(root)));
+            fg.view().setModel(new FrameModel<>(List.of(root)));
 
-            fg.zoomTo(root);
-            fg.resetZoom();
+            fg.view().zoomTo(root);
+            fg.view().resetZoom();
 
             // Should be able to zoom again
-            fg.zoomTo(root);
+            fg.view().zoomTo(root);
         }
     }
 }

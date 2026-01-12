@@ -22,8 +22,9 @@ import static org.assertj.core.api.Assertions.*;
 /**
  * Tests for {@link FlamegraphView} model operations and clear functionality.
  */
+@SuppressWarnings("NewClassNamingConvention")
 @DisplayName("FlamegraphView - Model")
-class FlamegraphViewFrameModelTest {
+class FlamegraphView_FrameModelTest {
 
     private FlamegraphView<String> fg;
 

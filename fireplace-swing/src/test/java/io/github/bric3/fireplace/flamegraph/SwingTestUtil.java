@@ -112,55 +112,6 @@ public final class SwingTestUtil {
     }
 
     /**
-     * Creates a spy of the canvas and stubs isInsideMinimap to return true.
-     * This allows tests to reach processMinimapMouseEvent even in headless environments.
-     *
-     * @param flamegraphComponent the FlamegraphView component
-     * @return the spy canvas with isInsideMinimap stubbed
-     */
-    public static JComponent spyCanvasWithMinimapEnabled(Container flamegraphComponent) {
-        var scrollPane = findScrollPane(flamegraphComponent);
-        if (scrollPane == null) {
-            throw new AssertionError("ScrollPane not found in component hierarchy");
-        }
-        var viewport = scrollPane.getViewport();
-        var realCanvas = viewport.getView();
-
-        // Create spy with custom answer that stubs isInsideMinimap
-        var canvasSpy = mock(realCanvas.getClass(), withSettings()
-                .spiedInstance(realCanvas)
-                .defaultAnswer(invocation -> {
-                    if ("isInsideMinimap".equals(invocation.getMethod().getName())) {
-                        return true;
-                    }
-                    return invocation.callRealMethod();
-                }));
-
-        // Replace canvas in viewport with spy
-        viewport.setView(canvasSpy);
-
-        // Update the canvas reference in mouse adapters to point to the spy
-        if (realCanvas instanceof JComponent) {
-            var realJComponent = (JComponent) realCanvas;
-            for (var listener : realJComponent.getMouseListeners()) {
-                // Check if this is a FlamegraphCanvasMouseInputAdapter
-                if (listener.getClass().getSimpleName().contains("MouseInputAdapter")) {
-                    try {
-                        // Update the canvas field in the adapter to point to the spy
-                        Field canvasField = listener.getClass().getDeclaredField("canvas");
-                        canvasField.setAccessible(true);
-                        canvasField.set(listener, canvasSpy);
-                    } catch (Exception e) {
-                        // Ignore if field doesn't exist or can't be set
-                    }
-                }
-            }
-        }
-
-        return (JComponent) canvasSpy;
-    }
-
-    /**
      * Captures the current scrollbar positions from a FlamegraphView component.
      *
      * @param flamegraphComponent the FlamegraphView component
@@ -381,15 +332,15 @@ public final class SwingTestUtil {
 
     // Helper class to capture bounds snapshots
     public static class BoundsSnapshot {
-        final Rectangle bounds;
-        final Dimension preferredSize;
+        public final Rectangle bounds;
+        public final Dimension preferredSize;
 
         BoundsSnapshot(Rectangle bounds, Dimension preferredSize) {
             this.bounds = bounds;
             this.preferredSize = preferredSize;
         }
 
-        boolean differs(BoundsSnapshot other) {
+        public boolean differs(BoundsSnapshot other) {
             return !bounds.equals(other.bounds) || !preferredSize.equals(other.preferredSize);
         }
     }
