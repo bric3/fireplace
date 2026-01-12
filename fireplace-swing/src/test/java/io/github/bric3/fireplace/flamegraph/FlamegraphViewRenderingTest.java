@@ -39,6 +39,7 @@ class FlamegraphViewRenderingTest {
     @DisplayName("Frame Renderer")
     class FrameRendererTests {
 
+        @SuppressWarnings("removal")
         @Test
         void setFrameRender_changes_renderer() {
             var renderer = new DefaultFrameRenderer<String>(
