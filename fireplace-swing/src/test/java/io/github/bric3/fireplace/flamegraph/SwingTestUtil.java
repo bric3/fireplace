@@ -14,6 +14,7 @@ import java.awt.*;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseWheelEvent;
 import java.lang.reflect.Field;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.mockito.Mockito.*;
 
@@ -32,7 +33,7 @@ public final class SwingTestUtil {
      * @param container the container to search within
      * @return the first JScrollPane found, or null if none exists
      */
-    static JScrollPane findScrollPane(Container container) {
+    public static JScrollPane findScrollPane(Container container) {
         for (var component : container.getComponents()) {
             if (component instanceof JScrollPane) {
                 return (JScrollPane) component;
@@ -54,7 +55,7 @@ public final class SwingTestUtil {
      * @return the canvas component
      * @throws AssertionError if the canvas cannot be found
      */
-    static JComponent getCanvas(Container flamegraphComponent) {
+    public static JComponent getCanvas(Container flamegraphComponent) {
         var scrollPane = findScrollPane(flamegraphComponent);
         if (scrollPane == null) {
             throw new AssertionError("ScrollPane not found in component hierarchy");
@@ -74,7 +75,7 @@ public final class SwingTestUtil {
      * @param height the desired height
      * @throws Exception if reflection fails
      */
-    static void setupFlamegraphDimensions(JComponent canvas, int width, int height) throws Exception {
+    public static void setupFlamegraphDimensions(JComponent canvas, int width, int height) throws Exception {
         Field flamegraphDimensionField = canvas.getClass().getDeclaredField("flamegraphDimension");
         flamegraphDimensionField.setAccessible(true);
         Dimension flamegraphDimension = (Dimension) flamegraphDimensionField.get(canvas);
@@ -89,7 +90,7 @@ public final class SwingTestUtil {
      * @return the minimap bounds rectangle
      * @throws Exception if reflection fails
      */
-    static Rectangle getMinimapBounds(JComponent canvas) throws Exception {
+    public static Rectangle getMinimapBounds(JComponent canvas) throws Exception {
         Field minimapBoundsField = canvas.getClass().getDeclaredField("minimapBounds");
         minimapBoundsField.setAccessible(true);
         return (Rectangle) minimapBoundsField.get(canvas);
@@ -101,7 +102,7 @@ public final class SwingTestUtil {
      *
      * @param flamegraphView the FlamegraphView to make displayable
      */
-    static void makeDisplayable(Container flamegraphView) {
+    public static void makeDisplayable(Container flamegraphView) {
         var frame = new JFrame();
         frame.add(flamegraphView);
         frame.setSize(1000, 800);
@@ -117,7 +118,7 @@ public final class SwingTestUtil {
      * @param flamegraphComponent the FlamegraphView component
      * @return the spy canvas with isInsideMinimap stubbed
      */
-    static JComponent spyCanvasWithMinimapEnabled(Container flamegraphComponent) {
+    public static JComponent spyCanvasWithMinimapEnabled(Container flamegraphComponent) {
         var scrollPane = findScrollPane(flamegraphComponent);
         if (scrollPane == null) {
             throw new AssertionError("ScrollPane not found in component hierarchy");
@@ -165,7 +166,7 @@ public final class SwingTestUtil {
      * @param flamegraphComponent the FlamegraphView component
      * @return the current scrollbar positions
      */
-    static ScrollbarPositions getScrollbarPositions(Container flamegraphComponent) {
+    public static ScrollbarPositions getScrollbarPositions(Container flamegraphComponent) {
         var scrollPane = findScrollPane(flamegraphComponent);
         if (scrollPane == null) {
             throw new AssertionError("ScrollPane not found in component hierarchy");
@@ -188,7 +189,7 @@ public final class SwingTestUtil {
      * @param isPopupTrigger whether this event is a popup trigger
      * @return a new MouseEvent with the specified parameters
      */
-    static MouseEvent createMouseEvent(Component source, int eventType, int x, int y, int button, int clickCount, boolean isPopupTrigger) {
+    public static MouseEvent createMouseEvent(Component source, int eventType, int x, int y, int button, int clickCount, boolean isPopupTrigger) {
         int modifiers;
         if (button == MouseEvent.BUTTON1) {
             modifiers = MouseEvent.BUTTON1_DOWN_MASK;
@@ -332,9 +333,25 @@ public final class SwingTestUtil {
     }
 
     /**
+     * Captures the bounds and preferred size of the given JComponent.
+     *
+     * @param component the JComponent to capture bounds from
+     * @return a BoundsSnapshot containing the bounds and preferred size
+     */
+     public static BoundsSnapshot captureBounds(JComponent component) throws Exception {
+        var bounds = new AtomicReference<Rectangle>();
+        var preferredSize = new AtomicReference<Dimension>();
+        SwingUtilities.invokeAndWait(() -> {
+            bounds.set(component.getBounds());
+            preferredSize.set(component.getPreferredSize());
+        });
+        return new BoundsSnapshot(bounds.get(), preferredSize.get());
+    }
+
+    /**
      * Class to hold scrollbar positions for comparison in tests.
      */
-    static final class ScrollbarPositions {
+    public static final class ScrollbarPositions {
         private final int horizontal;
         private final int vertical;
 
@@ -359,6 +376,21 @@ public final class SwingTestUtil {
         @Override
         public String toString() {
             return "ScrollbarPositions{horizontal=" + horizontal + ", vertical=" + vertical + '}';
+        }
+    }
+
+    // Helper class to capture bounds snapshots
+    public static class BoundsSnapshot {
+        final Rectangle bounds;
+        final Dimension preferredSize;
+
+        BoundsSnapshot(Rectangle bounds, Dimension preferredSize) {
+            this.bounds = bounds;
+            this.preferredSize = preferredSize;
+        }
+
+        boolean differs(BoundsSnapshot other) {
+            return !bounds.equals(other.bounds) || !preferredSize.equals(other.preferredSize);
         }
     }
 }
