@@ -11,7 +11,7 @@ The test suite is organized into several categories:
 === Core Component Tests
 * `FlamegraphViewBasicApiTest` - Basic API and property tests
 * `FlamegraphViewCanvasTest` - Canvas-specific behaviors and events
-* `FlamegraphViewFrameModelTest` - Frame model integration
+* `FlamegraphView_FrameModelTest` - Frame model integration
 * `FlamegraphViewRenderingTest` - Visual rendering tests
 * `FlamegraphViewViewportTest` - Viewport and scrolling behavior
 
@@ -20,7 +20,7 @@ The test suite is organized into several categories:
 * `FlamegraphViewMouseHoverInteractionTest` - Mouse Hover event handling
 * `FlamegraphViewTooltipTest` - Tooltip display logic
 * `FlamegraphViewZoomTest` - Zoom interaction and behavior
-* `FlamegraphViewZoomModelTest` - Zoom model calculations
+* `FlamegraphView_ZoomModelTest` - Zoom model calculations
 * `FlamegraphViewMinimapTest` - Minimap functionality
 * `FlamegraphViewHighlightTest` - Frame highlighting
 
