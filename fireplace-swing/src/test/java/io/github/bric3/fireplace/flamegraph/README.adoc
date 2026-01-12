@@ -1,0 +1,159 @@
+= Flamegraph Test Suite Documentation
+
+== Overview
+
+This directory contains comprehensive tests for the flamegraph visualization component. The test suite covers various aspects including rendering, interaction, zoom, minimap, tooltips, and data models.
+
+== Test Structure
+
+The test suite is organized into several categories:
+
+=== Core Component Tests
+* `FlamegraphViewBasicApiTest` - Basic API and property tests
+* `FlamegraphViewCanvasTest` - Canvas-specific behaviors and events
+* `FlamegraphView_FrameModelTest` - Frame model integration
+* `FlamegraphViewRenderingTest` - Visual rendering tests
+* `FlamegraphViewViewportTest` - Viewport and scrolling behavior
+
+=== Interaction Tests
+* `FlamegraphViewMouseClickInteractionTest` - Mouse click handling
+* `FlamegraphViewMouseHoverInteractionTest` - Mouse Hover event handling
+* `FlamegraphViewTooltipTest` - Tooltip display logic
+* `FlamegraphViewZoomTest` - Zoom interaction and behavior
+* `FlamegraphView_ZoomModelTest` - Zoom model calculations
+* `FlamegraphViewMinimapTest` - Minimap functionality
+* `FlamegraphViewHighlightTest` - Frame highlighting
+
+=== Rendering Tests
+* `FlamegraphRenderEngineTest` - Core rendering engine
+* `FlamegraphImageTest` - Image export functionality
+* `DefaultFrameRendererTest` - Default frame rendering
+
+* `FrameColorProviderTest` - Frame coloring logic
+* `FrameTextsProviderTest` - Frame text rendering
+* `FrameFontProviderTest` - Font selection
+* `FrameRenderingFlagsTest` - Rendering flags
+* `DimmingFrameColorProviderTest` - Dimming effects
+
+=== Data Model Tests
+* `FrameModelTest` - Frame data model
+* `FrameBoxTest` - Individual frame box
+* `ColorMapperTest` - Color mapping utilities
+* `ZoomTargetTest` - Zoom target calculations
+
+== Issues with Current Tests
+
+While the generated tests cover the flamegraph component extensively, they have several issues that
+impact maintainability and reliability. The fragility stems from the following factors:
+
+=== Whitebox Testing
+
+Many tests in this suite use **whitebox testing** approaches, meaning they test internal implementation
+details rather than only testing through the public API. This is evident in:
+
+* Tests that verify internal state changes
+* Tests that access private fields via reflection
+* Tests that make assumptions about component hierarchy
+* Tests that depend on specific implementation details of inner classes
+
+**Implications:**
+
+* Tests are more brittle and may break with internal refactoring
+* Tests are tightly coupled to implementation rather than behavior
+* Harder to maintain when implementation changes
+* May give false sense of security as they test "how" rather than "what"
+
+**Rationale:**
+
+While not ideal, whitebox testing was chosen for flamegraph tests because:
+
+* Swing component testing is inherently difficult without a display
+* Verifying visual correctness programmatically requires access to internal state
+* Some behaviors (like minimap calculations) are complex internal logic
+* Current public API alone doesn't provide enough hooks to verify all behaviors
+
+=== Excessive Use of Reflection
+
+**14 test files** currently use Java reflection to access private fields and methods. Common patterns include:
+
+* `SwingTestUtil` - Accesses flamegraph dimensions, minimap bounds, canvas references
+* `FlamegraphViewCanvasTest` - Manipulates internal canvas state
+* `FlamegraphViewMinimapTest` - Verifies minimap coordinates
+* `FlamegraphViewZoomTest` - Checks zoom state
+* Many others for accessing inner class fields and private state
+
+**Why It's Used:**
+
+* Swing components have complex internal state not exposed via public API
+* Headless testing requires accessing internal layout calculations
+* Visual verification requires checking internal rendering state
+* No better alternative without significant API changes
+
+=== Headless Testing Challenges
+
+Test must run with a frame buffer, in CI gradle is run with `xvfb` to provide a virtual display server.
+
+**Workarounds:**
+
+* Use `SwingTestUtil.makeDisplayable()` to initialize component hierarchy
+* Mock display-dependent operations where necessary
+* Accept some differences between test and real-world behavior
+
+=== Image Comparison Tests
+
+`FlamegraphImageTest` performs pixel-by-pixel image comparison, but it has platform limitations, in
+particular due to font rendering (and antialiasing) differences between OS.
+
+=== Test Coverage Gaps
+
+While coverage is extensive, some areas are not properly harnessed:
+
+* **Performance testing** - No tests for large flame graphs (10k+ frames)
+* **Concurrency** - Limited testing of thread-safety
+* **Error conditions** - Not all error paths are tested
+* **Edge cases** - Some boundary conditions may be missed
+* **Accessibility** - No testing of screen reader support
+
+== Recommendations for Improvement
+
+1. **Reduce reflection where possible** - Look for opportunities to test through public API
+2. **Improve public API** - Add testing hooks to reduce reflection needs
+3. **Add integration tests** - Test through public API where feasible
+4. **Extract testable components** - Separate logic from UI where possible, making inner classes more testable
+5. **Visual regression testing** - Use dedicated tools instead of pixel comparison
+
+== Running the Tests
+
+Tests are run via Gradle:
+
+[source,bash]
+----
+# Run all flamegraph tests
+./gradlew :fireplace-swing:test --tests "*flamegraph*"
+
+# Run specific test class
+./gradlew :fireplace-swing:test --tests "FlamegraphViewTest"
+
+# Run with debug output
+./gradlew :fireplace-swing:test --tests "*flamegraph*" --debug
+----
+
+== TODO
+
+Correctly harness and improve tests:
+
+* [ ] Mouse Hover interactions
+* [ ] Better test zoom operations
+* [ ] Sibling frame feature
+
+== Contributing
+
+When adding new tests:
+
+1. Prefer public API testing when possible
+2. Document reflection usage with clear comments
+3. Follow existing patterns for consistency
+4. Use `SwingTestUtil`** or new util as needed
+5. Add test to appropriate category
+6. Consider cross-platform compatibility
+

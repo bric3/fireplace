@@ -60,7 +60,7 @@ jobs:
         uses: gradle/actions/setup-gradle@v5
 
       - name: Build with Gradle
-        run: ./gradlew build --stacktrace
+        run: xvfb-run -a ./gradlew build --stacktrace
 
       - name: Upload build reports
         uses: actions/upload-artifact@v6
