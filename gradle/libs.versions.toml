@@ -16,8 +16,8 @@ classgraph = "4.8.184"
 
 radiance-animation = "7.5.0"
 
-caffeine = "3.2.0"
-fastutil = "8.5.15"
+caffeine = "3.2.3"
+fastutil = "8.5.18"
 
 jmc-flightrecorder = "9.1.1"
 
@@ -36,7 +36,7 @@ kotlin = "2.3.0"
 kotlin-coroutines = "1.10.2"
 
 # Gradle plugins
-bnd = "7.2.0"
+bnd = "7.2.1"
 test-logger = "4.0.0"
 # Hold onto 0.8.0 for now due to imcompatibility with 2.2.0 kotlin metadata,
 # see https://github.com/JavierSegoviaCordoba/semver-gradle-plugin/issues/205
