@@ -147,7 +147,7 @@ public class FlamegraphView<T> {
     /**
      * Represents a custom action when zooming.
      */
-    public interface ZoomAction {
+    public interface ZoomAction { // TODO proper type parameterization
         /**
          * Called when the zoom action is triggered.
          *
@@ -972,7 +972,7 @@ public class FlamegraphView<T> {
      * @param zoomTarget the zoom target.
      * @param <T>        the type of the node data.
      */
-    private static <T> void zoom(@NotNull FlamegraphCanvas<@NotNull T> canvas, @Nullable ZoomTarget<@NotNull T> zoomTarget) {
+    static <T> void zoom(@NotNull FlamegraphCanvas<@NotNull T> canvas, @Nullable ZoomTarget<@NotNull T> zoomTarget) {
         if (zoomTarget == null) {
             // NOOP
             return;
@@ -1382,6 +1382,10 @@ public class FlamegraphView<T> {
             return super.getToolTipText(e);
         }
 
+        public Rectangle getMinimapBounds() {
+            return minimapBounds;
+        }
+
         public boolean isInsideMinimap(@NotNull Point point) {
             if (!showMinimap) {
                 return false;
@@ -1459,89 +1463,7 @@ public class FlamegraphView<T> {
         }
 
         public void setupListeners(@NotNull JScrollPane scrollPane) {
-            var mouseAdapter = new MouseInputAdapter() {
-                private Point pressedPoint;
-
-                @Override
-                public void mouseClicked(@NotNull MouseEvent e) {
-                    if (e.getClickCount() != 1 || e.getButton() != MouseEvent.BUTTON1) {
-                        return;
-                    }
-                    if (selectedFrameConsumer == null) {
-                        return;
-                    }
-                    FlamegraphCanvas<T> canvas = FlamegraphCanvas.this;
-                    flamegraphRenderEngine.getFrameAt((Graphics2D) canvas.getGraphics(), canvas.getBounds(), e.getPoint())
-                                          .ifPresent(frame -> selectedFrameConsumer.accept(frame, e));
-                }
-
-                @Override
-                public void mousePressed(@NotNull MouseEvent e) {
-                    if (SwingUtilities.isLeftMouseButton(e)) {
-                        if (isInsideMinimap(e.getPoint())) {
-                            processMinimapMouseEvent(e);
-                            pressedPoint = e.getPoint();
-                        } else {
-                            // don't trigger minimap behavior if the pressed point is outside the minimap
-                            pressedPoint = null;
-                        }
-                        return;
-                    }
-                    handlePopup(e);
-                }
-
-                @Override
-                public void mouseReleased(@NotNull MouseEvent e) {
-                    handlePopup(e);
-                }
-
-                private void handlePopup(@NotNull MouseEvent e) {
-                    if (!e.isPopupTrigger()) {
-                        return;
-                    }
-                    if (popupConsumer == null) {
-                        return;
-                    }
-                    var canvas = FlamegraphCanvas.this;
-                    flamegraphRenderEngine.getFrameAt((Graphics2D) canvas.getGraphics(), canvas.getBounds(), e.getPoint())
-                                          .ifPresent(frame -> popupConsumer.accept(frame, e));
-                }
-
-                @Override
-                public void mouseDragged(@NotNull MouseEvent e) {
-                    if (isInsideMinimap(e.getPoint()) && pressedPoint != null) {
-                        processMinimapMouseEvent(e);
-                    }
-                }
-
-                private void processMinimapMouseEvent(@NotNull MouseEvent e) {
-                    var pt = e.getPoint();
-                    if (!(e.getComponent() instanceof FlamegraphView.FlamegraphCanvas)) {
-                        return;
-                    }
-                    var canvas = (FlamegraphCanvas<?>) e.getComponent();
-
-
-                    double zoomZoneScaleX = (double) minimapBounds.width / flamegraphDimension.width;
-                    double zoomZoneScaleY = (double) minimapBounds.height / flamegraphDimension.height;
-                    var minimapRect = canvas.computeMinimapRect();
-
-                    var h = (pt.x - minimapRect.x) / zoomZoneScaleX;
-                    var horizontalBarModel = scrollPane.getHorizontalScrollBar().getModel();
-                    horizontalBarModel.setValue((int) h - horizontalBarModel.getExtent());
-
-                    var v = (pt.y - minimapRect.y) / zoomZoneScaleY;
-                    var verticalBarModel = scrollPane.getVerticalScrollBar().getModel();
-                    verticalBarModel.setValue((int) v - verticalBarModel.getExtent());
-                }
-
-                @Override
-                public void mouseMoved(@NotNull MouseEvent e) {
-                    setCursor(isInsideMinimap(e.getPoint()) ?
-                              Cursor.getPredefinedCursor(System.getProperty("os.name").startsWith("Mac") ? Cursor.HAND_CURSOR : Cursor.MOVE_CURSOR) :
-                              Cursor.getDefaultCursor());
-                }
-            };
+            var mouseAdapter = new FlamegraphCanvasMouseInputAdapter<>(scrollPane, this);
             this.addMouseListener(mouseAdapter);
             this.addMouseMotionListener(mouseAdapter);
 
@@ -1735,6 +1657,99 @@ public class FlamegraphView<T> {
             }
 
             setBounds(targetBounds);
+        }
+
+        private static class FlamegraphCanvasMouseInputAdapter<T> extends MouseInputAdapter {
+            private final @NotNull JScrollPane scrollPane;
+            private final @NotNull FlamegraphView.FlamegraphCanvas<T> canvas;
+
+            private Point pressedPoint;
+
+            public FlamegraphCanvasMouseInputAdapter(
+                    @NotNull JScrollPane scrollPane,
+                    @NotNull FlamegraphCanvas<T> canvas
+            ) {
+                this.scrollPane = scrollPane;
+                this.canvas = canvas;
+            }
+
+            @Override
+            public void mouseClicked(@NotNull MouseEvent e) {
+                if (e.getClickCount() != 1 || e.getButton() != MouseEvent.BUTTON1) {
+                    return;
+                }
+                if (canvas.selectedFrameConsumer == null) {
+                    return;
+                }
+                canvas.flamegraphRenderEngine.getFrameAt((Graphics2D) canvas.getGraphics(), canvas.getBounds(), e.getPoint())
+                                             .ifPresent(frame -> canvas.selectedFrameConsumer.accept(frame, e));
+            }
+
+            @Override
+            public void mousePressed(@NotNull MouseEvent e) {
+                if (SwingUtilities.isLeftMouseButton(e)) {
+                    if (canvas.isInsideMinimap(e.getPoint())) {
+                        processMinimapMouseEvent(e);
+                        pressedPoint = e.getPoint();
+                    } else {
+                        // don't trigger minimap behavior if the pressed point is outside the minimap
+                        pressedPoint = null;
+                    }
+                    return;
+                }
+                handlePopup(e);
+            }
+
+            @Override
+            public void mouseReleased(@NotNull MouseEvent e) {
+                handlePopup(e);
+            }
+
+            private void handlePopup(@NotNull MouseEvent e) {
+                if (!e.isPopupTrigger()) {
+                    return;
+                }
+                if (canvas.popupConsumer == null) {
+                    return;
+                }
+                canvas.flamegraphRenderEngine.getFrameAt((Graphics2D) canvas.getGraphics(), canvas.getBounds(), e.getPoint())
+                                             .ifPresent(frame -> canvas.popupConsumer.accept(frame, e));
+            }
+
+            @Override
+            public void mouseDragged(@NotNull MouseEvent e) {
+                if (canvas.isInsideMinimap(e.getPoint()) && pressedPoint != null) {
+                    processMinimapMouseEvent(e);
+                }
+            }
+
+            private void processMinimapMouseEvent(@NotNull MouseEvent e) {
+                var pt = e.getPoint();
+                if (!(e.getComponent() instanceof FlamegraphView.FlamegraphCanvas)) {
+                    return;
+                }
+                var canvas = (FlamegraphCanvas<?>) e.getComponent();
+
+
+                double zoomZoneScaleX = (double) canvas.minimapBounds.width / canvas.flamegraphDimension.width;
+                double zoomZoneScaleY = (double) canvas.minimapBounds.height / canvas.flamegraphDimension.height;
+                var minimapRect = canvas.computeMinimapRect();
+
+                var h = (pt.x - minimapRect.x) / zoomZoneScaleX;
+                var horizontalBarModel = scrollPane.getHorizontalScrollBar().getModel();
+                horizontalBarModel.setValue((int) h - horizontalBarModel.getExtent());
+
+                var v = (pt.y - minimapRect.y) / zoomZoneScaleY;
+                var verticalBarModel = scrollPane.getVerticalScrollBar().getModel();
+                verticalBarModel.setValue((int) v - verticalBarModel.getExtent());
+            }
+
+            @Override
+            public void mouseMoved(@NotNull MouseEvent e) {
+                canvas.setCursor(canvas.isInsideMinimap(e.getPoint()) ?
+                                 Cursor.getPredefinedCursor(System.getProperty("os.name").startsWith("Mac") ? Cursor.HAND_CURSOR : Cursor.MOVE_CURSOR) :
+                                 Cursor.getDefaultCursor());
+            }
         }
     }
 
@@ -2070,7 +2085,7 @@ public class FlamegraphView<T> {
      * @param <T>
      */
     @Experimental
-    private static class ZoomModel<T> {
+    static class ZoomModel<T> {
         /**
          * The current zoom target, it allows to keep track of the current zoom target.
          * So when the view is resized, the zoom ratio can be recomputed from this target.
@@ -2120,7 +2135,6 @@ public class FlamegraphView<T> {
                         1.0
                 );
             }
-
         }
 
         public void recordLastPositionFromUserInteraction(JPanel canvas) {
@@ -2139,15 +2153,15 @@ public class FlamegraphView<T> {
             return currentZoomTarget;
         }
 
-        private double getLastUserInteractionStartX() {
+        double getLastUserInteractionStartX() {
             return lastUserInteractionStartX;
         }
 
-        private double getLastUserInteractionEndX() {
+        double getLastUserInteractionEndX() {
             return lastUserInteractionEndX;
         }
 
-        private double getLastUserInteractionWidthX() {
+        double getLastUserInteractionWidthX() {
             return lastUserInteractionEndX - lastUserInteractionStartX;
         }
 

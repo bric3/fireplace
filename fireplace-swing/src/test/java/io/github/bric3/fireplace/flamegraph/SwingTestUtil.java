@@ -1,0 +1,347 @@
+/*
+ * Fireplace
+ *
+ * Copyright (c) 2021, Today - Brice Dutheil
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/.
+ */
+package io.github.bric3.fireplace.flamegraph;
+
+import javax.swing.*;
+import java.awt.*;
+import java.awt.event.MouseEvent;
+import java.awt.event.MouseWheelEvent;
+import java.lang.reflect.Field;
+import java.util.concurrent.atomic.AtomicReference;
+
+import static org.mockito.Mockito.*;
+
+/**
+ * Test utilities for Swing component testing.
+ */
+public final class SwingTestUtil {
+
+    private SwingTestUtil() {
+        // utility class
+    }
+
+    /**
+     * Recursively searches for a {@link JScrollPane} within the given container hierarchy.
+     *
+     * @param container the container to search within
+     * @return the first JScrollPane found, or null if none exists
+     */
+    public static JScrollPane findScrollPane(Container container) {
+        for (var component : container.getComponents()) {
+            if (component instanceof JScrollPane) {
+                return (JScrollPane) component;
+            }
+            if (component instanceof Container) {
+                var found = findScrollPane((Container) component);
+                if (found != null) {
+                    return found;
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Gets the canvas from a FlamegraphView component hierarchy.
+     *
+     * @param flamegraphComponent the FlamegraphView component
+     * @return the canvas component
+     * @throws AssertionError if the canvas cannot be found
+     */
+    public static JComponent getCanvas(Container flamegraphComponent) {
+        var scrollPane = findScrollPane(flamegraphComponent);
+        if (scrollPane == null) {
+            throw new AssertionError("ScrollPane not found in component hierarchy");
+        }
+        var viewport = scrollPane.getViewport();
+        if (viewport == null || viewport.getView() == null) {
+            throw new AssertionError("Canvas not found in viewport");
+        }
+        return (JComponent) viewport.getView();
+    }
+
+    /**
+     * Sets up flamegraph dimensions for testing via reflection.
+     *
+     * @param canvas the canvas component
+     * @param width the desired width
+     * @param height the desired height
+     * @throws Exception if reflection fails
+     */
+    public static void setupFlamegraphDimensions(JComponent canvas, int width, int height) throws Exception {
+        Field flamegraphDimensionField = canvas.getClass().getDeclaredField("flamegraphDimension");
+        flamegraphDimensionField.setAccessible(true);
+        Dimension flamegraphDimension = (Dimension) flamegraphDimensionField.get(canvas);
+        flamegraphDimension.width = width;
+        flamegraphDimension.height = height;
+    }
+
+    /**
+     * Gets the minimap bounds from the canvas via reflection.
+     *
+     * @param canvas the canvas component
+     * @return the minimap bounds rectangle
+     * @throws Exception if reflection fails
+     */
+    public static Rectangle getMinimapBounds(JComponent canvas) throws Exception {
+        Field minimapBoundsField = canvas.getClass().getDeclaredField("minimapBounds");
+        minimapBoundsField.setAccessible(true);
+        return (Rectangle) minimapBoundsField.get(canvas);
+    }
+
+    /**
+     * Makes the FlamegraphView displayable for testing by adding it to a hidden frame.
+     * This ensures components have proper visible rectangles calculated.
+     *
+     * @param flamegraphView the FlamegraphView to make displayable
+     */
+    public static void makeDisplayable(Container flamegraphView) {
+        var frame = new JFrame();
+        frame.add(flamegraphView);
+        frame.setSize(1000, 800);
+        frame.pack();
+        // Don't show the frame, but make it displayable
+        frame.addNotify();
+    }
+
+    /**
+     * Captures the current scrollbar positions from a FlamegraphView component.
+     *
+     * @param flamegraphComponent the FlamegraphView component
+     * @return the current scrollbar positions
+     */
+    public static ScrollbarPositions getScrollbarPositions(Container flamegraphComponent) {
+        var scrollPane = findScrollPane(flamegraphComponent);
+        if (scrollPane == null) {
+            throw new AssertionError("ScrollPane not found in component hierarchy");
+        }
+        return new ScrollbarPositions(
+                scrollPane.getHorizontalScrollBar().getValue(),
+                scrollPane.getVerticalScrollBar().getValue()
+        );
+    }
+
+    /**
+     * Creates a MouseEvent with the specified parameters.
+     *
+     * @param source the component that is the source of the event
+     * @param eventType the event type (e.g., MouseEvent.MOUSE_CLICKED, MouseEvent.MOUSE_PRESSED)
+     * @param x the x coordinate of the mouse position
+     * @param y the y coordinate of the mouse position
+     * @param button the mouse button (e.g., MouseEvent.BUTTON1, MouseEvent.BUTTON3)
+     * @param clickCount the number of clicks (e.g., 1 for single click, 2 for double click)
+     * @param isPopupTrigger whether this event is a popup trigger
+     * @return a new MouseEvent with the specified parameters
+     */
+    public static MouseEvent createMouseEvent(Component source, int eventType, int x, int y, int button, int clickCount, boolean isPopupTrigger) {
+        int modifiers;
+        if (button == MouseEvent.BUTTON1) {
+            modifiers = MouseEvent.BUTTON1_DOWN_MASK;
+        } else if (button == MouseEvent.BUTTON2) {
+            modifiers = MouseEvent.BUTTON2_DOWN_MASK;
+        } else if (button == MouseEvent.BUTTON3) {
+            modifiers = MouseEvent.BUTTON3_DOWN_MASK;
+        } else {
+            modifiers = 0;
+        }
+        return new MouseEvent(source, eventType, System.currentTimeMillis(), modifiers, x, y, clickCount, isPopupTrigger, button);
+    }
+
+    /**
+     * Creates a MOUSE_CLICKED event.
+     *
+     * @param source the component that is the source of the event
+     * @param x the x coordinate of the mouse position
+     * @param y the y coordinate of the mouse position
+     * @param button the mouse button (e.g., MouseEvent.BUTTON1, MouseEvent.BUTTON3)
+     * @param clickCount the number of clicks (e.g., 1 for single click, 2 for double click)
+     * @return a new MOUSE_CLICKED event
+     */
+    public static MouseEvent createClickEvent(Component source, int x, int y, int button, int clickCount) {
+        return createMouseEvent(source, MouseEvent.MOUSE_CLICKED, x, y, button, clickCount, false);
+    }
+
+    /**
+     * Creates a MOUSE_PRESSED event.
+     *
+     * @param source the component that is the source of the event
+     * @param x the x coordinate of the mouse position
+     * @param y the y coordinate of the mouse position
+     * @param button the mouse button (e.g., MouseEvent.BUTTON1, MouseEvent.BUTTON3)
+     * @param isPopupTrigger whether this event is a popup trigger
+     * @return a new MOUSE_PRESSED event
+     */
+    public static MouseEvent createPressEvent(Component source, int x, int y, int button, boolean isPopupTrigger) {
+        return createMouseEvent(source, MouseEvent.MOUSE_PRESSED, x, y, button, 1, isPopupTrigger);
+    }
+
+    /**
+     * Creates a MOUSE_RELEASED event with BUTTON1.
+     *
+     * @param source the component that is the source of the event
+     * @param x the x coordinate of the mouse position
+     * @param y the y coordinate of the mouse position
+     * @param isPopupTrigger whether this event is a popup trigger
+     * @return a new MOUSE_RELEASED event
+     */
+    public static MouseEvent createReleaseEvent(Component source, int x, int y, boolean isPopupTrigger) {
+        return createMouseEvent(source, MouseEvent.MOUSE_RELEASED, x, y, MouseEvent.BUTTON1, 1, isPopupTrigger);
+    }
+
+    /**
+     * Creates a MOUSE_DRAGGED event with BUTTON1.
+     *
+     * @param source the component that is the source of the event
+     * @param x the x coordinate of the mouse position
+     * @param y the y coordinate of the mouse position
+     * @return a new MOUSE_DRAGGED event
+     */
+    public static MouseEvent createDraggedEvent(Component source, int x, int y) {
+        return createMouseEvent(source, MouseEvent.MOUSE_DRAGGED, x, y, MouseEvent.BUTTON1, 1, false);
+    }
+
+    /**
+     * Creates a MOUSE_ENTERED event.
+     *
+     * @param source the component that is the source of the event
+     * @param x the x coordinate of the mouse position
+     * @param y the y coordinate of the mouse position
+     * @return a new MOUSE_ENTERED event
+     */
+    public static MouseEvent createEnteredEvent(Component source, int x, int y) {
+        return new MouseEvent(source, MouseEvent.MOUSE_ENTERED, System.currentTimeMillis(), 0, x, y, 0, false, MouseEvent.NOBUTTON);
+    }
+
+    /**
+     * Creates a MOUSE_EXITED event.
+     *
+     * @param source the component that is the source of the event
+     * @param x the x coordinate of the mouse position
+     * @param y the y coordinate of the mouse position
+     * @return a new MOUSE_EXITED event
+     */
+    public static MouseEvent createExitedEvent(Component source, int x, int y) {
+        return new MouseEvent(source, MouseEvent.MOUSE_EXITED, System.currentTimeMillis(), 0, x, y, 0, false, MouseEvent.NOBUTTON);
+    }
+
+    /**
+     * Creates a MOUSE_MOVED event.
+     *
+     * @param source the component that is the source of the event
+     * @param x the x coordinate of the mouse position
+     * @param y the y coordinate of the mouse position
+     * @return a new MOUSE_MOVED event
+     */
+    public static MouseEvent createMovedEvent(Component source, int x, int y) {
+        return new MouseEvent(source, MouseEvent.MOUSE_MOVED, System.currentTimeMillis(), 0, x, y, 0, false, MouseEvent.NOBUTTON);
+    }
+
+    /**
+     * Creates a MOUSE_WHEEL event with unit scroll type.
+     *
+     * @param source the component that is the source of the event
+     * @param x the x coordinate of the mouse position
+     * @param y the y coordinate of the mouse position
+     * @param scrollType the type of scrolling (MouseWheelEvent.WHEEL_UNIT_SCROLL or MouseWheelEvent.WHEEL_BLOCK_SCROLL)
+     * @param scrollAmount the number of units to scroll
+     * @param wheelRotation the amount the wheel was rotated (negative values indicate up/left, positive indicate down/right)
+     * @return a new MOUSE_WHEEL event
+     */
+    public static MouseWheelEvent createWheelEvent(Component source, int x, int y, int scrollType, int scrollAmount, int wheelRotation) {
+        return new MouseWheelEvent(
+                source,
+                MouseEvent.MOUSE_WHEEL,
+                System.currentTimeMillis(),
+                0,
+                x, y,
+                0,
+                false,
+                scrollType,
+                scrollAmount,
+                wheelRotation
+        );
+    }
+
+    /**
+     * Creates a MOUSE_WHEEL event with unit scroll type.
+     * Convenient method for common unit scrolling with 3 scroll units.
+     *
+     * @param source the component that is the source of the event
+     * @param x the x coordinate of the mouse position
+     * @param y the y coordinate of the mouse position
+     * @param wheelRotation the amount the wheel was rotated (negative values indicate up/left, positive indicate down/right)
+     * @return a new MOUSE_WHEEL event with unit scroll type
+     */
+    public static MouseWheelEvent createWheelEvent(Component source, int x, int y, int wheelRotation) {
+        return createWheelEvent(source, x, y, MouseWheelEvent.WHEEL_UNIT_SCROLL, 3, wheelRotation);
+    }
+
+    /**
+     * Captures the bounds and preferred size of the given JComponent.
+     *
+     * @param component the JComponent to capture bounds from
+     * @return a BoundsSnapshot containing the bounds and preferred size
+     */
+     public static BoundsSnapshot captureBounds(JComponent component) throws Exception {
+        var bounds = new AtomicReference<Rectangle>();
+        var preferredSize = new AtomicReference<Dimension>();
+        SwingUtilities.invokeAndWait(() -> {
+            bounds.set(component.getBounds());
+            preferredSize.set(component.getPreferredSize());
+        });
+        return new BoundsSnapshot(bounds.get(), preferredSize.get());
+    }
+
+    /**
+     * Class to hold scrollbar positions for comparison in tests.
+     */
+    public static final class ScrollbarPositions {
+        private final int horizontal;
+        private final int vertical;
+
+        ScrollbarPositions(int horizontal, int vertical) {
+            this.horizontal = horizontal;
+            this.vertical = vertical;
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            if (this == obj) return true;
+            if (!(obj instanceof ScrollbarPositions)) return false;
+            ScrollbarPositions other = (ScrollbarPositions) obj;
+            return horizontal == other.horizontal && vertical == other.vertical;
+        }
+
+        @Override
+        public int hashCode() {
+            return 31 * horizontal + vertical;
+        }
+
+        @Override
+        public String toString() {
+            return "ScrollbarPositions{horizontal=" + horizontal + ", vertical=" + vertical + '}';
+        }
+    }
+
+    // Helper class to capture bounds snapshots
+    public static class BoundsSnapshot {
+        public final Rectangle bounds;
+        public final Dimension preferredSize;
+
+        BoundsSnapshot(Rectangle bounds, Dimension preferredSize) {
+            this.bounds = bounds;
+            this.preferredSize = preferredSize;
+        }
+
+        public boolean differs(BoundsSnapshot other) {
+            return !bounds.equals(other.bounds) || !preferredSize.equals(other.preferredSize);
+        }
+    }
+}

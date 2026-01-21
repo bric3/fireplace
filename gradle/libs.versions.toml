@@ -23,6 +23,7 @@ jmc-flightrecorder = "9.1.1"
 
 junit-jupiter = "5.14.2"
 assertj = "3.27.6"
+mockito = "5.18.0"
 
 # Used for SVG export
 batik = "1.19"
@@ -61,6 +62,8 @@ flightrecorder = { module = "org.openjdk.jmc:flightrecorder", version.ref = "jmc
 junit-jupiter-api = { module = "org.junit.jupiter:junit-jupiter-api", version.ref = "junit-jupiter" }
 junit-jupiter-engine = { module = "org.junit.jupiter:junit-jupiter-engine", version.ref = "junit-jupiter" }
 assertj = { module = "org.assertj:assertj-core", version.ref = "assertj" }
+mockito-core = { module = "org.mockito:mockito-core", version.ref = "mockito" }
+mockito-junit-jupiter = { module = "org.mockito:mockito-junit-jupiter", version.ref = "mockito" }
 
 kotlin-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core-jvm", version.ref ="kotlin-coroutines" }
 kotlin-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref ="kotlin-coroutines" }
@@ -82,6 +85,7 @@ gradlePlugin-nmcp = { module = "com.gradleup.nmcp:nmcp", version.ref = "nmcp" }
 
 [bundles]
 junit-jupiter = ["junit-jupiter-api", "junit-jupiter-engine"]
+mockito = ["mockito-core", "mockito-junit-jupiter"]
 flatlaf = ["flatlaf", "flatlaf-extras"]
 darklaf = ["darklaf-platform-preferences", "darklaf-platform-decorations"]
 kotlinx-coroutines = ["kotlin-coroutines-core", "kotlin-coroutines-test"]
