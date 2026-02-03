@@ -14,7 +14,7 @@ flatlaf = "3.7"
 darklaf = "3.1.1"
 classgraph = "4.8.184"
 
-radiance-animation = "7.5.0"
+radiance-animation = "8.5.0"
 
 caffeine = "3.2.3"
 fastutil = "8.5.18"
