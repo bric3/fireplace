@@ -9,7 +9,7 @@
 #
 
 [versions]
-jetbrains-annotations = "26.0.2-1"
+jetbrains-annotations = "26.1.0"
 flatlaf = "3.7"
 darklaf = "3.1.1"
 classgraph = "4.8.184"
@@ -21,7 +21,7 @@ fastutil = "8.5.18"
 
 jmc-flightrecorder = "9.1.2"
 
-junit-jupiter = "5.14.2"
+junit-jupiter = "5.14.3"
 assertj = "3.27.7"
 
 # Used for SVG export
@@ -41,7 +41,7 @@ test-logger = "4.0.0"
 # Hold onto 0.8.0 for now due to imcompatibility with 2.2.0 kotlin metadata,
 # see https://github.com/JavierSegoviaCordoba/semver-gradle-plugin/issues/205
 semver = "0.9.0"
-license-report = "3.0.1"
+license-report = "3.1.1"
 nmcp = "1.4.4"
 
 [libraries]
