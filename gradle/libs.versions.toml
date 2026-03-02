@@ -89,4 +89,4 @@ batik = ["batik-svggen", "batik-dom"]
 eclipse-swt = ["eclipse-swt", "eclipse-jface", "eclipse-ui-forms"]
 
 [plugins]
-shadow = { id = "com.gradleup.shadow", version = "9.3.1" }
+shadow = { id = "com.gradleup.shadow", version = "9.3.2" }
