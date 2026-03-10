@@ -10,7 +10,7 @@
 
 [versions]
 jetbrains-annotations = "26.1.0"
-flatlaf = "3.7"
+flatlaf = "3.7.1"
 darklaf = "3.1.1"
 classgraph = "4.8.184"
 
@@ -27,9 +27,9 @@ assertj = "3.27.7"
 # Used for SVG export
 batik = "1.19"
 
-eclipse-swt = "3.132.0"
-eclipse-jface = "3.38.100"
-eclipse-ui-forms = "3.13.700"
+eclipse-swt = "3.133.0"
+eclipse-jface = "3.39.0"
+eclipse-ui-forms = "3.14.0"
 
 # Kotlin
 kotlin = "2.3.10"
