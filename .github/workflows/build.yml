@@ -47,7 +47,7 @@ jobs:
       #        run: echo "${{ toJSON(github.event)}}"
 
       - name: Gradle Wrapper Validation
-        uses: gradle/actions/wrapper-validation@v5
+        uses: gradle/actions/wrapper-validation@v6
 
       - name: Set up JDK
         uses: actions/setup-java@v5
@@ -57,7 +57,7 @@ jobs:
 
       - name: Setup Gradle
         id: setup-gradle
-        uses: gradle/actions/setup-gradle@v5
+        uses: gradle/actions/setup-gradle@v6
 
       - name: Build with Gradle
         run: ./gradlew build --stacktrace
