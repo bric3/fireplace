@@ -36,7 +36,7 @@ kotlin = "2.3.20"
 kotlin-coroutines = "1.10.2"
 
 # Gradle plugins
-bnd = "7.2.1"
+bnd = "7.2.3"
 test-logger = "4.0.0"
 # Hold onto 0.8.0 for now due to imcompatibility with 2.2.0 kotlin metadata,
 # see https://github.com/JavierSegoviaCordoba/semver-gradle-plugin/issues/205
@@ -89,4 +89,4 @@ batik = ["batik-svggen", "batik-dom"]
 eclipse-swt = ["eclipse-swt", "eclipse-jface", "eclipse-ui-forms"]
 
 [plugins]
-shadow = { id = "com.gradleup.shadow", version = "9.4.0" }
+shadow = { id = "com.gradleup.shadow", version = "9.4.1" }
