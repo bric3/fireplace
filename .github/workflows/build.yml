@@ -78,7 +78,7 @@ jobs:
           retention-days: 1
 
       - name: Comment with build scan url
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         if: github.event_name == 'pull_request' && failure()
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
