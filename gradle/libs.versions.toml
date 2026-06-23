@@ -21,7 +21,7 @@ fastutil = "8.5.18"
 
 jmc-flightrecorder = "9.1.2"
 
-junit-jupiter = "5.14.4"
+junit-jupiter = "6.1.0"
 assertj = "3.27.7"
 
 # Used for SVG export
