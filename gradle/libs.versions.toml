@@ -10,7 +10,7 @@
 
 [versions]
 jetbrains-annotations = "26.1.0"
-flatlaf = "3.7.1"
+flatlaf = "3.7.2"
 darklaf = "3.1.1"
 classgraph = "4.8.184"
 
@@ -32,7 +32,7 @@ eclipse-jface = "3.39.100"
 eclipse-ui-forms = "3.14.100"
 
 # Kotlin
-kotlin = "2.4.0"
+kotlin = "2.4.10"
 kotlin-coroutines = "1.11.0"
 
 # Gradle plugins
@@ -89,4 +89,4 @@ batik = ["batik-svggen", "batik-dom"]
 eclipse-swt = ["eclipse-swt", "eclipse-jface", "eclipse-ui-forms"]
 
 [plugins]
-shadow = { id = "com.gradleup.shadow", version = "9.5.1" }
+shadow = { id = "com.gradleup.shadow", version = "9.6.0" }
