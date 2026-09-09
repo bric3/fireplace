@@ -46,12 +46,8 @@ tasks.shadowJar {
     // relocate("kotlinx", "$newLocation.kotlinx")
     // relocate("org.jetbrains", "$newLocation.org.jetbrains")
     // relocate("org.intellij", "$newLocation.org.intellij")
-    dependencies {
-        // Remove all Kotlin metadata so that it looks like an ordinary Java Jar
-        exclude("**/*.kotlin_metadata")
-        exclude("**/*.kotlin_module")
-        exclude("**/*.kotlin_builtins")
-        // Eliminate dependencies' pom files
-        exclude("**/pom.*")
-    }
+    // Remove all Kotlin metadata so that it looks like an ordinary Java Jar
+    exclude("**/*.kotlin_metadata", "**/*.kotlin_module", "**/*.kotlin_builtins")
+    // Eliminate dependencies' pom files
+    exclude("**/pom.*")
 }
