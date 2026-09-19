@@ -121,17 +121,14 @@ public class EmbeddingComposite extends Composite {
         // KeyboardFocusManager keeps global dispatchers until explicitly removed.
         var traversalDispatcherRef = new AtomicReference<KeyEventDispatcher>();
 
-        // needed to properly terminate the app on close
+        // SWT_AWT.new_Frame already queues Frame.dispose() when this Composite is disposed.
+        // This EDT barrier lets that finish; removing the AWT peer again corrupts GTK state.
         addDisposeListener(e -> {
             SWT_AWTBridge.invokeInEDTAndWait(() -> {
                 var traversalDispatcher = traversalDispatcherRef.get();
                 if (traversalDispatcher != null) {
                     KeyboardFocusManager.getCurrentKeyboardFocusManager()
                                         .removeKeyEventDispatcher(traversalDispatcher);
-                }
-                try {
-                    frame.removeNotify();
-                } catch (Exception ignored) {
                 }
             });
         });
