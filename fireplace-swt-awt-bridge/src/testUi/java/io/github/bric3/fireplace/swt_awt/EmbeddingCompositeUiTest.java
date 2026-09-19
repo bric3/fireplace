@@ -348,6 +348,7 @@ class EmbeddingCompositeUiTest {
         });
         var embedding = new EmbeddingComposite(shell);
         embedding.init(() -> component);
+        var frame = SWT_AWT.getFrame(embedding);
         openShell();
         focus(component);
 
@@ -355,6 +356,7 @@ class EmbeddingCompositeUiTest {
 
         assertSoftly(softly -> {
             softly.assertThat(traversalDispatchers()).isEmpty();
+            softly.assertThat(SWT_AWTBridge.computeInEDT(frame::getFocusTraversalKeysEnabled)).isFalse();
             softly.assertThat(dispatch).containsExactly(true, false);
             softly.assertThat(tabPresses).hasValue(1);
         });

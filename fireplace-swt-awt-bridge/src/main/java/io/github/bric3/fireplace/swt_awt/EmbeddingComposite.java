@@ -138,6 +138,10 @@ public class EmbeddingComposite extends Composite {
             var jComponent = jComponentSupplier.get();
             componentRef.set(jComponent);
 
+            // EmbeddedFrame dispatches boundary Tab events before Swing listeners on X11.
+            // Disable only its traversal; child components retain their own traversal behavior.
+            frame.setFocusTraversalKeysEnabled(false);
+
             /*
              * Bug 228221 - SWT no longer receives key events when using an SWT_AWT.new_Frame AWT frame.
              * Use a heavyweight RootPaneContainer to embed the Swing panel in the SWT part.
