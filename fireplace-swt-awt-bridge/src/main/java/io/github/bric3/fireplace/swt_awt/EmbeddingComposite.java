@@ -9,17 +9,23 @@
  */
 package io.github.bric3.fireplace.swt_awt;
 
-import io.github.bric3.fireplace.swt_awt.SWT_AWTBridge;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.awt.SWT_AWT;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.widgets.Composite;
 
-import javax.swing.*;
-import java.awt.*;
-import java.awt.event.InputEvent;
-import java.awt.event.KeyAdapter;
+import javax.swing.JComponent;
+import javax.swing.JLayeredPane;
+import javax.swing.JRootPane;
+import javax.swing.RootPaneContainer;
+import java.awt.BorderLayout;
+import java.awt.Component;
+import java.awt.Container;
+import java.awt.Graphics;
+import java.awt.KeyEventDispatcher;
+import java.awt.KeyboardFocusManager;
+import java.awt.Panel;
 import java.awt.event.KeyEvent;
 import java.awt.im.InputContext;
 import java.util.concurrent.atomic.AtomicReference;
@@ -43,16 +49,18 @@ import java.util.function.Supplier;
  * </code></pre>
  *
  * <p>
- * Don't forget to use {@link SWT_AWTBridge} methods to dispatch events from SWT to AWT.
+ * Remember to use {@link SWT_AWTBridge} methods to dispatch events from SWT to AWT.
  * </p>
  *
  * @see SWT_AWTBridge
  */
 @SuppressWarnings("unused")
 public class EmbeddingComposite extends Composite {
+    private boolean focusTraversalEnabled;
 
     /**
      * Create the embedded composite with {@link SWT#EMBEDDED} and {@link SWT#NO_BACKGROUND} styles.
+     *
      * @param parent the parent composite
      */
     public EmbeddingComposite(Composite parent) {
@@ -62,11 +70,11 @@ public class EmbeddingComposite extends Composite {
     /**
      * Create the embedded composite with {@link SWT#EMBEDDED} and {@link SWT#NO_BACKGROUND} styles with additional passed styles.
      * <p>
-     *     Note that {@link SWT#BORDER} is not supported.
+     * Note that {@link SWT#BORDER} is not supported.
      * </p>
      *
      * @param parent the parent composite
-     * @param style the additional style
+     * @param style  the additional style
      */
     public EmbeddingComposite(Composite parent, int style) {
         super(parent, checkNotBorder(style) | SWT.EMBEDDED | SWT.NO_BACKGROUND);
@@ -82,11 +90,25 @@ public class EmbeddingComposite extends Composite {
     }
 
     /**
+     * Configure whether <kbd>Tab</kbd> at the last Swing component, and <kbd>Shift</kbd>+<kbd>Tab</kbd>
+     * at the first one, transfer focus to the neighboring SWT control. Call this before {@link #init(Supplier)}.
+     *
+     * <p>The dispatcher remains internal, so it can be limited to this embedded AWT frame and
+     * removed when this composite is disposed of.</p>
+     *
+     * @param focusTraversalEnabled whether focus may leave Swing through Tab traversal
+     */
+    public void setFocusTraversalEnabled(boolean focusTraversalEnabled) {
+        checkWidget();
+        this.focusTraversalEnabled = focusTraversalEnabled;
+    }
+
+    /**
      * Initialize the AWT frame that will host the Swing component.
      *
      * <p>
-     *     Takes care of initializing the AWT frame and the Swing component on the AWT Event Dispatch Thread.
-     *     Note this method is blocking until the Swing component is initialized. But don't block the SWT Event thread.
+     * Takes care of initializing the AWT frame and the Swing component on the AWT Event Dispatch Thread.
+     * Note this method is blocking until the Swing component is initialized. But don't block the SWT Event thread.
      * </p>
      *
      * @param jComponentSupplier The jComponent supplier to be called on the AWT Event Dispatch Thread.
@@ -95,11 +117,18 @@ public class EmbeddingComposite extends Composite {
     public void init(Supplier<JComponent> jComponentSupplier) {
         var frame = SWT_AWT.new_Frame(this);
         frame.getInputContext(); // get the input context first to avoid deadlock
+        var display = getDisplay();
+        // KeyboardFocusManager keeps global dispatchers until explicitly removed.
+        var traversalDispatcherRef = new AtomicReference<KeyEventDispatcher>();
 
         // needed to properly terminate the app on close
         addDisposeListener(e -> {
-            System.out.println("embedded composite disposed");
             SWT_AWTBridge.invokeInEDTAndWait(() -> {
+                var traversalDispatcher = traversalDispatcherRef.get();
+                if (traversalDispatcher != null) {
+                    KeyboardFocusManager.getCurrentKeyboardFocusManager()
+                                        .removeKeyEventDispatcher(traversalDispatcher);
+                }
                 try {
                     frame.removeNotify();
                 } catch (Exception ignored) {
@@ -113,67 +142,129 @@ public class EmbeddingComposite extends Composite {
             componentRef.set(jComponent);
 
             /*
-             * Bug 228221 - SWT no longer receives key events in KeyAdapter when using SWT_AWT.new_Frame AWT frame
-             * Use a RootPaneContainer e.g. JApplet to embed the swing panel in the SWT part
+             * Bug 228221 - SWT no longer receives key events when using an SWT_AWT.new_Frame AWT frame.
+             * Use a heavyweight RootPaneContainer to embed the Swing panel in the SWT part.
              * https://bugs.eclipse.org/bugs/show_bug.cgi?id=228221
              * http://www.eclipse.org/articles/article.php?file=Article-Swing-SWT-Integration/index.html
-             * The proposal to use JApplet instead of JPanel no longer works (eclipse photon java 8 and 11),
-             * key events are only partially propagated to the underlying SWT event queue.
+             * JApplet used to provide both pieces, but was removed in Java 26.
              *
              * Possible workaround for SWT hanging on some swing events
              * https://bugs.eclipse.org/bugs/show_bug.cgi?id=291326
              * https://bugs.eclipse.org/bugs/show_bug.cgi?id=376561
              */
-            @SuppressWarnings("deprecation") var applet = new JApplet() {
-                @Override
-                public InputContext getInputContext() {
-                    return null;
-                }
-            };
+            frame.add(new SwingRootPaneContainer(jComponent));
 
-            /*
-             * In JRE 1.4, the JApplet makes itself a focus cycle root. This
-             * interferes with the focus handling installed on the parent frame, so
-             * change it back to a non-root here.
-             */
-            applet.setFocusCycleRoot(false);
-
-            /*
-             * Use the following approach to add the component to the applet
-             * otherwise AWT / SWT can deadlock.
-             *
-             * DO NOT USE: applet.getRootPane().getContentPane().add(component)
-             */
-            {
-                applet.setLayout(new BorderLayout());
-                applet.add(jComponent, BorderLayout.CENTER);
-            }
-
-            frame.add(applet);
-            frame.addKeyListener(new KeyAdapter() {
-                @Override
-                public void keyReleased(KeyEvent e) {
-                    if ((e.getModifiersEx() & InputEvent.META_DOWN_MASK) != 0) {
-                        if (e.getKeyChar() == 'q') {
-                            System.out.println("cmd+q pressed");
-                            /* This code tries to gracefully handle the exit, but
-                             * In an SWT_AWT listener there's a listener that handle the FocusOut event but the call to
-                             * synthesizeWindowActivation may produce an NPE if the frame is still active / focused.
-                             *
-                             * Another approach is possible using System.exit(0), however the app exits abruptly.
-                             */
-                            frame.dispose();
-                            SWT_AWTBridge.invokeSwtAwayFromAwt(EmbeddingComposite.this.getDisplay(), () -> {
-                                EmbeddingComposite.this.getDisplay().dispose();
-                            });
-                        }
+            if (focusTraversalEnabled) {
+                /*
+                 * AWT normally wraps Tab traversal inside its embedded Frame. Intercept only a Tab
+                 * leaving the first or last Swing focus owner and hand it back to SWT instead. The
+                 * dispatcher is scoped to this Frame and removed above when the composite is disposed.
+                 */
+                KeyEventDispatcher traversalDispatcher = event -> {
+                    if (event.getID() != KeyEvent.KEY_PRESSED || event.getKeyCode() != KeyEvent.VK_TAB) {
+                        return false;
                     }
-                }
-            });
+
+                    var focusManager = KeyboardFocusManager.getCurrentKeyboardFocusManager();
+                    var focusOwner = focusManager.getFocusOwner();
+                    if (focusOwner == null || !frame.isAncestorOf(focusOwner)) {
+                        return false;
+                    }
+
+                    var backwards = (event.getModifiersEx() & KeyEvent.SHIFT_DOWN_MASK) != 0;
+                    var policy = frame.getFocusTraversalPolicy();
+                    var boundary = backwards ? policy.getFirstComponent(frame) : policy.getLastComponent(frame);
+                    if (focusOwner != boundary) {
+                        return false;
+                    }
+
+                    event.consume();
+                    var traversal = backwards ? SWT.TRAVERSE_TAB_PREVIOUS : SWT.TRAVERSE_TAB_NEXT;
+                    SWT_AWTBridge.invokeSwtAwayFromAwt(display, () -> display.asyncExec(() -> {
+                        if (!isDisposed()) {
+                            traverse(traversal);
+                        }
+                    }));
+                    return true;
+                };
+                traversalDispatcherRef.set(traversalDispatcher);
+                KeyboardFocusManager.getCurrentKeyboardFocusManager().addKeyEventDispatcher(traversalDispatcher);
+            }
         });
 
         // possible hack around invalid layout issue
         var dimension = SWT_AWTBridge.computeInEDT(() -> componentRef.get().getPreferredSize());
         setSize(dimension.width, dimension.height);
+    }
+
+    /**
+     * Replaces the removed {@code JApplet} containment behavior needed by the SWT/AWT bridge.
+     * {@link Panel} supplies the heavyweight native peer recommended by {@link SWT_AWT}, unlike a
+     * lightweight {@code JPanel}; {@link JRootPane} supplies Swing's content, layered, and glass panes.
+     *
+     * @see <a href="https://help.eclipse.org/latest/rtopic/org.eclipse.platform.doc.isv/reference/api/org/eclipse/swt/awt/SWT_AWT.html">SWT_AWT API documentation</a>
+     * @see <a href="https://www.eclipse.org/articles/Article-Swing-SWT-Integration/">Swing/SWT Integration</a>
+     */
+    private static final class SwingRootPaneContainer extends Panel implements RootPaneContainer {
+        private final JRootPane rootPane = new JRootPane();
+
+        private SwingRootPaneContainer(JComponent content) {
+            super(new BorderLayout());
+            // JApplet also made its root pane opaque, so Swing painting has an opaque ancestor.
+            rootPane.setOpaque(true);
+            rootPane.getContentPane().add(content, BorderLayout.CENTER);
+            add(rootPane, BorderLayout.CENTER);
+        }
+
+        /**
+         * Preserves the existing workaround that avoids SWT/AWT input-context deadlocks.
+         */
+        @Override
+        public InputContext getInputContext() {
+            return null;
+        }
+
+        /**
+         * Avoids the unnecessary heavyweight background clear, as JApplet did.
+         */
+        @Override
+        public void update(Graphics graphics) {
+            paint(graphics);
+        }
+
+        @Override
+        public JRootPane getRootPane() {
+            return rootPane;
+        }
+
+        @Override
+        public void setContentPane(Container contentPane) {
+            rootPane.setContentPane(contentPane);
+        }
+
+        @Override
+        public Container getContentPane() {
+            return rootPane.getContentPane();
+        }
+
+        @Override
+        public void setLayeredPane(JLayeredPane layeredPane) {
+            rootPane.setLayeredPane(layeredPane);
+        }
+
+        @Override
+        public JLayeredPane getLayeredPane() {
+            return rootPane.getLayeredPane();
+        }
+
+        @Override
+        public void setGlassPane(Component glassPane) {
+            rootPane.setGlassPane(glassPane);
+        }
+
+        @Override
+        public Component getGlassPane() {
+            return rootPane.getGlassPane();
+        }
     }
 }
