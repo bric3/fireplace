@@ -20,6 +20,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
+import javax.swing.JComponent;
+import javax.swing.KeyStroke;
 import javax.swing.JPanel;
 import javax.swing.JTextField;
 import java.awt.Component;
@@ -30,13 +32,19 @@ import java.awt.EventQueue;
 import java.awt.Frame;
 import java.awt.KeyEventDispatcher;
 import java.awt.KeyboardFocusManager;
+import java.awt.Toolkit;
+import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BooleanSupplier;
+import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -187,13 +195,269 @@ class EmbeddingCompositeUiTest {
         assertThat(focusManager.removedDispatchers).contains(dispatcher);
     }
 
+    @Test
+    void usesTheDefaultFocusPolicyAndMovesFocusToTheSelectedSwtControl() throws InterruptedException {
+        var beforeSwing = new Text(shell, SWT.NONE);
+        var embedding = new EmbeddingComposite(shell);
+        var afterSwing = new Text(shell, SWT.NONE);
+        shell.setTabList(new org.eclipse.swt.widgets.Control[]{beforeSwing, embedding, afterSwing});
+        embedding.addTraverseListener(event -> {
+            if (event.detail == SWT.TRAVERSE_TAB_NEXT) {
+                afterSwing.setFocus();
+                event.doit = false;
+            } else if (event.detail == SWT.TRAVERSE_TAB_PREVIOUS) {
+                beforeSwing.setFocus();
+                event.doit = false;
+            }
+        });
+
+        var first = new AtomicReference<Component>();
+        var last = new AtomicReference<Component>();
+        embedding.setFocusTraversalEnabled(true);
+        embedding.init(() -> {
+            var mainPanel = new JPanel();
+            mainPanel.setFocusable(true);
+            var searchField = new JTextField();
+            var flamegraph = new JPanel();
+            flamegraph.setFocusable(true);
+            var root = new JPanel();
+            root.add(mainPanel);
+            root.add(searchField);
+            root.add(flamegraph);
+            first.set(mainPanel);
+            last.set(flamegraph);
+            return root;
+        });
+        openShell();
+
+        var frame = SWT_AWT.getFrame(embedding);
+        assertSoftly(softly -> {
+            softly.assertThat(SWT_AWTBridge.computeInEDT(
+                    () -> frame.getFocusTraversalPolicy().getFirstComponent(frame)
+            )).isSameAs(first.get());
+            softly.assertThat(SWT_AWTBridge.computeInEDT(
+                    () -> frame.getFocusTraversalPolicy().getLastComponent(frame)
+            )).isSameAs(last.get());
+        });
+
+        assertThat(embedding.setFocus()).isTrue();
+        focus(last.get());
+        assertThat(dispatchThroughFocusManager(last.get(), KeyEvent.VK_TAB, 0)).containsExactly(true, true);
+        waitUntil(afterSwing::isFocusControl);
+
+        assertThat(embedding.setFocus()).isTrue();
+        focus(first.get());
+        assertThat(dispatchThroughFocusManager(first.get(), KeyEvent.VK_TAB, KeyEvent.SHIFT_DOWN_MASK))
+                .containsExactly(true, true);
+        waitUntil(beforeSwing::isFocusControl);
+    }
+
+    @Test
+    void ignoresAQueuedTraversalAfterDisposal() throws InterruptedException {
+        var traversals = new AtomicInteger();
+        var embedding = new EmbeddingComposite(shell);
+        embedding.addTraverseListener(event -> traversals.incrementAndGet());
+        var boundary = new AtomicReference<Component>();
+        embedding.setFocusTraversalEnabled(true);
+        embedding.init(() -> {
+            var component = new JPanel();
+            component.setFocusable(true);
+            boundary.set(component);
+            return component;
+        });
+        setBoundaryPolicy(embedding, boundary.get(), boundary.get());
+
+        var blockerEntered = new CountDownLatch(1);
+        var releaseBlocker = new CountDownLatch(1);
+        SWT_AWTBridge.invokeSwtAwayFromAwt(display, () -> {
+            blockerEntered.countDown();
+            try {
+                releaseBlocker.await();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        });
+
+        try {
+            assertThat(blockerEntered.await(5, TimeUnit.SECONDS)).isTrue();
+            assertThat(dispatchTab(traversalDispatcher(), boundary.get(), 0)).containsExactly(true, true);
+            embedding.dispose();
+        } finally {
+            releaseBlocker.countDown();
+        }
+
+        var sideQueueDrained = new CountDownLatch(1);
+        SWT_AWTBridge.invokeSwtAwayFromAwt(display, sideQueueDrained::countDown);
+        assertThat(sideQueueDrained.await(5, TimeUnit.SECONDS)).isTrue();
+        while (display.readAndDispatch()) {
+            // Drain the traversal callback queued after the composite was disposed.
+        }
+        assertThat(traversals).hasValue(0);
+    }
+
+    @Test
+    void scopesTraversalAndCleanupToEachEmbeddedFrame() {
+        var firstEmbedding = new EmbeddingComposite(shell);
+        var firstBoundary = new JPanel();
+        firstBoundary.setFocusable(true);
+        firstEmbedding.setFocusTraversalEnabled(true);
+        firstEmbedding.init(() -> firstBoundary);
+        setBoundaryPolicy(firstEmbedding, firstBoundary, firstBoundary);
+        var firstDispatcher = traversalDispatcher();
+
+        var secondEmbedding = new EmbeddingComposite(shell);
+        var secondBoundary = new JPanel();
+        secondBoundary.setFocusable(true);
+        secondEmbedding.setFocusTraversalEnabled(true);
+        secondEmbedding.init(() -> secondBoundary);
+        setBoundaryPolicy(secondEmbedding, secondBoundary, secondBoundary);
+        var secondDispatcher = traversalDispatchers().get(1);
+
+        assertThat(dispatchTab(firstDispatcher, secondBoundary, 0)).containsExactly(false, false);
+        assertThat(dispatchTab(secondDispatcher, secondBoundary, 0)).containsExactly(true, true);
+
+        firstEmbedding.dispose();
+        assertSoftly(softly -> {
+            softly.assertThat(focusManager.removedDispatchers).contains(firstDispatcher);
+            softly.assertThat(focusManager.removedDispatchers).doesNotContain(secondDispatcher);
+        });
+        assertThat(dispatchTab(secondDispatcher, secondBoundary, 0)).containsExactly(true, true);
+
+        secondEmbedding.dispose();
+        assertThat(focusManager.removedDispatchers).contains(secondDispatcher);
+    }
+
+    @Test
+    void leavesJmcStyleKeyListenersAloneWhenTraversalIsDisabled() throws InterruptedException {
+        var tabPresses = new AtomicInteger();
+        var component = new JPanel();
+        component.setFocusable(true);
+        component.setFocusTraversalKeysEnabled(false);
+        component.addKeyListener(new KeyAdapter() {
+            @Override
+            public void keyPressed(KeyEvent event) {
+                if (event.getKeyCode() == KeyEvent.VK_TAB) {
+                    tabPresses.incrementAndGet();
+                }
+            }
+        });
+        var embedding = new EmbeddingComposite(shell);
+        embedding.init(() -> component);
+        openShell();
+        focus(component);
+
+        var dispatch = dispatchThroughFocusManager(component, KeyEvent.VK_TAB, 0);
+
+        assertSoftly(softly -> {
+            softly.assertThat(traversalDispatchers()).isEmpty();
+            softly.assertThat(dispatch).containsExactly(true, false);
+            softly.assertThat(tabPresses).hasValue(1);
+        });
+    }
+
+    @Test
+    void supportsWindowLevelSwingShortcuts() throws InterruptedException {
+        var shortcutInvocations = new AtomicInteger();
+        var focusedComponent = new AtomicReference<JTextField>();
+        var embedding = new EmbeddingComposite(shell);
+        embedding.init(() -> {
+            var root = new JPanel();
+            var textField = new JTextField();
+            root.add(textField);
+            root.registerKeyboardAction(
+                    event -> shortcutInvocations.incrementAndGet(),
+                    KeyStroke.getKeyStroke(
+                            KeyEvent.VK_Q,
+                            Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx()
+                    ),
+                    JComponent.WHEN_IN_FOCUSED_WINDOW
+            );
+            focusedComponent.set(textField);
+            return root;
+        });
+        openShell();
+        focus(focusedComponent.get());
+
+        dispatchThroughFocusManager(
+                focusedComponent.get(),
+                KeyEvent.VK_Q,
+                Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx()
+        );
+
+        assertThat(shortcutInvocations).hasValue(1);
+    }
+
     private boolean[] dispatchTab(KeyEventDispatcher dispatcher, Component focusOwner, int modifiers) {
         focusManager.focusOwner = focusOwner;
+        return dispatchFocusedTab(dispatcher, focusOwner, modifiers);
+    }
+
+    private boolean[] dispatchFocusedTab(KeyEventDispatcher dispatcher, Component focusOwner, int modifiers) {
         return SWT_AWTBridge.computeInEDT(() -> {
             var event = new KeyEvent(focusOwner, KeyEvent.KEY_PRESSED, 0, modifiers, KeyEvent.VK_TAB, '\t');
             var dispatched = dispatcher.dispatchKeyEvent(event);
             return new boolean[]{dispatched, event.isConsumed()};
         });
+    }
+
+    private boolean[] dispatchThroughFocusManager(Component focusOwner, int keyCode, int modifiers) {
+        focusManager.focusOwner = null;
+        return SWT_AWTBridge.computeInEDT(() -> {
+            var event = new KeyEvent(
+                    focusOwner,
+                    KeyEvent.KEY_PRESSED,
+                    System.currentTimeMillis(),
+                    modifiers,
+                    keyCode,
+                    KeyEvent.CHAR_UNDEFINED
+            );
+            var dispatched = focusManager.dispatchEvent(event);
+            return new boolean[]{dispatched, event.isConsumed()};
+        });
+    }
+
+    private List<KeyEventDispatcher> traversalDispatchers() {
+        return focusManager.addedDispatchers.stream()
+                           .filter(candidate -> !(candidate instanceof Frame))
+                           .collect(Collectors.toList());
+    }
+
+    private KeyEventDispatcher traversalDispatcher() {
+        return traversalDispatchers().stream().findFirst().orElseThrow();
+    }
+
+    private void setBoundaryPolicy(EmbeddingComposite embedding, Component first, Component last) {
+        var frame = SWT_AWT.getFrame(embedding);
+        SWT_AWTBridge.invokeInEDTAndWait(() -> frame.setFocusTraversalPolicy(new ContainerOrderFocusTraversalPolicy() {
+            @Override
+            public Component getFirstComponent(Container container) {
+                return first;
+            }
+
+            @Override
+            public Component getLastComponent(Container container) {
+                return last;
+            }
+        }));
+    }
+
+    private void openShell() {
+        shell.setSize(600, 300);
+        shell.open();
+        shell.forceActive();
+        while (display.readAndDispatch()) {
+            // Allow both toolkits to realize their native peers.
+        }
+    }
+
+    private void focus(Component component) throws InterruptedException {
+        focusManager.focusOwner = null;
+        SWT_AWTBridge.invokeInEDTAndWait(() -> {
+            if (!component.requestFocusInWindow()) {
+                component.requestFocus();
+            }
+        });
+        waitUntil(() -> SWT_AWTBridge.computeInEDT(component::isFocusOwner));
     }
 
     private void waitUntil(BooleanSupplier condition) throws InterruptedException {
@@ -213,17 +477,19 @@ class EmbeddingCompositeUiTest {
 
         @Override
         public Component getFocusOwner() {
-            return focusOwner;
+            return focusOwner != null ? focusOwner : super.getFocusOwner();
         }
 
         @Override
         public void addKeyEventDispatcher(KeyEventDispatcher dispatcher) {
             addedDispatchers.add(dispatcher);
+            super.addKeyEventDispatcher(dispatcher);
         }
 
         @Override
         public void removeKeyEventDispatcher(KeyEventDispatcher dispatcher) {
             removedDispatchers.add(dispatcher);
+            super.removeKeyEventDispatcher(dispatcher);
         }
     }
 }
