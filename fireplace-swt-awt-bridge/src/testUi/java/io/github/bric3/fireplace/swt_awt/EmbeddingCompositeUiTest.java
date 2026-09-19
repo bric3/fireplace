@@ -38,6 +38,7 @@ import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -334,7 +335,9 @@ class EmbeddingCompositeUiTest {
         var tabPresses = new AtomicInteger();
         var component = new JPanel();
         component.setFocusable(true);
-        component.setFocusTraversalKeysEnabled(false);
+        // JMC lets its KeyListener handle Tab by removing AWT's traversal keys.
+        component.setFocusTraversalKeys(KeyboardFocusManager.FORWARD_TRAVERSAL_KEYS, Set.of());
+        component.setFocusTraversalKeys(KeyboardFocusManager.BACKWARD_TRAVERSAL_KEYS, Set.of());
         component.addKeyListener(new KeyAdapter() {
             @Override
             public void keyPressed(KeyEvent event) {
