@@ -161,25 +161,14 @@ public class EmbeddingComposite extends Composite {
                  * dispatcher is scoped to this Frame and removed above when the composite is disposed.
                  */
                 KeyEventDispatcher traversalDispatcher = event -> {
-                    if (event.getID() != KeyEvent.KEY_PRESSED || event.getKeyCode() != KeyEvent.VK_TAB) {
-                        return false;
-                    }
-
                     var focusManager = KeyboardFocusManager.getCurrentKeyboardFocusManager();
                     var focusOwner = focusManager.getFocusOwner();
-                    if (focusOwner == null || !frame.isAncestorOf(focusOwner)) {
-                        return false;
-                    }
-
-                    var backwards = (event.getModifiersEx() & KeyEvent.SHIFT_DOWN_MASK) != 0;
-                    var policy = frame.getFocusTraversalPolicy();
-                    var boundary = backwards ? policy.getFirstComponent(frame) : policy.getLastComponent(frame);
-                    if (focusOwner != boundary) {
+                    var traversal = swtTraversalDirection(event, focusOwner, frame);
+                    if (traversal == SWT.TRAVERSE_NONE) {
                         return false;
                     }
 
                     event.consume();
-                    var traversal = backwards ? SWT.TRAVERSE_TAB_PREVIOUS : SWT.TRAVERSE_TAB_NEXT;
                     SWT_AWTBridge.invokeSwtAwayFromAwt(display, () -> display.asyncExec(() -> {
                         if (!isDisposed()) {
                             traverse(traversal);
@@ -197,6 +186,24 @@ public class EmbeddingComposite extends Composite {
         setSize(dimension.width, dimension.height);
     }
 
+    static int swtTraversalDirection(KeyEvent event, Component focusOwner, Container focusCycleRoot) {
+        if (event.getID() != KeyEvent.KEY_PRESSED || event.getKeyCode() != KeyEvent.VK_TAB
+                || focusOwner == null || !focusCycleRoot.isAncestorOf(focusOwner)) {
+            return SWT.TRAVERSE_NONE;
+        }
+
+        var backwards = (event.getModifiersEx() & KeyEvent.SHIFT_DOWN_MASK) != 0;
+        var policy = focusCycleRoot.getFocusTraversalPolicy();
+        var boundary = backwards
+                ? policy.getFirstComponent(focusCycleRoot)
+                : policy.getLastComponent(focusCycleRoot);
+        if (focusOwner != boundary) {
+            return SWT.TRAVERSE_NONE;
+        }
+
+        return backwards ? SWT.TRAVERSE_TAB_PREVIOUS : SWT.TRAVERSE_TAB_NEXT;
+    }
+
     /**
      * Replaces the removed {@code JApplet} containment behavior needed by the SWT/AWT bridge.
      * {@link Panel} supplies the heavyweight native peer recommended by {@link SWT_AWT}, unlike a
@@ -205,10 +212,10 @@ public class EmbeddingComposite extends Composite {
      * @see <a href="https://help.eclipse.org/latest/rtopic/org.eclipse.platform.doc.isv/reference/api/org/eclipse/swt/awt/SWT_AWT.html">SWT_AWT API documentation</a>
      * @see <a href="https://www.eclipse.org/articles/Article-Swing-SWT-Integration/">Swing/SWT Integration</a>
      */
-    private static final class SwingRootPaneContainer extends Panel implements RootPaneContainer {
+    static final class SwingRootPaneContainer extends Panel implements RootPaneContainer {
         private final JRootPane rootPane = new JRootPane();
 
-        private SwingRootPaneContainer(JComponent content) {
+        SwingRootPaneContainer(JComponent content) {
             super(new BorderLayout());
             // JApplet also made its root pane opaque, so Swing painting has an opaque ancestor.
             rootPane.setOpaque(true);

@@ -10,6 +10,7 @@
 plugins {
     id("fireplace.published-java-library")
     id("fireplace.local-eclipse-swt-platform")
+    id("fireplace.tests-ui")
 }
 
 description = "SWT-AWT utils that bridge the two toolkits"
