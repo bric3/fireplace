@@ -63,6 +63,7 @@ jobs:
         run: ./gradlew build --stacktrace
 
       - name: Run SWT/AWT UI tests
+        timeout-minutes: 2
         env:
           NO_AT_BRIDGE: 1
         run: >

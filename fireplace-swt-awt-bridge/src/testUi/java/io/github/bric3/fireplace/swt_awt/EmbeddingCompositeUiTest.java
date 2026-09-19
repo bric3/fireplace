@@ -19,6 +19,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 
 import javax.swing.JComponent;
 import javax.swing.KeyStroke;
@@ -51,6 +52,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
 
 @Tag("ui")
+@Timeout(value = 30, unit = TimeUnit.SECONDS, threadMode = Timeout.ThreadMode.SAME_THREAD)
 class EmbeddingCompositeUiTest {
     private KeyboardFocusManager originalFocusManager;
     private RecordingKeyboardFocusManager focusManager;

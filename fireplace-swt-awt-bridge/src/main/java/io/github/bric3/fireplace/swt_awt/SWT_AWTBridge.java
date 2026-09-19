@@ -56,6 +56,11 @@ public abstract class SWT_AWTBridge {
                         completion.complete(task.get());
                     } catch (Throwable t) {
                         completion.completeExceptionally(t);
+                    } finally {
+                        // Completing the future does not itself wake an SWT event loop sleeping on X11.
+                        if (!currentDisplay.isDisposed()) {
+                            currentDisplay.wake();
+                        }
                     }
                 });
                 // poll the result until it is finished
