@@ -22,6 +22,7 @@ import javax.swing.RootPaneContainer;
 import java.awt.BorderLayout;
 import java.awt.Component;
 import java.awt.Container;
+import java.awt.EventQueue;
 import java.awt.Graphics;
 import java.awt.KeyEventDispatcher;
 import java.awt.KeyboardFocusManager;
@@ -121,17 +122,16 @@ public class EmbeddingComposite extends Composite {
         // KeyboardFocusManager keeps global dispatchers until explicitly removed.
         var traversalDispatcherRef = new AtomicReference<KeyEventDispatcher>();
 
-        // SWT_AWT.new_Frame already queues Frame.dispose() when this Composite is disposed.
-        // This EDT barrier lets that finish; removing the AWT peer again corrupts GTK state.
-        addDisposeListener(e -> {
-            SWT_AWTBridge.invokeInEDTAndWait(() -> {
-                var traversalDispatcher = traversalDispatcherRef.get();
-                if (traversalDispatcher != null) {
-                    KeyboardFocusManager.getCurrentKeyboardFocusManager()
-                                        .removeKeyEventDispatcher(traversalDispatcher);
-                }
-            });
-        });
+        // SWT_AWT already queues Frame.dispose(); enqueue only our dispatcher cleanup.
+        // Do not pump SWT events inside disposal: GTK can destroy the embedded socket
+        // before SWT has finished deregistering it.
+        addDisposeListener(e -> EventQueue.invokeLater(() -> {
+            var traversalDispatcher = traversalDispatcherRef.get();
+            if (traversalDispatcher != null) {
+                KeyboardFocusManager.getCurrentKeyboardFocusManager()
+                                    .removeKeyEventDispatcher(traversalDispatcher);
+            }
+        }));
 
         var componentRef = new AtomicReference<JComponent>(null);
         SWT_AWTBridge.invokeInEDTAndWait(() -> {

@@ -42,6 +42,7 @@ import java.awt.event.KeyEvent;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -91,7 +92,10 @@ class EmbeddingCompositeUiTest {
         if (!shell.isDisposed()) {
             shell.dispose();
         }
-        KeyboardFocusManager.setCurrentKeyboardFocusManager(originalFocusManager);
+        // Drain queued disposal/dispatcher cleanup before restoring the global focus manager.
+        SWT_AWTBridge.invokeInEDTAndWait(() ->
+                KeyboardFocusManager.setCurrentKeyboardFocusManager(originalFocusManager)
+        );
     }
 
     @Test
@@ -126,6 +130,29 @@ class EmbeddingCompositeUiTest {
         embedding.dispose();
 
         assertThat(SWT_AWTBridge.computeInEDT(frame::isDisplayable)).isFalse();
+    }
+
+    @Test
+    void disposesWithoutWaitingForTheEdt() throws InterruptedException {
+        var embedding = new EmbeddingComposite(shell);
+        embedding.init(JPanel::new);
+        var edtBlocked = new CountDownLatch(1);
+        var releaseEdt = new CompletableFuture<Void>();
+        EventQueue.invokeLater(() -> {
+            edtBlocked.countDown();
+            // Bound a broken synchronous dispose so it reports a failure, not a deadlock.
+            releaseEdt.completeOnTimeout(null, 5, TimeUnit.SECONDS).join();
+        });
+
+        try {
+            waitUntil(() -> edtBlocked.getCount() == 0);
+            embedding.dispose();
+            assertThat(releaseEdt.isDone())
+                    .as("SWT disposal must return while the EDT is still blocked")
+                    .isFalse();
+        } finally {
+            releaseEdt.complete(null);
+        }
     }
 
     @Test
@@ -207,7 +234,7 @@ class EmbeddingCompositeUiTest {
 
         embedding.dispose();
 
-        assertThat(focusManager.removedDispatchers).contains(dispatcher);
+        assertThat(SWT_AWTBridge.computeInEDT(() -> focusManager.removedDispatchers)).contains(dispatcher);
     }
 
     @Test
@@ -332,6 +359,7 @@ class EmbeddingCompositeUiTest {
         assertThat(dispatchTab(secondDispatcher, secondBoundary, 0)).containsExactly(true, true);
 
         firstEmbedding.dispose();
+        SWT_AWTBridge.invokeInEDTAndWait(() -> {});
         assertSoftly(softly -> {
             softly.assertThat(focusManager.removedDispatchers).contains(firstDispatcher);
             softly.assertThat(focusManager.removedDispatchers).doesNotContain(secondDispatcher);
@@ -339,7 +367,7 @@ class EmbeddingCompositeUiTest {
         assertThat(dispatchTab(secondDispatcher, secondBoundary, 0)).containsExactly(true, true);
 
         secondEmbedding.dispose();
-        assertThat(focusManager.removedDispatchers).contains(secondDispatcher);
+        assertThat(SWT_AWTBridge.computeInEDT(() -> focusManager.removedDispatchers)).contains(secondDispatcher);
     }
 
     @Test
