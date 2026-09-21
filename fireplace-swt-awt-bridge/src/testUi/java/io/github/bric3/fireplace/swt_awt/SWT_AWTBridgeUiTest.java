@@ -17,6 +17,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 
 import java.awt.EventQueue;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -54,6 +55,23 @@ class SWT_AWTBridgeUiTest {
             throw new IllegalStateException("boom");
         })).isInstanceOf(RuntimeException.class)
           .hasRootCauseInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    void keepsTheEdtRunningDuringDisplayDisposal() {
+        var edtContinued = new CompletableFuture<Boolean>();
+        display.disposeExec(() -> {
+            // Disposal owns SWT's device lock. Bound the native sleep so a broken
+            // wake-up cannot prevent the assertion below from reporting the lock cycle.
+            display.timerExec(100, () -> {});
+            SWT_AWTBridge.invokeInEDTAndWait(() ->
+                    EventQueue.invokeLater(() -> edtContinued.complete(EventQueue.isDispatchThread()))
+            );
+            // The EDT must process the next event before SWT releases its disposal lock.
+            assertThat(edtContinued.orTimeout(5, TimeUnit.SECONDS).join()).isTrue();
+        });
+
+        display.dispose();
     }
 
     @Test

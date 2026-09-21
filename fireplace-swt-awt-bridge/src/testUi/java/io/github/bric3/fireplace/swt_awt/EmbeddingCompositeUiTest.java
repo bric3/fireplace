@@ -15,10 +15,13 @@ import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Shell;
 import org.eclipse.swt.widgets.Text;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.Timeout;
 
 import javax.swing.JComponent;
@@ -53,6 +56,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
 
 @Tag("ui")
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @Timeout(value = 30, unit = TimeUnit.SECONDS, threadMode = Timeout.ThreadMode.SAME_THREAD)
 class EmbeddingCompositeUiTest {
     private KeyboardFocusManager originalFocusManager;
@@ -60,13 +64,24 @@ class EmbeddingCompositeUiTest {
     private Display display;
     private Shell shell;
 
+    @BeforeAll
+    void createDisplay() {
+        // GTK/AWT retain native state across tests. Match an RCP application:
+        // one Display for this JVM, with a fresh Shell for each test.
+        display = new Display();
+    }
+
+    @AfterAll
+    void disposeDisplay() {
+        display.dispose();
+    }
+
     @BeforeEach
     void setUp() {
         originalFocusManager = KeyboardFocusManager.getCurrentKeyboardFocusManager();
         focusManager = new RecordingKeyboardFocusManager();
         KeyboardFocusManager.setCurrentKeyboardFocusManager(focusManager);
 
-        display = new Display();
         shell = new Shell(display);
         shell.setLayout(new GridLayout(1, false));
     }
@@ -75,9 +90,6 @@ class EmbeddingCompositeUiTest {
     void tearDown() {
         if (!shell.isDisposed()) {
             shell.dispose();
-        }
-        if (!display.isDisposed()) {
-            display.dispose();
         }
         KeyboardFocusManager.setCurrentKeyboardFocusManager(originalFocusManager);
     }
