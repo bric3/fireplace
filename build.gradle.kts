@@ -7,6 +7,8 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
+import org.gradle.api.logging.configuration.ConsoleOutput
+
 plugins {
     id("com.github.hierynomus.license") version "0.16.1"
     id("fireplace.semver")
@@ -190,6 +192,18 @@ tasks {
             targetFile.writeText(updatedTarget)
 
             logger.lifecycle("Updated ${pomVersions.size} JMC version properties and ${targetVersions.size} target units.")
+            logger.lifecycle("Changes in $jmcRoot:")
+            logger.lifecycle(providers.exec {
+                workingDir(jmcRoot)
+                commandLine(
+                    "git",
+                    "--no-pager",
+                    "diff",
+                    "--no-ext-diff",
+                    "--color=${if (gradle.startParameter.consoleOutput == ConsoleOutput.Plain) "never" else "always"}",
+                )
+            }.standardOutput.asText.get().trimEnd())
+
             logger.warn("Do not commit the local Fireplace or dependency versions in $pomFile or $targetFile.")
             logger.lifecycle(
                 """
