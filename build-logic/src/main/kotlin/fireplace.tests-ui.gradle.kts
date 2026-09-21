@@ -34,10 +34,8 @@ testing {
             targets.configureEach {
                 testTask.configure {
                     description = "Runs tests that require a native desktop UI."
-                    // SWT and AWT keep process-global native state that cannot be safely reinitialized by another test class.
-                    forkEvery = 1
-                    // Print the active test and JUnit timeout dumps even if native code never returns.
-                    testLogging.events("started", "standardOut", "standardError")
+                    // Print JUnit timeout dumps even if native code never returns.
+                    testLogging.showStandardStreams = true
                     useJUnitPlatform {
                         includeTags("ui")
                     }

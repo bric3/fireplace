@@ -67,7 +67,7 @@ class EmbeddingCompositeUiTest {
     @BeforeAll
     void createDisplay() {
         // GTK/AWT retain native state across tests. Match an RCP application:
-        // one Display for this JVM, with a fresh Shell for each test.
+        // one Display for this class, with a fresh Shell for each test.
         display = new Display();
     }
 
