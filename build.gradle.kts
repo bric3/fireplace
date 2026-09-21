@@ -83,19 +83,34 @@ tasks {
     named("licenseFormat") { dependsOn(licenseFormatForProjectFiles) }
 
     val jmcClonePath = providers.gradleProperty("local.jmc.clone.path")
+    val localPublicationTasks = provider { rootProject.getTasksByName("publishToMavenLocal", true) }
 
     register("deployToJmcSources") {
         group = "publishing"
         description = "Publishes Fireplace locally and updates a JMC source checkout"
-        dependsOn(provider { rootProject.getTasksByName("publishToMavenLocal", true) })
+        dependsOn(localPublicationTasks)
 
         doLast {
+            // Infer published projects from their tasks instead of hard-coding module paths.
+            val publicationTasks = localPublicationTasks.get()
+            val publishedRuntimeClasspath = project.configurations.detachedConfiguration(
+                *publicationTasks.map { publicationTask ->
+                    project.dependencies.project(
+                        mapOf(
+                            "path" to publicationTask.project.path,
+                            "configuration" to "runtimeElements",
+                        )
+                    )
+                }.toTypedArray()
+            )
+
             val jmcRoot = jmcClonePath.map { path ->
                 file(path.replaceFirstChar { if (it == '~') System.getProperty("user.home") else it.toString() }).canonicalFile
             }.orNull
                 ?: throw GradleException("Set the JMC clone path with -Plocal.jmc.clone.path=/path/to/jmc")
             if (!jmcRoot.isDirectory) throw GradleException("JMC clone not found: $jmcRoot")
 
+            // Locate JMC files
             val pomFile = jmcRoot.resolve("releng/third-party/pom.xml")
             val targetFile = jmcRoot.resolve("releng/platform-definitions")
                 .listFiles()
@@ -104,23 +119,78 @@ tasks {
                 ?.filter { it.isFile }
                 ?.maxByOrNull { it.name }
                 ?: throw GradleException("No JMC platform target found in $jmcRoot")
-            val mavenVersion = project.version.toString()
-            val bundleVersion = aQute.bnd.version.MavenVersion(mavenVersion).osGiVersion.toString()
 
-            val updatedPom = pomFile.replacingExactly(
-                Regex("""(<fireplace\.version>)[^<]+(</fireplace\.version>)"""),
-                expectedMatches = 1,
-            ) { "${it.groupValues[1]}$mavenVersion${it.groupValues[2]}" }
-            val updatedTarget = targetFile.replacingExactly(
-                Regex("""(<unit id="fireplace-(?:swing|swing-animation|swt-awt-bridge)" version=")[^"]+("/>)"""),
-                expectedMatches = 3,
-            ) { "${it.groupValues[1]}$bundleVersion${it.groupValues[2]}" }
+            // Resolve runtime graph, including external transitive dependencies.
+            val dependencyVersions = publishedRuntimeClasspath.incoming.resolutionResult.allComponents
+                .asSequence()
+                .mapNotNull { component ->
+                    (component.id as? ModuleComponentIdentifier)?.let {
+                        "${it.group}:${it.module}" to it.version
+                    }
+                }
+                .toMap()
+                .toMutableMap()
+            publicationTasks
+                .map { it.project }
+                .distinct()
+                .forEach { publishedProject ->
+                    dependencyVersions["${publishedProject.group}:${publishedProject.name}"] =
+                        publishedProject.version.toString()
+                }
+
+            val pomContent = pomFile.readText()
+            val targetContent = targetFile.readText()
+            // JMC artifact entries map Maven coordinates to version properties and target units.
+            val jmcArtifacts = Regex(
+                """(?s)<artifact>\s*<id>([^:]+):([^:]+):\$\{([^}]+)}</id>(.*?)</artifact>"""
+            ).findAll(pomContent).associateBy {
+                "${it.groupValues[1]}:${it.groupValues[2]}"
+            }
+            val pomVersions = mutableMapOf<String, String>()
+            val targetVersions = mutableMapOf<String, String>()
+            dependencyVersions.forEach { (coordinate, dependencyVersion) ->
+                val artifact = jmcArtifacts[coordinate]
+                if (artifact == null) {
+                    logger.warn("Dependency $coordinate:$dependencyVersion is not declared in $pomFile")
+                    return@forEach
+                }
+                val propertyName = artifact.groupValues[3]
+                val unitId = Regex("""<Bundle-SymbolicName>([^<]+)</Bundle-SymbolicName>""")
+                    .find(artifact.groupValues[4])
+                    ?.groupValues
+                    ?.get(1)
+                    ?: artifact.groupValues[2]
+                pomVersions[propertyName] = dependencyVersion
+                if (Regex("""<unit id="${Regex.escape(unitId)}" version="[^"]+"/>""")
+                        .containsMatchIn(targetContent)
+                ) {
+                    targetVersions[unitId] =
+                        aQute.bnd.version.MavenVersion(dependencyVersion).osGiVersion.toString()
+                } else {
+                    logger.warn("Dependency $coordinate:$dependencyVersion has no unit $unitId in $targetFile")
+                }
+            }
+
+            val updatedPom = pomContent.replaceExactly(
+                source = pomFile,
+                pattern = Regex(
+                    """(<(${pomVersions.keys.joinToString("|") { Regex.escape(it) }})>)[^<]+(</\2>)"""
+                ),
+                expectedMatches = pomVersions.size,
+            ) { "${it.groupValues[1]}${pomVersions.getValue(it.groupValues[2])}${it.groupValues[3]}" }
+            val updatedTarget = targetContent.replaceExactly(
+                source = targetFile,
+                pattern = Regex(
+                    """(<unit id="(${targetVersions.keys.joinToString("|") { Regex.escape(it) }})" version=")[^"]+("/>)"""
+                ),
+                expectedMatches = targetVersions.size,
+            ) { "${it.groupValues[1]}${targetVersions.getValue(it.groupValues[2])}${it.groupValues[3]}" }
 
             pomFile.writeText(updatedPom)
             targetFile.writeText(updatedTarget)
 
-            logger.lifecycle("Updated JMC to Fireplace $mavenVersion (bundle $bundleVersion).")
-            logger.warn("Do not commit the local Fireplace versions in $pomFile or $targetFile.")
+            logger.lifecycle("Updated ${pomVersions.size} JMC version properties and ${targetVersions.size} target units.")
+            logger.warn("Do not commit the local Fireplace or dependency versions in $pomFile or $targetFile.")
             logger.lifecycle(
                 """
             Next, from $jmcRoot:
@@ -133,18 +203,15 @@ tasks {
     }
 }
 
-fun File.replacingExactly(
+fun String.replaceExactly(
+    source: File,
     pattern: Regex,
     expectedMatches: Int,
     replacement: (MatchResult) -> CharSequence,
 ): String {
-    if (!isFile) throw GradleException("File not found: $this")
-
-    val content = readText()
-    val matchCount = pattern.findAll(content).count()
+    val matchCount = pattern.findAll(this).count()
     if (matchCount != expectedMatches) {
-        throw GradleException("Expected $expectedMatches matches in $this, found $matchCount")
+        throw GradleException("Expected $expectedMatches matches in $source, found $matchCount")
     }
-    return pattern.replace(content, replacement)
+    return pattern.replace(this, replacement)
 }
-
