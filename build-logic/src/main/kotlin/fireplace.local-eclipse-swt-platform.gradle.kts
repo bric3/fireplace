@@ -14,7 +14,9 @@ plugins {
 }
 
 dependencies {
-    implementation(libs.bundles.eclipse.swt)
+    // Eclipse/JMC provides SWT at runtime; local tests still need the platform jars.
+    compileOnly(libs.bundles.eclipse.swt)
+    testImplementation(libs.bundles.eclipse.swt)
 }
 
 // Configure the right SWT dependency for the current platform

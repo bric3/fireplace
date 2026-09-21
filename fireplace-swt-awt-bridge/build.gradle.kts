@@ -14,7 +14,3 @@ plugins {
 }
 
 description = "SWT-AWT utils that bridge the two toolkits"
-
-dependencies {
-    implementation(libs.eclipse.swt) // don't use api, the consuming platform will provide it
-}
