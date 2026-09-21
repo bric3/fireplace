@@ -17,12 +17,6 @@ allprojects {
     group = "io.github.bric3.fireplace"
 }
 
-tasks.register("v") {
-    doLast {
-        println(project.version.toString())
-    }
-}
-
 dependencies {
     // published modules
     nmcpAggregation(projects.fireplaceSwing)
@@ -57,19 +51,35 @@ license {
         )
     )
 }
-tasks.register("licenseCheckForProjectFiles", com.hierynomus.gradle.license.tasks.LicenseCheck::class) {
-    source = fileTree(project.projectDir) {
-        include("**/*.kt", "**/*.kts")
-        include("**/*.toml")
-        exclude("**/buildSrc/build/generated-sources/**")
+
+tasks {
+    register("v") {
+        description = "Print version"
+        doLast {
+            println(project.version.toString())
+        }
     }
+
+    val licenseCheckForProjectFiles =
+        register("licenseCheckForProjectFiles", com.hierynomus.gradle.license.tasks.LicenseCheck::class) {
+            description = "Check licenses on Kotlin and TOML files"
+            source = fileTree(project.projectDir) {
+                include("**/*.kt", "**/*.kts")
+                include("**/*.toml")
+                exclude("**/buildSrc/build/generated-sources/**")
+            }
+        }
+    named("license") { dependsOn(licenseCheckForProjectFiles) }
+
+    val licenseFormatForProjectFiles =
+        register("licenseFormatForProjectFiles", com.hierynomus.gradle.license.tasks.LicenseFormat::class) {
+            description = "Apply licences on Kotlin and TOML files"
+            source = fileTree(project.projectDir) {
+                include("**/*.kt", "**/*.kts")
+                include("**/*.toml")
+                exclude("**/buildSrc/build/generated-sources/**")
+            }
+        }
+    named("licenseFormat") { dependsOn(licenseFormatForProjectFiles) }
 }
-tasks["license"].dependsOn("licenseCheckForProjectFiles")
-tasks.register("licenseFormatForProjectFiles", com.hierynomus.gradle.license.tasks.LicenseFormat::class) {
-    source = fileTree(project.projectDir) {
-        include("**/*.kt", "**/*.kts")
-        include("**/*.toml")
-        exclude("**/buildSrc/build/generated-sources/**")
-    }
-}
-tasks["licenseFormat"].dependsOn("licenseFormatForProjectFiles")
+
