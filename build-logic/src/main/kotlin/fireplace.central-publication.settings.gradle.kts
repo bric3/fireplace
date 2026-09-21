@@ -7,12 +7,9 @@ plugins {
     id("com.javiersc.semver") apply false
 }
 
-// Note: nmcpSettings accessor is not available in the settings convention plugin
-// use direct API access instead
-// see 
-configure<nmcp.internal.DefaultNmcpSettings>() {
+nmcpSettings {
     centralPortal {
-        // Can't use roviders.environmentVariable("...") here due to bug with gradle configuration cache issue
+        // Can't use providers.environmentVariable("...") here due to bug with gradle configuration cache issue
         // See https://github.com/gradle/gradle/issues/36229
         // Workaround use a provider calling System.getenv(...) instead
         username = providers.gradleProperty("mavenCentralUsername")
