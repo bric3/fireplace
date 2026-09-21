@@ -80,6 +80,8 @@ public abstract class SWT_AWTBridge {
                     return completion.get();
                 } finally {
                     if (!currentDisplay.isDisposed()) {
+                        // A negative delay cancels this runnable, so polling ends with this call.
+                        // https://help.eclipse.org/latest/rtopic/org.eclipse.platform.doc.isv/reference/api/org/eclipse/swt/widgets/Display.html#timerExec(int,java.lang.Runnable)
                         currentDisplay.timerExec(-1, completionPoll);
                     }
                 }
