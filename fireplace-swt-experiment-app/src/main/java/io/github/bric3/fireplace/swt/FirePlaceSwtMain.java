@@ -31,9 +31,11 @@ import org.eclipse.swt.layout.FillLayout;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.widgets.Composite;
+import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Shell;
+import org.eclipse.swt.widgets.Text;
 import org.openjdk.jmc.common.item.IItem;
 import org.openjdk.jmc.common.item.IItemCollection;
 import org.openjdk.jmc.common.item.IItemIterable;
@@ -48,6 +50,8 @@ import org.openjdk.jmc.flightrecorder.stacktrace.tree.Node;
 import org.openjdk.jmc.flightrecorder.stacktrace.tree.StacktraceTreeModel;
 
 import javax.swing.*;
+import java.awt.*;
+import java.awt.event.KeyEvent;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
@@ -104,7 +108,7 @@ public class FirePlaceSwtMain {
         Colors.setDarkMode(!Colors.isBright(shellBgAwtColor));
 
         shell.setText("FirePlace SWT Experiment");
-        shell.addDisposeListener(event -> System.out.println("shell disposed"));
+        shell.addDisposeListener(_ -> System.out.println("shell disposed"));
         shell.addShellListener(new ShellAdapter() {
             @Override
             public void shellClosed(ShellEvent e) {
@@ -125,8 +129,13 @@ public class FirePlaceSwtMain {
         label.setText(" ");
         label.pack();
 
+        var beforeSwing = new Text(parentComposite, SWT.BORDER);
+        beforeSwing.setLayoutData(new GridData(SWT.FILL, SWT.TOP, true, false));
+        beforeSwing.setMessage("SWT focus target before Swing");
 
         var embeddingComposite = new EmbeddingComposite(parentComposite, SWT.NONE);
+        // Exercise optional Tab/Shift+Tab traversal between the Swing and SWT controls.
+        embeddingComposite.setFocusTraversalEnabled(true);
 
         var tooltip = new StyledToolTip(embeddingComposite, org.eclipse.jface.window.ToolTip.NO_RECREATE, true);
         {
@@ -140,7 +149,7 @@ public class FirePlaceSwtMain {
 
             embeddingComposite.addListener(
                     SWT.MouseExit,
-                    event -> shell.getDisplay().timerExec(300, tooltip::hide)
+                    _ -> shell.getDisplay().timerExec(300, tooltip::hide)
             );
         }
 
@@ -148,7 +157,37 @@ public class FirePlaceSwtMain {
             flamegraph = createFlameGraph(embeddingComposite, tooltip);
             new ZoomAnimation().install(flamegraph);
             flamegraph.component.setBackground(shellBgAwtColor);
+            flamegraph.component.registerKeyboardAction(
+                    _ -> SWT_AWTBridge.invokeSwtAwayFromAwt(display, () -> display.asyncExec(() -> {
+                        if (!shell.isDisposed()) {
+                            shell.close();
+                        }
+                    })),
+                    KeyStroke.getKeyStroke(KeyEvent.VK_Q, Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx()),
+                    JComponent.WHEN_IN_FOCUSED_WINDOW
+            );
             return flamegraph.component;
+        });
+
+        var afterSwing = new Text(parentComposite, SWT.BORDER);
+        afterSwing.setLayoutData(new GridData(SWT.FILL, SWT.TOP, true, false));
+        afterSwing.setMessage("SWT focus target after Swing");
+        parentComposite.setTabList(new Control[]{beforeSwing, embeddingComposite, afterSwing});
+
+        /*
+         * setFocusTraversalEnabled(true) detects when focus leaves the Swing focus cycle and asks
+         * SWT to traverse. This listener then replaces SWT's default target with an application-specific
+         * one, modeling how JMC selects an RCP view. It already runs on the SWT thread, so no SWT/AWT
+         * thread hand-off is needed here. Setting doit to false prevents the default traversal afterward.
+         */
+        embeddingComposite.addTraverseListener(event -> {
+            if (event.detail == SWT.TRAVERSE_TAB_NEXT) {
+                event.doit = false;
+                afterSwing.setFocus();
+            } else if (event.detail == SWT.TRAVERSE_TAB_PREVIOUS) {
+                event.doit = false;
+                beforeSwing.setFocus();
+            }
         });
 
         loadJfr(args, label);
@@ -318,8 +357,8 @@ public class FirePlaceSwtMain {
 
         var invertedStacks = false;
         return new StacktraceTreeModel(allocCollection,
-                methodFrameSeparator,
-                invertedStacks
+                                       methodFrameSeparator,
+                                       invertedStacks
         );
     }
 

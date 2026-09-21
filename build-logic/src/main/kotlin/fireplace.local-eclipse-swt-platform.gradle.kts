@@ -7,14 +7,16 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
-import org.gradle.nativeplatform.platform.internal.DefaultNativePlatform
+import org.gradle.process.JavaForkOptions
 
 plugins {
     `java-library`
 }
 
 dependencies {
-    implementation(libs.bundles.eclipse.swt)
+    // Eclipse/JMC provides SWT at runtime; local tests still need the platform jars.
+    compileOnly(libs.bundles.eclipse.swt)
+    testImplementation(libs.bundles.eclipse.swt)
 }
 
 // Configure the right SWT dependency for the current platform
@@ -22,7 +24,7 @@ dependencies {
 // to configure the dependency substitution.
 val os: OperatingSystem = org.gradle.nativeplatform.platform.internal.DefaultNativePlatform.getCurrentOperatingSystem()
 val arch: String = providers.systemProperty("os.arch").get()
-configurations.all {
+configurations.configureEach {
     resolutionStrategy {
         dependencySubstitution {
             // Available SWT packages https://repo1.maven.org/maven2/org/eclipse/platform/
@@ -57,8 +59,9 @@ configurations.all {
     }
 }
 
-tasks.withType<JavaExec> {
-    if (DefaultNativePlatform.getCurrentOperatingSystem().isMacOsX) {
+tasks.configureEach {
+    // Covers at least JavaExec, Test tasks.
+    if (this is JavaForkOptions && os.isMacOsX) {
         doFirst {
             logger.lifecycle("Added JVM argument -XstartOnFirstThread")
         }

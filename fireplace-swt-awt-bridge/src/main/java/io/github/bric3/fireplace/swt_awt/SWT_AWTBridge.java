@@ -58,14 +58,33 @@ public abstract class SWT_AWTBridge {
                         completion.completeExceptionally(t);
                     }
                 });
-                // poll the result until it is finished
-                while (!completion.isDone()) {
-                    if (!currentDisplay.readAndDispatch()) {
-                        currentDisplay.sleep();
+
+                // Wake the native event loop from SWT itself: Display.wake() on the EDT
+                // takes Device.class, which SWT holds while disposing and waiting for AWT.
+                // A timer also avoids losing a wake-up just before entering sleep().
+                var completionPoll = new Runnable() {
+                    @Override
+                    public void run() {
+                        if (!completion.isDone()) {
+                            currentDisplay.timerExec(10, this);
+                        }
+                    }
+                };
+                currentDisplay.timerExec(10, completionPoll);
+                try {
+                    while (!completion.isDone()) {
+                        if (!currentDisplay.readAndDispatch()) {
+                            currentDisplay.sleep();
+                        }
+                    }
+                    return completion.get();
+                } finally {
+                    if (!currentDisplay.isDisposed()) {
+                        // A negative delay cancels this runnable, so polling ends with this call.
+                        // https://help.eclipse.org/latest/rtopic/org.eclipse.platform.doc.isv/reference/api/org/eclipse/swt/widgets/Display.html#timerExec(int,java.lang.Runnable)
+                        currentDisplay.timerExec(-1, completionPoll);
                     }
                 }
-
-                return completion.get();
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }

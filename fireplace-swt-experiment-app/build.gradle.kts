@@ -19,6 +19,7 @@ dependencies {
     implementation(projects.fireplaceSwing)
     implementation(projects.fireplaceSwingAnimation)
     implementation(libs.flightrecorder)
+    runtimeOnly(libs.bundles.eclipse.swt)
 }
 
 application {
