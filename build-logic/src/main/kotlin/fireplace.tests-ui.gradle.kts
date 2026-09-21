@@ -34,6 +34,8 @@ testing {
             targets.configureEach {
                 testTask.configure {
                     description = "Runs tests that require a native desktop UI."
+                    // SWT and AWT keep process-global native state that cannot be safely reinitialized by another test class.
+                    forkEvery = 1
                     useJUnitPlatform {
                         includeTags("ui")
                     }
