@@ -81,5 +81,70 @@ tasks {
             }
         }
     named("licenseFormat") { dependsOn(licenseFormatForProjectFiles) }
+
+    val jmcClonePath = providers.gradleProperty("local.jmc.clone.path")
+
+    register("deployToJmcSources") {
+        group = "publishing"
+        description = "Publishes Fireplace locally and updates a JMC source checkout"
+        dependsOn(provider { rootProject.getTasksByName("publishToMavenLocal", true) })
+
+        doLast {
+            val jmcRoot = jmcClonePath.map { path ->
+                file(path.replaceFirstChar { if (it == '~') System.getProperty("user.home") else it.toString() }).canonicalFile
+            }.orNull
+                ?: throw GradleException("Set the JMC clone path with -Plocal.jmc.clone.path=/path/to/jmc")
+            if (!jmcRoot.isDirectory) throw GradleException("JMC clone not found: $jmcRoot")
+
+            val pomFile = jmcRoot.resolve("releng/third-party/pom.xml")
+            val targetFile = jmcRoot.resolve("releng/platform-definitions")
+                .listFiles()
+                ?.filter { it.isDirectory && it.name.matches(Regex("""platform-definition-\d{4}-\d{2}""")) }
+                ?.map { it.resolve("${it.name}.target") }
+                ?.filter { it.isFile }
+                ?.maxByOrNull { it.name }
+                ?: throw GradleException("No JMC platform target found in $jmcRoot")
+            val mavenVersion = project.version.toString()
+            val bundleVersion = aQute.bnd.version.MavenVersion(mavenVersion).osGiVersion.toString()
+
+            val updatedPom = pomFile.replacingExactly(
+                Regex("""(<fireplace\.version>)[^<]+(</fireplace\.version>)"""),
+                expectedMatches = 1,
+            ) { "${it.groupValues[1]}$mavenVersion${it.groupValues[2]}" }
+            val updatedTarget = targetFile.replacingExactly(
+                Regex("""(<unit id="fireplace-(?:swing|swing-animation|swt-awt-bridge)" version=")[^"]+("/>)"""),
+                expectedMatches = 3,
+            ) { "${it.groupValues[1]}$bundleVersion${it.groupValues[2]}" }
+
+            pomFile.writeText(updatedPom)
+            targetFile.writeText(updatedTarget)
+
+            logger.lifecycle("Updated JMC to Fireplace $mavenVersion (bundle $bundleVersion).")
+            logger.warn("Do not commit the local Fireplace versions in $pomFile or $targetFile.")
+            logger.lifecycle(
+                """
+            Next, from $jmcRoot:
+              mvn clean --file releng/third-party/pom.xml
+              ./build.sh --packageJmc
+              ./build.sh --run
+            """.trimIndent()
+            )
+        }
+    }
+}
+
+fun File.replacingExactly(
+    pattern: Regex,
+    expectedMatches: Int,
+    replacement: (MatchResult) -> CharSequence,
+): String {
+    if (!isFile) throw GradleException("File not found: $this")
+
+    val content = readText()
+    val matchCount = pattern.findAll(content).count()
+    if (matchCount != expectedMatches) {
+        throw GradleException("Expected $expectedMatches matches in $this, found $matchCount")
+    }
+    return pattern.replace(content, replacement)
 }
 
