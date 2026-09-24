@@ -23,6 +23,8 @@ import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.Timeout;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import javax.swing.JComponent;
 import javax.swing.KeyStroke;
@@ -237,8 +239,9 @@ class EmbeddingCompositeUiTest {
         assertThat(SWT_AWTBridge.computeInEDT(() -> focusManager.removedDispatchers)).contains(dispatcher);
     }
 
-    @Test
-    void usesTheDefaultFocusPolicyAndMovesFocusToTheSelectedSwtControl() throws InterruptedException {
+    @ParameterizedTest
+    @ValueSource(booleans = {false, true})
+    void usesTheDefaultFocusPolicyAndMovesFocusToTheSelectedSwtControl(boolean backwards) throws InterruptedException {
         var beforeSwing = new Text(shell, SWT.NONE);
         var embedding = new EmbeddingComposite(shell);
         var afterSwing = new Text(shell, SWT.NONE);
@@ -282,16 +285,15 @@ class EmbeddingCompositeUiTest {
             )).isSameAs(last.get());
         });
 
+        // Each direction starts in a fresh shell, independently of XEmbed's focus restoration on re-entry.
         assertThat(embedding.setFocus()).isTrue();
-        focus(last.get());
-        assertThat(dispatchThroughFocusManager(last.get(), KeyEvent.VK_TAB, 0)).containsExactly(true, true);
-        waitUntil(afterSwing::isFocusControl);
-
-        assertThat(embedding.setFocus()).isTrue();
-        focus(first.get());
-        assertThat(dispatchThroughFocusManager(first.get(), KeyEvent.VK_TAB, KeyEvent.SHIFT_DOWN_MASK))
+        var boundary = backwards ? first.get() : last.get();
+        var destination = backwards ? beforeSwing : afterSwing;
+        focus(boundary);
+        assertThat(dispatchThroughFocusManager(boundary, KeyEvent.VK_TAB,
+                                              backwards ? KeyEvent.SHIFT_DOWN_MASK : 0))
                 .containsExactly(true, true);
-        waitUntil(beforeSwing::isFocusControl);
+        waitUntil(destination::isFocusControl);
     }
 
     @Test
