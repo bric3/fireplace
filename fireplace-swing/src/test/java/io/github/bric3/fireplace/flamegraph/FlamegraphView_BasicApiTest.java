@@ -20,6 +20,7 @@ import org.junit.jupiter.api.Test;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.MouseEvent;
+import java.util.ArrayList;
 import java.util.Set;
 import java.util.function.Supplier;
 
@@ -64,7 +65,6 @@ class FlamegraphView_BasicApiTest {
         Supplier<Color> shade = () -> new Color(100, 100, 100, 100);
         fg.setMinimapShadeColorSupplier(shade);
         assertThat(fg.getMinimapShadeColorSupplier()).isSameAs(shade);
-        assertThat(fg.getMinimapShadeColorSupplier().get()).isEqualTo(shade.get());
         fg.putClientProperty(FlamegraphView.SHOW_STATS, Boolean.TRUE);
         assertThat(fg.<Boolean>getClientProperty(FlamegraphView.SHOW_STATS)).isTrue();
         fg.putClientProperty(FlamegraphView.SHOW_STATS, null);
@@ -84,12 +84,6 @@ class FlamegraphView_BasicApiTest {
     @Nested
     @DisplayName("Constructor")
     class ConstructorTests {
-
-        @Test
-        void constructor_creates_component_hierarchy() {
-            assertThat(fg.component).isNotNull();
-            assertThat(fg.component).isInstanceOf(JPanel.class);
-        }
 
         @Test
         void from_with_valid_component_returns_flamegraph_view() {
@@ -112,43 +106,14 @@ class FlamegraphView_BasicApiTest {
     class ModeTests {
 
         @Test
-        void getMode_default_is_icicle_graph() {
+        void mode_defaults_to_icicle_and_can_switch_both_ways() {
             assertThat(fg.getMode()).isEqualTo(Mode.ICICLEGRAPH);
-        }
-
-        @Test
-        void setMode_to_flamegraph_changes_mode() {
-            fg.setMode(Mode.FLAMEGRAPH);
-
-            assertThat(fg.getMode()).isEqualTo(Mode.FLAMEGRAPH);
-        }
-
-        @Test
-        void setMode_to_iciclegraph_changes_mode() {
-            fg.setMode(Mode.FLAMEGRAPH);
-            fg.setMode(Mode.ICICLEGRAPH);
-
-            assertThat(fg.getMode()).isEqualTo(Mode.ICICLEGRAPH);
-        }
-
-        @Test
-        void setMode_same_mode_does_not_throw() {
-            fg.setMode(Mode.ICICLEGRAPH);
-            fg.setMode(Mode.ICICLEGRAPH);
-
-            assertThat(fg.getMode()).isEqualTo(Mode.ICICLEGRAPH);
-        }
-
-        @Test
-        void setMode_multiple_toggles() {
             fg.setMode(Mode.FLAMEGRAPH);
             assertThat(fg.getMode()).isEqualTo(Mode.FLAMEGRAPH);
-
-            fg.setMode(Mode.ICICLEGRAPH);
-            assertThat(fg.getMode()).isEqualTo(Mode.ICICLEGRAPH);
-
             fg.setMode(Mode.FLAMEGRAPH);
             assertThat(fg.getMode()).isEqualTo(Mode.FLAMEGRAPH);
+            fg.setMode(Mode.ICICLEGRAPH);
+            assertThat(fg.getMode()).isEqualTo(Mode.ICICLEGRAPH);
         }
     }
 
@@ -236,29 +201,6 @@ class FlamegraphView_BasicApiTest {
     }
 
     @Nested
-    @DisplayName("Mode Enum")
-    class ModeEnumTests {
-
-        @Test
-        void mode_enum_has_two_values() {
-            assertThat(Mode.values()).containsExactly(Mode.FLAMEGRAPH, Mode.ICICLEGRAPH);
-        }
-    }
-
-    @Nested
-    @DisplayName("FrameClickAction Enum")
-    class FrameClickActionEnumTests {
-
-        @Test
-        void frame_click_action_enum_has_two_values() {
-            assertThat(FrameClickAction.values()).containsExactly(
-                    FrameClickAction.EXPAND_FRAME,
-                    FrameClickAction.FOCUS_FRAME
-            );
-        }
-    }
-
-    @Nested
     @DisplayName("Constants")
     class ConstantsTests {
 
@@ -273,17 +215,19 @@ class FlamegraphView_BasicApiTest {
     class ComponentHierarchyTests {
 
         @Test
-        void component_has_children() {
-            assertThat(fg.component.getComponentCount()).isGreaterThan(0);
-        }
-
-        @Test
         void from_with_nested_child_eventually_finds_owner() {
+            var configured = new ArrayList<JComponent>();
             fg.configureCanvas(canvas -> {
-                assertThat(FlamegraphView.<String>from(canvas)).contains(fg);
+                configured.add(canvas);
                 canvas.setBackground(Color.PINK);
             });
-            fg.configureCanvas(canvas -> assertThat(canvas.getBackground()).isEqualTo(Color.PINK));
+
+            assertThat(configured).hasSize(1);
+            var canvas = configured.get(0);
+            assertThat(canvas).isNotSameAs(fg.component);
+            assertThat(SwingUtilities.isDescendingFrom(canvas, fg.component)).isTrue();
+            assertThat(FlamegraphView.<String>from(canvas)).contains(fg);
+            assertThat(canvas.getBackground()).isEqualTo(Color.PINK);
         }
 
         @Test

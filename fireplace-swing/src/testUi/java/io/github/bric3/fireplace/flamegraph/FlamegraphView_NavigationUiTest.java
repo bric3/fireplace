@@ -164,6 +164,12 @@ class FlamegraphView_NavigationUiTest {
             fixture.await("clicking the same frame again resets the horizontal range", () ->
                     fixture.viewport().getViewPosition().x == 0
                     && Math.abs(fixture.canvas().getWidth() - fixture.viewport().getExtentSize().width) <= 1);
+            fixture.onEdt(() -> {
+                int rootY = mode == Mode.ICICLEGRAPH ? 0
+                        : fixture.canvas().getHeight() - fixture.viewport().getExtentSize().height;
+                assertThat(fixture.viewport().getViewPosition().y)
+                        .isCloseTo(action == FrameClickAction.FOCUS_FRAME ? rootY : initialY, within(1));
+            });
         }
     }
 

@@ -12,6 +12,7 @@ package io.github.bric3.fireplace.flamegraph;
 import io.github.bric3.fireplace.flamegraph.FlamegraphView.Mode;
 import io.github.bric3.fireplace.flamegraph.fixtures.FlamegraphViewFixture;
 import io.github.bric3.fireplace.flamegraph.fixtures.FrameModelFixture;
+import io.github.bric3.fireplace.flamegraph.fixtures.RecordingFrameRenderer;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -20,6 +21,7 @@ import org.junit.jupiter.params.provider.EnumSource;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.MouseEvent;
+import java.awt.image.BufferedImage;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -91,7 +93,8 @@ class FlamegraphView_LifecycleUiTest {
     void replacingAndClearingAModelLeavesAUsableViewport(Mode mode) {
         var original = FrameModelFixture.deepChain(40);
         var replacement = FrameModelFixture.rootWithSiblings();
-        try (var fixture = FlamegraphViewFixture.<String>builder().model(original).mode(mode).build()) {
+        var renderer = new RecordingFrameRenderer<String>();
+        try (var fixture = FlamegraphViewFixture.<String>builder().model(original).mode(mode).renderer(renderer).build()) {
             fixture.onEdt(() -> fixture.view().zoomTo(original.frames.get(20)));
             fixture.await("original model is zoomed", () ->
                     fixture.canvas().getWidth() > fixture.viewport().getExtentSize().width);
@@ -106,7 +109,21 @@ class FlamegraphView_LifecycleUiTest {
             fixture.onEdt(() -> {
                 assertThat(fixture.view().getFrameModel()).isSameAs(replacement);
                 assertThat(fixture.canvas().getHeight()).isEqualTo(fixture.viewport().getExtentSize().height);
-                fixture.view().clear();
+                var canvas = fixture.canvas();
+                var image = new BufferedImage(canvas.getWidth(), canvas.getHeight(), BufferedImage.TYPE_INT_ARGB);
+                var graphics = image.createGraphics();
+                try {
+                    renderer.clear();
+                    canvas.paint(graphics);
+                    replacement.frames.forEach(frame -> assertThat(renderer.mainPaint(frame)).isNotNull());
+
+                    fixture.view().clear();
+                    renderer.clear();
+                    canvas.paint(graphics);
+                    replacement.frames.forEach(frame -> assertThat(renderer.mainPaint(frame)).isNull());
+                } finally {
+                    graphics.dispose();
+                }
             });
             fixture.await("clearing removes the old content and scroll offset", () ->
                     fixture.view().getFrames().isEmpty()
@@ -117,6 +134,8 @@ class FlamegraphView_LifecycleUiTest {
                 assertThat(fixture.canvas().getWidth()).isEqualTo(fixture.viewport().getExtentSize().width);
                 fixture.view().setModel(replacement);
             });
+            fixture.await("replacement frames paint again after clear", () ->
+                    replacement.frames.stream().allMatch(frame -> renderer.mainPaint(frame) != null));
             fixture.onEdt(() -> assertThat(fixture.view().getFrames()).containsExactlyElementsOf(replacement.frames));
         }
     }

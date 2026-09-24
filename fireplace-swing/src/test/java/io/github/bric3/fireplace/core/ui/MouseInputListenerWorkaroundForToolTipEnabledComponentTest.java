@@ -45,10 +45,13 @@ class MouseInputListenerWorkaroundForToolTipEnabledComponentTest {
     @BeforeEach
     void setUp() {
         sourceComponent = new JPanel();
-        sourceComponent.setBounds(0, 0, 200, 200);
+        sourceComponent.setBounds(50, 70, 200, 200);
 
         destinationComponent = new JPanel();
-        destinationComponent.setBounds(0, 0, 400, 400);
+        destinationComponent.setBounds(10, 20, 400, 400);
+        var container = new JPanel(null);
+        container.add(sourceComponent);
+        container.add(destinationComponent);
 
         receivedEvents = new ArrayList<>();
         workaround = new MouseInputListenerWorkaroundForToolTipEnabledComponent(destinationComponent);
@@ -118,7 +121,7 @@ class MouseInputListenerWorkaroundForToolTipEnabledComponentTest {
         void mouseClicked_dispatches_to_destination() {
             var event = mouseEvent(MouseEvent.MOUSE_CLICKED, 50, 50);
 
-            workaround.mouseClicked(event);
+            sourceComponent.dispatchEvent(event);
 
             assertThat(receivedEvents).hasSize(1);
             assertThat(receivedEvents.get(0).getID()).isEqualTo(MouseEvent.MOUSE_CLICKED);
@@ -129,7 +132,7 @@ class MouseInputListenerWorkaroundForToolTipEnabledComponentTest {
         void mousePressed_dispatches_to_destination() {
             var event = mouseEvent(MouseEvent.MOUSE_PRESSED, 50, 50);
 
-            workaround.mousePressed(event);
+            sourceComponent.dispatchEvent(event);
 
             assertThat(receivedEvents).hasSize(1);
             assertThat(receivedEvents.get(0).getID()).isEqualTo(MouseEvent.MOUSE_PRESSED);
@@ -140,7 +143,7 @@ class MouseInputListenerWorkaroundForToolTipEnabledComponentTest {
         void mouseReleased_dispatches_to_destination() {
             var event = mouseEvent(MouseEvent.MOUSE_RELEASED, 50, 50);
 
-            workaround.mouseReleased(event);
+            sourceComponent.dispatchEvent(event);
 
             assertThat(receivedEvents).hasSize(1);
             assertThat(receivedEvents.get(0).getID()).isEqualTo(MouseEvent.MOUSE_RELEASED);
@@ -151,7 +154,7 @@ class MouseInputListenerWorkaroundForToolTipEnabledComponentTest {
         void mouseEntered_dispatches_to_destination() {
             var event = mouseEvent(MouseEvent.MOUSE_ENTERED, 50, 50);
 
-            workaround.mouseEntered(event);
+            sourceComponent.dispatchEvent(event);
 
             assertThat(receivedEvents).hasSize(1);
             assertThat(receivedEvents.get(0).getID()).isEqualTo(MouseEvent.MOUSE_ENTERED);
@@ -162,7 +165,7 @@ class MouseInputListenerWorkaroundForToolTipEnabledComponentTest {
         void mouseExited_dispatches_to_destination() {
             var event = mouseEvent(MouseEvent.MOUSE_EXITED, -10, -10);
 
-            workaround.mouseExited(event);
+            sourceComponent.dispatchEvent(event);
 
             assertThat(receivedEvents).hasSize(1);
             assertThat(receivedEvents.get(0).getID()).isEqualTo(MouseEvent.MOUSE_EXITED);
@@ -194,7 +197,7 @@ class MouseInputListenerWorkaroundForToolTipEnabledComponentTest {
         void mouseMoved_dispatches_to_destination() {
             var event = mouseEvent(MouseEvent.MOUSE_MOVED, 75, 100);
 
-            workaround.mouseMoved(event);
+            sourceComponent.dispatchEvent(event);
 
             assertThat(receivedEvents).hasSize(1);
             assertThat(receivedEvents.get(0).getID()).isEqualTo(MouseEvent.MOUSE_MOVED);
@@ -205,7 +208,7 @@ class MouseInputListenerWorkaroundForToolTipEnabledComponentTest {
         void mouseDragged_dispatches_to_destination() {
             var event = mouseEvent(MouseEvent.MOUSE_DRAGGED, 75, 100);
 
-            workaround.mouseDragged(event);
+            sourceComponent.dispatchEvent(event);
 
             assertThat(receivedEvents).hasSize(1);
             assertThat(receivedEvents.get(0).getID()).isEqualTo(MouseEvent.MOUSE_DRAGGED);
@@ -232,17 +235,25 @@ class MouseInputListenerWorkaroundForToolTipEnabledComponentTest {
         }
 
         @Test
-        void mouseWheelMoved_dispatches_to_destination() {
+        void explicit_wheel_callback_forwards_coordinates_and_scroll_metadata() {
             var event = new MouseWheelEvent(sourceComponent, MouseEvent.MOUSE_WHEEL,
-                    System.currentTimeMillis(), 0, 50, 50, 0, false,
-                    MouseWheelEvent.WHEEL_UNIT_SCROLL, 3, -1);
+                    123456, MouseEvent.CTRL_DOWN_MASK, 50, 50, 300, 400, 0, false,
+                    MouseWheelEvent.WHEEL_UNIT_SCROLL, 3, -1, -1.25);
 
             workaround.mouseWheelMoved(event);
 
             assertThat(receivedWheelEvents).hasSize(1);
-            assertThat(receivedWheelEvents.get(0).getID()).isEqualTo(MouseEvent.MOUSE_WHEEL);
-            assertThat(receivedWheelEvents.get(0).getSource()).isEqualTo(destinationComponent);
-            assertThat(receivedWheelEvents.get(0).getWheelRotation()).isEqualTo(-1);
+            var forwarded = receivedWheelEvents.get(0);
+            assertThat(forwarded.getID()).isEqualTo(MouseEvent.MOUSE_WHEEL);
+            assertThat(forwarded.getSource()).isSameAs(destinationComponent);
+            assertThat(forwarded.getPoint()).isEqualTo(new Point(90, 100));
+            assertThat(forwarded.getLocationOnScreen()).isEqualTo(new Point(300, 400));
+            assertThat(forwarded.getWhen()).isEqualTo(123456);
+            assertThat(forwarded.getModifiersEx()).isEqualTo(MouseEvent.CTRL_DOWN_MASK);
+            assertThat(forwarded.getScrollType()).isEqualTo(MouseWheelEvent.WHEEL_UNIT_SCROLL);
+            assertThat(forwarded.getScrollAmount()).isEqualTo(3);
+            assertThat(forwarded.getWheelRotation()).isEqualTo(-1);
+            assertThat(forwarded.getPreciseWheelRotation()).isEqualTo(-1.25);
         }
     }
 
@@ -285,11 +296,12 @@ class MouseInputListenerWorkaroundForToolTipEnabledComponentTest {
         }
 
         @Test
-        void coordinates_are_converted_between_components() {
-            // Click at position (100, 100) in source component
-            var event = mouseEvent(MouseEvent.MOUSE_CLICKED, 100, 100);
+        void coordinates_are_converted_and_mouse_metadata_is_preserved() {
+            var event = new MouseEvent(sourceComponent, MouseEvent.MOUSE_CLICKED,
+                    123456, MouseEvent.SHIFT_DOWN_MASK | MouseEvent.BUTTON1_DOWN_MASK,
+                    100, 100, 300, 400, 2, true, MouseEvent.BUTTON1);
 
-            workaround.mouseClicked(event);
+            sourceComponent.dispatchEvent(event);
 
             assertThat(receivedEvents).hasSize(1);
             var dispatchedEvent = receivedEvents.get(0);
@@ -299,6 +311,14 @@ class MouseInputListenerWorkaroundForToolTipEnabledComponentTest {
 
             // Source (50, 50) to destination (10, 10) adds exactly (40, 40).
             assertThat(dispatchedEvent.getPoint()).isEqualTo(new Point(140, 140));
+            assertThat(dispatchedEvent.getLocationOnScreen()).isEqualTo(new Point(300, 400));
+            assertThat(dispatchedEvent.getWhen()).isEqualTo(event.getWhen());
+            assertThat(dispatchedEvent.getModifiersEx()).isEqualTo(event.getModifiersEx());
+            assertThat(dispatchedEvent.getClickCount()).isEqualTo(2);
+            assertThat(dispatchedEvent.getButton()).isEqualTo(MouseEvent.BUTTON1);
+            assertThat(dispatchedEvent.isPopupTrigger()).isTrue();
+            assertThat(event.getSource()).isSameAs(sourceComponent);
+            assertThat(event.getPoint()).isEqualTo(new Point(100, 100));
         }
     }
 
@@ -356,13 +376,13 @@ class MouseInputListenerWorkaroundForToolTipEnabledComponentTest {
         void typical_interaction_sequence_is_preserved() {
             // Simulate: enter -> move -> press -> drag -> release -> exit
 
-            workaround.mouseEntered(mouseEvent(MouseEvent.MOUSE_ENTERED, 50, 50));
-            workaround.mouseMoved(mouseEvent(MouseEvent.MOUSE_MOVED, 60, 60));
-            workaround.mousePressed(mouseEvent(MouseEvent.MOUSE_PRESSED, 60, 60));
-            workaround.mouseDragged(mouseEvent(MouseEvent.MOUSE_DRAGGED, 70, 70));
-            workaround.mouseDragged(mouseEvent(MouseEvent.MOUSE_DRAGGED, 80, 80));
-            workaround.mouseReleased(mouseEvent(MouseEvent.MOUSE_RELEASED, 80, 80));
-            workaround.mouseExited(mouseEvent(MouseEvent.MOUSE_EXITED, -10, -10));
+            sourceComponent.dispatchEvent(mouseEvent(MouseEvent.MOUSE_ENTERED, 50, 50));
+            sourceComponent.dispatchEvent(mouseEvent(MouseEvent.MOUSE_MOVED, 60, 60));
+            sourceComponent.dispatchEvent(mouseEvent(MouseEvent.MOUSE_PRESSED, 60, 60));
+            sourceComponent.dispatchEvent(mouseEvent(MouseEvent.MOUSE_DRAGGED, 70, 70));
+            sourceComponent.dispatchEvent(mouseEvent(MouseEvent.MOUSE_DRAGGED, 80, 80));
+            sourceComponent.dispatchEvent(mouseEvent(MouseEvent.MOUSE_RELEASED, 80, 80));
+            sourceComponent.dispatchEvent(mouseEvent(MouseEvent.MOUSE_EXITED, -10, -10));
 
             assertThat(eventSequence).containsExactly(
                     MouseEvent.MOUSE_ENTERED,

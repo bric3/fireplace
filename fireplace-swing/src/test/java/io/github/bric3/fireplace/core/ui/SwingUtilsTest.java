@@ -17,10 +17,13 @@ import org.junit.jupiter.api.Timeout;
 import javax.swing.*;
 import java.lang.reflect.InvocationTargetException;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.FutureTask;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static io.github.bric3.fireplace.core.ui.fixtures.SwingWindowFixture.runOnEdt;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -57,42 +60,19 @@ class SwingUtilsTest {
 
         @Test
         @Timeout(5)
-        void from_EDT_executes_immediately() throws InterruptedException, InvocationTargetException {
-            var executedImmediately = new AtomicBoolean(false);
-            var executedOnEDT = new AtomicBoolean(false);
-
-            SwingUtilities.invokeAndWait(() -> {
-                // Now we're on EDT
+        void from_EDT_executes_immediately() {
+            runOnEdt(() -> {
                 assertThat(SwingUtilities.isEventDispatchThread()).isTrue();
-
+                var order = new StringBuilder("before-");
                 SwingUtils.invokeLater(() -> {
-                    executedOnEDT.set(SwingUtilities.isEventDispatchThread());
+                    order.append("inner-");
+                    SwingUtils.invokeLater(() -> order.append("nested-"));
                 });
-
-                // When called from EDT, the runnable should execute synchronously
-                // Check immediately after the call
-                executedImmediately.set(true);
+                order.append("after");
+                // Assert before yielding the EDT; an incorrectly queued callback cannot catch up.
+                assertThat(order.toString()).isEqualTo("before-inner-nested-after");
+                return null;
             });
-
-            assertThat(executedImmediately.get()).isTrue();
-            assertThat(executedOnEDT.get()).isTrue();
-        }
-
-        @Test
-        @Timeout(5)
-        void executes_runnable() throws InterruptedException {
-            var counter = new AtomicReference<>(0);
-            var latch = new CountDownLatch(1);
-
-            SwingUtils.invokeLater(() -> {
-                counter.set(42);
-                latch.countDown();
-            });
-
-            boolean completed = latch.await(2, TimeUnit.SECONDS);
-
-            assertThat(completed).isTrue();
-            assertThat(counter.get()).isEqualTo(42);
         }
 
         @Test
@@ -120,24 +100,6 @@ class SwingUtilsTest {
             assertThat(order.toString()).isEqualTo("123");
         }
 
-        @Test
-        @Timeout(5)
-        void from_EDT_does_not_deadlock() throws InterruptedException, InvocationTargetException {
-            var completed = new AtomicBoolean(false);
-
-            SwingUtilities.invokeAndWait(() -> {
-                // Nested invokeLater from EDT should not cause deadlock
-                SwingUtils.invokeLater(() -> {
-                    SwingUtils.invokeLater(() -> {
-                        completed.set(true);
-                    });
-                });
-            });
-
-            // Give some time for nested tasks to complete
-            Thread.sleep(100);
-            assertThat(completed.get()).isTrue();
-        }
     }
 
     @Nested
@@ -191,29 +153,37 @@ class SwingUtilsTest {
         }
 
         @Test
-        @Timeout(5)
-        void blocks_until_complete() throws InterruptedException, InvocationTargetException {
-            var taskStarted = new AtomicBoolean(false);
+        @Timeout(10)
+        void blocks_until_complete() throws Exception {
+            var taskStarted = new CountDownLatch(1);
+            var releaseTask = new CountDownLatch(1);
             var taskCompleted = new AtomicBoolean(false);
-
-            long startTime = System.currentTimeMillis();
-
-            SwingUtils.invokeAndWait(() -> {
-                taskStarted.set(true);
-                try {
-                    Thread.sleep(100); // Simulate some work
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                }
-                taskCompleted.set(true);
+            var call = new FutureTask<>(() -> {
+                SwingUtils.invokeAndWait(() -> {
+                    taskStarted.countDown();
+                    try {
+                        assertThat(releaseTask.await(2, TimeUnit.SECONDS)).as("test releases the EDT task").isTrue();
+                    } catch (InterruptedException interrupted) {
+                        Thread.currentThread().interrupt();
+                        throw new AssertionError(interrupted);
+                    }
+                    taskCompleted.set(true);
+                });
+                return taskCompleted.get();
             });
-
-            long elapsed = System.currentTimeMillis() - startTime;
-
-            // Task should be complete when invokeAndWait returns
-            assertThat(taskStarted.get()).isTrue();
-            assertThat(taskCompleted.get()).isTrue();
-            assertThat(elapsed).isGreaterThanOrEqualTo(100); // Should have waited for the task
+            var caller = new Thread(call, "SwingUtilsTest-invokeAndWait");
+            try {
+                caller.start();
+                assertThat(taskStarted.await(2, TimeUnit.SECONDS)).isTrue();
+                assertThatThrownBy(() -> call.get(150, TimeUnit.MILLISECONDS)).isInstanceOf(TimeoutException.class);
+                releaseTask.countDown();
+                assertThat(call.get(2, TimeUnit.SECONDS)).isTrue();
+            } finally {
+                releaseTask.countDown();
+                caller.join(2000);
+                assertThat(caller.isAlive()).isFalse();
+                runOnEdt(() -> null);
+            }
         }
 
         @Test

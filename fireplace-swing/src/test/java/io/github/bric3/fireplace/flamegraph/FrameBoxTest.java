@@ -21,6 +21,7 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.tuple;
 
 /**
  * Unit tests for {@link FrameBox}.
@@ -85,7 +86,8 @@ class FrameBoxTest {
             // A frame with startX == endX is valid (zero width)
             var frame = new FrameBox<>("node", 0.5, 0.5, 1);
 
-            assertThat(frame.startX).isEqualTo(frame.endX);
+            assertThat(frame.startX).isEqualTo(0.5);
+            assertThat(frame.endX).isEqualTo(0.5);
         }
     }
 
@@ -248,25 +250,29 @@ class FrameBoxTest {
 
         @Test
         void flattenAndCalculateCoordinate_partialRange_respectsBounds() {
-            var child = new TestNode("child", 10, List.of());
-            var root = new TestNode("root", 10, List.of(child));
+            var first = new TestNode("first", 1, List.of());
+            var second = new TestNode("second", 3, List.of());
+            var root = new TestNode("root", 4, List.of(first, second));
 
             var accumulator = new ArrayList<FrameBox<TestNode>>();
-            // Only span 0.2 to 0.6
+            // Divide a half-width subtree 1:3, retaining its initial depth and offset.
             FrameBox.flattenAndCalculateCoordinate(
                     accumulator,
                     root,
                     TestNode::children,
                     TestNode::weight,
-                    0.2,
-                    0.6,
-                    0
+                    0.25,
+                    0.75,
+                    3
             );
 
-            assertThat(accumulator.get(0).startX).isEqualTo(0.2);
-            assertThat(accumulator.get(0).endX).isEqualTo(0.6);
-            assertThat(accumulator.get(1).startX).isEqualTo(0.2);
-            assertThat(accumulator.get(1).endX).isEqualTo(0.6);
+            assertThat(accumulator)
+                    .extracting(frame -> frame.actualNode, frame -> frame.startX, frame -> frame.endX, frame -> frame.stackDepth)
+                    .containsExactly(
+                            tuple(root, 0.25, 0.75, 3),
+                            tuple(first, 0.25, 0.375, 4),
+                            tuple(second, 0.375, 0.75, 4)
+                    );
         }
 
         @Test
@@ -313,26 +319,11 @@ class FrameBoxTest {
                     0
             );
 
-            assertThat(accumulator).hasSize(1);
+            assertThat(accumulator)
+                    .extracting(frame -> frame.actualNode, frame -> frame.startX, frame -> frame.endX, frame -> frame.stackDepth)
+                    .containsExactly(tuple(root, 0.0, 1.0, 0));
         }
 
-        @Test
-        void flattenAndCalculateCoordinate_emptyChildren_onlyRoot() {
-            var root = new TestNode("root", 100, List.of());
-
-            var accumulator = new ArrayList<FrameBox<TestNode>>();
-            FrameBox.flattenAndCalculateCoordinate(
-                    accumulator,
-                    root,
-                    TestNode::children,
-                    TestNode::weight,
-                    0.0,
-                    1.0,
-                    0
-            );
-
-            assertThat(accumulator).hasSize(1);
-        }
     }
 
     // Helper test node class

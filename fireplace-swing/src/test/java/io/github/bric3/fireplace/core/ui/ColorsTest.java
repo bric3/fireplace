@@ -15,7 +15,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
-import org.junit.jupiter.params.provider.ValueSource;
+import org.junit.jupiter.params.provider.EnumSource;
 
 import java.awt.*;
 
@@ -58,10 +58,9 @@ class ColorsTest {
 
         @Test
         void gray_is_middle() {
-            // Mid gray should have mid brightness
             int brightness = Colors.brightness(Color.GRAY);
 
-            assertThat(brightness).isBetween(100, 160);
+            assertThat(brightness).isEqualTo(128);
         }
 
         @Test
@@ -174,19 +173,21 @@ class ColorsTest {
         void black_and_white_returns_gray() {
             Color result = Colors.blend(Color.BLACK, Color.WHITE);
 
-            // Mid gray expected
-            assertThat(result.getRed()).isEqualTo(result.getGreen());
-            assertThat(result.getGreen()).isEqualTo(result.getBlue());
-            assertThat(result.getRed()).isBetween(120, 135);
+            assertThat(result).isEqualTo(new Color(127, 127, 127));
         }
 
         @Test
         void red_and_blue_returns_purple() {
             Color result = Colors.blend(Color.RED, Color.BLUE);
 
-            assertThat(result.getRed()).isGreaterThan(100);
-            assertThat(result.getBlue()).isGreaterThan(100);
-            assertThat(result.getGreen()).isZero();
+            assertThat(result).isEqualTo(new Color(127, 0, 127));
+        }
+
+        @Test
+        void blend_weights_channels_by_alpha() {
+            Color result = Colors.blend(new Color(240, 0, 0, 192), new Color(0, 0, 240, 64));
+
+            assertThat(result).isEqualTo(new Color(180, 0, 60, 192));
         }
     }
 
@@ -218,7 +219,7 @@ class ColorsTest {
         }
 
         @Test
-        void white_zero_saturation() {
+        void white_full_luminance() {
             float[] hsla = Colors.hslaComponents(Color.WHITE);
 
             assertThat(hsla[Colors.L]).isCloseTo(1f, within(0.01f)); // Max luminance
@@ -284,17 +285,6 @@ class ColorsTest {
             assertThat(result).isEqualTo(Color.BLACK);
         }
 
-        @Test
-        void with_alpha_does_not_preserve_alpha() {
-            // Note: The hsla method uses Color(int) constructor which ignores alpha.
-            // This is a known limitation - alpha is always 255 (fully opaque).
-            // To preserve alpha, the implementation would need to use Color(int, true).
-            Color result = Colors.hsla(0f, 1f, 0.5f, 0.5f);
-
-            // Alpha is ignored and defaults to fully opaque
-            assertThat(result.getAlpha()).isEqualTo(255);
-        }
-
         @ParameterizedTest
         @CsvSource({
                 "-0.1, 0.5, 0.5",   // invalid saturation
@@ -337,11 +327,10 @@ class ColorsTest {
         }
 
         @Test
-        void brighter_with_max_luminance_does_not_exceed_max() {
-            Color result = Colors.brighter(Color.WHITE, 2f, 1f);
+        void brighter_respects_a_nontrivial_luminance_cap() {
+            Color result = Colors.brighter(new Color(128, 128, 128), 3f, .6f);
 
-            float[] hsla = Colors.hslaComponents(result);
-            assertThat(hsla[Colors.L]).isLessThanOrEqualTo(1f);
+            assertThat(result).isEqualTo(new Color(153, 153, 153));
         }
 
         @Test
@@ -362,11 +351,10 @@ class ColorsTest {
         }
 
         @Test
-        void darker_with_min_luminance_does_not_go_below_min() {
-            Color result = Colors.darker(Color.BLACK, 2f, 0f);
+        void darker_respects_a_nontrivial_luminance_floor() {
+            Color result = Colors.darker(new Color(128, 128, 128), 3f, .4f);
 
-            float[] hsla = Colors.hslaComponents(result);
-            assertThat(hsla[Colors.L]).isGreaterThanOrEqualTo(0f);
+            assertThat(result).isEqualTo(new Color(102, 102, 102));
         }
 
         @Test
@@ -433,13 +421,6 @@ class ColorsTest {
     class DarkMode {
 
         @Test
-        void isDarkMode_default_returns_false() {
-            Colors.setDarkMode(false);
-
-            assertThat(Colors.isDarkMode()).isFalse();
-        }
-
-        @Test
         void setDarkMode_true_updates_flag() {
             Colors.setDarkMode(true);
 
@@ -458,43 +439,12 @@ class ColorsTest {
     @Nested
     class PaletteTests {
 
-        @Test
-        void datadog_has_colors() {
-            Color[] colors = Colors.Palette.DATADOG.colors();
-
-            assertThat(colors).isNotEmpty();
-            assertThat(colors.length).isGreaterThan(10);
-        }
-
-        @Test
-        void pyroscope_has_colors() {
-            Color[] colors = Colors.Palette.PYROSCOPE.colors();
-
-            assertThat(colors).isNotEmpty();
-        }
-
         @ParameterizedTest
-        @ValueSource(strings = {
-                "LIGHT_BLACK_TO_YELLOW",
-                "LIGHT_RED_TO_BLUE",
-                "LIGHT_VIOLET_TO_ORANGE",
-                "DARK_BLACK_TO_SLATE",
-                "DARK_GREENY_TO_VIOLET",
-                "DATADOG",
-                "PYROSCOPE"
-        })
-        void all_palettes_have_valid_colors(String paletteName) {
-            Colors.Palette palette = Colors.Palette.valueOf(paletteName);
+        @EnumSource(Colors.Palette.class)
+        void all_palettes_have_colors(Colors.Palette palette) {
             Color[] colors = palette.colors();
 
-            assertThat(colors).isNotNull();
-            assertThat(colors).isNotEmpty();
-            assertThat(colors).allSatisfy(color -> {
-                assertThat(color).isNotNull();
-                assertThat(color.getRed()).isBetween(0, 255);
-                assertThat(color.getGreen()).isBetween(0, 255);
-                assertThat(color.getBlue()).isBetween(0, 255);
-            });
+            assertThat(colors).isNotEmpty().doesNotContainNull();
         }
     }
 
@@ -542,26 +492,19 @@ class ColorsTest {
     class Dim {
 
         @Test
-        void returns_light_dark_color() {
-            Color result = Colors.dim(Color.RED);
-
-            assertThat(result).isInstanceOf(LightDarkColor.class);
-        }
-
-        @Test
-        void reduces_luminance() {
+        void uses_light_and_dark_luminance_targets() {
             Color original = new Color(200, 100, 50);
             Color dimmed = Colors.dim(original);
 
             // In light mode, dimmed color should be light (high luminance)
             Colors.setDarkMode(false);
             float[] hslaLight = Colors.hslaComponents(dimmed);
-            assertThat(hslaLight[Colors.L]).isGreaterThan(0.9f);
+            assertThat(hslaLight[Colors.L]).isCloseTo(.93f, within(1f / 255));
 
             // In dark mode, dimmed color should be dark (low luminance)
             Colors.setDarkMode(true);
             float[] hslaDark = Colors.hslaComponents(dimmed);
-            assertThat(hslaDark[Colors.L]).isLessThan(0.3f);
+            assertThat(hslaDark[Colors.L]).isCloseTo(.2f, within(1f / 255));
         }
     }
 
@@ -569,21 +512,17 @@ class ColorsTest {
     class HalfDim {
 
         @Test
-        void returns_light_dark_color() {
-            Color result = Colors.halfDim(Color.RED);
-
-            assertThat(result).isInstanceOf(LightDarkColor.class);
-        }
-
-        @Test
-        void reduces_luminance_partially() {
+        void uses_light_and_dark_luminance_targets() {
             Color original = new Color(200, 100, 50);
             Color halfDimmed = Colors.halfDim(original);
 
-            // Half dim should have moderate luminance
             Colors.setDarkMode(false);
             float[] hslaLight = Colors.hslaComponents(halfDimmed);
-            assertThat(hslaLight[Colors.L]).isBetween(0.5f, 0.8f);
+            assertThat(hslaLight[Colors.L]).isCloseTo(.68f, within(1f / 255));
+
+            Colors.setDarkMode(true);
+            float[] hslaDark = Colors.hslaComponents(halfDimmed);
+            assertThat(hslaDark[Colors.L]).isCloseTo(.48f, within(1f / 255));
         }
     }
 

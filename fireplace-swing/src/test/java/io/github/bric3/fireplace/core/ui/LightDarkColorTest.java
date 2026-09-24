@@ -16,6 +16,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 import java.awt.*;
+import java.awt.color.ColorSpace;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -58,18 +59,16 @@ class LightDarkColorTest {
 
         @Test
         void with_rgba_ints_stores_light_and_dark() {
-            int lightRgba = 0xFFFF0000; // Red
-            int darkRgba = 0xFF0000FF;  // Blue
+            int lightRgba = 0x80FF0000;
+            int darkRgba = 0x400000FF;
 
             LightDarkColor color = new LightDarkColor(lightRgba, darkRgba);
 
             Colors.setDarkMode(false);
-            assertThat(color.getRed()).isEqualTo(255);
-            assertThat(color.getBlue()).isEqualTo(0);
+            assertThat(color.getRGB()).isEqualTo(lightRgba);
 
             Colors.setDarkMode(true);
-            assertThat(color.getRed()).isEqualTo(0);
-            assertThat(color.getBlue()).isEqualTo(255);
+            assertThat(color.getRGB()).isEqualTo(darkRgba);
         }
 
         @Test
@@ -173,28 +172,6 @@ class LightDarkColorTest {
     }
 
     @Nested
-    @DisplayName("getRGB")
-    class GetRGB {
-
-        @Test
-        void switches_between_modes() {
-            Color light = Color.RED;
-            Color dark = Color.BLUE;
-            LightDarkColor color = new LightDarkColor(light, dark);
-
-            Colors.setDarkMode(false);
-            int lightRgb = color.getRGB();
-
-            Colors.setDarkMode(true);
-            int darkRgb = color.getRGB();
-
-            assertThat(lightRgb).isNotEqualTo(darkRgb);
-            assertThat(lightRgb).isEqualTo(light.getRGB());
-            assertThat(darkRgb).isEqualTo(dark.getRGB());
-        }
-    }
-
-    @Nested
     @DisplayName("brighter")
     class Brighter {
 
@@ -205,7 +182,7 @@ class LightDarkColorTest {
             Colors.setDarkMode(false);
             Color brighter = color.brighter();
 
-            assertThat(brighter.getRed()).isGreaterThan(100);
+            assertThat(brighter).isEqualTo(new Color(100, 100, 100).brighter());
         }
 
         @Test
@@ -215,7 +192,7 @@ class LightDarkColorTest {
             Colors.setDarkMode(true);
             Color brighter = color.brighter();
 
-            assertThat(brighter.getRed()).isGreaterThan(50);
+            assertThat(brighter).isEqualTo(new Color(50, 50, 50).brighter());
         }
     }
 
@@ -230,7 +207,7 @@ class LightDarkColorTest {
             Colors.setDarkMode(false);
             Color darker = color.darker();
 
-            assertThat(darker.getRed()).isLessThan(200);
+            assertThat(darker).isEqualTo(new Color(200, 200, 200).darker());
         }
 
         @Test
@@ -240,7 +217,7 @@ class LightDarkColorTest {
             Colors.setDarkMode(true);
             Color darker = color.darker();
 
-            assertThat(darker.getRed()).isLessThan(100);
+            assertThat(darker).isEqualTo(new Color(100, 100, 100).darker());
         }
     }
 
@@ -255,21 +232,17 @@ class LightDarkColorTest {
             Colors.setDarkMode(false);
             float[] components = color.getRGBComponents(null);
 
-            assertThat(components[0]).isCloseTo(1.0f, org.assertj.core.api.Assertions.within(0.01f)); // Red
-            assertThat(components[1]).isCloseTo(0.0f, org.assertj.core.api.Assertions.within(0.01f)); // Green
-            assertThat(components[2]).isCloseTo(0.0f, org.assertj.core.api.Assertions.within(0.01f)); // Blue
+            assertThat(components).containsExactly(1f, 0f, 0f, 1f);
         }
 
         @Test
         void dark_mode_returns_dark_components() {
-            LightDarkColor color = new LightDarkColor(Color.RED, Color.BLUE);
+            LightDarkColor color = new LightDarkColor(Color.RED, new Color(0, 0, 255, 64));
 
             Colors.setDarkMode(true);
             float[] components = color.getRGBComponents(null);
 
-            assertThat(components[0]).isCloseTo(0.0f, org.assertj.core.api.Assertions.within(0.01f)); // Red
-            assertThat(components[1]).isCloseTo(0.0f, org.assertj.core.api.Assertions.within(0.01f)); // Green
-            assertThat(components[2]).isCloseTo(1.0f, org.assertj.core.api.Assertions.within(0.01f)); // Blue
+            assertThat(components).containsExactly(0f, 0f, 1f, 64f / 255);
         }
     }
 
@@ -284,8 +257,7 @@ class LightDarkColorTest {
             Colors.setDarkMode(false);
             float[] components = color.getRGBColorComponents(null);
 
-            assertThat(components).hasSize(3);
-            assertThat(components[0]).isCloseTo(1.0f, org.assertj.core.api.Assertions.within(0.01f));
+            assertThat(components).containsExactly(1f, 0f, 0f);
         }
     }
 
@@ -294,13 +266,16 @@ class LightDarkColorTest {
     class GetComponents {
 
         @Test
-        void light_mode_includes_alpha() {
-            LightDarkColor color = new LightDarkColor(Color.RED, Color.BLUE);
+        void components_follow_the_active_color_including_alpha() {
+            Color light = new Color(13, 57, 91, 123);
+            Color dark = new Color(197, 163, 129, 87);
+            LightDarkColor color = new LightDarkColor(light, dark);
 
             Colors.setDarkMode(false);
-            float[] components = color.getComponents(null);
+            assertThat(color.getComponents(null)).containsExactly(light.getComponents(null));
 
-            assertThat(components).hasSize(4);
+            Colors.setDarkMode(true);
+            assertThat(color.getComponents(null)).containsExactly(dark.getComponents(null));
         }
     }
 
@@ -310,13 +285,15 @@ class LightDarkColorTest {
 
         @Test
         void returns_correct_color_space() {
-            LightDarkColor color = new LightDarkColor(Color.RED, Color.BLUE);
+            Color light = Color.RED;
+            Color dark = new Color(ColorSpace.getInstance(ColorSpace.CS_LINEAR_RGB), new float[]{.1f, .2f, .3f}, 1f);
+            LightDarkColor color = new LightDarkColor(light, dark);
 
             Colors.setDarkMode(false);
-            assertThat(color.getColorSpace()).isNotNull();
+            assertThat(color.getColorSpace()).isSameAs(light.getColorSpace());
 
             Colors.setDarkMode(true);
-            assertThat(color.getColorSpace()).isNotNull();
+            assertThat(color.getColorSpace()).isSameAs(dark.getColorSpace());
         }
     }
 

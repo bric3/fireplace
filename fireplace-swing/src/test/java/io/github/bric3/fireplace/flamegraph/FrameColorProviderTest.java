@@ -69,19 +69,10 @@ class FrameColorProviderTest {
         void set_updatesColors() {
             FrameColorProvider.ColorModel model = new FrameColorProvider.ColorModel();
 
-            model.set(Color.BLUE, Color.YELLOW);
+            assertThat(model.set(Color.BLUE, Color.YELLOW)).isSameAs(model);
 
             assertThat(model.background).isEqualTo(Color.BLUE);
             assertThat(model.foreground).isEqualTo(Color.YELLOW);
-        }
-
-        @Test
-        void set_returnsSameInstance() {
-            FrameColorProvider.ColorModel model = new FrameColorProvider.ColorModel();
-
-            FrameColorProvider.ColorModel result = model.set(Color.BLUE, Color.YELLOW);
-
-            assertThat(result).isSameAs(model);
         }
 
         @Test
@@ -93,12 +84,6 @@ class FrameColorProviderTest {
             assertThat(copy).isNotSameAs(original);
             assertThat(copy.background).isEqualTo(original.background);
             assertThat(copy.foreground).isEqualTo(original.foreground);
-        }
-
-        @Test
-        void copy_isIndependent() {
-            FrameColorProvider.ColorModel original = new FrameColorProvider.ColorModel(Color.RED, Color.WHITE);
-            FrameColorProvider.ColorModel copy = original.copy();
 
             copy.set(Color.BLUE, Color.GREEN);
 
@@ -126,7 +111,7 @@ class FrameColorProviderTest {
             FrameColorProvider.ColorModel colors = provider.getColors(frame, 0);
 
             assertThat(colors.background).isEqualTo(Color.ORANGE);
-            assertThat(colors.foreground).isNotNull();
+            assertThat(colors.foreground).isEqualTo(Colors.foregroundColor(Color.ORANGE));
         }
 
         @Test
@@ -137,8 +122,8 @@ class FrameColorProviderTest {
             int flags = toFlags(false, false, false, true, false, false, false, false);
             FrameColorProvider.ColorModel colors = provider.getColors(frame, flags);
 
-            // Hovered should blend with translucent black, making it darker
-            assertThat(colors.background).isNotEqualTo(Color.WHITE);
+            assertThat(colors.background).isEqualTo(Colors.blend(Color.WHITE, Colors.translucent_black_40));
+            assertThat(colors.foreground).isEqualTo(Colors.foregroundColor(colors.background));
         }
 
         @Test
@@ -150,8 +135,7 @@ class FrameColorProviderTest {
             int flags = toFlags(false, false, false, false, false, true, false, false);
             FrameColorProvider.ColorModel colors = provider.getColors(frame, flags);
 
-            // Should be blended darker
-            assertThat(colors.background).isNotEqualTo(Color.CYAN);
+            assertThat(colors.background).isEqualTo(Colors.blend(Color.CYAN, Colors.translucent_black_80));
         }
 
         @Test
@@ -163,8 +147,7 @@ class FrameColorProviderTest {
             int flags = toFlags(false, true, false, false, false, false, false, false);
             FrameColorProvider.ColorModel colors = provider.getColors(frame, flags);
 
-            // Should be blended (with white in light mode)
-            assertThat(colors.background).isNotEqualTo(Color.GREEN);
+            assertThat(colors.background).isEqualTo(Colors.blend(Color.GREEN, Color.WHITE));
         }
 
         @Test
@@ -181,44 +164,25 @@ class FrameColorProviderTest {
         }
 
         @Test
-        void reusesColorModel() {
-            FrameColorProvider<String> provider = FrameColorProvider.defaultColorProvider(frame -> Color.RED);
-            FrameBox<String> frame1 = new FrameBox<>("test1", 0.0, 0.5, 0);
-            FrameBox<String> frame2 = new FrameBox<>("test2", 0.5, 1.0, 0);
+        void each_frame_uses_its_own_base_color_and_current_flags() {
+            FrameColorProvider<Color> provider = FrameColorProvider.defaultColorProvider(frame -> frame.actualNode);
+            var red = new FrameBox<>(Color.RED, 0.0, 0.5, 1);
+            var blue = new FrameBox<>(Color.BLUE, 0.5, 1.0, 1);
 
-            FrameColorProvider.ColorModel colors1 = provider.getColors(frame1, 0);
-            FrameColorProvider.ColorModel colors2 = provider.getColors(frame2, 0);
-
-            // Same instance should be reused for efficiency
-            assertThat(colors1).isSameAs(colors2);
+            assertThat(provider.getColors(red, HOVERED).background)
+                    .isEqualTo(Colors.blend(Color.RED, Colors.translucent_black_40));
+            assertThat(provider.getColors(blue, 0).background).isEqualTo(Color.BLUE);
+            assertThat(provider.getColors(red, 0).background).isEqualTo(Color.RED);
         }
 
         @Test
-        void differentBaseColors() {
-            FrameColorProvider<String> provider = FrameColorProvider.defaultColorProvider(frame -> {
-                if (frame.actualNode.startsWith("A")) return Color.RED;
-                if (frame.actualNode.startsWith("B")) return Color.BLUE;
-                return Color.GRAY;
-            });
-
-            FrameBox<String> frameA = new FrameBox<>("Apple", 0.0, 0.5, 0);
-            FrameBox<String> frameB = new FrameBox<>("Banana", 0.5, 1.0, 0);
-            FrameBox<String> frameC = new FrameBox<>("Cherry", 0.0, 1.0, 0);
-
-            assertThat(provider.getColors(frameA, 0).background).isEqualTo(Color.RED);
-            assertThat(provider.getColors(frameB, 0).background).isEqualTo(Color.BLUE);
-            assertThat(provider.getColors(frameC, 0).background).isEqualTo(Color.GRAY);
-        }
-
-        @Test
-        void foregroundContrastsWithBackground() {
+        void bright_background_uses_panel_foreground() {
             FrameColorProvider<String> provider = FrameColorProvider.defaultColorProvider(frame -> Color.WHITE);
             FrameBox<String> frame = new FrameBox<>("test", 0.0, 1.0, 0);
 
             FrameColorProvider.ColorModel colors = provider.getColors(frame, 0);
 
-            // Foreground should contrast with white background (should be dark)
-            assertThat(Colors.isBright(colors.foreground)).isFalse();
+            assertThat(colors.foreground).isEqualTo(Colors.panelForeground);
         }
 
         @Test
@@ -247,42 +211,8 @@ class FrameColorProviderTest {
             Colors.setDarkMode(false);
             Color lightModeBackground = provider.getColors(frame, flags).background;
 
-            // Colors should be different between dark and light modes
-            assertThat(darkModeBackground).isNotEqualTo(lightModeBackground);
-        }
-    }
-
-    @Nested
-    @DisplayName("functional interface implementation")
-    class FunctionalInterfaceTests {
-
-        @Test
-        void canBeImplementedAsLambda() {
-            FrameColorProvider<String> provider = (frame, flags) ->
-                    new FrameColorProvider.ColorModel(Color.PINK, Color.BLACK);
-
-            FrameBox<String> frame = new FrameBox<>("test", 0.0, 1.0, 0);
-            FrameColorProvider.ColorModel colors = provider.getColors(frame, 0);
-
-            assertThat(colors.background).isEqualTo(Color.PINK);
-            assertThat(colors.foreground).isEqualTo(Color.BLACK);
-        }
-
-        @Test
-        void canAccessFlags() {
-            FrameColorProvider<String> provider = (frame, flags) -> {
-                if (isHovered(flags)) {
-                    return new FrameColorProvider.ColorModel(Color.YELLOW, Color.BLACK);
-                }
-                return new FrameColorProvider.ColorModel(Color.GRAY, Color.WHITE);
-            };
-
-            FrameBox<String> frame = new FrameBox<>("test", 0.0, 1.0, 0);
-
-            int hoveredFlags = toFlags(false, false, false, true, false, false, false, false);
-
-            assertThat(provider.getColors(frame, 0).background).isEqualTo(Color.GRAY);
-            assertThat(provider.getColors(frame, hoveredFlags).background).isEqualTo(Color.YELLOW);
+            assertThat(darkModeBackground).isEqualTo(Colors.blend(Color.CYAN, Colors.translucent_black_B0));
+            assertThat(lightModeBackground).isEqualTo(Colors.blend(Color.CYAN, Color.WHITE));
         }
     }
 }

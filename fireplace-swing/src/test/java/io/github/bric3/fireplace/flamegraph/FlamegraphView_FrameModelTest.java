@@ -40,7 +40,9 @@ class FlamegraphView_FrameModelTest {
         fg.setMode(FlamegraphView.Mode.FLAMEGRAPH);
         fg.setShowMinimap(false);
         fg.setModel(new FrameModel<>(List.of(new FrameBox<>("first", 0, 1, 0))));
-        fg.setModel(new FrameModel<>(List.of(new FrameBox<>("second", 0, 1, 0))));
+        var replacement = new FrameModel<>(List.of(new FrameBox<>("second", 0, 1, 0)));
+        fg.setModel(replacement);
+        assertThat(fg.getFrameModel()).isSameAs(replacement);
         assertThat(fg.getMode()).isEqualTo(FlamegraphView.Mode.FLAMEGRAPH);
         assertThat(fg.isShowMinimap()).isFalse();
     }
@@ -83,30 +85,19 @@ class FlamegraphView_FrameModelTest {
         }
 
         @Test
-        void setModel_with_title_and_equality() {
+        void setModel_retains_metadata_and_custom_equality() {
             var frames = List.of(
                     new FrameBox<>("root", 0.0, 1.0, 0),
                     new FrameBox<>("child", 0.0, 0.5, 1)
             );
-            var model = new FrameModel<>(
-                    "Test Flamegraph",
-                    (a, b) -> Objects.equals(a.actualNode, b.actualNode),
-                    frames
-            );
+            FrameModel.FrameEquality<String> equality = (a, b) -> Objects.equals(a.actualNode, b.actualNode);
+            var model = new FrameModel<>("Test Flamegraph", equality, frames).withDescription("Test description");
 
             fg.setModel(model);
 
-            assertThat(fg.getFrameModel()).isEqualTo(model);
             assertThat(fg.getFrameModel().title).isEqualTo("Test Flamegraph");
-        }
-
-        @Test
-        void setModel_with_description() {
-            var model = new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0)))
-                    .withDescription("Test description");
-
-            fg.setModel(model);
-
+            assertThat(fg.getFrameModel().frameEquality).isSameAs(equality);
+            assertThat(fg.getFrames()).containsExactlyElementsOf(frames);
             assertThat(fg.getFrameModel().description).isEqualTo("Test description");
         }
 
@@ -138,17 +129,7 @@ class FlamegraphView_FrameModelTest {
     class ClearTests {
 
         @Test
-        void clear_resets_model() {
-            fg.setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0))));
-
-            fg.clear();
-
-            assertThat(fg.getFrameModel()).isEqualTo(FrameModel.empty());
-            assertThat(fg.getFrames()).isEmpty();
-        }
-
-        @Test
-        void clear_after_model_set_resets_to_empty() {
+        void clear_resets_to_empty_and_accepts_a_replacement_model() {
             fg.setModel(new FrameModel<>(List.of(
                     new FrameBox<>("root", 0.0, 1.0, 0),
                     new FrameBox<>("child", 0.0, 0.5, 1)
@@ -160,23 +141,17 @@ class FlamegraphView_FrameModelTest {
 
             assertThat(fg.getFrameModel()).isEqualTo(FrameModel.empty());
             assertThat(fg.getFrames()).isEmpty();
-        }
-
-        @Test
-        void clear_then_set_model_works() {
-            fg.setModel(new FrameModel<>(List.of(new FrameBox<>("first", 0.0, 1.0, 0))));
-            fg.clear();
 
             var newModel = new FrameModel<>(List.of(new FrameBox<>("second", 0.0, 1.0, 0)));
             fg.setModel(newModel);
 
-            assertThat(fg.getFrames()).hasSize(1);
-            assertThat(fg.getFrames().get(0).actualNode).isEqualTo("second");
+            assertThat(fg.getFrameModel()).isSameAs(newModel);
+            assertThat(fg.getFrames()).containsExactlyElementsOf(newModel.frames);
         }
 
         @Test
         void clear_multiple_times_leaves_an_empty_model() {
-            fg.clear();
+            fg.setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0, 1, 0))));
             fg.clear();
             fg.clear();
             assertThat(fg.getFrameModel()).isEqualTo(FrameModel.empty());

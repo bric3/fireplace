@@ -69,6 +69,7 @@ class FlamegraphView_HoverUiTest {
             assertTrue(leftHover.entered);
             assertSame(left, leftHover.frame);
             assertTrue(leftHover.rectangle.contains(leftPoint));
+            assertFrameRectangle(renderer, left, leftHover.rectangle);
             graph.onEdt(() -> {
                 assertSame(graph.scrollPane(), leftHover.event.getSource());
                 assertEquals(SwingUtilities.convertPoint(graph.canvas(), leftPoint, graph.scrollPane()),
@@ -87,11 +88,14 @@ class FlamegraphView_HoverUiTest {
             assertTrue(rightHover.entered);
             assertSame(right, rightHover.frame);
             assertTrue(rightHover.rectangle.contains(rightPoint));
+            assertFrameRectangle(renderer, right, rightHover.rectangle);
             assertSame(right, tooltipFrame.get());
             assertEquals(1, textChanges.get(), "equal tooltip text is not a hover completion signal");
 
             var leafPoint = graph.onEdt(() -> center(renderer.mainPaint(leaf).bounds));
-            assertSame(leaf, hover.await(graph, move(graph, leafPoint)).frame);
+            var leafHover = hover.await(graph, move(graph, leafPoint));
+            assertSame(leaf, leafHover.frame);
+            assertFrameRectangle(renderer, leaf, leafHover.rectangle);
             graph.onEdt(() -> {
                 assertSame(leaf, tooltipFrame.get());
                 assertEquals("leaf text", graph.canvas().getToolTipText());
@@ -155,7 +159,19 @@ class FlamegraphView_HoverUiTest {
             assertSame(wheel, hovered.event);
             assertEquals(screenPointer, graph.onEdt(() -> MouseInfo.getPointerInfo().getLocation()));
             assertTrue(hovered.rectangle.contains(initialPoint.x, initialPoint.y + displacement));
+            graph.await("scrolled frame paint", () -> renderer.mainPaint(afterScroll) != null);
+            assertFrameRectangle(renderer, afterScroll, hovered.rectangle);
         }
+    }
+
+    private static void assertFrameRectangle(RecordingFrameRenderer<String> renderer, FrameBox<String> frame,
+                                            Rectangle hoverRectangle) {
+        var painted = renderer.mainPaint(frame).bounds;
+        var padded = new Rectangle(painted);
+        int gap = renderer.getFrameGapWidth();
+        padded.grow(2 * gap, 2 * gap);
+        assertTrue(hoverRectangle.contains(painted), "hover bounds must cover the painted frame");
+        assertTrue(padded.contains(hoverRectangle), "hover bounds must stay within the frame's repaint padding");
     }
 
     private static MouseEvent move(FlamegraphViewFixture<String> graph, Point point) {

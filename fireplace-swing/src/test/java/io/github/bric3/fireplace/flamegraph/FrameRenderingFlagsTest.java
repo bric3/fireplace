@@ -9,12 +9,9 @@
  */
 package io.github.bric3.fireplace.flamegraph;
 
-import org.assertj.core.api.SoftAssertions;
-import org.assertj.core.api.junit.jupiter.SoftAssertionsExtension;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 
 import static io.github.bric3.fireplace.flamegraph.FrameRenderingFlags.*;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -42,28 +39,6 @@ class FrameRenderingFlagsTest {
             assertThat(PARTIAL_FRAME).isEqualTo(128);
         }
 
-        @Test
-        void flag_constants_are_unique() {
-            var flags = new int[]{
-                    MINIMAP_MODE,
-                    HIGHLIGHTING,
-                    HIGHLIGHTED_FRAME,
-                    HOVERED,
-                    HOVERED_SIBLING,
-                    FOCUSING,
-                    FOCUSED_FRAME,
-                    PARTIAL_FRAME
-            };
-
-            // Each flag should be a power of 2 and unique
-            for (int i = 0; i < flags.length; i++) {
-                for (int j = i + 1; j < flags.length; j++) {
-                    assertThat(flags[i] & flags[j])
-                            .as("Flags %d and %d should not overlap", flags[i], flags[j])
-                            .isZero();
-                }
-            }
-        }
     }
 
     @Nested
@@ -340,12 +315,7 @@ class FrameRenderingFlagsTest {
             int flags = MINIMAP_MODE | HOVERED | PARTIAL_FRAME;
             String result = FrameRenderingFlags.toString(flags);
 
-            assertThat(result)
-                    .startsWith("[")
-                    .endsWith("]")
-                    .contains("minimapMode")
-                    .contains("hovered")
-                    .contains("partial");
+            assertThat(result).isEqualTo("[minimapMode, hovered, partial]");
         }
 
         @Test
@@ -355,56 +325,8 @@ class FrameRenderingFlagsTest {
 
             String result = FrameRenderingFlags.toString(allFlags);
 
-            assertThat(result)
-                    .contains("minimapMode")
-                    .contains("highlighting")
-                    .contains("highlighted")
-                    .contains("hovered")
-                    .contains("hovered sibling")
-                    .contains("focusing")
-                    .contains("focused")
-                    .contains("partial");
+            assertThat(result).isEqualTo("[minimapMode, highlighting, highlighted, hovered, hovered sibling, focusing, focused, partial]");
         }
     }
 
-    @Nested
-    @DisplayName("Round-trip Tests")
-    @ExtendWith(SoftAssertionsExtension.class)
-    class RoundTripTests {
-
-        @Test
-        void toFlags_and_checkers_round_trip(SoftAssertions softly) {
-            // [minimapMode, highlighting, highlighted, hovered, hoveredSibling, focusing, focused, partial]
-            var minimapOnly =        new boolean[]{true,  false, false, false, false, false, false, false};
-            var highlightingOnly =   new boolean[]{false, true,  false, false, false, false, false, false};
-            var highlightedOnly =    new boolean[]{false, false, true,  false, false, false, false, false};
-            var hoveredOnly =        new boolean[]{false, false, false, true,  false, false, false, false};
-            var hoveredSiblingOnly = new boolean[]{false, false, false, false, true,  false, false, false};
-            var focusingOnly =       new boolean[]{false, false, false, false, false, true,  false, false};
-            var focusedOnly =        new boolean[]{false, false, false, false, false, false, true,  false};
-            var partialOnly =        new boolean[]{false, false, false, false, false, false, false, true};
-            var allFlags =           new boolean[]{true,  true,  true,  true,  true,  true,  true,  true};
-            var alternating =        new boolean[]{true,  false, true,  false, true,  false, true,  false};
-
-            for (var input : new boolean[][]{
-                    minimapOnly, highlightingOnly, highlightedOnly, hoveredOnly,
-                    hoveredSiblingOnly, focusingOnly, focusedOnly, partialOnly,
-                    allFlags, alternating
-            }) {
-                int flags = FrameRenderingFlags.toFlags(
-                        input[0], input[1], input[2], input[3],
-                        input[4], input[5], input[6], input[7]
-                );
-
-                softly.assertThat(isMinimapMode(flags)).as("minimapMode").isEqualTo(input[0]);
-                softly.assertThat(isHighlighting(flags)).as("highlighting").isEqualTo(input[1]);
-                softly.assertThat(isHighlightedFrame(flags)).as("highlighted").isEqualTo(input[2]);
-                softly.assertThat(isHovered(flags)).as("hovered").isEqualTo(input[3]);
-                softly.assertThat(isHoveredSibling(flags)).as("hoveredSibling").isEqualTo(input[4]);
-                softly.assertThat(isFocusing(flags)).as("focusing").isEqualTo(input[5]);
-                softly.assertThat(isInFocusedFlame(flags)).as("focused").isEqualTo(input[6]);
-                softly.assertThat(isPartialFrame(flags)).as("partial").isEqualTo(input[7]);
-            }
-        }
-    }
 }

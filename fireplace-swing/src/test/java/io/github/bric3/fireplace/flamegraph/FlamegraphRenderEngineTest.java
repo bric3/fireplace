@@ -9,6 +9,8 @@
  */
 package io.github.bric3.fireplace.flamegraph;
 
+import io.github.bric3.fireplace.flamegraph.fixtures.RecordingFrameRenderer;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -24,8 +26,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
+import static io.github.bric3.fireplace.flamegraph.FrameRenderingFlags.*;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.within;
 
@@ -36,22 +38,28 @@ import static org.assertj.core.api.Assertions.within;
 @DisplayName("FlamegraphRenderEngine")
 class FlamegraphRenderEngineTest {
 
+    private BufferedImage image;
     private Graphics2D g2d;
-    private FrameRenderer<String> frameRenderer;
+    private RecordingFrameRenderer<String> frameRenderer;
     private FlamegraphRenderEngine<String> engine;
 
     @BeforeEach
     void setUp() {
-        var image = new BufferedImage(800, 600, BufferedImage.TYPE_INT_ARGB);
+        image = new BufferedImage(800, 600, BufferedImage.TYPE_INT_ARGB);
         g2d = image.createGraphics();
 
-        frameRenderer = new DefaultFrameRenderer<>(
+        frameRenderer = new RecordingFrameRenderer<>(new DefaultFrameRenderer<>(
                 FrameTextsProvider.of(frame -> frame.actualNode),
                 FrameColorProvider.defaultColorProvider(frame -> Color.ORANGE),
                 FrameFontProvider.defaultFontProvider()
-        );
+        ));
 
         engine = new FlamegraphRenderEngine<>(frameRenderer);
+    }
+
+    @AfterEach
+    void disposeGraphics() {
+        g2d.dispose();
     }
 
     @Nested
@@ -177,44 +185,38 @@ class FlamegraphRenderEngineTest {
             // At 10000px width, the narrow frame is 10px wide (above threshold)
             int heightAtLargeWidth = engine.computeVisibleFlamegraphHeight(g2d, 10000);
 
-            assertThat(heightAtSmallWidth).isLessThan(heightAtLargeWidth);
+            int frameHeight = frameRenderer.getFrameBoxHeight(g2d);
+            assertThat(heightAtSmallWidth).isEqualTo(2 * frameHeight);
+            assertThat(heightAtLargeWidth).isEqualTo(3 * frameHeight);
         }
 
         @Test
         void update_flag_true_updates_visible_depth() {
             var frames = List.of(
                     new FrameBox<>("root", 0.0, 1.0, 0),
-                    new FrameBox<>("child", 0.0, 1.0, 1)
+                    new FrameBox<>("child", 0.999, 1.0, 1)
             );
             engine.init(new FrameModel<>(frames));
 
-            engine.computeVisibleFlamegraphHeight(g2d, 800, true);
-
             assertThat(engine.getVisibleDepth()).isEqualTo(2);
+
+            int height = engine.computeVisibleFlamegraphHeight(g2d, 100, true);
+
+            assertThat(height).isEqualTo(frameRenderer.getFrameBoxHeight(g2d));
+            assertThat(engine.getVisibleDepth()).isEqualTo(1);
         }
 
         @Test
         void update_flag_false_does_not_update_visible_depth() {
             var frames = List.of(
                     new FrameBox<>("root", 0.0, 1.0, 0),
-                    new FrameBox<>("child", 0.0, 1.0, 1)
+                    new FrameBox<>("child", 0.999, 1.0, 1)
             );
             engine.init(new FrameModel<>(frames));
-            int initialDepth = engine.getVisibleDepth();
+            int height = engine.computeVisibleFlamegraphHeight(g2d, 100, false);
 
-            engine.computeVisibleFlamegraphHeight(g2d, 800, false);
-
-            assertThat(engine.getVisibleDepth()).isEqualTo(initialDepth);
-        }
-
-        @Test
-        void caching_returns_same_result_for_same_width() {
-            engine.init(new FrameModel<>(createSimpleFrameList()));
-
-            int height1 = engine.computeVisibleFlamegraphHeight(g2d, 800);
-            int height2 = engine.computeVisibleFlamegraphHeight(g2d, 800);
-
-            assertThat(height1).isEqualTo(height2);
+            assertThat(height).isEqualTo(frameRenderer.getFrameBoxHeight(g2d));
+            assertThat(engine.getVisibleDepth()).isEqualTo(2);
         }
     }
 
@@ -233,7 +235,7 @@ class FlamegraphRenderEngineTest {
 
             int minimapHeight = engine.computeVisibleFlamegraphMinimapHeight(200);
 
-            assertThat(minimapHeight).isEqualTo(engine.getVisibleDepth());
+            assertThat(minimapHeight).isEqualTo(3);
         }
 
         @Test
@@ -417,19 +419,23 @@ class FlamegraphRenderEngineTest {
                 var bounds = new Rectangle2D.Double(0, 0, 800, 600);
                 Rectangle rect = engine.getFrameRectangle(g2d, bounds, root);
 
-                assertThat(rect.width).isGreaterThanOrEqualTo(798);
+                int gap = frameRenderer.getFrameGapWidth();
+                int height = frameRenderer.getFrameBoxHeight(g2d);
+                assertThat(rect).isEqualTo(new Rectangle(-gap, -gap, 800 + 3 * gap, height + 2 * gap));
             }
 
             @Test
             void partial_width_frame_returns_proportional_rect() {
                 var root = new FrameBox<>("root", 0.0, 1.0, 0);
-                var halfFrame = new FrameBox<>("half", 0.0, 0.5, 1);
+                var halfFrame = new FrameBox<>("half", 0.5, 1.0, 1);
                 engine.init(new FrameModel<>(List.of(root, halfFrame)));
 
                 var bounds = new Rectangle2D.Double(0, 0, 800, 600);
                 Rectangle rect = engine.getFrameRectangle(g2d, bounds, halfFrame);
 
-                assertThat(rect.width).isBetween(395, 410);
+                int gap = frameRenderer.getFrameGapWidth();
+                int height = frameRenderer.getFrameBoxHeight(g2d);
+                assertThat(rect).isEqualTo(new Rectangle(400 - gap, height - gap, 400 + 3 * gap, height + 2 * gap));
             }
 
             @Test
@@ -443,7 +449,7 @@ class FlamegraphRenderEngineTest {
                 Rectangle childRect = engine.getFrameRectangle(g2d, bounds, child);
 
                 // In icicle mode, child should be below root (larger Y)
-                assertThat(childRect.y).isGreaterThan(rootRect.y);
+                assertThat(childRect.y - rootRect.y).isEqualTo(frameRenderer.getFrameBoxHeight(g2d));
             }
         }
 
@@ -451,35 +457,46 @@ class FlamegraphRenderEngineTest {
         @DisplayName("paint")
         class PaintTests {
             @Test
-            void empty_model_does_not_throw() {
+            void empty_model_leaves_image_untouched() {
                 engine.init(FrameModel.empty());
                 var bounds = new Rectangle2D.Double(0, 0, 800, 600);
                 var viewRect = new Rectangle2D.Double(0, 0, 800, 600);
 
-                assertThatCode(() -> engine.paint(g2d, bounds, viewRect))
-                        .doesNotThrowAnyException();
+                engine.paint(g2d, bounds, viewRect);
+
+                assertThat(image.getRGB(0, 0, image.getWidth(), image.getHeight(), null, 0, image.getWidth()))
+                        .containsOnly(0);
             }
 
             @Test
-            void with_frames_does_not_throw() {
-                engine.init(new FrameModel<>(createSimpleFrameList()));
+            void paints_frames_at_their_icicle_depths() {
+                var frames = createSimpleFrameList();
+                engine.init(new FrameModel<>(frames));
                 var bounds = new Rectangle2D.Double(0, 0, 800, 600);
                 var viewRect = new Rectangle2D.Double(0, 0, 800, 600);
 
-                assertThatCode(() -> engine.paint(g2d, bounds, viewRect))
-                        .doesNotThrowAnyException();
+                engine.paint(g2d, bounds, viewRect);
+
+                int frameHeight = frameRenderer.getFrameBoxHeight(g2d);
+                assertThat(frameRenderer.mainPaint(frames.get(0)).bounds).isEqualTo(new Rectangle(0, 0, 800, frameHeight));
+                assertThat(frameRenderer.mainPaint(frames.get(1)).bounds).isEqualTo(new Rectangle(0, frameHeight, 400, frameHeight));
+                assertThat(frameRenderer.mainPaint(frames.get(2)).bounds).isEqualTo(new Rectangle(400, frameHeight, 400, frameHeight));
             }
 
             @Test
             void root_frame_out_of_view_does_not_paint_root() {
-                engine.init(new FrameModel<>(createSimpleFrameList()));
+                var frames = createSimpleFrameList();
+                engine.init(new FrameModel<>(frames));
                 var bounds = new Rectangle2D.Double(0, 0, 800, 600);
                 // viewRect starts below root frame
                 int frameHeight = frameRenderer.getFrameBoxHeight(g2d);
-                var viewRect = new Rectangle2D.Double(0, frameHeight * 2, 800, 400);
+                var viewRect = new Rectangle2D.Double(0, frameHeight, 800, 400);
 
-                assertThatCode(() -> engine.paint(g2d, bounds, viewRect))
-                        .doesNotThrowAnyException();
+                engine.paint(g2d, bounds, viewRect);
+
+                assertThat(frameRenderer.mainPaint(frames.get(0))).isNull();
+                assertThat(frameRenderer.mainPaint(frames.get(1))).isNotNull();
+                assertThat(frameRenderer.mainPaint(frames.get(2))).isNotNull();
             }
 
             @Test
@@ -492,8 +509,10 @@ class FlamegraphRenderEngineTest {
                 var bounds = new Rectangle2D.Double(0, 0, 100, 600);
                 var viewRect = new Rectangle2D.Double(0, 0, 100, 600);
 
-                assertThatCode(() -> engine.paint(g2d, bounds, viewRect))
-                        .doesNotThrowAnyException();
+                engine.paint(g2d, bounds, viewRect);
+
+                assertThat(frameRenderer.mainPaint(frames.get(0))).isNotNull();
+                assertThat(frameRenderer.mainPaint(frames.get(1))).isNull();
             }
 
             @Test
@@ -508,23 +527,29 @@ class FlamegraphRenderEngineTest {
                 // viewRect only covers middle - children are outside
                 var viewRect = new Rectangle2D.Double(300, 0, 400, 600);
 
-                assertThatCode(() -> engine.paint(g2d, bounds, viewRect))
-                        .doesNotThrowAnyException();
+                engine.paint(g2d, bounds, viewRect);
+
+                assertThat(frameRenderer.mainPaint(frames.get(0))).isNotNull();
+                assertThat(frameRenderer.mainPaint(frames.get(1))).isNull();
+                assertThat(frameRenderer.mainPaint(frames.get(2))).isNull();
             }
 
             @Test
             void partial_frame_clipped_on_left_flag_set() {
                 var frames = List.of(
                         new FrameBox<>("root", 0.0, 1.0, 0),
-                        new FrameBox<>("wide", 0.0, 0.8, 1)
+                        new FrameBox<>("wide", 0.0, 0.8, 1),
+                        new FrameBox<>("unclipped", 0.3, 0.7, 2)
                 );
                 engine.init(new FrameModel<>(frames));
                 var bounds = new Rectangle2D.Double(0, 0, 1000, 600);
                 // viewRect starts at 200, clipping the left side of frames
                 var viewRect = new Rectangle2D.Double(200, 0, 600, 600);
 
-                assertThatCode(() -> engine.paint(g2d, bounds, viewRect))
-                        .doesNotThrowAnyException();
+                engine.paint(g2d, bounds, viewRect);
+
+                assertThat(frameRenderer.mainPaint(frames.get(1)).flags & PARTIAL_FRAME).isEqualTo(PARTIAL_FRAME);
+                assertThat(frameRenderer.mainPaint(frames.get(2)).flags & PARTIAL_FRAME).isZero();
             }
         }
 
@@ -540,8 +565,9 @@ class FlamegraphRenderEngineTest {
                 // Hover the root frame
                 engine.hoverFrame(root, g2d, bounds, rect -> {});
 
-                assertThatCode(() -> engine.paint(g2d, bounds, bounds))
-                        .doesNotThrowAnyException();
+                engine.paint(g2d, bounds, bounds);
+
+                assertThat(frameRenderer.mainPaint(root).flags & HOVERED).isEqualTo(HOVERED);
             }
 
             @Test
@@ -553,8 +579,10 @@ class FlamegraphRenderEngineTest {
 
                 engine.hoverFrame(child, g2d, bounds, rect -> {});
 
-                assertThatCode(() -> engine.paint(g2d, bounds, bounds))
-                        .doesNotThrowAnyException();
+                engine.paint(g2d, bounds, bounds);
+
+                assertThat(frameRenderer.mainPaint(child).flags & HOVERED).isEqualTo(HOVERED);
+                assertThat(frameRenderer.mainPaint(root).flags & HOVERED).isZero();
             }
         }
 
@@ -571,8 +599,10 @@ class FlamegraphRenderEngineTest {
                 // Select root frame
                 engine.toggleSelectedFrameAt(g2d, bounds, new Point(400, frameHeight / 2), (f, r) -> {});
 
-                assertThatCode(() -> engine.paint(g2d, bounds, bounds))
-                        .doesNotThrowAnyException();
+                engine.paint(g2d, bounds, bounds);
+
+                assertThat(frameRenderer.mainPaint(root).flags & (FOCUSING | FOCUSED_FRAME))
+                        .isEqualTo(FOCUSING | FOCUSED_FRAME);
             }
 
             @Test
@@ -588,25 +618,16 @@ class FlamegraphRenderEngineTest {
                 // Select child frame - grandchild should be in focused area
                 engine.toggleSelectedFrameAt(g2d, bounds, new Point(200, frameHeight + frameHeight / 2), (f, r) -> {});
 
-                assertThatCode(() -> engine.paint(g2d, bounds, bounds))
-                        .doesNotThrowAnyException();
+                engine.paint(g2d, bounds, bounds);
+
+                assertThat(frameRenderer.mainPaint(child).flags & (FOCUSING | FOCUSED_FRAME))
+                        .isEqualTo(FOCUSING | FOCUSED_FRAME);
+                assertThat(frameRenderer.mainPaint(grandchild).flags & (FOCUSING | FOCUSED_FRAME))
+                        .isEqualTo(FOCUSING | FOCUSED_FRAME);
+                assertThat(frameRenderer.mainPaint(root).flags & (FOCUSING | FOCUSED_FRAME)).isEqualTo(FOCUSING);
+                assertThat(frameRenderer.mainPaint(outsideChild).flags & (FOCUSING | FOCUSED_FRAME)).isEqualTo(FOCUSING);
             }
 
-            @Test
-            void frame_outside_selected_bounds_not_focused() {
-                var root = new FrameBox<>("root", 0.0, 1.0, 0);
-                var left = new FrameBox<>("left", 0.0, 0.4, 1);
-                var right = new FrameBox<>("right", 0.6, 1.0, 1);
-                engine.init(new FrameModel<>(List.of(root, left, right)));
-                var bounds = new Rectangle2D.Double(0, 0, 800, 600);
-                int frameHeight = frameRenderer.getFrameBoxHeight(g2d);
-
-                // Select left - right should NOT be in focused area
-                engine.toggleSelectedFrameAt(g2d, bounds, new Point(100, frameHeight + frameHeight / 2), (f, r) -> {});
-
-                assertThatCode(() -> engine.paint(g2d, bounds, bounds))
-                        .doesNotThrowAnyException();
-            }
         }
 
         @Nested
@@ -641,7 +662,7 @@ class FlamegraphRenderEngineTest {
 
                 assertThat(result).isPresent();
                 assertThat(result.get().targetFrame).isEqualTo(child);
-                assertThat(result.get().getWidth()).isGreaterThan(800);
+                assertThat(result.get().getWidth()).isEqualTo(1600);
             }
 
             @Test
@@ -650,64 +671,58 @@ class FlamegraphRenderEngineTest {
                 var deepChild = new FrameBox<>("deep", 0.0, 0.1, 5);
                 engine.init(new FrameModel<>(List.of(root, deepChild)));
 
-                var bounds = new Rectangle2D.Double(0, 0, 800, 100); // Small height
-                var viewRect = new Rectangle2D.Double(0, 0, 800, 100);
                 int frameHeight = frameRenderer.getFrameBoxHeight(g2d);
+                var bounds = new Rectangle2D.Double(0, 0, 800, 6 * frameHeight);
+                var viewRect = new Rectangle2D.Double(0, 0, 800, 2 * frameHeight);
 
                 Optional<ZoomTarget<String>> result = engine.calculateZoomTargetForFrameAt(
                         g2d, bounds, viewRect, new Point(40, 5 * frameHeight + frameHeight / 2)
                 );
 
                 assertThat(result).isPresent();
+                assertThat(result.get().getTargetBounds())
+                        .isEqualTo(new Rectangle(0, -4 * frameHeight, 8000, 6 * frameHeight));
+                assertThat(result.get().targetFrame).isSameAs(deepChild);
             }
         }
 
         @Nested
         @DisplayName("calculateZoomTargetFrame")
         class CalculateZoomTargetFrameTests {
-            @Test
-            void with_context_before_zero_shows_from_frame() {
+            @ParameterizedTest
+            @CsvSource({"0, 2", "1, 1", "2, 0", "5, 0"})
+            void context_before_keeps_requested_parents_visible(int contextBefore, int firstVisibleDepth) {
                 var root = new FrameBox<>("root", 0.0, 1.0, 0);
                 var child = new FrameBox<>("child", 0.0, 0.5, 1);
                 var grandchild = new FrameBox<>("grandchild", 0.0, 0.25, 2);
-                engine.init(new FrameModel<>(List.of(root, child, grandchild)));
+                var deepChild = new FrameBox<>("deep", 0.0, 0.125, 5);
+                engine.init(new FrameModel<>(List.of(root, child, grandchild, deepChild)));
+                int frameHeight = frameRenderer.getFrameBoxHeight(g2d);
+                var bounds = new Rectangle2D.Double(0, 0, 800, 6 * frameHeight);
+                var viewRect = new Rectangle2D.Double(0, 0, 800, 2 * frameHeight);
 
-                var bounds = new Rectangle2D.Double(0, 0, 800, 600);
-                var viewRect = new Rectangle2D.Double(0, 0, 800, 600);
+                ZoomTarget<String> target = engine.calculateZoomTargetFrame(g2d, bounds, viewRect, grandchild, contextBefore, 0);
 
-                ZoomTarget<String> target = engine.calculateZoomTargetFrame(g2d, bounds, viewRect, grandchild, 0, 0);
-
-                assertThat(target).isNotNull();
-                assertThat(target.targetFrame).isEqualTo(grandchild);
-            }
-
-            @Test
-            void with_context_before_positive_includes_parents() {
-                var root = new FrameBox<>("root", 0.0, 1.0, 0);
-                var child = new FrameBox<>("child", 0.0, 0.5, 1);
-                var grandchild = new FrameBox<>("grandchild", 0.0, 0.25, 2);
-                engine.init(new FrameModel<>(List.of(root, child, grandchild)));
-
-                var bounds = new Rectangle2D.Double(0, 0, 800, 600);
-                var viewRect = new Rectangle2D.Double(0, 0, 800, 600);
-
-                ZoomTarget<String> target = engine.calculateZoomTargetFrame(g2d, bounds, viewRect, grandchild, 2, 0);
-
-                assertThat(target).isNotNull();
+                assertThat(target.getTargetBounds())
+                        .isEqualTo(new Rectangle(0, -firstVisibleDepth * frameHeight, 3200, 6 * frameHeight));
+                assertThat(target.targetFrame).isSameAs(grandchild);
             }
 
             @Test
             void with_context_before_negative_keeps_vertical_position() {
                 var root = new FrameBox<>("root", 0.0, 1.0, 0);
                 var child = new FrameBox<>("child", 0.0, 0.5, 1);
-                engine.init(new FrameModel<>(List.of(root, child)));
-
-                var bounds = new Rectangle2D.Double(0, 0, 800, 600);
-                var viewRect = new Rectangle2D.Double(0, 100, 800, 400); // Scrolled
+                var deepChild = new FrameBox<>("deep", 0.0, 0.25, 5);
+                engine.init(new FrameModel<>(List.of(root, child, deepChild)));
+                int frameHeight = frameRenderer.getFrameBoxHeight(g2d);
+                var bounds = new Rectangle2D.Double(0, 0, 800, 6 * frameHeight);
+                var viewRect = new Rectangle2D.Double(0, 2 * frameHeight, 800, 2 * frameHeight);
 
                 ZoomTarget<String> target = engine.calculateZoomTargetFrame(g2d, bounds, viewRect, child, -1, 0);
 
-                assertThat(target).isNotNull();
+                assertThat(target.getTargetBounds())
+                        .isEqualTo(new Rectangle(0, -2 * frameHeight, 1600, 6 * frameHeight));
+                assertThat(target.targetFrame).isSameAs(child);
             }
         }
     }
@@ -778,7 +793,8 @@ class FlamegraphRenderEngineTest {
                 Rectangle rect = engine.getFrameRectangle(g2d, bounds, root);
 
                 int frameHeight = frameRenderer.getFrameBoxHeight(g2d);
-                assertThat(rect.y + rect.height).isCloseTo((int) bounds.getHeight(), within(frameHeight));
+                int gap = frameRenderer.getFrameGapWidth();
+                assertThat(rect).isEqualTo(new Rectangle(-gap, 600 - frameHeight - gap, 800 + 3 * gap, frameHeight + 2 * gap));
             }
 
             @Test
@@ -792,7 +808,7 @@ class FlamegraphRenderEngineTest {
                 Rectangle childRect = engine.getFrameRectangle(g2d, bounds, child);
 
                 // In flamegraph mode, child should be above root (smaller Y)
-                assertThat(childRect.y).isLessThan(rootRect.y);
+                assertThat(rootRect.y - childRect.y).isEqualTo(frameRenderer.getFrameBoxHeight(g2d));
             }
         }
 
@@ -800,23 +816,33 @@ class FlamegraphRenderEngineTest {
         @DisplayName("paint")
         class PaintTests {
             @Test
-            void with_frames_does_not_throw() {
-                engine.init(new FrameModel<>(createSimpleFrameList()));
+            void paints_frames_at_their_flamegraph_depths() {
+                var frames = createSimpleFrameList();
+                engine.init(new FrameModel<>(frames));
                 var bounds = new Rectangle2D.Double(0, 0, 800, 600);
                 var viewRect = new Rectangle2D.Double(0, 0, 800, 600);
 
-                assertThatCode(() -> engine.paint(g2d, bounds, viewRect))
-                        .doesNotThrowAnyException();
+                engine.paint(g2d, bounds, viewRect);
+
+                int frameHeight = frameRenderer.getFrameBoxHeight(g2d);
+                assertThat(frameRenderer.mainPaint(frames.get(0)).bounds).isEqualTo(new Rectangle(0, 600 - frameHeight, 800, frameHeight));
+                assertThat(frameRenderer.mainPaint(frames.get(1)).bounds).isEqualTo(new Rectangle(0, 600 - 2 * frameHeight, 400, frameHeight));
+                assertThat(frameRenderer.mainPaint(frames.get(2)).bounds).isEqualTo(new Rectangle(400, 600 - 2 * frameHeight, 400, frameHeight));
             }
 
             @Test
-            void partial_view_rect_does_not_throw() {
-                engine.init(new FrameModel<>(createSimpleFrameList()));
+            void partial_view_rect_excludes_flames_below_the_view() {
+                var frames = createSimpleFrameList();
+                engine.init(new FrameModel<>(frames));
+                int frameHeight = frameRenderer.getFrameBoxHeight(g2d);
                 var bounds = new Rectangle2D.Double(0, 0, 1600, 600);
-                var viewRect = new Rectangle2D.Double(400, 100, 800, 400);
+                var viewRect = new Rectangle2D.Double(400, 600 - 2 * frameHeight, 800, frameHeight);
 
-                assertThatCode(() -> engine.paint(g2d, bounds, viewRect))
-                        .doesNotThrowAnyException();
+                engine.paint(g2d, bounds, viewRect);
+
+                assertThat(frameRenderer.mainPaint(frames.get(0))).isNull();
+                assertThat(frameRenderer.mainPaint(frames.get(1))).isNotNull();
+                assertThat(frameRenderer.mainPaint(frames.get(2))).isNotNull();
             }
         }
 
@@ -850,29 +876,34 @@ class FlamegraphRenderEngineTest {
             void flamegraph_mode_calculates_correct_y() {
                 var root = new FrameBox<>("root", 0.0, 1.0, 0);
                 var child = new FrameBox<>("child", 0.0, 0.5, 1);
-                engine.init(new FrameModel<>(List.of(root, child)));
-
-                var bounds = new Rectangle2D.Double(0, 0, 800, 600);
-                var viewRect = new Rectangle2D.Double(0, 0, 800, 600);
+                var deepChild = new FrameBox<>("deep", 0.0, 0.25, 5);
+                engine.init(new FrameModel<>(List.of(root, child, deepChild)));
+                int frameHeight = frameRenderer.getFrameBoxHeight(g2d);
+                var bounds = new Rectangle2D.Double(0, 0, 800, 6 * frameHeight);
+                var viewRect = new Rectangle2D.Double(0, 0, 800, 2 * frameHeight);
 
                 ZoomTarget<String> target = engine.calculateZoomTargetFrame(g2d, bounds, viewRect, child, 0, 0);
 
-                assertThat(target).isNotNull();
-                assertThat(target.getWidth()).isGreaterThan(800);
+                assertThat(target.getTargetBounds())
+                        .isEqualTo(new Rectangle(0, -3 * frameHeight, 1600, 6 * frameHeight));
+                assertThat(target.targetFrame).isSameAs(child);
             }
 
             @Test
             void flamegraph_mode_with_negative_context_keeps_vertical_position() {
                 var root = new FrameBox<>("root", 0.0, 1.0, 0);
                 var child = new FrameBox<>("child", 0.0, 0.5, 1);
-                engine.init(new FrameModel<>(List.of(root, child)));
-
-                var bounds = new Rectangle2D.Double(0, 0, 800, 600);
-                var viewRect = new Rectangle2D.Double(0, 100, 800, 400);
+                var deepChild = new FrameBox<>("deep", 0.0, 0.25, 5);
+                engine.init(new FrameModel<>(List.of(root, child, deepChild)));
+                int frameHeight = frameRenderer.getFrameBoxHeight(g2d);
+                var bounds = new Rectangle2D.Double(0, 0, 800, 6 * frameHeight);
+                var viewRect = new Rectangle2D.Double(0, frameHeight, 800, 2 * frameHeight);
 
                 ZoomTarget<String> target = engine.calculateZoomTargetFrame(g2d, bounds, viewRect, child, -1, 0);
 
-                assertThat(target).isNotNull();
+                assertThat(target.getTargetBounds())
+                        .isEqualTo(new Rectangle(0, -frameHeight, 1600, 6 * frameHeight));
+                assertThat(target.targetFrame).isSameAs(child);
             }
         }
     }
@@ -898,13 +929,15 @@ class FlamegraphRenderEngineTest {
             }
 
             @Test
-            void hoverFrame_empty_model_does_not_throw() {
+            void hoverFrame_empty_model_does_not_request_repaint() {
                 engine.init(FrameModel.empty());
                 var frame = new FrameBox<>("test", 0.0, 1.0, 0);
                 var bounds = new Rectangle2D.Double(0, 0, 800, 600);
 
-                assertThatCode(() -> engine.hoverFrame(frame, g2d, bounds, rect -> {}))
-                        .doesNotThrowAnyException();
+                var hoveredRects = new ArrayList<Rectangle>();
+                engine.hoverFrame(frame, g2d, bounds, hoveredRects::add);
+
+                assertThat(hoveredRects).isEmpty();
             }
 
             @Test
@@ -916,7 +949,7 @@ class FlamegraphRenderEngineTest {
                 var hoveredRects = new ArrayList<Rectangle>();
                 engine.hoverFrame(frame, g2d, bounds, hoveredRects::add);
 
-                assertThat(hoveredRects).hasSize(1);
+                assertThat(hoveredRects).containsExactly(engine.getFrameRectangle(g2d, bounds, frame));
             }
 
             @Test
@@ -931,7 +964,10 @@ class FlamegraphRenderEngineTest {
                 engine.hoverFrame(frame1, g2d, bounds, hoveredRects::add);
 
                 // Should invoke for both siblings
-                assertThat(hoveredRects).hasSize(2);
+                assertThat(hoveredRects).containsExactlyInAnyOrder(
+                        engine.getFrameRectangle(g2d, bounds, frame1),
+                        engine.getFrameRectangle(g2d, bounds, frame2)
+                );
             }
 
             @Test
@@ -962,7 +998,10 @@ class FlamegraphRenderEngineTest {
                 engine.hoverFrame(frame2, g2d, bounds, hoveredRects::add);
 
                 // Should invoke for new frame + old frame (cleanup)
-                assertThat(hoveredRects).hasSize(2);
+                assertThat(hoveredRects).containsExactlyInAnyOrder(
+                        engine.getFrameRectangle(g2d, bounds, frame2),
+                        engine.getFrameRectangle(g2d, bounds, frame1)
+                );
             }
 
             @Test
@@ -976,17 +1015,22 @@ class FlamegraphRenderEngineTest {
                 engine.hoverFrame(frame1, g2d, bounds, rect -> {});
 
                 // frame2 should be painted with hoveredSibling flag
-                assertThatCode(() -> engine.paint(g2d, bounds, bounds))
-                        .doesNotThrowAnyException();
+                engine.paint(g2d, bounds, bounds);
+
+                assertThat(frameRenderer.mainPaint(frame1).flags & (HOVERED | HOVERED_SIBLING)).isEqualTo(HOVERED);
+                assertThat(frameRenderer.mainPaint(frame2).flags & (HOVERED | HOVERED_SIBLING)).isEqualTo(HOVERED_SIBLING);
+                assertThat(frameRenderer.mainPaint(root).flags & (HOVERED | HOVERED_SIBLING)).isZero();
             }
 
             @Test
-            void stopHover_empty_model_does_not_throw() {
+            void stopHover_empty_model_does_not_request_repaint() {
                 engine.init(FrameModel.empty());
                 var bounds = new Rectangle2D.Double(0, 0, 800, 600);
 
-                assertThatCode(() -> engine.stopHover(g2d, bounds, rect -> {}))
-                        .doesNotThrowAnyException();
+                var clearedRects = new ArrayList<Rectangle>();
+                engine.stopHover(g2d, bounds, clearedRects::add);
+
+                assertThat(clearedRects).isEmpty();
             }
 
             @Test
@@ -1002,7 +1046,13 @@ class FlamegraphRenderEngineTest {
                 var clearedRects = new ArrayList<Rectangle>();
                 engine.stopHover(g2d, bounds, clearedRects::add);
 
-                assertThat(clearedRects).hasSize(2);
+                assertThat(clearedRects).containsExactlyInAnyOrder(
+                        engine.getFrameRectangle(g2d, bounds, frame1),
+                        engine.getFrameRectangle(g2d, bounds, frame2)
+                );
+                engine.paint(g2d, bounds, bounds);
+                assertThat(frameRenderer.mainPaint(frame1).flags & (HOVERED | HOVERED_SIBLING)).isZero();
+                assertThat(frameRenderer.mainPaint(frame2).flags & (HOVERED | HOVERED_SIBLING)).isZero();
             }
 
             @Test
@@ -1048,7 +1098,7 @@ class FlamegraphRenderEngineTest {
                 engine.hoverFrame(frame1, g2d, bounds, hoveredRects::add);
 
                 // Should only invoke for hovered frame, not sibling
-                assertThat(hoveredRects).hasSize(1);
+                assertThat(hoveredRects).containsExactly(engine.getFrameRectangle(g2d, bounds, frame1));
             }
 
             @Test
@@ -1061,8 +1111,10 @@ class FlamegraphRenderEngineTest {
 
                 engine.hoverFrame(frame1, g2d, bounds, rect -> {});
 
-                assertThatCode(() -> engine.paint(g2d, bounds, bounds))
-                        .doesNotThrowAnyException();
+                engine.paint(g2d, bounds, bounds);
+
+                assertThat(frameRenderer.mainPaint(frame1).flags & (HOVERED | HOVERED_SIBLING)).isEqualTo(HOVERED);
+                assertThat(frameRenderer.mainPaint(frame2).flags & (HOVERED | HOVERED_SIBLING)).isZero();
             }
         }
     }
@@ -1092,34 +1144,30 @@ class FlamegraphRenderEngineTest {
 
             var bounds = new Rectangle2D.Double(0, 0, 800, 600);
 
-            assertThatCode(() -> engine.paint(g2d, bounds, bounds))
-                    .doesNotThrowAnyException();
+            engine.paint(g2d, bounds, bounds);
+
+            assertThat(frameRenderer.mainPaint(child).flags & (HIGHLIGHTING | HIGHLIGHTED_FRAME))
+                    .isEqualTo(HIGHLIGHTING | HIGHLIGHTED_FRAME);
+            assertThat(frameRenderer.mainPaint(other).flags & (HIGHLIGHTING | HIGHLIGHTED_FRAME)).isEqualTo(HIGHLIGHTING);
+            assertThat(frameRenderer.mainPaint(root).flags & (HIGHLIGHTING | HIGHLIGHTED_FRAME)).isZero();
         }
 
         @Test
         void paint_empty_highlight_set_no_highlighting() {
-            engine.init(new FrameModel<>(createSimpleFrameList()));
+            var frames = createSimpleFrameList();
+            engine.init(new FrameModel<>(frames));
+            engine.setHighlightFrames(Set.of(frames.get(1)), "child1");
             engine.setHighlightFrames(Set.of(), null);
 
             var bounds = new Rectangle2D.Double(0, 0, 800, 600);
 
-            assertThatCode(() -> engine.paint(g2d, bounds, bounds))
-                    .doesNotThrowAnyException();
+            engine.paint(g2d, bounds, bounds);
+
+            for (var frame : frames) {
+                assertThat(frameRenderer.mainPaint(frame).flags & (HIGHLIGHTING | HIGHLIGHTED_FRAME)).isZero();
+            }
         }
 
-        @Test
-        void paint_frame_not_in_highlight_set_not_highlighted() {
-            var root = new FrameBox<>("root", 0.0, 1.0, 0);
-            var highlighted = new FrameBox<>("match", 0.0, 0.5, 1);
-            var notHighlighted = new FrameBox<>("other", 0.5, 1.0, 1);
-            engine.init(new FrameModel<>(List.of(root, highlighted, notHighlighted)));
-            engine.setHighlightFrames(Set.of(highlighted), "match");
-
-            var bounds = new Rectangle2D.Double(0, 0, 800, 600);
-
-            assertThatCode(() -> engine.paint(g2d, bounds, bounds))
-                    .doesNotThrowAnyException();
-        }
     }
 
     @Nested
@@ -1168,10 +1216,16 @@ class FlamegraphRenderEngineTest {
             var point = new Point(400, frameHeight / 2);
 
             engine.toggleSelectedFrameAt(g2d, bounds, point, (f, r) -> {});
+            engine.paint(g2d, bounds, bounds);
+            assertThat(frameRenderer.mainPaint(root).flags & (FOCUSING | FOCUSED_FRAME))
+                    .isEqualTo(FOCUSING | FOCUSED_FRAME);
+            frameRenderer.clear();
+
             engine.toggleSelectedFrameAt(g2d, bounds, point, (f, r) -> {});
 
-            assertThatCode(() -> engine.paint(g2d, bounds, bounds))
-                    .doesNotThrowAnyException();
+            engine.paint(g2d, bounds, bounds);
+
+            assertThat(frameRenderer.mainPaint(root).flags & (FOCUSING | FOCUSED_FRAME)).isZero();
         }
     }
 
@@ -1215,22 +1269,25 @@ class FlamegraphRenderEngineTest {
             }
 
             @Test
-            void point_on_frame_returns_target() {
+            void horizontal_zoom_fills_width_and_preserves_vertical_scroll() {
                 var root = new FrameBox<>("root", 0.0, 1.0, 0);
-                var child = new FrameBox<>("child", 0.0, 0.5, 1);
-                engine.init(new FrameModel<>(List.of(root, child)));
+                var parent = new FrameBox<>("parent", 0.0, 1.0, 1);
+                var child = new FrameBox<>("child", 0.5, 1.0, 2);
+                var deep = new FrameBox<>("deep", 0.5, 1.0, 5);
+                engine.init(new FrameModel<>(List.of(root, parent, child, deep)));
                 engine.setIcicle(true);
 
-                var bounds = new Rectangle2D.Double(0, 0, 800, 600);
-                var viewRect = new Rectangle2D.Double(0, 0, 800, 600);
                 int frameHeight = frameRenderer.getFrameBoxHeight(g2d);
+                var bounds = new Rectangle2D.Double(0, 0, 800, 6 * frameHeight);
+                var viewRect = new Rectangle2D.Double(0, frameHeight, 800, 2 * frameHeight);
 
                 Optional<ZoomTarget<String>> result = engine.calculateHorizontalZoomTargetForFrameAt(
-                        g2d, bounds, viewRect, new Point(200, frameHeight + frameHeight / 2)
+                        g2d, bounds, viewRect, new Point(600, 2 * frameHeight + frameHeight / 2)
                 );
 
                 assertThat(result).isPresent();
                 assertThat(result.get().targetFrame).isEqualTo(child);
+                assertThat(result.get().getTargetBounds()).isEqualTo(new Rectangle(-800, -frameHeight, 1600, 6 * frameHeight));
             }
         }
     }
@@ -1239,21 +1296,31 @@ class FlamegraphRenderEngineTest {
     @DisplayName("paintToImage")
     class PaintToImageTests {
         @Test
-        void icicle_mode_does_not_throw() {
-            engine.init(new FrameModel<>(createSimpleFrameList()));
+        void requested_icicle_mode_overrides_engine_mode() {
+            var frames = createSimpleFrameList();
+            engine.init(new FrameModel<>(frames));
+            engine.setIcicle(false);
             var size = new Rectangle2D.Double(0, 0, 800, 600);
 
-            assertThatCode(() -> engine.paintToImage(g2d, size, true))
-                    .doesNotThrowAnyException();
+            engine.paintToImage(g2d, size, true);
+
+            int frameHeight = frameRenderer.getFrameBoxHeight(g2d);
+            assertThat(frameRenderer.mainPaint(frames.get(0)).bounds.y).isZero();
+            assertThat(frameRenderer.mainPaint(frames.get(1)).bounds.y).isEqualTo(frameHeight);
         }
 
         @Test
-        void flamegraph_mode_does_not_throw() {
-            engine.init(new FrameModel<>(createSimpleFrameList()));
+        void requested_flamegraph_mode_overrides_engine_mode() {
+            var frames = createSimpleFrameList();
+            engine.init(new FrameModel<>(frames));
+            engine.setIcicle(true);
             var size = new Rectangle2D.Double(0, 0, 800, 600);
 
-            assertThatCode(() -> engine.paintToImage(g2d, size, false))
-                    .doesNotThrowAnyException();
+            engine.paintToImage(g2d, size, false);
+
+            int frameHeight = frameRenderer.getFrameBoxHeight(g2d);
+            assertThat(frameRenderer.mainPaint(frames.get(0)).bounds.y).isEqualTo(600 - frameHeight);
+            assertThat(frameRenderer.mainPaint(frames.get(1)).bounds.y).isEqualTo(600 - 2 * frameHeight);
         }
     }
 
@@ -1261,13 +1328,17 @@ class FlamegraphRenderEngineTest {
     @DisplayName("paintMinimap")
     class PaintMinimapTests {
         @Test
-        void with_frames_does_not_throw() {
+        void paints_one_pixel_per_depth() {
             engine.init(new FrameModel<>(createSimpleFrameList()));
             engine.setIcicle(true);
             var bounds = new Rectangle2D.Double(0, 0, 200, 100);
 
-            assertThatCode(() -> engine.paintMinimap(g2d, bounds))
-                    .doesNotThrowAnyException();
+            engine.paintMinimap(g2d, bounds);
+
+            assertThat(image.getRGB(50, 0)).isEqualTo(Color.ORANGE.getRGB());
+            assertThat(image.getRGB(50, 1)).isEqualTo(Color.ORANGE.getRGB());
+            assertThat(image.getRGB(150, 1)).isEqualTo(Color.ORANGE.getRGB());
+            assertThat(image.getRGB(50, 2)).isZero();
         }
 
         @Test
@@ -1281,8 +1352,12 @@ class FlamegraphRenderEngineTest {
             engine.setIcicle(true);
             var bounds = new Rectangle2D.Double(0, 0, 100, 50);
 
-            assertThatCode(() -> engine.paintMinimap(g2d, bounds))
-                    .doesNotThrowAnyException();
+            engine.paintMinimap(g2d, bounds);
+
+            // The subpixel width rounds to one pixel; main rendering skips widths below two.
+            assertThat(image.getRGB(99, 1)).isEqualTo(Color.ORANGE.getRGB());
+            assertThat(image.getRGB(98, 1)).isZero();
+            assertThat(image.getRGB(99, 2)).isZero();
         }
     }
 
@@ -1298,18 +1373,8 @@ class FlamegraphRenderEngineTest {
                     new FrameBox<>("greatGrandchild", 0.0, 1.0, 3)
             );
             engine.init(new FrameModel<>(frames));
-            engine.computeVisibleFlamegraphHeight(g2d, 800, true);
 
             assertThat(engine.getVisibleDepth()).isEqualTo(4);
-        }
-    }
-
-    @Nested
-    @DisplayName("constants")
-    class ConstantsTests {
-        @Test
-        void default_icicle_mode_is_true() {
-            assertThat(FlamegraphRenderEngine.DEFAULT_ICICLE_MODE).isTrue();
         }
     }
 
@@ -1318,25 +1383,35 @@ class FlamegraphRenderEngineTest {
     class EdgeCaseTests {
 
         @Test
-        void paint_very_small_bounds_does_not_throw() {
-            engine.init(new FrameModel<>(createSimpleFrameList()));
+        void paint_one_pixel_bounds_delegates_root_and_skips_children() {
+            var frames = createSimpleFrameList();
+            engine.init(new FrameModel<>(frames));
             engine.setIcicle(true);
             var bounds = new Rectangle2D.Double(0, 0, 1, 1);
             var viewRect = new Rectangle2D.Double(0, 0, 1, 1);
 
-            assertThatCode(() -> engine.paint(g2d, bounds, viewRect))
-                    .doesNotThrowAnyException();
+            engine.paint(g2d, bounds, viewRect);
+
+            assertThat(frameRenderer.mainPaint(frames.get(0)).bounds)
+                    .isEqualTo(new Rectangle(0, 0, 1, frameRenderer.getFrameBoxHeight(g2d)));
+            assertThat(frameRenderer.mainPaint(frames.get(1))).isNull();
+            assertThat(frameRenderer.mainPaint(frames.get(2))).isNull();
         }
 
         @Test
-        void paint_very_large_bounds_does_not_throw() {
-            engine.init(new FrameModel<>(createSimpleFrameList()));
+        void paint_large_canvas_keeps_scaled_bounds_and_skips_frames_outside_view() {
+            var frames = createSimpleFrameList();
+            engine.init(new FrameModel<>(frames));
             engine.setIcicle(true);
             var bounds = new Rectangle2D.Double(0, 0, 100000, 100000);
             var viewRect = new Rectangle2D.Double(0, 0, 800, 600);
 
-            assertThatCode(() -> engine.paint(g2d, bounds, viewRect))
-                    .doesNotThrowAnyException();
+            engine.paint(g2d, bounds, viewRect);
+
+            int frameHeight = frameRenderer.getFrameBoxHeight(g2d);
+            assertThat(frameRenderer.mainPaint(frames.get(0)).bounds).isEqualTo(new Rectangle(0, 0, 100000, frameHeight));
+            assertThat(frameRenderer.mainPaint(frames.get(1)).bounds).isEqualTo(new Rectangle(0, frameHeight, 50000, frameHeight));
+            assertThat(frameRenderer.mainPaint(frames.get(2))).isNull();
         }
 
         @Test
@@ -1352,24 +1427,41 @@ class FlamegraphRenderEngineTest {
             // Point at exact boundary
             Optional<FrameBox<String>> result = engine.getFrameAt(g2d, bounds, new Point(400, frameHeight + frameHeight / 2));
 
-            assertThat(result).isPresent();
+            assertThat(result).contains(left);
         }
 
         @Test
         void multiple_inits_clears_state() {
-            var frames1 = List.of(new FrameBox<>("first", 0.0, 1.0, 0));
-            var frames2 = List.of(
-                    new FrameBox<>("second", 0.0, 1.0, 0),
-                    new FrameBox<>("child", 0.0, 0.5, 1)
-            );
+            var root = new FrameBox<>("root", 0.0, 1.0, 0);
+            var left = new FrameBox<>("shared", 0.0, 0.5, 1);
+            var right = new FrameBox<>("shared", 0.5, 1.0, 1);
+            var leaf = new FrameBox<>("leaf", 0.0, 0.25, 2);
+            var bounds = new Rectangle(0, 0, 800, 600);
+            int height = frameRenderer.getFrameBoxHeight(g2d);
+            engine.setIcicle(true);
 
-            engine.init(new FrameModel<>(frames1));
+            engine.init(new FrameModel<>(List.of(root, left, right)));
             engine.computeVisibleFlamegraphHeight(g2d, 800, true);
-
-            engine.init(new FrameModel<>(frames2));
-            engine.computeVisibleFlamegraphHeight(g2d, 800, true);
-
+            engine.hoverFrame(left, g2d, bounds, rect -> {});
+            engine.setHighlightFrames(Set.of(left), "shared");
+            engine.toggleSelectedFrameAt(g2d, bounds, new Point(200, height + height / 2), (f, r) -> {});
+            engine.paint(g2d, bounds, bounds);
             assertThat(engine.getVisibleDepth()).isEqualTo(2);
+            assertThat(frameRenderer.mainPaint(left).flags)
+                    .isEqualTo(HIGHLIGHTING | HIGHLIGHTED_FRAME | HOVERED | FOCUSING | FOCUSED_FRAME);
+            assertThat(frameRenderer.mainPaint(right).flags)
+                    .isEqualTo(HIGHLIGHTING | HOVERED_SIBLING | FOCUSING);
+
+            // Reuse frames so stale selection, hover or highlights cannot hide behind new identities.
+            engine.init(new FrameModel<>(List.of(root, left, leaf, right)));
+            engine.computeVisibleFlamegraphHeight(g2d, 800, true);
+            frameRenderer.clear();
+            engine.paint(g2d, bounds, bounds);
+
+            assertThat(engine.getVisibleDepth()).isEqualTo(3);
+            assertThat(frameRenderer.mainPaint(left).flags).isZero();
+            assertThat(frameRenderer.mainPaint(right).flags).isZero();
+            assertThat(frameRenderer.mainPaint(leaf).flags).isZero();
         }
 
         @Test
@@ -1386,8 +1478,10 @@ class FlamegraphRenderEngineTest {
             engine.hoverFrame(child, g2d, bounds, rect -> {});
             engine.toggleSelectedFrameAt(g2d, bounds, new Point(200, frameHeight + frameHeight / 2), (f, r) -> {});
 
-            assertThatCode(() -> engine.paint(g2d, bounds, bounds))
-                    .doesNotThrowAnyException();
+            engine.paint(g2d, bounds, bounds);
+
+            assertThat(frameRenderer.mainPaint(child).flags)
+                    .isEqualTo(HIGHLIGHTING | HIGHLIGHTED_FRAME | HOVERED | FOCUSING | FOCUSED_FRAME);
         }
     }
 

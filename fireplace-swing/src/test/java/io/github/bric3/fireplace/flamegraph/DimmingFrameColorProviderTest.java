@@ -10,12 +10,14 @@
 package io.github.bric3.fireplace.flamegraph;
 
 import io.github.bric3.fireplace.core.ui.Colors;
-import io.github.bric3.fireplace.core.ui.LightDarkColor;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.awt.*;
 
@@ -61,31 +63,18 @@ class DimmingFrameColorProviderTest {
     @DisplayName("Root frame handling")
     class RootFrameHandling {
 
-        @Test
-        void root_frame_uses_root_background_color() {
-            DimmingFrameColorProvider<String> provider = new DimmingFrameColorProvider<>(frame -> Color.RED);
-
-            FrameBox<String> rootFrame = new FrameBox<>("root", 0.0, 1.0, 0);
-            FrameColorProvider.ColorModel colors = provider.getColors(rootFrame, 0);
-
-            // Root should use default ROOT_BACKGROUND_COLOR, not the base color function
-            assertThat(colors.background).isNotEqualTo(Color.RED);
-            assertThat(colors.background).isInstanceOf(LightDarkColor.class);
-        }
-
-        @Test
-        void root_frame_with_flags_ignores_base_color_function() {
+        @ParameterizedTest
+        @ValueSource(ints = {0, HIGHLIGHTING})
+        void root_frame_uses_root_colors_without_consulting_base_color_function(int flags) {
             DimmingFrameColorProvider<String> provider = new DimmingFrameColorProvider<>(frame -> {
                 throw new RuntimeException("Should not be called for root");
             });
 
             FrameBox<String> rootFrame = new FrameBox<>("root", 0.0, 1.0, 0);
-            int flags = toFlags(false, true, false, false, false, false, false, false);
-
-            // Should not throw because root uses special background
             FrameColorProvider.ColorModel colors = provider.getColors(rootFrame, flags);
 
-            assertThat(colors).isNotNull();
+            assertThat(colors.background).isEqualTo(DimmingFrameColorProvider.ROOT_BACKGROUND_COLOR);
+            assertThat(colors.foreground).isEqualTo(Colors.foregroundColor(DimmingFrameColorProvider.ROOT_BACKGROUND_COLOR));
         }
     }
 
@@ -94,69 +83,52 @@ class DimmingFrameColorProviderTest {
     class MinimapMode {
 
         @Test
-        void returns_foreground_default() {
+        void minimap_keeps_base_background_despite_hover_focus_and_highlighting() {
             DimmingFrameColorProvider<String> provider = new DimmingFrameColorProvider<>(frame -> Color.BLUE);
 
             FrameBox<String> frame = new FrameBox<>("test", 0.0, 1.0, 1);
-            int flags = toFlags(true, false, false, false, false, false, false, false);
+            int flags = MINIMAP_MODE | HOVERED | HIGHLIGHTING | FOCUSING;
 
             FrameColorProvider.ColorModel colors = provider.getColors(frame, flags);
 
-            // In minimap mode, foreground is DEFAULT_FRAME_FOREGROUND_COLOR
+            assertThat(colors.background).isEqualTo(Color.BLUE);
             assertThat(colors.foreground).isEqualTo(FrameColorProvider.ColorModel.DEFAULT_FRAME_FOREGROUND_COLOR);
         }
 
         @Test
-        void uses_separate_color_model() {
-            DimmingFrameColorProvider<String> provider = new DimmingFrameColorProvider<>(frame -> Color.RED);
+        void main_and_minimap_colors_do_not_overwrite_each_other() {
+            DimmingFrameColorProvider<Color> provider = new DimmingFrameColorProvider<>(frame -> frame.actualNode);
+            var red = new FrameBox<>(Color.RED, 0.0, 0.5, 1);
+            var blue = new FrameBox<>(Color.BLUE, 0.5, 1.0, 1);
 
-            FrameBox<String> frame = new FrameBox<>("test", 0.0, 1.0, 1);
+            var mainColors = provider.getColors(red, HIGHLIGHTING);
+            var minimapColors = provider.getColors(blue, MINIMAP_MODE);
 
-            FrameColorProvider.ColorModel mainColors = provider.getColors(frame, 0);
-            FrameColorProvider.ColorModel minimapColors = provider.getColors(frame, MINIMAP_MODE);
-
-            // Different instances for main canvas vs minimap (thread safety)
-            assertThat(mainColors).isNotSameAs(minimapColors);
+            assertThat(mainColors.background).isEqualTo(Colors.dim(Color.RED));
+            assertThat(mainColors.foreground).isEqualTo(DimmingFrameColorProvider.DIMMED_TEXT_COLOR);
+            provider.getColors(red, 0);
+            assertThat(minimapColors.background).isEqualTo(Color.BLUE);
+            assertThat(minimapColors.foreground).isEqualTo(FrameColorProvider.ColorModel.DEFAULT_FRAME_FOREGROUND_COLOR);
         }
     }
 
     @Nested
-    @DisplayName("Hovered frame")
+    @DisplayName("Hover colors")
     class HoveredFrame {
 
-        @Test
-        void alters_brightness() {
-            DimmingFrameColorProvider<String> provider = new DimmingFrameColorProvider<>(frame -> Color.GREEN);
+        @ParameterizedTest(name = "dark mode {0}, sibling {1}")
+        @CsvSource({"false, false", "false, true", "true, false", "true, true"})
+        void hover_uses_theme_adjusted_background_and_matching_foreground(boolean darkMode, boolean sibling) {
+            Colors.setDarkMode(darkMode);
+            var base = new Color(130, 150, 170);
+            DimmingFrameColorProvider<String> provider = new DimmingFrameColorProvider<>(frame -> base);
 
             FrameBox<String> frame = new FrameBox<>("test", 0.0, 1.0, 1);
-            int hoveredFlags = toFlags(false, false, false, true, false, false, false, false);
+            var colors = provider.getColors(frame, sibling ? HOVERED_SIBLING : HOVERED);
+            Color expectedBackground = darkMode ? Colors.brighter(base, 1.1f, 0.95f) : Colors.darker(base, 1.15f);
 
-            // Copy the background color before second call (ColorModel is reused)
-            Color normalBackground = provider.getColors(frame, 0).background;
-            Color hoveredBackground = provider.getColors(frame, hoveredFlags).background;
-
-            // Hovered should be different from normal (darker in light mode)
-            assertThat(hoveredBackground).isNotEqualTo(normalBackground);
-        }
-    }
-
-    @Nested
-    @DisplayName("Hovered sibling")
-    class HoveredSibling {
-
-        @Test
-        void alters_brightness() {
-            DimmingFrameColorProvider<String> provider = new DimmingFrameColorProvider<>(frame -> Color.CYAN);
-
-            FrameBox<String> frame = new FrameBox<>("test", 0.0, 1.0, 1);
-            int siblingFlags = toFlags(false, false, false, false, true, false, false, false);
-
-            // Copy the background color before second call (ColorModel is reused)
-            Color normalBackground = provider.getColors(frame, 0).background;
-            Color siblingBackground = provider.getColors(frame, siblingFlags).background;
-
-            // Hovered sibling should be different from normal
-            assertThat(siblingBackground).isNotEqualTo(normalBackground);
+            assertThat(colors.background).isEqualTo(expectedBackground);
+            assertThat(colors.foreground).isEqualTo(Colors.foregroundColor(expectedBackground));
         }
     }
 
@@ -171,12 +143,10 @@ class DimmingFrameColorProviderTest {
             FrameBox<String> frame = new FrameBox<>("test", 0.0, 1.0, 1);
             int highlightingFlags = toFlags(false, true, false, false, false, false, false, false);
 
-            // Copy the background color before second call (ColorModel is reused)
-            Color normalBackground = provider.getColors(frame, 0).background;
-            Color dimmedBackground = provider.getColors(frame, highlightingFlags).background;
+            var colors = provider.getColors(frame, highlightingFlags);
 
-            // Unhighlighted frame during highlighting should be dimmed
-            assertThat(dimmedBackground).isNotEqualTo(normalBackground);
+            assertThat(colors.background).isEqualTo(Colors.dim(Color.ORANGE));
+            assertThat(colors.foreground).isEqualTo(DimmingFrameColorProvider.DIMMED_TEXT_COLOR);
         }
 
         @Test
@@ -186,11 +156,10 @@ class DimmingFrameColorProviderTest {
             FrameBox<String> frame = new FrameBox<>("test", 0.0, 1.0, 1);
             int highlightedFlags = toFlags(false, true, true, false, false, false, false, false);
 
-            FrameColorProvider.ColorModel normalColors = provider.getColors(frame, 0);
             FrameColorProvider.ColorModel highlightedColors = provider.getColors(frame, highlightedFlags);
 
-            // Highlighted frame should NOT be dimmed (uses base color)
-            assertThat(highlightedColors.background).isEqualTo(normalColors.background);
+            assertThat(highlightedColors.background).isEqualTo(Color.MAGENTA);
+            assertThat(highlightedColors.foreground).isEqualTo(Colors.foregroundColor(Color.MAGENTA));
         }
     }
 
@@ -234,16 +203,18 @@ class DimmingFrameColorProviderTest {
             // FOCUSING flag set, but NOT FOCUSED_FRAME (frame is outside focused flame)
             int focusingFlags = toFlags(false, false, false, false, false, true, false, false);
 
-            // Copy the background color before second call (ColorModel is reused)
-            Color normalBackground = provider.getColors(frame, 0).background;
-            Color outsideFocusBackground = provider.getColors(frame, focusingFlags).background;
+            var beforeFocus = provider.getColors(frame, 0);
+            assertThat(beforeFocus.background).isEqualTo(Color.BLUE);
+            assertThat(beforeFocus.foreground).isEqualTo(Colors.foregroundColor(Color.BLUE));
 
-            // Frame outside focus should be dimmed
-            assertThat(outsideFocusBackground).isNotEqualTo(normalBackground);
+            var colors = provider.getColors(frame, focusingFlags);
+
+            assertThat(colors.background).isEqualTo(Colors.dim(Color.BLUE));
+            assertThat(colors.foreground).isEqualTo(DimmingFrameColorProvider.DIMMED_TEXT_COLOR);
         }
 
         @Test
-        void withDimNonFocusedFlame_keeps_focused_frames_bright() {
+        void withDimNonFocusedFlame_half_dims_unhighlighted_focused_frames() {
             DimmingFrameColorProvider<String> provider = new DimmingFrameColorProvider<String>(frame -> Color.YELLOW);
             provider.withDimNonFocusedFlame(true);
 
@@ -251,12 +222,12 @@ class DimmingFrameColorProviderTest {
             // FOCUSING and FOCUSED_FRAME flags set (frame is inside focused flame)
             int inFocusFlags = toFlags(false, false, false, false, false, true, true, false);
 
-            FrameColorProvider.ColorModel normalColors = provider.getColors(frame, 0);
             FrameColorProvider.ColorModel inFocusColors = provider.getColors(frame, inFocusFlags);
 
-            // Frame in focus should be half-dimmed but not fully dimmed
-            // The colors will be different due to half-dimming
-            assertThat(inFocusColors).isNotNull();
+            assertThat(inFocusColors.background).isEqualTo(Colors.halfDim(Color.YELLOW));
+            assertThat(inFocusColors.foreground).isEqualTo(
+                    Colors.withAlpha(Colors.foregroundColor(Colors.halfDim(Color.YELLOW)), 0.74f)
+            );
         }
 
         @Test
@@ -273,67 +244,11 @@ class DimmingFrameColorProviderTest {
     }
 
     @Nested
-    @DisplayName("ColorModel reuse")
-    class ColorModelReuse {
-
-        @Test
-        void reuses_color_model() {
-            DimmingFrameColorProvider<String> provider = new DimmingFrameColorProvider<>(frame -> Color.RED);
-
-            FrameBox<String> frame1 = new FrameBox<>("test1", 0.0, 0.5, 1);
-            FrameBox<String> frame2 = new FrameBox<>("test2", 0.5, 1.0, 1);
-
-            FrameColorProvider.ColorModel colors1 = provider.getColors(frame1, 0);
-            FrameColorProvider.ColorModel colors2 = provider.getColors(frame2, 0);
-
-            // Same instance reused for efficiency
-            assertThat(colors1).isSameAs(colors2);
-        }
-    }
-
-    @Nested
-    @DisplayName("Dark mode")
-    class DarkMode {
-
-        @Test
-        void affects_dimming() {
-            DimmingFrameColorProvider<String> provider = new DimmingFrameColorProvider<>(frame -> Color.GREEN);
-
-            FrameBox<String> frame = new FrameBox<>("test", 0.0, 1.0, 1);
-            int hoveredFlags = toFlags(false, false, false, true, false, false, false, false);
-
-            // Copy the background colors before mode switch (ColorModel is reused)
-            Colors.setDarkMode(false);
-            Color lightModeBackground = provider.getColors(frame, hoveredFlags).background;
-
-            Colors.setDarkMode(true);
-            Color darkModeBackground = provider.getColors(frame, hoveredFlags).background;
-
-            // Colors should be different in dark mode vs light mode
-            assertThat(lightModeBackground).isNotEqualTo(darkModeBackground);
-        }
-    }
-
-    @Nested
-    @DisplayName("Constants")
-    class Constants {
-
-        @Test
-        void are_initialized() {
-            assertThat(DimmingFrameColorProvider.DIMMED_TEXT_COLOR).isNotNull();
-            assertThat(DimmingFrameColorProvider.DIMMED_TEXT_COLOR).isInstanceOf(LightDarkColor.class);
-
-            assertThat(DimmingFrameColorProvider.ROOT_BACKGROUND_COLOR).isNotNull();
-            assertThat(DimmingFrameColorProvider.ROOT_BACKGROUND_COLOR).isInstanceOf(LightDarkColor.class);
-        }
-    }
-
-    @Nested
     @DisplayName("Complex flag combinations")
     class ComplexFlagCombinations {
 
         @Test
-        void handles_correctly() {
+        void highlighted_focused_frame_keeps_base_colors() {
             DimmingFrameColorProvider<String> provider = new DimmingFrameColorProvider<String>(frame -> Color.CYAN);
             provider.withDimNonFocusedFlame(true);
 
@@ -343,32 +258,8 @@ class DimmingFrameColorProviderTest {
             int flags = toFlags(false, true, true, false, false, true, true, false);
             FrameColorProvider.ColorModel colors = provider.getColors(frame, flags);
 
-            // Should return valid colors without throwing
-            assertThat(colors).isNotNull();
-            assertThat(colors.background).isNotNull();
-            assertThat(colors.foreground).isNotNull();
-        }
-    }
-
-    @Nested
-    @DisplayName("Dimmed color cache")
-    class DimmedColorCache {
-
-        @Test
-        void caches_dimmed_colors() {
-            DimmingFrameColorProvider<String> provider = new DimmingFrameColorProvider<>(frame -> Color.RED);
-
-            FrameBox<String> frame1 = new FrameBox<>("test1", 0.0, 0.5, 1);
-            FrameBox<String> frame2 = new FrameBox<>("test2", 0.5, 1.0, 1);
-
-            int highlightingFlags = toFlags(false, true, false, false, false, false, false, false);
-
-            // Both frames use same base color (RED), should get same dimmed color from cache
-            provider.getColors(frame1, highlightingFlags);
-            provider.getColors(frame2, highlightingFlags);
-
-            // The dimmed color for RED should be cached and reused
-            // (Can't directly verify cache, but the behavior should be consistent)
+            assertThat(colors.background).isEqualTo(Color.CYAN);
+            assertThat(colors.foreground).isEqualTo(Colors.foregroundColor(Color.CYAN));
         }
     }
 }

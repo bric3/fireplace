@@ -9,297 +9,163 @@
  */
 package io.github.bric3.fireplace.core.ui;
 
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
-import java.util.concurrent.CountDownLatch;
+import javax.swing.SwingUtilities;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static io.github.bric3.fireplace.core.ui.fixtures.SwingWindowFixture.runOnEdt;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-/**
- * Unit tests for {@link Debouncer}.
- * Uses Swing Timer which works in headless mode.
- */
-@DisplayName("Debouncer")
+/** Swing timers run headlessly; schedule on the EDT and await callbacks off it. */
+@Timeout(10)
 class DebouncerTest {
+    @ParameterizedTest(name = "default {0}ms, explicit {1}ms")
+    @CsvSource({"250, -1, 200", "10000, 25, 0", "0, 250, 200"})
+    void honors_default_and_explicit_delays(int defaultDelay, int explicitDelay, int minimumDelay) throws Exception {
+        var elapsed = new CompletableFuture<Long>();
+        runOnEdt(() -> {
+            var debouncer = new Debouncer(defaultDelay);
+            long started = System.nanoTime();
+            Runnable callback = () -> elapsed.complete(TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - started));
+            if (explicitDelay < 0) {
+                debouncer.debounce(callback);
+            } else {
+                debouncer.debounce(explicitDelay, callback);
+            }
+            return null;
+        });
 
-    @Nested
-    @DisplayName("Basic execution")
-    class BasicExecution {
-
-        @Test
-        @Timeout(5)
-        void executes_task_after_delay() throws InterruptedException {
-            var latch = new CountDownLatch(1);
-            var debouncer = new Debouncer(50);
-
-            debouncer.debounce(latch::countDown);
-
-            boolean completed = latch.await(2, TimeUnit.SECONDS);
-            assertThat(completed).isTrue();
-        }
-
-        @Test
-        @Timeout(5)
-        void with_explicit_delay_executes_after_specified_delay() throws InterruptedException {
-            var latch = new CountDownLatch(1);
-            var debouncer = new Debouncer(1000); // Default is 1 second
-
-            debouncer.debounce(50, latch::countDown); // But we use 50ms
-
-            boolean completed = latch.await(2, TimeUnit.SECONDS);
-            assertThat(completed).isTrue();
-        }
-
-        @Test
-        @Timeout(5)
-        void executes_runnable() throws InterruptedException {
-            var counter = new AtomicInteger(0);
-            var latch = new CountDownLatch(1);
-            var debouncer = new Debouncer(50);
-
-            debouncer.debounce(() -> {
-                counter.set(42);
-                latch.countDown();
-            });
-
-            boolean completed = latch.await(2, TimeUnit.SECONDS);
-
-            assertThat(completed).isTrue();
-            assertThat(counter.get()).isEqualTo(42);
-        }
+        // The deadline tolerates scheduling load but rejects using the 10s default for a 25ms override.
+        assertThat(elapsed.get(2, TimeUnit.SECONDS)).isGreaterThanOrEqualTo(minimumDelay);
     }
 
-    @Nested
-    @DisplayName("Debounce behavior")
-    class DebounceBehavior {
-
-        @Test
-        @Timeout(5)
-        void multiple_rapid_calls_executes_only_last() throws InterruptedException {
-            var counter = new AtomicInteger(0);
-            var latch = new CountDownLatch(1);
-            var debouncer = new Debouncer(100);
-
-            // Rapidly call debounce multiple times
-            for (int i = 1; i <= 5; i++) {
-                final int value = i;
+    @ParameterizedTest(name = "burst of {0} calls")
+    @ValueSource(ints = {2, 100})
+    void a_burst_executes_only_the_last_callback(int calls) throws Exception {
+        var completed = new CompletableFuture<Integer>();
+        var executions = new AtomicInteger();
+        runOnEdt(() -> {
+            var debouncer = new Debouncer(25);
+            // One EDT turn guarantees no timer callback can interleave with scheduling the burst.
+            for (int value = 0; value < calls; value++) {
+                int captured = value;
                 debouncer.debounce(() -> {
-                    counter.set(value);
-                    latch.countDown();
-                });
-                Thread.sleep(20); // Less than debounce delay
-            }
-
-            boolean completed = latch.await(2, TimeUnit.SECONDS);
-            assertThat(completed).isTrue();
-            // Should have the value from the last call
-            assertThat(counter.get()).isEqualTo(5);
-        }
-
-        @Test
-        @Timeout(5)
-        void cancels_previous_task() throws InterruptedException {
-            var firstTaskExecuted = new AtomicInteger(0);
-            var secondTaskLatch = new CountDownLatch(1);
-            var debouncer = new Debouncer(100);
-
-            // First task
-            debouncer.debounce(firstTaskExecuted::incrementAndGet);
-
-            // Immediately override with second task
-            debouncer.debounce(() -> secondTaskLatch.countDown());
-
-            // Wait for second task to complete
-            boolean completed = secondTaskLatch.await(2, TimeUnit.SECONDS);
-            assertThat(completed).isTrue();
-
-            // First task should not have executed
-            assertThat(firstTaskExecuted.get()).isZero();
-        }
-
-        @Test
-        @Timeout(5)
-        void separate_calls_executes_separately() throws InterruptedException {
-            var counter = new AtomicInteger(0);
-            var latch = new CountDownLatch(2);
-            var debouncer = new Debouncer(50);
-
-            // First call
-            debouncer.debounce(() -> {
-                counter.incrementAndGet();
-                latch.countDown();
-            });
-
-            // Wait for first to complete
-            Thread.sleep(150);
-
-            // Second call after delay
-            debouncer.debounce(() -> {
-                counter.incrementAndGet();
-                latch.countDown();
-            });
-
-            boolean completed = latch.await(2, TimeUnit.SECONDS);
-            assertThat(completed).isTrue();
-            assertThat(counter.get()).isEqualTo(2);
-        }
-
-        @Test
-        @Timeout(5)
-        void does_not_repeat() throws InterruptedException {
-            var counter = new AtomicInteger(0);
-            var debouncer = new Debouncer(50);
-
-            debouncer.debounce(counter::incrementAndGet);
-
-            // Wait long enough for multiple potential executions
-            Thread.sleep(300);
-
-            // Should only have executed once
-            assertThat(counter.get()).isEqualTo(1);
-        }
-
-        @Test
-        @Timeout(5)
-        void stress_test() throws InterruptedException {
-            var lastValue = new AtomicInteger(-1);
-            var latch = new CountDownLatch(1);
-            var debouncer = new Debouncer(50);
-
-            // Rapidly fire many events
-            int totalCalls = 100;
-            for (int i = 0; i < totalCalls; i++) {
-                final int value = i;
-                debouncer.debounce(() -> {
-                    lastValue.set(value);
-                    latch.countDown();
+                    executions.incrementAndGet();
+                    completed.complete(captured);
                 });
             }
+            return null;
+        });
 
-            boolean completed = latch.await(2, TimeUnit.SECONDS);
-            assertThat(completed).isTrue();
-
-            // Should have the last value (or close to it, due to timing)
-            assertThat(lastValue.get()).isGreaterThanOrEqualTo(totalCalls - 10);
-        }
+        assertThat(completed.get(2, TimeUnit.SECONDS)).isEqualTo(calls - 1);
+        assertThat(runOnEdt(executions::get)).isEqualTo(1);
     }
 
-    @Nested
-    @DisplayName("Delay configuration")
-    class DelayConfiguration {
+    @Test
+    void can_schedule_again_after_a_callback_completes() throws Exception {
+        var executions = new AtomicInteger();
+        var debouncer = new Debouncer(25);
+        var first = new CompletableFuture<Integer>();
+        runOnEdt(() -> {
+            debouncer.debounce(() -> first.complete(executions.incrementAndGet()));
+            return null;
+        });
+        assertThat(first.get(2, TimeUnit.SECONDS)).isEqualTo(1);
 
-        @Test
-        @Timeout(5)
-        void zero_delay_executes_immediately() throws InterruptedException {
-            var latch = new CountDownLatch(1);
-            var debouncer = new Debouncer(0);
-
-            long startTime = System.currentTimeMillis();
-            debouncer.debounce(latch::countDown);
-
-            boolean completed = latch.await(1, TimeUnit.SECONDS);
-            long elapsed = System.currentTimeMillis() - startTime;
-
-            assertThat(completed).isTrue();
-            // Should execute almost immediately (allowing for timer overhead)
-            assertThat(elapsed).isLessThan(500);
-        }
-
-        @Test
-        @Timeout(5)
-        void different_delays_respects_explicit_delay() throws InterruptedException {
-            var counter = new AtomicInteger(0);
-            var latch = new CountDownLatch(1);
-            var debouncer = new Debouncer(500); // Default is 500ms
-
-            // First call with short delay
-            debouncer.debounce(20, () -> {
-                counter.set(1);
-                latch.countDown();
-            });
-
-            boolean completed = latch.await(2, TimeUnit.SECONDS);
-            assertThat(completed).isTrue();
-            assertThat(counter.get()).isEqualTo(1);
-        }
-
-        @Test
-        void constructor_sets_default_delay() {
-            var debouncer = new Debouncer(123);
-
-            // The default delay is stored internally
-            // We verify it works by testing that default is used
-            var counter = new AtomicInteger(0);
-            var latch = new CountDownLatch(1);
-
-            debouncer.debounce(() -> {
-                counter.incrementAndGet();
-                latch.countDown();
-            });
-
-            try {
-                boolean completed = latch.await(2, TimeUnit.SECONDS);
-                assertThat(completed).isTrue();
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            }
-        }
+        var second = new CompletableFuture<Integer>();
+        runOnEdt(() -> {
+            debouncer.debounce(() -> second.complete(executions.incrementAndGet()));
+            return null;
+        });
+        assertThat(second.get(2, TimeUnit.SECONDS)).isEqualTo(2);
     }
 
-    @Nested
-    @DisplayName("Exception handling")
-    class ExceptionHandling {
-
-        @Test
-        @Timeout(5)
-        void task_exception_does_not_break_debouncer() throws InterruptedException {
-            var latch = new CountDownLatch(1);
-            var debouncer = new Debouncer(50);
-
-            // First task throws exception
-            debouncer.debounce(() -> {
-                throw new RuntimeException("Test exception");
-            });
-
-            // Wait a bit for exception
-            Thread.sleep(100);
-
-            // Second task should still work
-            debouncer.debounce(latch::countDown);
-
-            boolean completed = latch.await(2, TimeUnit.SECONDS);
-            assertThat(completed).isTrue();
-        }
-    }
-
-    @Nested
-    @DisplayName("EDT execution")
-    class EdtExecution {
-
-        @Test
-        @Timeout(5)
-        void executes_on_EDT() throws InterruptedException {
-            var executedOnEDT = new AtomicInteger(0); // 0 = not set, 1 = EDT, -1 = not EDT
-            var latch = new CountDownLatch(1);
-            var debouncer = new Debouncer(50);
-
-            debouncer.debounce(() -> {
-                if (javax.swing.SwingUtilities.isEventDispatchThread()) {
-                    executedOnEDT.set(1);
+    @Test
+    void callback_runs_once_without_repeating() throws Exception {
+        var first = new CompletableFuture<Void>();
+        var repeated = new CompletableFuture<Void>();
+        var executions = new AtomicInteger();
+        runOnEdt(() -> {
+            new Debouncer(25).debounce(() -> {
+                if (executions.incrementAndGet() == 1) {
+                    first.complete(null);
                 } else {
-                    executedOnEDT.set(-1);
+                    repeated.complete(null);
                 }
-                latch.countDown();
             });
+            return null;
+        });
+        first.get(2, TimeUnit.SECONDS);
 
-            boolean completed = latch.await(2, TimeUnit.SECONDS);
-            assertThat(completed).isTrue();
-            assertThat(executedOnEDT.get()).isEqualTo(1);
+        // Absence needs a bounded observation window, spanning several possible timer repetitions.
+        assertThatThrownBy(() -> repeated.get(200, TimeUnit.MILLISECONDS)).isInstanceOf(TimeoutException.class);
+        assertThat(runOnEdt(executions::get)).isEqualTo(1);
+    }
+
+    @Test
+    void zero_delay_still_queues_the_callback_on_the_edt() throws Exception {
+        var onEdt = new CompletableFuture<Boolean>();
+        runOnEdt(() -> {
+            new Debouncer(0).debounce(() -> onEdt.complete(SwingUtilities.isEventDispatchThread()));
+            assertThat(onEdt).isNotDone();
+            return null;
+        });
+
+        assertThat(onEdt.get(2, TimeUnit.SECONDS)).isTrue();
+    }
+
+    @Test
+    void can_schedule_again_after_a_callback_throws() throws Exception {
+        var debouncer = new Debouncer(25);
+        var expected = new RuntimeException("deliberate timer callback failure");
+        var failure = new CompletableFuture<Throwable>();
+        var failures = new ConcurrentLinkedQueue<Throwable>();
+        var executions = new AtomicInteger();
+        var active = new AtomicBoolean(true);
+        var edt = runOnEdt(Thread::currentThread);
+        var previousHandler = runOnEdt(edt::getUncaughtExceptionHandler);
+        try {
+            runOnEdt(() -> {
+                edt.setUncaughtExceptionHandler((thread, thrown) -> {
+                    failures.add(thrown);
+                    failure.complete(thrown);
+                });
+                debouncer.debounce(() -> {
+                    if (active.get()) {
+                        executions.incrementAndGet();
+                        throw expected;
+                    }
+                });
+                return null;
+            });
+            // Observe the thrown exception before scheduling again, so the first task cannot be cancelled.
+            assertThat(failure.get(2, TimeUnit.SECONDS)).isSameAs(expected);
+
+            var recovered = new CompletableFuture<Integer>();
+            runOnEdt(() -> {
+                debouncer.debounce(() -> recovered.complete(executions.incrementAndGet()));
+                return null;
+            });
+            assertThat(recovered.get(2, TimeUnit.SECONDS)).isEqualTo(2);
+        } finally {
+            // A timed-out deliberately failing callback must not throw into a later test's handler.
+            active.set(false);
+            runOnEdt(() -> {
+                edt.setUncaughtExceptionHandler(previousHandler);
+                return null;
+            });
         }
+        assertThat(failures).containsExactly(expected);
     }
 }

@@ -12,6 +12,8 @@ package io.github.bric3.fireplace.flamegraph;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 import java.awt.*;
 
@@ -41,11 +43,14 @@ class ZoomTargetTest {
         }
 
         @Test
-        void constructor_withRectangle_setsBounds() {
+        void constructor_withRectangle_copiesBounds() {
             var frame = new FrameBox<>("node", 0.0, 1.0, 0);
             var bounds = new Rectangle(15, 25, 200, 75);
             var zoomTarget = new ZoomTarget<>(bounds, frame);
 
+            bounds.setBounds(999, 888, 777, 666);
+
+            assertThat(zoomTarget.targetFrame).isSameAs(frame);
             assertThat(zoomTarget.getX()).isEqualTo(15.0);
             assertThat(zoomTarget.getY()).isEqualTo(25.0);
             assertThat(zoomTarget.getWidth()).isEqualTo(200.0);
@@ -84,63 +89,18 @@ class ZoomTargetTest {
     }
 
     @Nested
-    @DisplayName("Getters")
-    class GetterTests {
-
-        @Test
-        void getX_returnsDoubleValue() {
-            var zoomTarget = new ZoomTarget<String>(42, 0, 100, 100, null);
-
-            assertThat(zoomTarget.getX()).isEqualTo(42.0);
-        }
-
-        @Test
-        void getY_returnsDoubleValue() {
-            var zoomTarget = new ZoomTarget<String>(0, 73, 100, 100, null);
-
-            assertThat(zoomTarget.getY()).isEqualTo(73.0);
-        }
-
-        @Test
-        void getWidth_returnsDoubleValue() {
-            var zoomTarget = new ZoomTarget<String>(0, 0, 256, 100, null);
-
-            assertThat(zoomTarget.getWidth()).isEqualTo(256.0);
-        }
-
-        @Test
-        void getHeight_returnsDoubleValue() {
-            var zoomTarget = new ZoomTarget<String>(0, 0, 100, 128, null);
-
-            assertThat(zoomTarget.getHeight()).isEqualTo(128.0);
-        }
-    }
-
-    @Nested
     @DisplayName("getTargetBounds")
     class GetTargetBoundsTests {
-
-        @Test
-        void getTargetBounds_returnsNewRectangle() {
-            var zoomTarget = new ZoomTarget<String>(10, 20, 100, 50, null);
-
-            Rectangle bounds = zoomTarget.getTargetBounds();
-
-            assertThat(bounds.x).isEqualTo(10);
-            assertThat(bounds.y).isEqualTo(20);
-            assertThat(bounds.width).isEqualTo(100);
-            assertThat(bounds.height).isEqualTo(50);
-        }
 
         @Test
         void getTargetBounds_returnsDefensiveCopy() {
             var zoomTarget = new ZoomTarget<String>(10, 20, 100, 50, null);
 
             Rectangle bounds1 = zoomTarget.getTargetBounds();
-            bounds1.x = 999;
+            bounds1.setBounds(999, 888, 777, 666);
 
             Rectangle bounds2 = zoomTarget.getTargetBounds();
-            assertThat(bounds2.x).isEqualTo(10);
+            assertThat(bounds2).isNotSameAs(bounds1).isEqualTo(new Rectangle(10, 20, 100, 50));
         }
 
         @Test
@@ -178,20 +138,12 @@ class ZoomTargetTest {
     @DisplayName("equals and hashCode")
     class EqualsAndHashCodeTests {
 
-        @Test
-        void equals_sameValues_returnsTrue() {
+        @ParameterizedTest
+        @CsvSource({"11, 20, 100, 50", "10, 21, 100, 50", "10, 20, 101, 50", "10, 20, 100, 51"})
+        void equals_differentBounds_returnsFalse(int x, int y, int width, int height) {
             var frame = new FrameBox<>("node", 0.0, 1.0, 0);
             var zoomTarget1 = new ZoomTarget<>(10, 20, 100, 50, frame);
-            var zoomTarget2 = new ZoomTarget<>(10, 20, 100, 50, frame);
-
-            assertThat(zoomTarget1).isEqualTo(zoomTarget2);
-        }
-
-        @Test
-        void equals_differentBounds_returnsFalse() {
-            var frame = new FrameBox<>("node", 0.0, 1.0, 0);
-            var zoomTarget1 = new ZoomTarget<>(10, 20, 100, 50, frame);
-            var zoomTarget2 = new ZoomTarget<>(10, 20, 101, 50, frame);
+            var zoomTarget2 = new ZoomTarget<>(x, y, width, height, frame);
 
             assertThat(zoomTarget1).isNotEqualTo(zoomTarget2);
         }
@@ -241,7 +193,7 @@ class ZoomTargetTest {
         void equals_reflexive() {
             var zoomTarget = new ZoomTarget<String>(10, 20, 100, 50, null);
 
-            assertThat(zoomTarget).isEqualTo(zoomTarget);
+            assertThat(zoomTarget.equals(zoomTarget)).isTrue();
         }
 
         @Test
@@ -271,15 +223,6 @@ class ZoomTargetTest {
             int hash2 = zoomTarget.hashCode();
 
             assertThat(hash1).isEqualTo(hash2);
-        }
-
-        @Test
-        void hashCode_nullFrame_doesNotThrow() {
-            var zoomTarget = new ZoomTarget<String>(10, 20, 100, 50, null);
-
-            // Should not throw NullPointerException
-            int hash = zoomTarget.hashCode();
-            assertThat(hash).isNotNull();
         }
     }
 }

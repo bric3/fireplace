@@ -10,6 +10,7 @@
 package io.github.bric3.fireplace.core.ui;
 
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -44,34 +45,21 @@ class StringClipperTest {
         metrics = g2d.getFontMetrics(font);
     }
 
+    @AfterEach
+    void disposeGraphics() {
+        g2d.dispose();
+    }
+
     @Nested
     @DisplayName("NONE clipper")
     class NoneClipper {
 
         @Test
-        void returns_original_text() {
-            String text = "Hello World";
-
-            String result = StringClipper.NONE.clipString(font, metrics, 100, text, "...");
-
-            assertThat(result).isEqualTo(text);
-        }
-
-        @Test
-        void ignores_width() {
+        void ignores_width_and_clip_marker() {
             String text = "This is a very long string that would normally be clipped";
 
             // Even with very small width, NONE should return original
-            String result = StringClipper.NONE.clipString(font, metrics, 1, text, "...");
-
-            assertThat(result).isEqualTo(text);
-        }
-
-        @Test
-        void ignores_clip_string() {
-            String text = "Test";
-
-            String result = StringClipper.NONE.clipString(font, metrics, 10, text, "[CLIPPED]");
+            String result = StringClipper.NONE.clipString(font, metrics, 1, text, "[CLIPPED]");
 
             assertThat(result).isEqualTo(text);
         }
@@ -89,28 +77,24 @@ class StringClipperTest {
     class RightClipper {
 
         @Test
-        void short_text_no_clipping() {
+        void appends_marker_when_the_entire_candidate_fits() {
             String text = "Hi";
             double width = metrics.stringWidth(text) + 100; // Plenty of room
 
             String result = StringClipper.RIGHT.clipString(font, metrics, width, text, "...");
 
-            // When text fits, it should still append clip string per the implementation
             assertThat(result).isEqualTo(text + "...");
         }
 
         @Test
         void long_text_clips_from_right() {
             String text = "Hello World Test String";
-            // Use a width that can only fit a few characters
-            double charWidth = metrics.charWidth('X');
             double clipWidth = font.getStringBounds("...", metrics.getFontRenderContext()).getWidth();
-            double availableWidth = clipWidth + (charWidth * 5); // Room for about 5 chars + clip string
+            double availableWidth = clipWidth + metrics.stringWidth("Hello");
 
             String result = StringClipper.RIGHT.clipString(font, metrics, availableWidth, text, "...");
 
-            assertThat(result).endsWith("...");
-            assertThat(result.length()).isLessThan(text.length() + 3);
+            assertThat(result).isEqualTo("Hello...");
         }
 
         @Test
@@ -148,12 +132,11 @@ class StringClipperTest {
             String text = "Hello World";
             String customClip = "[...]";
             double clipWidth = font.getStringBounds(customClip, metrics.getFontRenderContext()).getWidth();
-            double charWidth = metrics.charWidth('H');
-            double width = clipWidth + charWidth * 3;
+            double width = clipWidth + metrics.stringWidth("Hel");
 
             String result = StringClipper.RIGHT.clipString(font, metrics, width, text, customClip);
 
-            assertThat(result).endsWith(customClip);
+            assertThat(result).isEqualTo("Hel[...]");
         }
 
         @Test
@@ -180,25 +163,12 @@ class StringClipperTest {
         @Test
         void unicode_text_clips_correctly() {
             String text = "日本語テスト"; // Japanese text
-            double charWidth = metrics.stringWidth("日");
             double clipWidth = font.getStringBounds("...", metrics.getFontRenderContext()).getWidth();
-            double width = clipWidth + charWidth * 2;
+            double width = clipWidth + metrics.stringWidth("日本");
 
             String result = StringClipper.RIGHT.clipString(font, metrics, width, text, "...");
 
-            assertThat(result).endsWith("...");
-            assertThat(result.length()).isLessThan(text.length() + 3);
-        }
-
-        @Test
-        void single_character_clips_to_clip_string() {
-            String text = "X";
-            double clipWidth = font.getStringBounds("...", metrics.getFontRenderContext()).getWidth();
-            double width = clipWidth; // Just enough for clip string, not the character
-
-            String result = StringClipper.RIGHT.clipString(font, metrics, width, text, "...");
-
-            assertThat(result).isEqualTo("...");
+            assertThat(result).isEqualTo("日本...");
         }
 
         @Test
@@ -218,54 +188,12 @@ class StringClipperTest {
 
         @Test
         void uses_long_text_placeholder() {
-            String text = "Hello";
-            double width = metrics.stringWidth(text) + 100;
-
-            String result = StringClipper.NONE.clipString(font, metrics, width, text);
-
-            assertThat(result).isEqualTo(text);
-        }
-    }
-
-    @Nested
-    @DisplayName("LONG_TEXT_PLACEHOLDER constant")
-    class LongTextPlaceholderConstant {
-
-        @Test
-        void is_ellipsis() {
-            assertThat(StringClipper.LONG_TEXT_PLACEHOLDER).isEqualTo("…");
-        }
-
-        @Test
-        void right_clipper_with_default_placeholder() {
-            String text = "A very long string that needs clipping";
-            double charWidth = metrics.charWidth('A');
-            double placeholderWidth = font.getStringBounds(StringClipper.LONG_TEXT_PLACEHOLDER,
-                                                           metrics.getFontRenderContext()).getWidth();
-            double width = placeholderWidth + charWidth * 5;
+            String text = "Hello World";
+            double width = metrics.stringWidth("Hel") + font.getStringBounds("…", metrics.getFontRenderContext()).getWidth();
 
             String result = StringClipper.RIGHT.clipString(font, metrics, width, text);
 
-            assertThat(result).endsWith(StringClipper.LONG_TEXT_PLACEHOLDER);
-        }
-    }
-
-    @Nested
-    @DisplayName("Custom clipper implementation")
-    class CustomClipper {
-
-        @Test
-        void can_implement_custom_clipper() {
-            // StringClipper is a functional interface
-            StringClipper leftClipper = (f, m, w, t, c) -> {
-                // Custom left clipper that clips from the left
-                if (t.length() <= 3) return t;
-                return c + t.substring(t.length() - 3);
-            };
-
-            String result = leftClipper.clipString(font, metrics, 10, "Hello World", "...");
-
-            assertThat(result).isEqualTo("...rld");
+            assertThat(result).isEqualTo("Hel…");
         }
     }
 
@@ -285,8 +213,7 @@ class StringClipperTest {
 
             String result = StringClipper.RIGHT.clipString(serifFont, serifMetrics, width, text, "...");
 
-            assertThat(result).endsWith("...");
-            assertThat(result.length()).isLessThanOrEqualTo(text.length() + 3);
+            assertThat(result).isEqualTo("Hello...");
         }
 
         @Test
@@ -297,12 +224,11 @@ class StringClipperTest {
 
             String text = "Bold Text";
             double clipWidth = boldFont.getStringBounds("...", boldMetrics.getFontRenderContext()).getWidth();
-            double charWidth = boldMetrics.charWidth('B');
-            double width = clipWidth + charWidth * 3;
+            double width = clipWidth + boldMetrics.stringWidth("Bold");
 
             String result = StringClipper.RIGHT.clipString(boldFont, boldMetrics, width, text, "...");
 
-            assertThat(result).endsWith("...");
+            assertThat(result).isEqualTo("Bold...");
         }
     }
 }

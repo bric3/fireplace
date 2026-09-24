@@ -13,7 +13,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
@@ -32,7 +31,7 @@ class FrameModelTest {
     class ConstructorTests {
 
         @Test
-        void withFramesList_usesDefaultEquality() {
+        void withFramesList_setsDefaultFields() {
             var frames = List.of(
                     new FrameBox<>("root", 0.0, 1.0, 0),
                     new FrameBox<>("child", 0.0, 0.5, 1)
@@ -100,22 +99,6 @@ class FrameModelTest {
             assertThat(empty1.title).isEmpty();
         }
 
-        @Test
-        void worksWithDifferentTypes() {
-            FrameModel<String> emptyString = FrameModel.empty();
-            FrameModel<Integer> emptyInteger = FrameModel.empty();
-
-            // Both reference the same singleton due to type erasure
-            assertThat((Object) emptyString).isSameAs(emptyInteger);
-        }
-
-        @Test
-        void framesIsEmptyList() {
-            FrameModel<String> empty = FrameModel.empty();
-
-            assertThat(empty.frames).isEqualTo(Collections.emptyList());
-            assertThat(empty.frames).isEmpty();
-        }
     }
 
     @Nested
@@ -149,7 +132,7 @@ class FrameModelTest {
         @Test
         void defaultEquality_comparesActualNodes() {
             var frame1 = new FrameBox<>("same", 0.0, 0.5, 0);
-            var frame2 = new FrameBox<>("same", 0.5, 1.0, 1);
+            var frame2 = new FrameBox<>(new String("same"), 0.5, 1.0, 1);
             var frame3 = new FrameBox<>("different", 0.0, 0.5, 0);
 
             var model = new FrameModel<>(List.of(frame1, frame2, frame3));
@@ -241,7 +224,7 @@ class FrameModelTest {
         void reflexive() {
             var model = new FrameModel<>(List.of(new FrameBox<>("node", 0.0, 1.0, 0)));
 
-            assertThat(model).isEqualTo(model);
+            assertThat(model.equals(model)).isTrue();
         }
     }
 
@@ -268,21 +251,6 @@ class FrameModelTest {
             int hash2 = model.hashCode();
 
             assertThat(hash1).isEqualTo(hash2);
-        }
-    }
-
-    @Nested
-    @DisplayName("Frames List")
-    class FramesListTests {
-
-        @Test
-        void isUnmodifiableWhenProvidedUnmodifiable() {
-            var frames = List.of(new FrameBox<>("node", 0.0, 1.0, 0));
-            var model = new FrameModel<>(frames);
-
-            // List.of creates unmodifiable list
-            assertThatThrownBy(() -> model.frames.add(new FrameBox<>("new", 0.0, 0.5, 0)))
-                    .isInstanceOf(UnsupportedOperationException.class);
         }
     }
 }

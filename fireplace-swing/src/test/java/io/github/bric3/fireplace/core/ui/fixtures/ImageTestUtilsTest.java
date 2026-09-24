@@ -42,18 +42,23 @@ class ImageTestUtilsTest {
             actual.setRGB(x, y, channel);
             var alpha = channel == 0x01000000;
             var difference = alpha ? "Alpha" : "Color";
-            var name = "ImageTestUtilsTest-pixel-" + x + "-" + y + "-" + channel;
+            for (boolean reverse : new boolean[]{false, true}) {
+                var name = "ImageTestUtilsTest-pixel-" + x + "-" + y + "-" + channel + "-reverse-" + reverse;
+                var differencePath = testReportDir().resolve(name + "-difference-" + difference.toLowerCase() + ".png");
+                Files.deleteIfExists(differencePath);
 
-            assertThatThrownBy(() -> assertImageEquals(name, expected, actual))
-                    .isInstanceOf(AssertionError.class)
-                    .hasMessageContaining(difference + " differences found in this area: " + new Rectangle(x, y, 1, 1))
-                    .hasMessageNotContaining((alpha ? "Color" : "Alpha") + " differences");
+                assertThatThrownBy(() -> assertImageEquals(name, reverse ? actual : expected, reverse ? expected : actual))
+                        .isInstanceOf(AssertionError.class)
+                        .hasMessageContaining(difference + " differences found in this area: " + new Rectangle(x, y, 1, 1))
+                        .hasMessageNotContaining((alpha ? "Color" : "Alpha") + " differences");
 
-            var image = ImageIO.read(testReportDir().resolve(name + "-difference-" + difference.toLowerCase() + ".png").toFile());
-            assertThat(image.getWidth()).isEqualTo(5);
-            assertThat(image.getHeight()).isEqualTo(5);
-            assertThat(image.getRGB(x, y)).isEqualTo(alpha ? 0xff4b0001 : 0xff000000 | channel);
-            assertThat(image.getRGB((x + 1) % 5, y)).isZero();
+                assertThat(differencePath).isRegularFile();
+                var image = ImageIO.read(differencePath.toFile());
+                assertThat(image.getWidth()).isEqualTo(5);
+                assertThat(image.getHeight()).isEqualTo(5);
+                assertThat(image.getRGB(x, y)).isEqualTo(alpha ? 0xff4b0001 : 0xff000000 | channel);
+                assertThat(image.getRGB((x + 1) % 5, y)).isZero();
+            }
         }
     }
 
