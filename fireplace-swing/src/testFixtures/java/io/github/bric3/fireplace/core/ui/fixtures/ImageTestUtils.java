@@ -7,7 +7,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
-package io.github.bric3.fireplace.flamegraph;
+package io.github.bric3.fireplace.core.ui.fixtures;
 
 import javax.imageio.ImageIO;
 import java.awt.*;
@@ -36,6 +36,15 @@ public class ImageTestUtils {
     }
 
     public static void assertImageEquals(String testDisplayName, RenderedImage expected, RenderedImage actual) {
+        assertImageEquals(testDisplayName, expected, actual, 0);
+    }
+
+    /** Optional per-channel RGB tolerance for rasterized text; alpha and dimensions remain exact. */
+    public static void assertImageEquals(String testDisplayName, RenderedImage expected, RenderedImage actual,
+                                         int maxRgbDifference) {
+        if (maxRgbDifference < 0 || maxRgbDifference > 255) {
+            throw new IllegalArgumentException("RGB tolerance must be between 0 and 255");
+        }
         var differences = new ArrayList<String>();
 
         if (expected.getWidth() != actual.getWidth()) {
@@ -90,8 +99,9 @@ public class ImageTestUtils {
         var actualRGB = new GetRGB(actual);
 
         int color;
-        var colorDifferenceArea = new Rectangle(0, 0, 0, 0);
-        var alphaDifferenceArea = new Rectangle(0, 0, 0, 0);
+        // Negative dimensions keep the origin out of the bounds until a pixel differs.
+        var colorDifferenceArea = new Rectangle(0, 0, -1, -1);
+        var alphaDifferenceArea = new Rectangle(0, 0, -1, -1);
         for (int x = 0; x < widthDifference; x++) {
             for (int y = 0; y < heightDifference; y++) {
 
@@ -120,39 +130,25 @@ public class ImageTestUtils {
                 color = (0xFF << 24) |
                         (diffRed << 16) | (diffGreen << 8) | diffBlue;
 
-                if ((color & 0x00FFFFFF) > 0) {
+                if (Math.max(diffRed, Math.max(diffGreen, diffBlue)) > maxRgbDifference) {
                     colorDifferenceImage.setRGB(x, y, color);
 
-                    if (colorDifferenceArea.x == 0) {
-                        colorDifferenceArea.x = x;
-                    }
-                    if (colorDifferenceArea.y == 0) {
-                        colorDifferenceArea.y = y;
-                    }
-                    colorDifferenceArea.width = x - colorDifferenceArea.x + 1;
-                    colorDifferenceArea.height = y - colorDifferenceArea.y + 1;
+                    colorDifferenceArea.add(new Rectangle(x, y, 1, 1));
                 }
                 if (diffAlpha > 0) {
                     alphaDifferenceImage.setRGB(x, y, (0xFF << 24) | 75 << 16 | (diffAlpha) /* use alpha as blue channel value */);
 
-                    if (alphaDifferenceArea.x == 0) {
-                        alphaDifferenceArea.x = x;
-                    }
-                    if (alphaDifferenceArea.y == 0) {
-                        alphaDifferenceArea.y = y;
-                    }
-                    alphaDifferenceArea.width = x - alphaDifferenceArea.x + 1;
-                    alphaDifferenceArea.height = y - alphaDifferenceArea.y + 1;
+                    alphaDifferenceArea.add(new Rectangle(x, y, 1, 1));
                 }
             }
         }
-        if (colorDifferenceArea.x != 0 || colorDifferenceArea.y != 0) {
+        if (!colorDifferenceArea.isEmpty()) {
             var diffPath = testReportDir().resolve(testDisplayName + "-difference-color.png");
             differences.add("Color differences found in this area: " + colorDifferenceArea + ", \ncolor difference image: " + diffPath);
 
             dumpPng(colorDifferenceImage, diffPath);
         }
-        if (alphaDifferenceArea.x != 0 || alphaDifferenceArea.y != 0) {
+        if (!alphaDifferenceArea.isEmpty()) {
             var diffPath = testReportDir().resolve(testDisplayName + "-difference-alpha.png");
             differences.add("Alpha differences found in this area: " + alphaDifferenceArea + ", \nalpha difference image: " + diffPath);
             dumpPng(alphaDifferenceImage, diffPath);
@@ -169,7 +165,11 @@ public class ImageTestUtils {
     }
 
     public static Path testReportDir() {
-        return projectDir().resolve(System.getProperty("gradle.test.suite.report.location"));
+        try {
+            return Files.createDirectories(projectDir().resolve(System.getProperty("gradle.test.suite.report.location")));
+        } catch (IOException failure) {
+            throw new UncheckedIOException(failure);
+        }
     }
 
     public static String imageTypeToString(int imageType) {

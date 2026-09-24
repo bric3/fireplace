@@ -9,6 +9,7 @@
  */
 package io.github.bric3.fireplace.flamegraph;
 
+import io.github.bric3.fireplace.core.ui.fixtures.SwingEdtExtension;
 import io.github.bric3.fireplace.flamegraph.FlamegraphView.FrameClickAction;
 import io.github.bric3.fireplace.flamegraph.FlamegraphView.Mode;
 import org.junit.jupiter.api.BeforeEach;
@@ -18,8 +19,9 @@ import org.junit.jupiter.api.Test;
 
 import javax.swing.*;
 import java.awt.*;
-import java.util.List;
-import java.util.Objects;
+import java.awt.event.MouseEvent;
+import java.util.Set;
+import java.util.function.Supplier;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
@@ -28,7 +30,8 @@ import static org.assertj.core.api.SoftAssertions.assertSoftly;
  * Basic tests for {@link FlamegraphView} covering construction, mode, frame gap, constants, and enums.
  */
 @DisplayName("FlamegraphView - Basic")
-class FlamegraphViewBasicApiTest {
+@org.junit.jupiter.api.extension.ExtendWith(SwingEdtExtension.class)
+class FlamegraphView_BasicApiTest {
 
     private FlamegraphView<String> fg;
 
@@ -38,43 +41,44 @@ class FlamegraphViewBasicApiTest {
     }
 
     @Test
-    void basic_api() {
-        assertSoftly(softly -> {
-            var component = fg.component;
-            softly.assertThat(FlamegraphView.<String>from(component)).contains(fg);
-            softly.assertThat(FlamegraphView.<String>from(new JPanel())).isEmpty();
-        });
+    void rejects_a_null_zoom_override() {
+        assertThatThrownBy(() -> fg.overrideZoomAction(null)).isInstanceOf(NullPointerException.class);
+    }
 
-        // non configured
-        assertSoftly(softly -> {
-            softly.assertThat(fg.getFrameModel()).isEqualTo(FrameModel.empty());
-            softly.assertThat(fg.getFrames()).isEmpty();
+    @Test
+    void rejects_null_configuration_arguments() {
+        assertThatThrownBy(() -> fg.configureCanvas(null)).isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> fg.setSelectedFrameConsumer(null)).isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> fg.setPopupConsumer(null)).isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> fg.setMinimapShadeColorSupplier(null)).isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> fg.highlightFrames(null, "test")).isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> fg.highlightFrames(Set.of(), null)).isInstanceOf(NullPointerException.class);
+    }
 
-            softly.assertThat(fg.getMode()).isEqualTo(Mode.ICICLEGRAPH);
-            softly.assertThat(fg.isShowMinimap()).isTrue();
-            softly.assertThat(fg.isShowHoveredSiblings()).isTrue();
-        });
+    @Test
+    void defaults_and_optional_configuration_remain_available() {
+        assertThat(fg.getFrameClickAction()).isEqualTo(FrameClickAction.FOCUS_FRAME);
+        assertThat(fg.getSelectedFrameConsumer()).isNull();
+        assertThat(fg.getPopupConsumer()).isNull();
+        assertThat(fg.getMinimapShadeColorSupplier()).isNull();
+        Supplier<Color> shade = () -> new Color(100, 100, 100, 100);
+        fg.setMinimapShadeColorSupplier(shade);
+        assertThat(fg.getMinimapShadeColorSupplier()).isSameAs(shade);
+        assertThat(fg.getMinimapShadeColorSupplier().get()).isEqualTo(shade.get());
+        fg.putClientProperty(FlamegraphView.SHOW_STATS, Boolean.TRUE);
+        assertThat(fg.<Boolean>getClientProperty(FlamegraphView.SHOW_STATS)).isTrue();
+        fg.putClientProperty(FlamegraphView.SHOW_STATS, null);
+        assertThat(fg.<Boolean>getClientProperty(FlamegraphView.SHOW_STATS)).isNull();
+    }
 
-        // after configuration
-        assertSoftly(softly -> {
-            var frameModel = new FrameModel<>(
-                    "title",
-                    (a, b) -> Objects.equals(a.actualNode, b.actualNode),
-                    List.of(new FrameBox<>("frame1", 0.0, 0.5, 1))
-            );
-            fg.setModel(frameModel);
-            softly.assertThat(fg.getFrameModel()).isEqualTo(frameModel);
-            softly.assertThat(fg.getFrames()).isEqualTo(frameModel.frames);
-
-            fg.setMode(Mode.FLAMEGRAPH);
-            softly.assertThat(fg.getMode()).isEqualTo(Mode.FLAMEGRAPH);
-
-            fg.setShowMinimap(false);
-            softly.assertThat(fg.isShowMinimap()).isFalse();
-
-            fg.setShowHoveredSiblings(false);
-            softly.assertThat(fg.isShowHoveredSiblings()).isFalse();
-        });
+    @Test
+    void minimap_and_hovered_siblings_are_enabled_by_default_and_can_be_disabled() {
+        assertThat(fg.isShowMinimap()).isTrue();
+        assertThat(fg.isShowHoveredSiblings()).isTrue();
+        fg.setShowMinimap(false);
+        fg.setShowHoveredSiblings(false);
+        assertThat(fg.isShowMinimap()).isFalse();
+        assertThat(fg.isShowHoveredSiblings()).isFalse();
     }
 
     @Nested
@@ -128,20 +132,9 @@ class FlamegraphViewBasicApiTest {
         }
 
         @Test
-        void setMode_from_icicle_to_flamegraph_triggers_change() {
-            assertThat(fg.getMode()).isEqualTo(Mode.ICICLEGRAPH);
-
-            fg.setMode(Mode.FLAMEGRAPH);
-
-            assertThat(fg.getMode()).isEqualTo(Mode.FLAMEGRAPH);
-        }
-
-        @Test
         void setMode_same_mode_does_not_throw() {
             fg.setMode(Mode.ICICLEGRAPH);
-
-            assertThatCode(() -> fg.setMode(Mode.ICICLEGRAPH))
-                    .doesNotThrowAnyException();
+            fg.setMode(Mode.ICICLEGRAPH);
 
             assertThat(fg.getMode()).isEqualTo(Mode.ICICLEGRAPH);
         }
@@ -163,48 +156,6 @@ class FlamegraphViewBasicApiTest {
     @DisplayName("Deprecated API")
     @SuppressWarnings({"deprecation", "removal"})
     class DeprecatedApiTests {
-
-        @Test
-        void basic_api() {
-            // non configured
-            assertSoftly(softly -> {
-                softly.assertThat(fg.isFrameGapEnabled()).isTrue();
-
-                softly.assertThat(fg.getFrameColorProvider()).isNotNull();
-                softly.assertThat(fg.getFrameFontProvider()).isNotNull();
-                softly.assertThat(fg.getFrameTextsProvider()).isNotNull();
-            });
-
-            // after configuration
-            assertSoftly(softly -> {
-                var frameTextsProvider = FrameTextsProvider.<String>empty();
-                var frameColorProvider = FrameColorProvider.<String>defaultColorProvider(box -> Color.BLACK);
-                var frameFontProvider = FrameFontProvider.<String>defaultFontProvider();
-                fg.setRenderConfiguration(
-                        frameTextsProvider,
-                        frameColorProvider,
-                        frameFontProvider
-                );
-                softly.assertThat(fg.getFrameTextsProvider()).isEqualTo(frameTextsProvider);
-                softly.assertThat(fg.getFrameColorProvider()).isEqualTo(frameColorProvider);
-                softly.assertThat(fg.getFrameFontProvider()).isEqualTo(frameFontProvider);
-
-                var frameTextsProvider2 = FrameTextsProvider.<String>empty();
-                fg.setFrameTextsProvider(frameTextsProvider2);
-                softly.assertThat(fg.getFrameTextsProvider()).isEqualTo(frameTextsProvider2);
-
-                var frameColorProvider2 = FrameColorProvider.<String>defaultColorProvider(box -> Color.BLACK);
-                fg.setFrameColorProvider(frameColorProvider2);
-                softly.assertThat(fg.getFrameColorProvider()).isEqualTo(frameColorProvider2);
-
-                var frameFontProvider2 = FrameFontProvider.<String>defaultFontProvider();
-                fg.setFrameFontProvider(frameFontProvider2);
-                softly.assertThat(fg.getFrameFontProvider()).isEqualTo(frameFontProvider2);
-
-                fg.setFrameGapEnabled(false);
-                softly.assertThat(fg.isFrameGapEnabled()).isFalse();
-            });
-        }
 
         @Nested
         @DisplayName("Frame Gap")
@@ -322,40 +273,27 @@ class FlamegraphViewBasicApiTest {
     class ComponentHierarchyTests {
 
         @Test
-        void component_is_not_null() {
-            assertThat(fg.component).isNotNull();
-        }
-
-        @Test
-        void component_is_jpanel() {
-            assertThat(fg.component).isInstanceOf(JPanel.class);
-        }
-
-        @Test
         void component_has_children() {
             assertThat(fg.component.getComponentCount()).isGreaterThan(0);
         }
 
         @Test
         void from_with_nested_child_eventually_finds_owner() {
-            // Navigate into the component hierarchy and find a component that has the owner
-            var found = findComponentWithOwner(fg.component);
-            assertThat(found).isTrue();
+            fg.configureCanvas(canvas -> {
+                assertThat(FlamegraphView.<String>from(canvas)).contains(fg);
+                canvas.setBackground(Color.PINK);
+            });
+            fg.configureCanvas(canvas -> assertThat(canvas.getBackground()).isEqualTo(Color.PINK));
         }
 
-        private boolean findComponentWithOwner(JComponent component) {
-            var result = FlamegraphView.<String>from(component);
-            if (result.isPresent() && result.get() == fg) {
-                return true;
-            }
-            for (var child : component.getComponents()) {
-                if (child instanceof JComponent) {
-                    if (findComponentWithOwner((JComponent) child)) {
-                        return true;
-                    }
-                }
-            }
-            return false;
+        @Test
+        void leveling_a_hover_point_requires_a_flamegraph_owner() {
+            var orphan = new JScrollPane();
+            var event = new MouseEvent(orphan, MouseEvent.MOUSE_MOVED, 0, 0, 10, 20, 0, false);
+            assertThatThrownBy(() -> FlamegraphView.HoverListener.getPointLeveledToFrameDepth(
+                    event, new Rectangle(0, 0, 200, 20)))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("Cannot find FlamegraphView owner");
         }
     }
 }

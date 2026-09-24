@@ -60,7 +60,28 @@ jobs:
         uses: gradle/actions/setup-gradle@v6
 
       - name: Build with Gradle
-        run: xvfb-run -a ./gradlew build --stacktrace
+        run: ./gradlew build --stacktrace
+
+      - name: Run Swing UI tests (1/3)
+        timeout-minutes: 5
+        run: >
+          xvfb-run --auto-servernum
+          --server-args="-screen 0 1920x1080x24"
+          ./gradlew :fireplace-swing:testUi --rerun --no-build-cache --stacktrace
+
+      - name: Run Swing UI tests (2/3)
+        timeout-minutes: 5
+        run: >
+          xvfb-run --auto-servernum
+          --server-args="-screen 0 1920x1080x24"
+          ./gradlew :fireplace-swing:testUi --rerun --no-build-cache --stacktrace
+
+      - name: Run Swing UI tests (3/3)
+        timeout-minutes: 5
+        run: >
+          xvfb-run --auto-servernum
+          --server-args="-screen 0 1920x1080x24"
+          ./gradlew :fireplace-swing:testUi --rerun --no-build-cache --stacktrace
 
       - name: Run SWT/AWT UI tests
         timeout-minutes: 2

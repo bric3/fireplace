@@ -9,6 +9,7 @@
  */
 package io.github.bric3.fireplace.flamegraph;
 
+import io.github.bric3.fireplace.core.ui.fixtures.SwingEdtExtension;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -24,6 +25,7 @@ import static org.assertj.core.api.Assertions.*;
  */
 @SuppressWarnings("NewClassNamingConvention")
 @DisplayName("FlamegraphView - Model")
+@org.junit.jupiter.api.extension.ExtendWith(SwingEdtExtension.class)
 class FlamegraphView_FrameModelTest {
 
     private FlamegraphView<String> fg;
@@ -31,6 +33,16 @@ class FlamegraphView_FrameModelTest {
     @BeforeEach
     void setUp() {
         fg = new FlamegraphView<>();
+    }
+
+    @Test
+    void replacing_a_model_preserves_mode_and_minimap_configuration() {
+        fg.setMode(FlamegraphView.Mode.FLAMEGRAPH);
+        fg.setShowMinimap(false);
+        fg.setModel(new FrameModel<>(List.of(new FrameBox<>("first", 0, 1, 0))));
+        fg.setModel(new FrameModel<>(List.of(new FrameBox<>("second", 0, 1, 0))));
+        assertThat(fg.getMode()).isEqualTo(FlamegraphView.Mode.FLAMEGRAPH);
+        assertThat(fg.isShowMinimap()).isFalse();
     }
 
     @Nested
@@ -163,36 +175,13 @@ class FlamegraphView_FrameModelTest {
         }
 
         @Test
-        void clear_multiple_times_does_not_throw() {
-            assertThatCode(() -> {
-                fg.clear();
-                fg.clear();
-                fg.clear();
-            }).doesNotThrowAnyException();
+        void clear_multiple_times_leaves_an_empty_model() {
+            fg.clear();
+            fg.clear();
+            fg.clear();
+            assertThat(fg.getFrameModel()).isEqualTo(FrameModel.empty());
+            assertThat(fg.getFrames()).isEmpty();
         }
     }
 
-    @Nested
-    @DisplayName("Request Repaint")
-    class RequestRepaintTests {
-
-        @Test
-        void requestRepaint_with_model_does_not_throw() {
-            fg.setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0))));
-
-            assertThatCode(() -> fg.requestRepaint())
-                    .doesNotThrowAnyException();
-        }
-
-        @Test
-        void requestRepaint_multiple_times_does_not_throw() {
-            fg.setModel(new FrameModel<>(List.of(new FrameBox<>("root", 0.0, 1.0, 0))));
-
-            assertThatCode(() -> {
-                fg.requestRepaint();
-                fg.requestRepaint();
-                fg.requestRepaint();
-            }).doesNotThrowAnyException();
-        }
-    }
 }

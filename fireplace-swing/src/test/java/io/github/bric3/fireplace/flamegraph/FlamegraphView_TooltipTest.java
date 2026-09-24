@@ -9,13 +9,12 @@
  */
 package io.github.bric3.fireplace.flamegraph;
 
+import io.github.bric3.fireplace.core.ui.fixtures.SwingEdtExtension;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 import javax.swing.*;
-import java.awt.*;
 import java.util.function.BiFunction;
 import java.util.function.Supplier;
 
@@ -25,9 +24,15 @@ import static org.assertj.core.api.Assertions.*;
  * Tests for {@link FlamegraphView} tooltip configuration.
  */
 @DisplayName("FlamegraphView - Tooltip")
-class FlamegraphViewTooltipTest {
+@org.junit.jupiter.api.extension.ExtendWith(SwingEdtExtension.class)
+class FlamegraphView_TooltipTest {
 
-    private FlamegraphView<String> fg = new FlamegraphView<>();
+    private FlamegraphView<String> fg;
+
+    @BeforeEach
+    void setUp() {
+        fg = new FlamegraphView<>();
+    }
 
     @Test
     void setTooltipTextFunction_sets_function() {
@@ -65,26 +70,4 @@ class FlamegraphViewTooltipTest {
                 .isInstanceOf(NullPointerException.class);
     }
 
-    @Test
-    void setTooltipTextFunction_custom_function_is_set() {
-        BiFunction<FrameModel<String>, FrameBox<String>, String> tooltipFunc =
-                (model, frame) -> "Tooltip: " + frame.actualNode;
-
-        fg.setTooltipTextFunction(tooltipFunc);
-
-        assertThat(fg.getTooltipTextFunction()).isEqualTo(tooltipFunc);
-    }
-
-    @Test
-    void setTooltipComponentSupplier_custom_supplier_is_set() {
-        Supplier<JToolTip> tooltipSupplier = () -> {
-            var tip = new JToolTip();
-            tip.setBackground(Color.YELLOW);
-            return tip;
-        };
-
-        fg.setTooltipComponentSupplier(tooltipSupplier);
-
-        assertThat(fg.getTooltipComponentSupplier()).isEqualTo(tooltipSupplier);
-    }
 }

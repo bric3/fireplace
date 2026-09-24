@@ -9,11 +9,12 @@
  */
 package io.github.bric3.fireplace.core.ui;
 
-import io.github.bric3.fireplace.flamegraph.SwingTestUtil;
+import io.github.bric3.fireplace.core.ui.fixtures.SwingEdtExtension;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import javax.swing.*;
 import java.awt.*;
@@ -33,6 +34,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * component to a destination component.
  */
 @DisplayName("MouseInputListenerWorkaroundForToolTipEnabledComponent")
+@ExtendWith(SwingEdtExtension.class)
 class MouseInputListenerWorkaroundForToolTipEnabledComponentTest {
 
     private JPanel sourceComponent;
@@ -114,7 +116,7 @@ class MouseInputListenerWorkaroundForToolTipEnabledComponentTest {
 
         @Test
         void mouseClicked_dispatches_to_destination() {
-            var event = SwingTestUtil.createClickEvent(sourceComponent, 50, 50, MouseEvent.BUTTON1, 1);
+            var event = mouseEvent(MouseEvent.MOUSE_CLICKED, 50, 50);
 
             workaround.mouseClicked(event);
 
@@ -125,7 +127,7 @@ class MouseInputListenerWorkaroundForToolTipEnabledComponentTest {
 
         @Test
         void mousePressed_dispatches_to_destination() {
-            var event = SwingTestUtil.createPressEvent(sourceComponent, 50, 50, MouseEvent.BUTTON1, false);
+            var event = mouseEvent(MouseEvent.MOUSE_PRESSED, 50, 50);
 
             workaround.mousePressed(event);
 
@@ -136,7 +138,7 @@ class MouseInputListenerWorkaroundForToolTipEnabledComponentTest {
 
         @Test
         void mouseReleased_dispatches_to_destination() {
-            var event = SwingTestUtil.createReleaseEvent(sourceComponent, 50, 50, false);
+            var event = mouseEvent(MouseEvent.MOUSE_RELEASED, 50, 50);
 
             workaround.mouseReleased(event);
 
@@ -147,7 +149,7 @@ class MouseInputListenerWorkaroundForToolTipEnabledComponentTest {
 
         @Test
         void mouseEntered_dispatches_to_destination() {
-            var event = SwingTestUtil.createEnteredEvent(sourceComponent, 50, 50);
+            var event = mouseEvent(MouseEvent.MOUSE_ENTERED, 50, 50);
 
             workaround.mouseEntered(event);
 
@@ -158,7 +160,7 @@ class MouseInputListenerWorkaroundForToolTipEnabledComponentTest {
 
         @Test
         void mouseExited_dispatches_to_destination() {
-            var event = SwingTestUtil.createExitedEvent(sourceComponent, -10, -10);
+            var event = mouseEvent(MouseEvent.MOUSE_EXITED, -10, -10);
 
             workaround.mouseExited(event);
 
@@ -190,7 +192,7 @@ class MouseInputListenerWorkaroundForToolTipEnabledComponentTest {
 
         @Test
         void mouseMoved_dispatches_to_destination() {
-            var event = SwingTestUtil.createMovedEvent(sourceComponent, 75, 100);
+            var event = mouseEvent(MouseEvent.MOUSE_MOVED, 75, 100);
 
             workaround.mouseMoved(event);
 
@@ -201,7 +203,7 @@ class MouseInputListenerWorkaroundForToolTipEnabledComponentTest {
 
         @Test
         void mouseDragged_dispatches_to_destination() {
-            var event = SwingTestUtil.createDraggedEvent(sourceComponent, 75, 100);
+            var event = mouseEvent(MouseEvent.MOUSE_DRAGGED, 75, 100);
 
             workaround.mouseDragged(event);
 
@@ -231,7 +233,9 @@ class MouseInputListenerWorkaroundForToolTipEnabledComponentTest {
 
         @Test
         void mouseWheelMoved_dispatches_to_destination() {
-            var event = SwingTestUtil.createWheelEvent(sourceComponent, 50, 50, -1);
+            var event = new MouseWheelEvent(sourceComponent, MouseEvent.MOUSE_WHEEL,
+                    System.currentTimeMillis(), 0, 50, 50, 0, false,
+                    MouseWheelEvent.WHEEL_UNIT_SCROLL, 3, -1);
 
             workaround.mouseWheelMoved(event);
 
@@ -283,7 +287,7 @@ class MouseInputListenerWorkaroundForToolTipEnabledComponentTest {
         @Test
         void coordinates_are_converted_between_components() {
             // Click at position (100, 100) in source component
-            var event = SwingTestUtil.createClickEvent(sourceComponent, 100, 100, MouseEvent.BUTTON1, 1);
+            var event = mouseEvent(MouseEvent.MOUSE_CLICKED, 100, 100);
 
             workaround.mouseClicked(event);
 
@@ -293,12 +297,8 @@ class MouseInputListenerWorkaroundForToolTipEnabledComponentTest {
             // Verify the event was dispatched
             assertThat(dispatchedEvent.getSource()).isEqualTo(destinationComponent);
 
-            // Coordinates should be converted relative to destination
-            // This tests that SwingUtilities.convertMouseEvent is being called
-            assertThat(dispatchedEvent.getX()).isNotEqualTo(event.getX())
-                    .describedAs("X coordinate should be converted");
-            assertThat(dispatchedEvent.getY()).isNotEqualTo(event.getY())
-                    .describedAs("Y coordinate should be converted");
+            // Source (50, 50) to destination (10, 10) adds exactly (40, 40).
+            assertThat(dispatchedEvent.getPoint()).isEqualTo(new Point(140, 140));
         }
     }
 
@@ -356,13 +356,13 @@ class MouseInputListenerWorkaroundForToolTipEnabledComponentTest {
         void typical_interaction_sequence_is_preserved() {
             // Simulate: enter -> move -> press -> drag -> release -> exit
 
-            workaround.mouseEntered(SwingTestUtil.createEnteredEvent(sourceComponent, 50, 50));
-            workaround.mouseMoved(SwingTestUtil.createMovedEvent(sourceComponent, 60, 60));
-            workaround.mousePressed(SwingTestUtil.createPressEvent(sourceComponent, 60, 60, MouseEvent.BUTTON1, false));
-            workaround.mouseDragged(SwingTestUtil.createDraggedEvent(sourceComponent, 70, 70));
-            workaround.mouseDragged(SwingTestUtil.createDraggedEvent(sourceComponent, 80, 80));
-            workaround.mouseReleased(SwingTestUtil.createReleaseEvent(sourceComponent, 80, 80, false));
-            workaround.mouseExited(SwingTestUtil.createExitedEvent(sourceComponent, -10, -10));
+            workaround.mouseEntered(mouseEvent(MouseEvent.MOUSE_ENTERED, 50, 50));
+            workaround.mouseMoved(mouseEvent(MouseEvent.MOUSE_MOVED, 60, 60));
+            workaround.mousePressed(mouseEvent(MouseEvent.MOUSE_PRESSED, 60, 60));
+            workaround.mouseDragged(mouseEvent(MouseEvent.MOUSE_DRAGGED, 70, 70));
+            workaround.mouseDragged(mouseEvent(MouseEvent.MOUSE_DRAGGED, 80, 80));
+            workaround.mouseReleased(mouseEvent(MouseEvent.MOUSE_RELEASED, 80, 80));
+            workaround.mouseExited(mouseEvent(MouseEvent.MOUSE_EXITED, -10, -10));
 
             assertThat(eventSequence).containsExactly(
                     MouseEvent.MOUSE_ENTERED,
@@ -374,5 +374,13 @@ class MouseInputListenerWorkaroundForToolTipEnabledComponentTest {
                     MouseEvent.MOUSE_EXITED
             );
         }
+    }
+
+    private MouseEvent mouseEvent(int id, int x, int y) {
+        boolean leftButton = id == MouseEvent.MOUSE_CLICKED || id == MouseEvent.MOUSE_PRESSED
+                             || id == MouseEvent.MOUSE_RELEASED || id == MouseEvent.MOUSE_DRAGGED;
+        return new MouseEvent(sourceComponent, id, System.currentTimeMillis(),
+                leftButton ? MouseEvent.BUTTON1_DOWN_MASK : 0, x, y, leftButton ? 1 : 0,
+                false, leftButton ? MouseEvent.BUTTON1 : MouseEvent.NOBUTTON);
     }
 }

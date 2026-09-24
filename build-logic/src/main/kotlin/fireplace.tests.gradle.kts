@@ -51,13 +51,13 @@ testing {
     }
 }
 
-tasks.withType<JacocoReport> {
+tasks.withType<JacocoReport>().configureEach {
     reports {
         xml.required = true
         html.required = true
     }
 }
 
-tasks.named("test") {
+tasks.named<Test>("test") {
     finalizedBy(tasks.named("jacocoTestReport"))
 }
