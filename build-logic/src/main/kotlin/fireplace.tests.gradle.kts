@@ -12,6 +12,7 @@ import com.adarshr.gradle.testlogger.theme.ThemeType
 plugins {
     `jvm-test-suite`
     id("com.adarshr.test-logger")
+    jacoco
 }
 
 testlogger {
@@ -48,4 +49,15 @@ testing {
             }
         }
     }
+}
+
+tasks.withType<JacocoReport>().configureEach {
+    reports {
+        xml.required = true
+        html.required = true
+    }
+}
+
+tasks.named<Test>("test") {
+    finalizedBy(tasks.named("jacocoTestReport"))
 }

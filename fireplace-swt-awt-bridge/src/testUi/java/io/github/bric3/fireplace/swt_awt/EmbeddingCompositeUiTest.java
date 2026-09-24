@@ -39,6 +39,9 @@ import java.awt.KeyboardFocusManager;
 import java.awt.Toolkit;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
+import java.beans.PropertyChangeListener;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -238,12 +241,15 @@ class EmbeddingCompositeUiTest {
     }
 
     @Test
-    void usesTheDefaultFocusPolicyAndMovesFocusToTheSelectedSwtControl() throws InterruptedException {
+    void reentersTheSameSwingFrameAndTraversesBackToSwt() throws InterruptedException {
+        var transitions = new CopyOnWriteArrayList<String>();
         var beforeSwing = new Text(shell, SWT.NONE);
         var embedding = new EmbeddingComposite(shell);
         var afterSwing = new Text(shell, SWT.NONE);
         shell.setTabList(new org.eclipse.swt.widgets.Control[]{beforeSwing, embedding, afterSwing});
+        embedding.setFocusTraversalEnabled(true);
         embedding.addTraverseListener(event -> {
+            transitions.add("SWT traverse: " + event.detail);
             if (event.detail == SWT.TRAVERSE_TAB_NEXT) {
                 afterSwing.setFocus();
                 event.doit = false;
@@ -252,16 +258,16 @@ class EmbeddingCompositeUiTest {
                 event.doit = false;
             }
         });
-
         var first = new AtomicReference<Component>();
         var last = new AtomicReference<Component>();
-        embedding.setFocusTraversalEnabled(true);
         embedding.init(() -> {
             var mainPanel = new JPanel();
             mainPanel.setFocusable(true);
+            mainPanel.setName("first");
             var searchField = new JTextField();
             var flamegraph = new JPanel();
             flamegraph.setFocusable(true);
+            flamegraph.setName("last");
             var root = new JPanel();
             root.add(mainPanel);
             root.add(searchField);
@@ -270,28 +276,77 @@ class EmbeddingCompositeUiTest {
             last.set(flamegraph);
             return root;
         });
-        openShell();
-
         var frame = SWT_AWT.getFrame(embedding);
-        assertSoftly(softly -> {
-            softly.assertThat(SWT_AWTBridge.computeInEDT(
-                    () -> frame.getFocusTraversalPolicy().getFirstComponent(frame)
-            )).isSameAs(first.get());
-            softly.assertThat(SWT_AWTBridge.computeInEDT(
-                    () -> frame.getFocusTraversalPolicy().getLastComponent(frame)
-            )).isSameAs(last.get());
+        var gained = new AtomicInteger();
+        var lost = new AtomicInteger();
+        var windowFocus = new WindowAdapter() {
+            @Override
+            public void windowGainedFocus(WindowEvent event) {
+                transitions.add("AWT window gained focus");
+                gained.incrementAndGet();
+            }
+
+            @Override
+            public void windowLostFocus(WindowEvent event) {
+                transitions.add("AWT window lost focus");
+                lost.incrementAndGet();
+            }
+        };
+        PropertyChangeListener ownerChanges = event -> {
+            var owner = (Component) event.getNewValue();
+            transitions.add("AWT owner: " + (owner == null ? "none" : owner.getName()));
+        };
+        beforeSwing.addListener(SWT.FocusIn, event -> transitions.add("SWT before gained focus"));
+        afterSwing.addListener(SWT.FocusIn, event -> transitions.add("SWT after gained focus"));
+        SWT_AWTBridge.invokeInEDTAndWait(() -> {
+            frame.addWindowFocusListener(windowFocus);
+            focusManager.addPropertyChangeListener("focusOwner", ownerChanges);
         });
+        try {
+            openShell();
+            assertSoftly(softly -> {
+                softly.assertThat(SWT_AWTBridge.computeInEDT(
+                        () -> frame.getFocusTraversalPolicy().getFirstComponent(frame)
+                )).isSameAs(first.get());
+                softly.assertThat(SWT_AWTBridge.computeInEDT(
+                        () -> frame.getFocusTraversalPolicy().getLastComponent(frame)
+                )).isSameAs(last.get());
+            });
+            assertThat(embedding.setFocus()).isTrue();
+            focus(last.get());
+            int lossesBeforeExit = lost.get();
+            SWT_AWTBridge.invokeInEDTAndWait(() -> {
+                assertThat(last.get().isFocusOwner()).as("forward traversal starts at the last Swing component").isTrue();
+                assertThat(dispatchThroughFocusManager(last.get(), KeyEvent.VK_TAB, 0)).containsExactly(true, true);
+            });
+            waitUntil(afterSwing::isFocusControl);
 
-        assertThat(embedding.setFocus()).isTrue();
-        focus(last.get());
-        assertThat(dispatchThroughFocusManager(last.get(), KeyEvent.VK_TAB, 0)).containsExactly(true, true);
-        waitUntil(afterSwing::isFocusControl);
-
-        assertThat(embedding.setFocus()).isTrue();
-        focus(first.get());
-        assertThat(dispatchThroughFocusManager(first.get(), KeyEvent.VK_TAB, KeyEvent.SHIFT_DOWN_MASK))
-                .containsExactly(true, true);
-        waitUntil(beforeSwing::isFocusControl);
+            // SWT focus can arrive before AWT processes its native focus-loss notification.
+            waitUntil(() -> lost.get() > lossesBeforeExit && SWT_AWTBridge.computeInEDT(() -> !frame.isFocused()));
+            int gainsBeforeReturn = gained.get();
+            assertThat(embedding.setFocus()).isTrue();
+            waitUntil(() -> gained.get() > gainsBeforeReturn && SWT_AWTBridge.computeInEDT(() -> {
+                var owner = focusManager.getFocusOwner();
+                return owner != null && frame.isAncestorOf(owner);
+            }));
+            focus(first.get());
+            SWT_AWTBridge.invokeInEDTAndWait(() -> {
+                assertThat(first.get().isFocusOwner()).as("backward traversal starts at the first Swing component").isTrue();
+                assertThat(dispatchThroughFocusManager(first.get(), KeyEvent.VK_TAB, KeyEvent.SHIFT_DOWN_MASK))
+                        .containsExactly(true, true);
+            });
+            waitUntil(beforeSwing::isFocusControl);
+            assertThat(transitions).containsSubsequence("AWT owner: last", "SWT after gained focus",
+                                                       "AWT owner: first", "SWT before gained focus");
+        } catch (RuntimeException | AssertionError failure) {
+            failure.addSuppressed(new AssertionError("Focus transitions: " + transitions));
+            throw failure;
+        } finally {
+            SWT_AWTBridge.invokeInEDTAndWait(() -> {
+                frame.removeWindowFocusListener(windowFocus);
+                focusManager.removePropertyChangeListener("focusOwner", ownerChanges);
+            });
+        }
     }
 
     @Test
