@@ -26,7 +26,7 @@ assertj = "3.27.7"
 mockito = "5.24.0"
 
 # Used for SVG export
-batik = "1.19"
+batik = "1.20"
 
 eclipse-swt = "3.135.0"
 eclipse-jface = "3.40.0"
