@@ -37,7 +37,7 @@ kotlin = "2.4.21"
 kotlin-coroutines = "1.11.0"
 
 # Gradle plugins
-bnd = "7.4.0"
+bnd = "7.5.0"
 test-logger = "4.0.0"
 # Hold onto 0.8.0 for now due to imcompatibility with 2.2.0 kotlin metadata,
 # see https://github.com/JavierSegoviaCordoba/semver-gradle-plugin/issues/205
